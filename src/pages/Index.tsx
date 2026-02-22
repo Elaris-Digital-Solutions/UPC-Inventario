@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Monitor, Headphones, Camera, Cpu, ArrowRight, ShieldCheck, Clock, Users } from "lucide-react";
+import { ArrowRight, ShieldCheck, Clock, Users, Package } from "lucide-react";
+import { useProducts } from "@/context/ProductContext";
 
 const features = [
   {
@@ -22,14 +24,19 @@ const features = [
   },
 ];
 
-const categories = [
-  { icon: Monitor, label: "Monitores", count: 12 },
-  { icon: Headphones, label: "Auriculares VR", count: 8 },
-  { icon: Camera, label: "Cámaras", count: 15 },
-  { icon: Cpu, label: "Electrónicos", count: 24 },
-];
-
 const Index = () => {
+  const { products } = useProducts();
+
+  const categories = useMemo(() => {
+    const categoryCount = new Map<string, number>();
+    products.forEach((product) => {
+      const category = (product.category || "").trim();
+      if (!category) return;
+      categoryCount.set(category, (categoryCount.get(category) || 0) + 1);
+    });
+    return Array.from(categoryCount.entries()).map(([label, count]) => ({ label, count }));
+  }, [products]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -94,21 +101,27 @@ const Index = () => {
           <h2 className="text-center text-3xl font-bold text-foreground">
             Categorías disponibles
           </h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {categories.map((cat, i) => (
-              <Link
-                key={i}
-                to="/catalogo"
-                className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  <cat.icon size={26} />
-                </div>
-                <span className="text-sm font-semibold text-card-foreground">{cat.label}</span>
-                <span className="text-xs text-muted-foreground">{cat.count} ítems</span>
-              </Link>
-            ))}
-          </div>
+          {categories.length === 0 ? (
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              Aún no hay categorías disponibles.
+            </p>
+          ) : (
+            <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.label}
+                  to="/catalogo"
+                  className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Package size={26} />
+                  </div>
+                  <span className="text-sm font-semibold text-card-foreground">{cat.label}</span>
+                  <span className="text-xs text-muted-foreground">{cat.count} productos</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

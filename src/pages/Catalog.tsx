@@ -1,25 +1,32 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { mockItems } from "@/data/mockItems";
 import { Search, Package } from "lucide-react";
-
-const allCategories = ["Todos", ...Array.from(new Set(mockItems.map((i) => i.category)))];
+import { useProducts } from "@/context/ProductContext";
 
 const Catalog = () => {
+  const { products, loading } = useProducts();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
 
-  const filtered = mockItems.filter((item) => {
-    const matchSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.description.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = activeCategory === "Todos" || item.category === activeCategory;
-    return matchSearch && matchCategory;
-  });
+  const allCategories = useMemo(
+    () => ["Todos", ...Array.from(new Set(products.map((product) => (product.category || "").trim()).filter(Boolean)))],
+    [products]
+  );
+
+  const filtered = useMemo(() => {
+    return products.filter((product) => {
+      const matchSearch =
+        product.name.toLowerCase().includes(search.toLowerCase()) ||
+        (product.description || "").toLowerCase().includes(search.toLowerCase());
+      const normalizedCategory = (product.category || "").trim();
+      const matchCategory = activeCategory === "Todos" || normalizedCategory === activeCategory;
+      return matchSearch && matchCategory;
+    });
+  }, [products, search, activeCategory]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -59,16 +66,20 @@ const Catalog = () => {
         </div>
 
         {/* Grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Package size={48} className="mb-4 opacity-40" />
-            <p>No se encontraron equipos</p>
+            <p>Cargando productos...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Package size={48} className="mb-4 opacity-40" />
+            <p>No se encontraron productos</p>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((item) => {
-              const available = item.units.filter((u) => u.available).length;
-              const total = item.units.length;
+              const available = Number(item.stock || 0);
               return (
                 <Link
                   key={item.id}
@@ -77,7 +88,7 @@ const Catalog = () => {
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-muted">
                     <img
-                      src={item.imageUrl}
+                      src={item.mainImage}
                       alt={item.name}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
@@ -93,7 +104,7 @@ const Catalog = () => {
                     </p>
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">
-                        {available}/{total} disponibles
+                        Stock: {available}
                       </span>
                       <span
                         className={`inline-block h-2.5 w-2.5 rounded-full ${

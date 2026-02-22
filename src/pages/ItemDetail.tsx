@@ -3,13 +3,26 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { mockItems } from "@/data/mockItems";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useProducts } from "@/context/ProductContext";
 
 const ItemDetail = () => {
   const { id } = useParams();
-  const item = mockItems.find((i) => i.id === id);
+  const { products, loading } = useProducts();
+  const item = products.find((product) => product.id === id);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <p className="text-muted-foreground">Cargando producto...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!item) {
     return (
@@ -28,7 +41,7 @@ const ItemDetail = () => {
     );
   }
 
-  const available = item.units.filter((u) => u.available).length;
+  const available = Number(item.stock || 0);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -42,7 +55,7 @@ const ItemDetail = () => {
           {/* Image */}
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
             <img
-              src={item.imageUrl}
+              src={item.mainImage}
               alt={item.name}
               className="h-full w-full object-cover"
             />
@@ -56,22 +69,34 @@ const ItemDetail = () => {
 
             <div className="mt-6 rounded-xl border border-border bg-card p-5">
               <h2 className="mb-3 text-sm font-semibold text-card-foreground">
-                Unidades ({available}/{item.units.length} disponibles)
+                Disponibilidad
               </h2>
               <div className="space-y-2">
-                {item.units.map((unit) => (
+                <div className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5">
+                  <span className="text-sm font-medium text-foreground">Stock total</span>
+                  {available > 0 ? (
+                    <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
+                      <CheckCircle2 size={16} /> {available} disponible(s)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-sm text-destructive">
+                      <XCircle size={16} /> Sin stock
+                    </span>
+                  )}
+                </div>
+                {(item.variants || []).map((variant) => (
                   <div
-                    key={unit.code}
+                    key={variant.size}
                     className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"
                   >
-                    <span className="font-mono text-sm font-medium text-foreground">{unit.code}</span>
-                    {unit.available ? (
+                    <span className="font-mono text-sm font-medium text-foreground">{variant.size}</span>
+                    {variant.stock > 0 ? (
                       <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
-                        <CheckCircle2 size={16} /> Disponible
+                        <CheckCircle2 size={16} /> {variant.stock} disponible(s)
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5 text-sm text-destructive">
-                        <XCircle size={16} /> Reservado
+                        <XCircle size={16} /> Agotado
                       </span>
                     )}
                   </div>

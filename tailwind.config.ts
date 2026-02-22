@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Playfair Display', 'serif'],
+        sans: ['Inter', 'Arial', 'Helvetica', 'sans-serif'],
+        display: ['Bebas Neue', 'Inter', 'Arial', 'Helvetica', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
