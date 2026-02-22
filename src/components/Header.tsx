@@ -3,14 +3,19 @@ import upcLogo from "@/assets/upc-logo.png";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
-const Header = () => {
+type HeaderProps = {
+  className?: string;
+};
+
+const Header = ({ className }: HeaderProps) => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAuth = location.pathname === "/login" || location.pathname === "/register";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+    <header className={cn("sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md", className)}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-3">
           <img src={upcLogo} alt="UPC Logo" className="h-10 w-auto" />

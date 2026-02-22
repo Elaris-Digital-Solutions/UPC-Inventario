@@ -35,7 +35,7 @@ const Index = () => {
       <Header />
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-hero px-4 py-24 sm:py-32">
+      <section className="relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-gradient-hero px-4 py-24 sm:py-32">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(354_72%_50%/0.3),transparent_70%)]" />
         <div className="relative mx-auto max-w-7xl text-center">
           <span className="mb-4 inline-block rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-1.5 text-xs font-medium tracking-wide text-primary-foreground">
@@ -54,7 +54,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/login">
-              <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 text-base">
+              <Button size="lg" variant="outline" className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground text-base">
                 Iniciar sesión
               </Button>
             </Link>
