@@ -9,24 +9,32 @@ import Register from "./pages/Register";
 import Catalog from "./pages/Catalog";
 import ItemDetail from "./pages/ItemDetail";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
+import { AuthProvider } from "./context/AuthContext";
+import { ProductProvider } from "./context/ProductContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/catalogo" element={<Catalog />} />
-          <Route path="/catalogo/:id" element={<ItemDetail />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <ProductProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/catalogo" element={<Catalog />} />
+              <Route path="/catalogo/:id" element={<ItemDetail />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ProductProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
