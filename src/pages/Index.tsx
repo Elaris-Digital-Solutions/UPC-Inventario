@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowRight, ShieldCheck, Clock, Users, Package } from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
+import { useAuth } from "@/context/AuthContext";
 
 const features = [
   {
@@ -26,6 +27,7 @@ const features = [
 
 const Index = () => {
   const { products } = useProducts();
+  const { isAuthenticated } = useAuth();
 
   const categories = useMemo(() => {
     const categoryCount = new Map<string, number>();
@@ -55,7 +57,7 @@ const Index = () => {
             Accede al inventario de equipos tecnológicos, herramientas y materiales de la universidad. Reserva fácil, rápido y seguro.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link to="/catalogo">
+            <Link to={isAuthenticated ? "/catalogo" : "/login"}>
               <Button size="lg" variant="secondary" className="gap-2 text-base font-semibold shadow-lg">
                 Ver catálogo <ArrowRight size={18} />
               </Button>
@@ -110,7 +112,7 @@ const Index = () => {
               {categories.map((cat) => (
                 <Link
                   key={cat.label}
-                  to="/catalogo"
+                  to={isAuthenticated ? "/catalogo" : "/login"}
                   className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
                 >
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">

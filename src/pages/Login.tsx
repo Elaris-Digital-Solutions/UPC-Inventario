@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,19 +7,41 @@ import Footer from "@/components/Footer";
 import upcLogo from "@/assets/upc-logo.png";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login, isAuthenticated, authLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/catalogo";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.endsWith("@upc.edu.pe")) {
       toast.error("Solo se permiten correos @upc.edu.pe");
       return;
     }
-    toast.success("Inicio de sesión exitoso (mock)");
+
+    setLoading(true);
+    const { error } = await login(email, password);
+    setLoading(false);
+
+    if (error) {
+      toast.error("Credenciales inválidas");
+      return;
+    }
+
+    toast.success("Inicio de sesión exitoso");
+    navigate(fromPath, { replace: true });
   };
+
+  if (!authLoading && isAuthenticated) {
+    return <Navigate to={fromPath} replace />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -56,8 +78,8 @@ const Login = () => {
                   required
                 />
               </div>
-              <Button type="submit" size="lg" className="w-full text-base font-semibold">
-                Ingresar
+              <Button type="submit" size="lg" className="w-full text-base font-semibold" disabled={loading}>
+                {loading ? "Ingresando..." : "Ingresar"}
               </Button>
             </form>
 
