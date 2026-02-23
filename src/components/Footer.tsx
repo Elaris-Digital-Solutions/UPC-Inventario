@@ -11,7 +11,15 @@ const Footer = () => (
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Reserva UPC — Sistema de Préstamos de Equipos
+          © {new Date().getFullYear()} Reserva UPC — Sistema de Préstamos de Equipos. Desarrollado por{' '}
+          <a
+            href="https://elarisdigitalsolutions.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground/90 underline-offset-2 hover:underline"
+          >
+            Elaris Digital Solutions
+          </a>
         </p>
       </div>
     </div>

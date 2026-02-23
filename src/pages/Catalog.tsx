@@ -38,31 +38,29 @@ const Catalog = () => {
         </div>
 
         {/* Filters */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
+        <div className="mb-8 flex flex-wrap items-center gap-2">
+          <div className="relative h-10 w-[220px] shrink-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar equipo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="h-10 pl-10"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {allCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  activeCategory === cat
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          {allCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                activeCategory === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
         {/* Grid */}

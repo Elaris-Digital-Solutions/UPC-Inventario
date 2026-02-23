@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -6,11 +7,92 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts } from "@/context/ProductContext";
+import { supabase } from "@/supabaseClient";
+import { InventoryUnit } from "@/types/Inventory";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const ItemDetail = () => {
   const { id } = useParams();
   const { products, loading } = useProducts();
   const item = products.find((product) => product.id === id);
+  const [units, setUnits] = useState<InventoryUnit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requesterName, setRequesterName] = useState("");
+  const [requesterCode, setRequesterCode] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(120);
+
+  useEffect(() => {
+    if (!id) return;
+    const loadUnits = async () => {
+      setLoadingUnits(true);
+      const { data, error } = await supabase
+        .from("inventory_units")
+        .select("*")
+        .eq("product_id", id)
+        .order("unit_code", { ascending: true });
+
+      if (error) {
+        console.error(error);
+        setUnits([]);
+      } else {
+        setUnits((data || []) as InventoryUnit[]);
+      }
+      setLoadingUnits(false);
+    };
+    loadUnits();
+  }, [id]);
+
+  const activeUnits = useMemo(
+    () => units.filter((unit) => unit.status === "active"),
+    [units]
+  );
+
+  const available = activeUnits.length;
+
+  const handleReserve = async () => {
+    if (!item) return;
+    if (!requesterName.trim()) {
+      toast.error("Ingresa tu nombre");
+      return;
+    }
+    if (!startAt) {
+      toast.error("Selecciona fecha y hora de inicio");
+      return;
+    }
+
+    const start = new Date(startAt);
+    if (Number.isNaN(start.getTime())) {
+      toast.error("Fecha/hora inválida");
+      return;
+    }
+
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    setIsSubmitting(true);
+
+    const { data, error } = await supabase.rpc("create_inventory_reservation", {
+      p_product_id: item.id,
+      p_requester_name: requesterName.trim(),
+      p_requester_code: requesterCode.trim() || null,
+      p_start_at: start.toISOString(),
+      p_end_at: end.toISOString(),
+      p_purpose: purpose.trim() || null,
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      toast.error(error.message || "No se pudo crear la reserva");
+      return;
+    }
+
+    const reservationId = data?.id ? ` (#${data.id.slice(0, 8)})` : "";
+    toast.success(`Reserva registrada${reservationId}`);
+    setPurpose("");
+  };
 
   if (loading) {
     return (
@@ -40,8 +122,6 @@ const ItemDetail = () => {
       </div>
     );
   }
-
-  const available = Number(item.stock || 0);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -73,7 +153,7 @@ const ItemDetail = () => {
               </h2>
               <div className="space-y-2">
                 <div className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5">
-                  <span className="text-sm font-medium text-foreground">Stock total</span>
+                  <span className="text-sm font-medium text-foreground">Unidades activas</span>
                   {available > 0 ? (
                     <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
                       <CheckCircle2 size={16} /> {available} disponible(s)
@@ -84,33 +164,102 @@ const ItemDetail = () => {
                     </span>
                   )}
                 </div>
-                {(item.variants || []).map((variant) => (
+
+                {loadingUnits ? (
                   <div
-                    key={variant.size}
                     className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"
                   >
-                    <span className="font-mono text-sm font-medium text-foreground">{variant.size}</span>
-                    {variant.stock > 0 ? (
-                      <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
-                        <CheckCircle2 size={16} /> {variant.stock} disponible(s)
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-sm text-destructive">
-                        <XCircle size={16} /> Agotado
-                      </span>
-                    )}
+                    <span className="text-sm text-muted-foreground">Cargando unidades...</span>
                   </div>
-                ))}
+                ) : (
+                  units.slice(0, 8).map((unit) => (
+                    <div
+                      key={unit.id}
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"
+                    >
+                      <span className="font-mono text-sm font-medium text-foreground">{unit.unit_code}</span>
+                      {unit.status === "active" ? (
+                        <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
+                          <CheckCircle2 size={16} /> Activo
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-sm text-destructive">
+                          <XCircle size={16} /> {unit.status}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-border bg-card p-5 space-y-4">
+              <h2 className="text-sm font-semibold text-card-foreground">Reservar equipo (máximo 2 horas)</h2>
+
+              <div className="space-y-2">
+                <Label htmlFor="requesterName">Nombre completo</Label>
+                <Input
+                  id="requesterName"
+                  value={requesterName}
+                  onChange={(e) => setRequesterName(e.target.value)}
+                  placeholder="Ej. Juan Pérez"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="requesterCode">Código UPC / DNI (opcional)</Label>
+                <Input
+                  id="requesterCode"
+                  value={requesterCode}
+                  onChange={(e) => setRequesterCode(e.target.value)}
+                  placeholder="Ej. U202312345"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="purpose">Motivo de uso (opcional)</Label>
+                <Input
+                  id="purpose"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  placeholder="Ej. Proyecto de realidad virtual"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="startAt">Inicio</Label>
+                  <Input
+                    id="startAt"
+                    type="datetime-local"
+                    value={startAt}
+                    onChange={(e) => setStartAt(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duración</Label>
+                  <select
+                    id="duration"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value={30}>30 min</option>
+                    <option value={60}>1 hora</option>
+                    <option value={90}>1 h 30 min</option>
+                    <option value={120}>2 horas</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             <Button
               size="lg"
               className="mt-6 w-full text-base font-semibold"
-              disabled={available === 0}
-              onClick={() => toast.info("Función de reserva disponible próximamente")}
+              disabled={available === 0 || isSubmitting}
+              onClick={handleReserve}
             >
-              {available > 0 ? "Reservar unidad disponible" : "Sin unidades disponibles"}
+              {available > 0 ? (isSubmitting ? "Reservando..." : "Reservar unidad disponible") : "Sin unidades disponibles"}
             </Button>
           </div>
         </div>
