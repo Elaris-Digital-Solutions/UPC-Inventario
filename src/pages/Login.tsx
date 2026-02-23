@@ -11,8 +11,9 @@ import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { loginWithMicrosoft, isUniversityEmail, isAuthenticated, authLoading } = useAuth();
+  const { login, isUniversityEmail, isAuthenticated, authLoading } = useAuth();
   const location = useLocation();
 
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/catalogo";
@@ -25,20 +26,15 @@ const Login = () => {
     }
 
     setLoading(true);
-    const { error } = await loginWithMicrosoft(email, fromPath);
+    const { error } = await login(email, password);
     setLoading(false);
 
     if (error) {
-      const rawMessage = (error as any)?.message || '';
-      if (rawMessage.toLowerCase().includes('unsupported provider') || rawMessage.toLowerCase().includes('provider is not enabled')) {
-        toast.error('Microsoft Login no está habilitado en Supabase. Activa el proveedor Azure en Authentication > Providers.');
-      } else {
-        toast.error("No se pudo iniciar sesión con Microsoft");
-      }
+      toast.error("No se pudo iniciar sesión");
       return;
     }
 
-    toast.success("Redirigiendo a Microsoft...");
+    window.location.assign(fromPath);
   };
 
   if (!authLoading && isAuthenticated) {
@@ -54,7 +50,7 @@ const Login = () => {
             <div className="mb-8 flex flex-col items-center gap-3">
               <img src={upcLogo} alt="UPC" className="h-14 w-auto" />
               <h1 className="text-2xl font-bold text-card-foreground">Iniciar Sesión</h1>
-              <p className="text-sm text-muted-foreground text-center">Ingresa con tu cuenta Outlook institucional UPC y confirma con Authenticator.</p>
+              <p className="text-sm text-muted-foreground text-center">Ingresa con tu cuenta institucional UPC.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -70,12 +66,24 @@ const Login = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
               <Button type="submit" size="lg" className="w-full text-base font-semibold" disabled={loading}>
-                {loading ? "Redirigiendo..." : "Continuar con Outlook UPC"}
+                {loading ? "Ingresando..." : "Ingresar"}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                Solo cuentas @upc.edu.pe. La verificación MFA se realiza en Microsoft Authenticator.
+                Solo se permiten cuentas institucionales @upc.edu.pe.
               </p>
             </form>
 
