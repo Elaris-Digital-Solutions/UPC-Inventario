@@ -14,7 +14,7 @@ const Header = ({ className }: HeaderProps) => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAuthenticated, logout } = useAuth();
-  const isAuth = location.pathname === "/login" || location.pathname === "/register";
+  const isAuth = location.pathname === "/login";
 
   const handleLogout = async () => {
     await logout();
@@ -42,14 +42,9 @@ const Header = ({ className }: HeaderProps) => {
               {isAuthenticated ? (
                 <Button variant="outline" size="sm" onClick={handleLogout}>Cerrar Sesión</Button>
               ) : (
-                <>
-                  <Link to="/login">
-                    <Button variant="outline" size="sm">Iniciar Sesión</Button>
-                  </Link>
-                  <Link to="/register">
-                    <Button size="sm">Registrarse</Button>
-                  </Link>
-                </>
+                <Link to="/login">
+                  <Button variant="outline" size="sm">Iniciar Sesión</Button>
+                </Link>
               )}
             </>
           )}
@@ -79,14 +74,9 @@ const Header = ({ className }: HeaderProps) => {
             {isAuthenticated ? (
               <Button variant="outline" className="w-full" onClick={handleLogout}>Cerrar Sesión</Button>
             ) : (
-              <>
-                <Link to="/login" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full">Iniciar Sesión</Button>
-                </Link>
-                <Link to="/register" onClick={() => setMobileOpen(false)}>
-                  <Button className="w-full">Registrarse</Button>
-                </Link>
-              </>
+              <Link to="/login" onClick={() => setMobileOpen(false)}>
+                <Button variant="outline" className="w-full">Iniciar Sesión</Button>
+              </Link>
             )}
           </nav>
         </div>
