@@ -3,31 +3,57 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowRight, ShieldCheck, Clock, Users, Package } from "lucide-react";
+import { ArrowRight, Glasses, Tablet, Camera, Headphones, Smartphone, Video, Monitor, Mouse } from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
 import { useAuth } from "@/context/AuthContext";
 
 const features = [
   {
-    icon: ShieldCheck,
-    title: "Solo para UPC",
-    description: "Acceso exclusivo con tu correo @upc.edu.pe institucional.",
+    step: "Paso 01",
+    title: "Reserva en línea",
+    description: "Realiza tu solicitud desde tu cuenta institucional de forma rápida y segura.",
+    cta: "Iniciar reserva",
+    ctaHref: "/catalogo",
+    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80",
   },
   {
-    icon: Clock,
-    title: "Reserva rápida",
-    description: "Selecciona el equipo, elige fecha y hora. Listo.",
+    step: "Paso 02",
+    title: "Recoge el equipo",
+    description: "Acércate en el horario seleccionado y utiliza el equipo con responsabilidad.",
+    cta: "Ver catálogo",
+    ctaHref: "/catalogo",
+    image: "https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80",
   },
   {
-    icon: Users,
-    title: "Control de inventario",
-    description: "Conoce la disponibilidad real de cada equipo en tiempo real.",
+    step: "Paso 03",
+    title: "Devuélvelo a tiempo",
+    description: "Entrega el dispositivo dentro del plazo establecido para evitar penalidades.",
+    cta: "Ver disponibilidad",
+    ctaHref: "/catalogo",
+    image: "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800&q=80",
   },
 ];
 
 const Index = () => {
   const { products } = useProducts();
   const { isAuthenticated } = useAuth();
+
+  const CATEGORY_ORDER = ["VR", "Tablets", "Cámaras", "Audio", "Celulares", "Proyectores", "Monitores/TV", "Periféricos"];
+
+  const CATEGORY_ICONS: Record<string, React.ElementType> = {
+    "VR": Glasses,
+    "Tablets": Tablet,
+    "Cámaras": Camera,
+    "Audio": Headphones,
+    "Celulares": Smartphone,
+    "Proyectores": Video,
+    "Monitores/TV": Monitor,
+    "Periféricos": Mouse,
+  };
+
+  const CATEGORY_DISPLAY: Record<string, string> = {
+    "Monitores/TV": "Monitores",
+  };
 
   const categories = useMemo(() => {
     const categoryCount = new Map<string, number>();
@@ -36,7 +62,9 @@ const Index = () => {
       if (!category) return;
       categoryCount.set(category, (categoryCount.get(category) || 0) + 1);
     });
-    return Array.from(categoryCount.entries()).map(([label, count]) => ({ label, count }));
+    return CATEGORY_ORDER
+      .filter((label) => categoryCount.has(label))
+      .map((label) => ({ label, count: categoryCount.get(label)! }));
   }, [products]);
 
   return (
@@ -72,58 +100,127 @@ const Index = () => {
       </section>
 
       {/* Features */}
-      <section className="px-4 py-20">
+      <section className="border-t border-gray-200 bg-white px-4 py-28">
         <div className="mx-auto max-w-7xl">
-          <h2 className="text-center text-3xl font-bold text-foreground sm:text-4xl">
-            ¿Cómo funciona?
-          </h2>
-          <p className="mx-auto mt-3 max-w-lg text-center text-muted-foreground">
-            Tres pasos simples para reservar lo que necesitas.
-          </p>
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
-            {features.map((f, i) => (
-              <div
-                key={i}
-                className="group rounded-2xl border border-border bg-card p-8 transition-shadow hover:shadow-[var(--shadow-card-hover)]"
+
+          {/* Section header */}
+          <div className="mb-16">
+            <p className="border-l-2 border-primary pl-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-gray-500">
+              Sistema de Reservas
+            </p>
+            <h2 className="mt-4 font-display text-4xl font-bold leading-tight text-gray-900 sm:text-5xl">
+              ¿Cómo Funciona?
+            </h2>
+          </div>
+
+          {/* Feature cards */}
+          <div className="grid gap-6 sm:grid-cols-3">
+            {features.map((f) => (
+              <Link
+                key={f.title}
+                to={isAuthenticated ? f.ctaHref : "/login"}
+                className="group flex flex-col border border-transparent outline-none transition-colors duration-300 hover:border-primary focus-visible:border-primary"
               >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <f.icon size={24} />
+                {/* Image */}
+                <div className="overflow-hidden">
+                  <img
+                    src={f.image}
+                    alt={f.title}
+                    className="aspect-[4/3] w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]"
+                    loading="lazy"
+                  />
                 </div>
-                <h3 className="text-lg font-semibold text-card-foreground">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{f.description}</p>
-              </div>
+
+                {/* Info block — grows to fill remaining height */}
+                <div className="flex flex-1 flex-col bg-[#f2f2f2] px-7 py-8">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-gray-400">
+                    {f.step}
+                  </p>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.30em] text-gray-700 transition-colors duration-300 group-hover:text-gray-900">
+                    {f.title}
+                  </p>
+                  <div className="mt-3 h-px w-8 bg-primary transition-[width] duration-500 ease-out group-hover:w-12" />
+                  <p className="mt-4 flex-1 text-sm leading-[1.85] text-gray-500">
+                    {f.description}
+                  </p>
+                  <div className="mt-6 flex items-center gap-2 text-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+                      {f.cta}
+                    </span>
+                    <ArrowRight
+                      size={13}
+                      strokeWidth={2.5}
+                      className="transition-transform duration-300 ease-out group-hover:translate-x-1"
+                    />
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
+
         </div>
       </section>
 
-      {/* Categories Preview */}
-      <section className="border-t border-border bg-secondary/50 px-4 py-20">
+      {/* Categories */}
+      <section className="border-t border-gray-200 bg-[#f7f7f7] px-4 py-28">
         <div className="mx-auto max-w-7xl">
-          <h2 className="text-center text-3xl font-bold text-foreground">
-            Categorías disponibles
-          </h2>
-          {categories.length === 0 ? (
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              Aún no hay categorías disponibles.
+
+          {/* Section header */}
+          <div className="mb-20 max-w-2xl">
+            <p className="border-l-2 border-primary pl-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-gray-500">
+              Inventario UPC
             </p>
+            <h2 className="mt-4 font-display text-4xl font-bold leading-tight text-gray-900 sm:text-5xl">
+              Categorías Disponibles
+            </h2>
+            <div className="mt-8 h-px w-full bg-gray-200" />
+          </div>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-gray-400">Aún no hay categorías disponibles.</p>
           ) : (
-            <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {categories.map((cat) => (
-                <Link
-                  key={cat.label}
-                  to={isAuthenticated ? "/catalogo" : "/login"}
-                  className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Package size={26} />
-                  </div>
-                  <span className="text-sm font-semibold text-card-foreground">{cat.label}</span>
-                  <span className="text-xs text-muted-foreground">{cat.count} productos</span>
-                </Link>
-              ))}
+            <div className="grid grid-cols-2 gap-x-12 gap-y-0 sm:grid-cols-3 lg:grid-cols-4">
+              {categories.map((cat) => {
+                const Icon = CATEGORY_ICONS[cat.label] ?? Monitor;
+                const displayLabel = CATEGORY_DISPLAY[cat.label] ?? cat.label;
+                return (
+                  <Link
+                    key={cat.label}
+                    to={isAuthenticated ? "/catalogo" : "/login"}
+                    className="group border-t border-gray-300 pb-12 pt-7 transition-colors duration-200 hover:bg-white"
+                  >
+                    {/* Category name + icon inline */}
+                    <div className="flex items-center gap-3">
+                      <p className="font-display text-2xl font-bold leading-tight text-gray-900 transition-colors duration-300 group-hover:text-gray-700">
+                        {displayLabel}
+                      </p>
+                      <Icon
+                        size={18}
+                        strokeWidth={1.5}
+                        className="text-gray-400 transition-colors duration-200 group-hover:text-gray-600"
+                      />
+                    </div>
+
+                    {/* Count — secondary, improved contrast */}
+                    <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-gray-600">
+                      {cat.count} {cat.count === 1 ? "equipo" : "equipos"}
+                    </p>
+
+                    {/* Red accent + arrow hint */}
+                    <div className="mt-5 flex items-center gap-3">
+                      <div className="h-px w-8 bg-primary transition-[width] duration-500 ease-out group-hover:w-14" />
+                      <ArrowRight
+                        size={11}
+                        strokeWidth={2}
+                        className="text-primary opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100"
+                      />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
+
         </div>
       </section>
 
