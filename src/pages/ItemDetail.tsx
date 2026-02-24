@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,18 @@ import { supabase } from "@/supabaseClient";
 import { InventoryUnit } from "@/types/Inventory";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type Campus = "Monterrico" | "San Miguel";
+
+const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
+
+const getCampusFromParam = (value: string | null): Campus =>
+  value === "San Miguel" ? "San Miguel" : "Monterrico";
 
 const ItemDetail = () => {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading } = useProducts();
   const item = products.find((product) => product.id === id);
   const [units, setUnits] = useState<InventoryUnit[]>([]);
@@ -24,6 +33,18 @@ const ItemDetail = () => {
   const [purpose, setPurpose] = useState("");
   const [startAt, setStartAt] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(120);
+  const [selectedCampus, setSelectedCampus] = useState<Campus>(() => getCampusFromParam(searchParams.get("campus")));
+
+  useEffect(() => {
+    setSelectedCampus(getCampusFromParam(searchParams.get("campus")));
+  }, [searchParams]);
+
+  const handleCampusChange = (campus: Campus) => {
+    setSelectedCampus(campus);
+    const next = new URLSearchParams(searchParams);
+    next.set("campus", campus);
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -47,8 +68,16 @@ const ItemDetail = () => {
   }, [id]);
 
   const activeUnits = useMemo(
-    () => units.filter((unit) => unit.status === "active"),
-    [units]
+    () =>
+      units.filter(
+        (unit) => (unit.campus || "Monterrico") === selectedCampus && unit.status === "active"
+      ),
+    [units, selectedCampus]
+  );
+
+  const visibleUnits = useMemo(
+    () => units.filter((unit) => (unit.campus || "Monterrico") === selectedCampus),
+    [units, selectedCampus]
   );
 
   const available = activeUnits.length;
@@ -75,6 +104,7 @@ const ItemDetail = () => {
 
     const { data, error } = await supabase.rpc("create_inventory_reservation", {
       p_product_id: item.id,
+      p_campus: selectedCampus,
       p_requester_name: requesterName.trim(),
       p_requester_code: requesterCode.trim() || null,
       p_start_at: start.toISOString(),
@@ -151,9 +181,22 @@ const ItemDetail = () => {
               <h2 className="mb-3 text-sm font-semibold text-card-foreground">
                 Disponibilidad
               </h2>
+              <div className="mb-3">
+                <Label>Sede</Label>
+                <Select value={selectedCampus} onValueChange={(value) => handleCampusChange(value as Campus)}>
+                  <SelectTrigger className="mt-1 h-10 w-full">
+                    <SelectValue placeholder="Selecciona sede" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMPUS_OPTIONS.map((campus) => (
+                      <SelectItem key={campus} value={campus}>{campus}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5">
-                  <span className="text-sm font-medium text-foreground">Unidades activas</span>
+                  <span className="text-sm font-medium text-foreground">Unidades activas ({selectedCampus})</span>
                   {available > 0 ? (
                     <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
                       <CheckCircle2 size={16} /> {available} disponible(s)
@@ -172,7 +215,7 @@ const ItemDetail = () => {
                     <span className="text-sm text-muted-foreground">Cargando unidades...</span>
                   </div>
                 ) : (
-                  units.slice(0, 8).map((unit) => (
+                  visibleUnits.slice(0, 8).map((unit) => (
                     <div
                       key={unit.id}
                       className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"

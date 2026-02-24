@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -6,11 +6,54 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package } from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
+import { supabase } from "@/supabaseClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type Campus = "Monterrico" | "San Miguel";
+
+const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
+
+type CampusStockByProduct = Record<string, Record<Campus, number>>;
 
 const Catalog = () => {
   const { products, loading } = useProducts();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
+  const [selectedCampus, setSelectedCampus] = useState<Campus>("Monterrico");
+  const [campusStockByProduct, setCampusStockByProduct] = useState<CampusStockByProduct>({});
+
+  useEffect(() => {
+    const loadCampusStock = async () => {
+      const { data, error } = await supabase
+        .from("inventory_units")
+        .select("product_id, campus")
+        .eq("status", "active");
+
+      if (error) {
+        console.error(error);
+        setCampusStockByProduct({});
+        return;
+      }
+
+      const stockMap: CampusStockByProduct = {};
+      (data || []).forEach((unit: any) => {
+        const productId = String(unit.product_id || "");
+        if (!productId) return;
+
+        const campus = (unit.campus === "San Miguel" ? "San Miguel" : "Monterrico") as Campus;
+
+        if (!stockMap[productId]) {
+          stockMap[productId] = { Monterrico: 0, "San Miguel": 0 };
+        }
+
+        stockMap[productId][campus] += 1;
+      });
+
+      setCampusStockByProduct(stockMap);
+    };
+
+    loadCampusStock();
+  }, []);
 
   const allCategories = useMemo(
     () => ["Todos", ...Array.from(new Set(products.map((product) => (product.category || "").trim()).filter(Boolean)))],
@@ -24,9 +67,10 @@ const Catalog = () => {
         (product.description || "").toLowerCase().includes(search.toLowerCase());
       const normalizedCategory = (product.category || "").trim();
       const matchCategory = activeCategory === "Todos" || normalizedCategory === activeCategory;
-      return matchSearch && matchCategory;
+      const campusStock = campusStockByProduct[product.id]?.[selectedCampus] || 0;
+      return matchSearch && matchCategory && campusStock > 0;
     });
-  }, [products, search, activeCategory]);
+  }, [products, search, activeCategory, selectedCampus, campusStockByProduct]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -47,6 +91,18 @@ const Catalog = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="h-10 pl-10"
             />
+          </div>
+          <div className="w-[190px]">
+            <Select value={selectedCampus} onValueChange={(value) => setSelectedCampus(value as Campus)}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Selecciona sede" />
+              </SelectTrigger>
+              <SelectContent>
+                {CAMPUS_OPTIONS.map((campus) => (
+                  <SelectItem key={campus} value={campus}>{campus}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {allCategories.map((cat) => (
             <button
@@ -77,11 +133,11 @@ const Catalog = () => {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((item) => {
-              const available = Number(item.stock || 0);
+              const available = campusStockByProduct[item.id]?.[selectedCampus] || 0;
               return (
                 <Link
                   key={item.id}
-                  to={`/catalogo/${item.id}`}
+                  to={`/catalogo/${item.id}?campus=${encodeURIComponent(selectedCampus)}`}
                   className="group overflow-hidden rounded-2xl border border-border bg-card transition-all hover:shadow-[var(--shadow-card-hover)]"
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-muted">

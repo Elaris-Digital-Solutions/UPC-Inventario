@@ -113,6 +113,7 @@ FOR EACH ROW EXECUTE FUNCTION touch_inventory_units_updated_at();
 
 CREATE OR REPLACE FUNCTION create_inventory_reservation(
   p_product_id uuid,
+  p_campus text,
   p_requester_name text,
   p_requester_code text,
   p_start_at timestamptz,
@@ -127,6 +128,10 @@ DECLARE
   v_unit_id uuid;
   v_reservation inventory_reservations;
 BEGIN
+  IF p_campus NOT IN ('Monterrico', 'San Miguel') THEN
+    RAISE EXCEPTION 'La sede es inválida';
+  END IF;
+
   IF p_end_at <= p_start_at THEN
     RAISE EXCEPTION 'La hora de fin debe ser mayor que la hora de inicio';
   END IF;
@@ -145,6 +150,7 @@ BEGIN
       AND r.status IN ('reserved', 'completed')
   ) usage_stats ON true
   WHERE iu.product_id = p_product_id
+    AND iu.campus = p_campus
     AND iu.status = 'active'
     AND NOT EXISTS (
       SELECT 1
@@ -189,6 +195,6 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION create_inventory_reservation(uuid, text, text, timestamptz, timestamptz, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION create_inventory_reservation(uuid, text, text, text, timestamptz, timestamptz, text) TO anon, authenticated;
 
 COMMIT;

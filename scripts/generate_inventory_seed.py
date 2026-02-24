@@ -8,7 +8,10 @@ import openpyxl
 import unicodedata
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT_XLSX = ROOT / "Inventario_2026_CC_ISW_V1 1.xlsx"
+INPUT_FILES = {
+    "Monterrico": ROOT / "Monterrico.xlsx",
+    "San Miguel": ROOT / "San Miguel.xlsx",
+}
 OUTPUT_SQL = ROOT / "supabase" / "INVENTORY_EXCEL_SEED.sql"
 
 
@@ -134,21 +137,34 @@ def parse_sheet(ws) -> Tuple[List[dict], List[dict]]:
 
 
 def main() -> None:
-    wb = openpyxl.load_workbook(INPUT_XLSX, data_only=True)
-
     all_products: Dict[Tuple[str, str], dict] = {}
     all_units: List[dict] = []
 
-    for ws in wb.worksheets:
-        products, units = parse_sheet(ws)
-        for p in products:
-            key = (p["name"].lower(), p["category"].lower())
-            all_products.setdefault(key, p)
-        all_units.extend(units)
+    for campus, file_path in INPUT_FILES.items():
+        if not file_path.exists():
+            print(f"Aviso: no se encontró {file_path.name}. Se omite {campus}.")
+            continue
+
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+
+        for ws in wb.worksheets:
+            products, units = parse_sheet(ws)
+            for p in products:
+                key = (p["name"].lower(), p["category"].lower())
+                all_products.setdefault(key, p)
+
+            for unit in units:
+                unit["campus"] = campus
+            all_units.extend(units)
+
+    if not all_products and not all_units:
+        raise RuntimeError(
+            "No se encontraron datos en Monterrico.xlsx ni San Miguel.xlsx."
+        )
 
     lines: List[str] = []
     lines.append("BEGIN;")
-    lines.append("\n-- Seed generado desde Inventario_2026_CC_ISW_V1 1.xlsx")
+    lines.append("\n-- Seed generado desde Monterrico.xlsx y San Miguel.xlsx")
 
     lines.append(
         """
@@ -192,6 +208,7 @@ CREATE TEMP TABLE tmp_inventory_units (
   product_name text,
   product_category text,
   unit_code text,
+    campus text,
   asset_code text,
   note text
 );
@@ -211,27 +228,31 @@ CREATE TEMP TABLE tmp_inventory_units (
                 + "','"
                 + sql_escape(u["unit_code"])
                 + "',"
+                + "'"
+                + sql_escape(u.get("campus") or "Monterrico")
+                + "',"
                 + ("NULL" if not u["asset_code"] else "'" + sql_escape(u["asset_code"]) + "'")
                 + ","
                 + ("NULL" if not u["note"] else "'" + sql_escape(u["note"]) + "'")
                 + ")"
             )
         lines.append(
-            "INSERT INTO tmp_inventory_units(product_name, product_category, unit_code, asset_code, note) VALUES\n"
+            "INSERT INTO tmp_inventory_units(product_name, product_category, unit_code, campus, asset_code, note) VALUES\n"
             + ",\n".join(values)
             + ";"
         )
 
     lines.append(
         """
-INSERT INTO inventory_units(product_id, unit_code, asset_code, current_note)
-SELECT p.id, tu.unit_code, tu.asset_code, tu.note
+INSERT INTO inventory_units(product_id, unit_code, campus, asset_code, current_note)
+SELECT p.id, tu.unit_code, tu.campus, tu.asset_code, tu.note
 FROM tmp_inventory_units tu
 JOIN products p
   ON lower(p.name) = tu.product_name
  AND lower(p.category) = tu.product_category
 ON CONFLICT (product_id, unit_code) DO UPDATE
-SET asset_code = EXCLUDED.asset_code,
+SET campus = EXCLUDED.campus,
+    asset_code = EXCLUDED.asset_code,
     current_note = EXCLUDED.current_note,
     updated_at = timezone('utc'::text, now());
 """.strip()
