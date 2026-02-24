@@ -3,7 +3,8 @@
 Aplicación web de inventario construida con Vite, React, TypeScript, shadcn-ui y Tailwind CSS.
 
 ## Requisitos
-
+  
+  
 - Node.js
 - npm
 
