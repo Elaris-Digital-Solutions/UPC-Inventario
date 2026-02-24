@@ -3,7 +3,27 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowRight, ShieldCheck, Clock, Users, Package } from "lucide-react";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  Users,
+  Package,
+  Cable,
+  Headset,
+  Smartphone,
+  Tablet,
+  Camera,
+  Laptop,
+  Keyboard,
+  Monitor,
+  Projector,
+  Speaker,
+  Router,
+  Gamepad2,
+  HardDrive,
+  Shapes,
+} from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -24,6 +44,27 @@ const features = [
     description: "Conoce la disponibilidad real de cada equipo en tiempo real.",
   },
 ];
+
+const getCategoryIcon = (category: string) => {
+  const normalized = category.trim().toLowerCase();
+
+  if (normalized.includes("cable")) return Cable;
+  if (normalized.includes("vr")) return Headset;
+  if (normalized.includes("celular") || normalized.includes("telefono") || normalized.includes("teléfono")) return Smartphone;
+  if (normalized.includes("tablet")) return Tablet;
+  if (normalized.includes("camara") || normalized.includes("cámara")) return Camera;
+  if (normalized.includes("computadora") || normalized.includes("laptop") || normalized.includes("pc")) return Laptop;
+  if (normalized.includes("perifer")) return Keyboard;
+  if (normalized.includes("monitor") || normalized.includes("tv")) return Monitor;
+  if (normalized.includes("proyector")) return Projector;
+  if (normalized.includes("audio")) return Speaker;
+  if (normalized.includes("red") || normalized.includes("iot")) return Router;
+  if (normalized.includes("consola")) return Gamepad2;
+  if (normalized.includes("almacenamiento")) return HardDrive;
+  if (normalized.includes("otro")) return Shapes;
+
+  return Package;
+};
 
 const Index = () => {
   const { products } = useProducts();
@@ -110,17 +151,23 @@ const Index = () => {
           ) : (
             <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {categories.map((cat) => (
-                <Link
-                  key={cat.label}
-                  to={isAuthenticated ? "/catalogo" : "/login"}
-                  className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Package size={26} />
-                  </div>
-                  <span className="text-sm font-semibold text-card-foreground">{cat.label}</span>
-                  <span className="text-xs text-muted-foreground">{cat.count} productos</span>
-                </Link>
+                (() => {
+                  const Icon = getCategoryIcon(cat.label);
+
+                  return (
+                    <Link
+                      key={cat.label}
+                      to={isAuthenticated ? "/catalogo" : "/login"}
+                      className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all hover:border-primary/30 hover:shadow-[var(--shadow-card-hover)]"
+                    >
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                        <Icon size={26} />
+                      </div>
+                      <span className="text-sm font-semibold text-card-foreground">{cat.label}</span>
+                      <span className="text-xs text-muted-foreground">{cat.count} productos</span>
+                    </Link>
+                  );
+                })()
               ))}
             </div>
           )}

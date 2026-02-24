@@ -2,6 +2,7 @@ export interface InventoryUnit {
   id: string;
   product_id: string;
   unit_code: string;
+  campus?: "Monterrico" | "San Miguel" | null;
   asset_code?: string | null;
   status: "active" | "maintenance" | "retired";
   current_note?: string | null;

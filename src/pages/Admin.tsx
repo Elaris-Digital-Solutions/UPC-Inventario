@@ -31,13 +31,13 @@ const INVENTORY_DEFAULT_CATEGORIES = [
 
 type UnitDraft = {
   unitCode: string;
-  assetCode: string;
+  campus: 'Monterrico' | 'San Miguel';
   note: string;
 };
 
 const createEmptyUnitDraft = (): UnitDraft => ({
   unitCode: '',
-  assetCode: '',
+  campus: 'Monterrico',
   note: ''
 });
 
@@ -64,6 +64,18 @@ type ManagedProductImage = {
   is_main: boolean;
   sort_order: number;
   persisted: boolean;
+};
+
+const isMissingProductImageMetadataColumnError = (error: any) => {
+  const code = String(error?.code || '').toUpperCase();
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+
+  if (code === 'PGRST204' || code === '42703') return true;
+
+  return (
+    message.includes('column') &&
+    (message.includes('format') || message.includes('bytes') || message.includes('width') || message.includes('height'))
+  );
 };
 
 const DEFAULT_PRODUCT_IMAGE = 'https://placehold.co/600x400?text=UPC+Inventario';
@@ -152,7 +164,7 @@ const Admin = () => {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [addingUnit, setAddingUnit] = useState(false);
   const [newUnitCode, setNewUnitCode] = useState('');
-  const [newAssetCode, setNewAssetCode] = useState('');
+  const [newUnitCampus, setNewUnitCampus] = useState<'Monterrico' | 'San Miguel'>('Monterrico');
   const [newCurrentNote, setNewCurrentNote] = useState('');
   const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
   const [managedImages, setManagedImages] = useState<ManagedProductImage[]>([]);
@@ -459,10 +471,28 @@ const Admin = () => {
           sort_order: managedImages.length + index,
         }));
 
-        const { data, error } = await supabase
+        const fallbackRowsToInsert = uploaded.map((img, index) => ({
+          product_id: selectedProductId,
+          public_id: img.public_id,
+          secure_url: img.secure_url,
+          is_main: false,
+          sort_order: managedImages.length + index,
+        }));
+
+        let { data, error } = await supabase
           .from('product_images')
           .insert(rowsToInsert)
           .select('id, public_id, secure_url, is_main, sort_order');
+
+        if (error && isMissingProductImageMetadataColumnError(error)) {
+          const fallbackResult = await supabase
+            .from('product_images')
+            .insert(fallbackRowsToInsert)
+            .select('id, public_id, secure_url, is_main, sort_order');
+
+          data = fallbackResult.data;
+          error = fallbackResult.error;
+        }
 
         if (error) throw error;
 
@@ -544,20 +574,35 @@ const Admin = () => {
           sort_order: index,
         }));
 
-        const { error: productImagesError } = await supabase
+        const fallbackImagesPayload = uploadedImages.map((img, index) => ({
+          product_id: createdProduct.id,
+          public_id: img.public_id,
+          secure_url: img.secure_url,
+          is_main: index === 0,
+          sort_order: index,
+        }));
+
+        let { error: productImagesError } = await supabase
           .from('product_images')
           .insert(imagesPayload);
 
+        if (productImagesError && isMissingProductImageMetadataColumnError(productImagesError)) {
+          const fallbackResult = await supabase
+            .from('product_images')
+            .insert(fallbackImagesPayload);
+          productImagesError = fallbackResult.error;
+        }
+
         if (productImagesError) {
           console.error(productImagesError);
-          alert('Producto creado, pero no se pudo persistir la relación de imágenes en product_images.');
+          alert(`Producto creado, pero no se pudo persistir la relación de imágenes en product_images: ${productImagesError.message || 'Error desconocido'}`);
         }
       }
 
       const unitPayload = validRows.map((draft) => ({
         product_id: createdProduct.id,
         unit_code: draft.unitCode.trim(),
-        asset_code: draft.assetCode.trim() || null,
+        campus: draft.campus,
         current_note: draft.note.trim() || null,
         status: 'active',
       }));
@@ -636,14 +681,12 @@ const Admin = () => {
 
     const note = newUnitNote.trim();
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('inventory_unit_notes')
-      .insert([{ unit_id: selectedUnit.id, note, created_by: null }])
-      .select()
-      .single();
+      .insert([{ unit_id: selectedUnit.id, note, created_by: null }]);
 
     if (error) {
-      alert('No se pudo agregar la anotación');
+      alert(`No se pudo agregar la anotación: ${error.message || 'Error desconocido'}`);
       return;
     }
 
@@ -656,7 +699,15 @@ const Admin = () => {
       alert('La anotación histórica se guardó, pero no se actualizó la anotación actual');
     }
 
-    setUnitNotes((prev) => [data as InventoryUnitNote, ...prev]);
+    const optimisticNote: InventoryUnitNote = {
+      id: `tmp-${Date.now()}`,
+      unit_id: selectedUnit.id,
+      note,
+      created_by: null,
+      created_at: new Date().toISOString(),
+    };
+
+    setUnitNotes((prev) => [optimisticNote, ...prev]);
     setUnits((prev) => prev.map((unit) => (unit.id === selectedUnit.id ? { ...unit, current_note: note } : unit)));
     setNewUnitNote('');
   };
@@ -724,7 +775,7 @@ const Admin = () => {
           {
             product_id: selectedProductId,
             unit_code: unitCode,
-            asset_code: newAssetCode.trim() || null,
+            campus: newUnitCampus,
             current_note: newCurrentNote.trim() || null,
             status: 'active',
           }
@@ -747,7 +798,7 @@ const Admin = () => {
 
       setUnits((prev) => [...prev, inserted as InventoryUnit].sort((a, b) => a.unit_code.localeCompare(b.unit_code)));
       setNewUnitCode('');
-      setNewAssetCode('');
+      setNewUnitCampus('Monterrico');
       setNewCurrentNote('');
 
       const activeCount = [...units, inserted as InventoryUnit].filter((unit) => unit.status === 'active').length;
@@ -926,12 +977,14 @@ const Admin = () => {
                         onChange={(e) => handleUnitDraftChange(index, 'unitCode', e.target.value)}
                         placeholder={`Código de unidad #${index + 1} (obligatorio)`}
                       />
-                      <input
+                      <select
                         className="border rounded-md px-3 py-2"
-                        value={draft.assetCode}
-                        onChange={(e) => handleUnitDraftChange(index, 'assetCode', e.target.value)}
-                        placeholder="Código patrimonial / activo fijo (opcional)"
-                      />
+                        value={draft.campus}
+                        onChange={(e) => handleUnitDraftChange(index, 'campus', e.target.value as UnitDraft['campus'])}
+                      >
+                        <option value="Monterrico">Monterrico</option>
+                        <option value="San Miguel">San Miguel</option>
+                      </select>
                       <input
                         className="border rounded-md px-3 py-2"
                         value={draft.note}
@@ -1080,7 +1133,10 @@ const Admin = () => {
                   <div className="mt-6 space-y-2 border-t pt-4">
                     <h4 className="font-medium text-gray-900">Agregar unidad a este producto</h4>
                     <input className="w-full border rounded-md px-3 py-2" placeholder="Código unidad" value={newUnitCode} onChange={(e) => setNewUnitCode(e.target.value)} />
-                    <input className="w-full border rounded-md px-3 py-2" placeholder="Activo fijo (opcional)" value={newAssetCode} onChange={(e) => setNewAssetCode(e.target.value)} />
+                    <select className="w-full border rounded-md px-3 py-2" value={newUnitCampus} onChange={(e) => setNewUnitCampus(e.target.value as 'Monterrico' | 'San Miguel')}>
+                      <option value="Monterrico">Monterrico</option>
+                      <option value="San Miguel">San Miguel</option>
+                    </select>
                     <input className="w-full border rounded-md px-3 py-2" placeholder="Anotación inicial (opcional)" value={newCurrentNote} onChange={(e) => setNewCurrentNote(e.target.value)} />
                     <button onClick={handleAddUnitToProduct} disabled={addingUnit} className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white font-medium px-4 py-2 rounded-md border border-amber-700/30">
                       {addingUnit ? 'Agregando...' : 'Agregar unidad'}
@@ -1109,7 +1165,7 @@ const Admin = () => {
                             className="flex-1 text-left"
                           >
                             <p className="font-mono text-sm font-medium text-gray-900">{unit.unit_code}</p>
-                            <p className="text-xs text-gray-500">Estado: {unit.status} | Activo fijo: {unit.asset_code || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">Estado: {unit.status} | Sede: {unit.campus || 'Monterrico'}</p>
                             <p className="text-xs text-gray-500 truncate">Actual: {unit.current_note || 'Sin anotación'}</p>
                           </button>
 
@@ -1137,7 +1193,7 @@ const Admin = () => {
                   <div className="space-y-4">
                     <div>
                       <p className="font-mono text-sm font-medium text-gray-900">{selectedUnit.unit_code}</p>
-                      <p className="text-xs text-gray-500">Estado actual: {selectedUnit.status}</p>
+                      <p className="text-xs text-gray-500">Estado actual: {selectedUnit.status} | Sede: {selectedUnit.campus || 'Monterrico'}</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">

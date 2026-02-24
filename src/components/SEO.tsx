@@ -10,7 +10,7 @@ interface SEOProps {
 const SEO = ({ title, description, noindex }: SEOProps) => {
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = `${title} | King's Pong`;
+    document.title = `${title} | Inventario UPC`;
 
     if (description) {
       let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;

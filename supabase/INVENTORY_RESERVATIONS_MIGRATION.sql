@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS inventory_units (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   unit_code text NOT NULL,
+  campus text NOT NULL DEFAULT 'Monterrico' CHECK (campus IN ('Monterrico', 'San Miguel')),
   asset_code text,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'maintenance', 'retired')),
   current_note text,
@@ -14,6 +15,25 @@ CREATE TABLE IF NOT EXISTS inventory_units (
   updated_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
   UNIQUE(product_id, unit_code)
 );
+
+ALTER TABLE inventory_units ADD COLUMN IF NOT EXISTS campus text;
+UPDATE inventory_units SET campus = 'Monterrico' WHERE campus IS NULL;
+ALTER TABLE inventory_units ALTER COLUMN campus SET DEFAULT 'Monterrico';
+ALTER TABLE inventory_units ALTER COLUMN campus SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'inventory_units_campus_check'
+  ) THEN
+    ALTER TABLE inventory_units
+      ADD CONSTRAINT inventory_units_campus_check
+      CHECK (campus IN ('Monterrico', 'San Miguel'));
+  END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS inventory_unit_notes (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),

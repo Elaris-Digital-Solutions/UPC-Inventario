@@ -43,7 +43,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
               <Lock className="h-8 w-8 text-secondary" />
             </div>
             <h1 className="font-heading text-4xl text-foreground mb-2">
-              Admin King's Pong
+              Panel de Administración
             </h1>
             <p className="font-body text-muted-foreground">
               Ingresa tus credenciales para acceder
@@ -63,7 +63,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 border-[2px] border-foreground/20 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition-colors duration-200"
-                placeholder="admin@kingspong.com"
+                placeholder="admin@inventario-upc.com"
               />
             </div>
 
