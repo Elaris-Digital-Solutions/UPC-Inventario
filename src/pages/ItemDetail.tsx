@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type Campus = "Monterrico" | "San Miguel";
 
+
 const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
 
 const getCampusFromParam = (value: string | null): Campus =>

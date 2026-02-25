@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Arial', 'Helvetica', 'sans-serif'],
-        display: ['Bebas Neue', 'Inter', 'Arial', 'Helvetica', 'sans-serif'],
+        sans: ['Montserrat', 'Arial', 'Helvetica', 'sans-serif'],
+        serif: ['Playfair Display', 'Georgia', 'Cambria', 'serif'],
+        display: ['Playfair Display', 'Georgia', 'Cambria', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",
