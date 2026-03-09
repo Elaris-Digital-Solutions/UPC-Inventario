@@ -11,9 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, isUniversityEmail, isAuthenticated, authLoading } = useAuth();
+  const { sendMagicLink, isUniversityEmail, isAuthenticated, authLoading } = useAuth();
   const location = useLocation();
 
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/catalogo";
@@ -26,7 +25,7 @@ const Login = () => {
     }
 
     setLoading(true);
-    const { error } = await login(email, password);
+    const { error } = await sendMagicLink(email, fromPath);
     setLoading(false);
 
     if (error) {
@@ -34,7 +33,7 @@ const Login = () => {
       return;
     }
 
-    window.location.assign(fromPath);
+    toast.success("Te enviamos un enlace de acceso a tu correo UPC");
   };
 
   if (!authLoading && isAuthenticated) {
@@ -66,24 +65,12 @@ const Login = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-
               <Button type="submit" size="lg" className="w-full text-base font-semibold" disabled={loading}>
-                {loading ? "Ingresando..." : "Ingresar"}
+                {loading ? "Enviando enlace..." : "Enviar enlace mágico"}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                Solo se permiten cuentas institucionales @upc.edu.pe.
+                Solo se permiten cuentas institucionales @upc.edu.pe. Revisa también tu carpeta de spam.
               </p>
             </form>
 

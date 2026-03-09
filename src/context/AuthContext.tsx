@@ -7,6 +7,7 @@ interface AuthContextType {
   authLoading: boolean;
   isUniversityEmail: (email: string) => boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
+  sendMagicLink: (email: string, redirectPath?: string) => Promise<{ error: any }>;
   loginWithMicrosoft: (email: string, redirectPath?: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   user: any | null;
@@ -66,6 +67,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return { error };
   };
 
+  const sendMagicLink = async (email: string, redirectPath = '/catalogo') => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidUpcEmail(normalizedEmail)) {
+      return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
+    }
+
+    const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}${safeRedirectPath}`,
+      },
+    });
+
+    return { error };
+  };
+
   const loginWithMicrosoft = async (email: string, redirectPath = '/catalogo') => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!isValidUpcEmail(normalizedEmail)) {
@@ -99,6 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isUniversityEmail: isValidUpcEmail,
       user: effectiveUser,
       login,
+      sendMagicLink,
       loginWithMicrosoft,
       logout
     }}>
