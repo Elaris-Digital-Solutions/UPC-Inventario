@@ -29,7 +29,8 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      toast.error("No se pudo iniciar sesión");
+      console.error("Error enviando magic link:", error);
+      toast.error(error.message || "No se pudo iniciar sesión");
       return;
     }
 

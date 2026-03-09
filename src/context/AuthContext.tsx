@@ -74,13 +74,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';
+    const explicitRedirect = `${window.location.origin}${safeRedirectPath}`;
 
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
-        emailRedirectTo: `${window.location.origin}${safeRedirectPath}`,
+        emailRedirectTo: explicitRedirect,
       },
     });
+
+    // Some deployments only allow the base Site URL in Supabase Auth redirects.
+    if (error && /redirect/i.test(error.message || '')) {
+      const { error: fallbackError } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      return { error: fallbackError };
+    }
 
     return { error };
   };
