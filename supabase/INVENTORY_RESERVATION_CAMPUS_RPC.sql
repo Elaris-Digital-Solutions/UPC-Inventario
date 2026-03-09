@@ -31,6 +31,7 @@ BEGIN
     RAISE EXCEPTION 'La reserva no puede exceder 2 horas';
   END IF;
 
+  -- Step 1: find the best available unit (aggregates prevent FOR UPDATE here)
   SELECT iu.id
   INTO v_unit_id
   FROM inventory_units iu
@@ -54,8 +55,15 @@ BEGIN
   ORDER BY usage_stats.uses_count ASC NULLS FIRST,
            usage_stats.last_used_at ASC NULLS FIRST,
            iu.unit_code ASC
-  LIMIT 1
-  FOR UPDATE SKIP LOCKED;
+  LIMIT 1;
+
+  -- Step 2: lock the chosen unit row to prevent concurrent inserts
+  IF v_unit_id IS NOT NULL THEN
+    SELECT id INTO v_unit_id
+    FROM inventory_units
+    WHERE id = v_unit_id
+    FOR UPDATE SKIP LOCKED;
+  END IF;
 
   IF v_unit_id IS NULL THEN
     RAISE EXCEPTION 'No hay unidades disponibles para el rango solicitado';

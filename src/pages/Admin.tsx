@@ -170,6 +170,7 @@ const Admin = () => {
   const [managedImages, setManagedImages] = useState<ManagedProductImage[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
   const [savingImages, setSavingImages] = useState(false);
+  const [pendingManagedFiles, setPendingManagedFiles] = useState<ImageDraft[]>([]);
 
   const availableCategories = useMemo(() => {
     const customCategories = Array.from(
@@ -224,6 +225,10 @@ const Admin = () => {
   useEffect(() => {
     if (!selectedProductId) {
       setManagedImages([]);
+      setPendingManagedFiles((prev) => {
+        prev.forEach((d) => URL.revokeObjectURL(d.previewUrl));
+        return [];
+      });
       return;
     }
 
@@ -439,10 +444,10 @@ const Admin = () => {
     }
   };
 
-  const handleAddManagedImages = async (files: FileList | null) => {
-    if (!selectedProductId || !files || files.length === 0) return;
+  const handleAddManagedImages = async (files: File[]) => {
+    if (!selectedProductId || files.length === 0) return;
 
-    const imagesToUpload = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    const imagesToUpload = files.filter((file) => file.type.startsWith('image/'));
     if (imagesToUpload.length === 0) return;
 
     setSavingImages(true);
@@ -516,6 +521,37 @@ const Admin = () => {
     } finally {
       setSavingImages(false);
     }
+  };
+
+  const handleSelectPendingManagedFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const incoming = Array.from(fileList)
+      .filter((file) => file.type.startsWith('image/'))
+      .map((file) => ({
+        id: `pending-${Date.now()}-${Math.random()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        filename: file.name,
+      }));
+    if (incoming.length === 0) return;
+    setPendingManagedFiles((prev) => [...prev, ...incoming]);
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingManagedFiles((prev) => {
+      const target = prev[index];
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, idx) => idx !== index);
+    });
+  };
+
+  const handleSavePendingImages = async () => {
+    if (pendingManagedFiles.length === 0) return;
+    await handleAddManagedImages(pendingManagedFiles.map((d) => d.file));
+    setPendingManagedFiles((prev) => {
+      prev.forEach((d) => URL.revokeObjectURL(d.previewUrl));
+      return [];
+    });
   };
 
   const handleCreateProductWithUnits = async () => {
@@ -1081,12 +1117,46 @@ const Admin = () => {
                       accept="image/*"
                       multiple
                       onChange={(e) => {
-                        handleAddManagedImages(e.target.files);
+                        handleSelectPendingManagedFiles(e.target.files);
                         e.currentTarget.value = '';
                       }}
                       disabled={savingImages}
                       className="block w-full text-xs text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cream-100 file:text-gold-800 hover:file:bg-cream-200"
                     />
+
+                    {pendingManagedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-gray-700">Imágenes pendientes de guardar ({pendingManagedFiles.length})</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {pendingManagedFiles.map((draft, index) => (
+                            <div key={draft.id} className="border rounded-md overflow-hidden bg-white">
+                              <div className="aspect-square bg-gray-100">
+                                <img src={draft.previewUrl} alt={draft.filename} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="p-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePendingFile(index)}
+                                  disabled={savingImages}
+                                  className="w-full text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Quitar
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSavePendingImages}
+                          disabled={savingImages}
+                          className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white text-sm font-medium px-4 py-2 rounded-md border border-amber-700/30"
+                        >
+                          {savingImages ? 'Guardando...' : `Guardar ${pendingManagedFiles.length === 1 ? 'imagen' : 'imágenes'}`}
+                        </button>
+                      </div>
+                    )}
 
                     {imagesLoading ? (
                       <p className="text-xs text-gray-500">Cargando imágenes...</p>

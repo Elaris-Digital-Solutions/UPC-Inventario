@@ -76,7 +76,7 @@ INSERT INTO tmp_inventory_units(product_name, product_category, unit_code, campu
 ('azurc kincct dr developer kit','otros','00204863','Monterrico','00204863','Correcto funcionamiento'),
 ('azurc kincct dr developer kit','otros','00204866','Monterrico','00204866','Correcto funcionamiento'),
 ('azurc kincct dr developer kit','otros','00204864','Monterrico','00204864','Correcto funcionamiento'),
-('azurc kincct dr developer kit','otros','0020485','Monterrico','0020485','Correcto funcionamiento'),
+('azurc kincct dr developer kit','otros','00204865','Monterrico','00204865','Correcto funcionamiento'),
 ('displayport cable 6.6 ft','cables','AUTO-mo-uh40-displayport-cable-6-6-ft-13-01','Monterrico',NULL,'Correcto funcionamiento'),
 ('displayport cable 6.6 ft','cables','AUTO-mo-uh40-displayport-cable-6-6-ft-13-02','Monterrico',NULL,'Correcto funcionamiento'),
 ('displayport cable 6.6 ft','cables','AUTO-mo-uh40-displayport-cable-6-6-ft-13-03','Monterrico',NULL,'Correcto funcionamiento'),
