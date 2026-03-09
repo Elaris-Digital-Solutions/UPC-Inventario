@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Catalog from "./pages/Catalog";
 import ItemDetail from "./pages/ItemDetail";
+import ReservationOnboarding from "./pages/ReservationOnboarding";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import AdminUnits from "./pages/AdminUnits";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/register" element={<Navigate to="/login" replace />} />
               <Route path="/catalogo" element={<RequireAuth><Catalog /></RequireAuth>} />
               <Route path="/catalogo/:id" element={<RequireAuth><ItemDetail /></RequireAuth>} />
+              <Route path="/catalogo/:id/reservar" element={<RequireAuth><ReservationOnboarding /></RequireAuth>} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/unidades" element={<AdminUnits />} />
               <Route path="*" element={<NotFound />} />
