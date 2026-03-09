@@ -76,11 +76,6 @@ const ItemDetail = () => {
     [units, selectedCampus]
   );
 
-  const visibleUnits = useMemo(
-    () => units.filter((unit) => (unit.campus || "Monterrico") === selectedCampus),
-    [units, selectedCampus]
-  );
-
   const available = activeUnits.length;
 
   const handleReserve = async () => {
@@ -209,31 +204,7 @@ const ItemDetail = () => {
                   )}
                 </div>
 
-                {loadingUnits ? (
-                  <div
-                    className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"
-                  >
-                    <span className="text-sm text-muted-foreground">Cargando unidades...</span>
-                  </div>
-                ) : (
-                  visibleUnits.slice(0, 8).map((unit) => (
-                    <div
-                      key={unit.id}
-                      className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5"
-                    >
-                      <span className="font-mono text-sm font-medium text-foreground">{unit.unit_code}</span>
-                      {unit.status === "active" ? (
-                        <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
-                          <CheckCircle2 size={16} /> Activo
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-sm text-destructive">
-                          <XCircle size={16} /> {unit.status}
-                        </span>
-                      )}
-                    </div>
-                  ))
-                )}
+
               </div>
             </div>
 
