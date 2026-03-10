@@ -1,59 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package } from "lucide-react";
-import { useProducts } from "@/context/ProductContext";
-import { supabase } from "@/supabaseClient";
+import { useProducts } from "@/features/products/context/ProductContext";
+import { useCampusStock } from "@/features/catalog/hooks/useCampusStock";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { type Campus, CAMPUS_OPTIONS } from "@/shared/types/campus";
 
-type Campus = "Monterrico" | "San Miguel";
-
-const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
-
-type CampusStockByProduct = Record<string, Record<Campus, number>>;
 
 const Catalog = () => {
   const { products, loading } = useProducts();
+  const { campusStock: campusStockByProduct } = useCampusStock();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedCampus, setSelectedCampus] = useState<Campus>("Monterrico");
-  const [campusStockByProduct, setCampusStockByProduct] = useState<CampusStockByProduct>({});
-
-  useEffect(() => {
-    const loadCampusStock = async () => {
-      const { data, error } = await supabase
-        .from("inventory_units")
-        .select("product_id, campus")
-        .eq("status", "active");
-
-      if (error) {
-        console.error(error);
-        setCampusStockByProduct({});
-        return;
-      }
-
-      const stockMap: CampusStockByProduct = {};
-      (data || []).forEach((unit: any) => {
-        const productId = String(unit.product_id || "");
-        if (!productId) return;
-
-        const campus = (unit.campus === "San Miguel" ? "San Miguel" : "Monterrico") as Campus;
-
-        if (!stockMap[productId]) {
-          stockMap[productId] = { Monterrico: 0, "San Miguel": 0 };
-        }
-
-        stockMap[productId][campus] += 1;
-      });
-
-      setCampusStockByProduct(stockMap);
-    };
-
-    loadCampusStock();
-  }, []);
 
   const allCategories = useMemo(
     () => ["Todos", ...Array.from(new Set(products.map((product) => (product.category || "").trim()).filter(Boolean)))],

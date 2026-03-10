@@ -6,28 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useProducts } from "@/context/ProductContext";
-import { supabase } from "@/supabaseClient";
-import { InventoryUnit } from "@/types/Inventory";
+import { useProducts } from "@/features/products/context/ProductContext";
+import { supabase } from "@/infrastructure/supabase/client";
+import { useInventoryUnits } from "@/features/inventory/hooks/useInventoryUnits";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { type Campus, CAMPUS_OPTIONS, getCampusFromParam } from "@/shared/types/campus";
 
-type Campus = "Monterrico" | "San Miguel";
-
-
-const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
-
-const getCampusFromParam = (value: string | null): Campus =>
-  value === "San Miguel" ? "San Miguel" : "Monterrico";
 
 const ItemDetail = () => {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading } = useProducts();
   const item = products.find((product) => product.id === id);
-  const [units, setUnits] = useState<InventoryUnit[]>([]);
-  const [loadingUnits, setLoadingUnits] = useState(false);
+  const { units, loading: loadingUnits } = useInventoryUnits({ productId: id });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requesterName, setRequesterName] = useState("");
   const [requesterCode, setRequesterCode] = useState("");
@@ -46,27 +39,6 @@ const ItemDetail = () => {
     next.set("campus", campus);
     setSearchParams(next, { replace: true });
   };
-
-  useEffect(() => {
-    if (!id) return;
-    const loadUnits = async () => {
-      setLoadingUnits(true);
-      const { data, error } = await supabase
-        .from("inventory_units")
-        .select("*")
-        .eq("product_id", id)
-        .order("unit_code", { ascending: true });
-
-      if (error) {
-        console.error(error);
-        setUnits([]);
-      } else {
-        setUnits((data || []) as InventoryUnit[]);
-      }
-      setLoadingUnits(false);
-    };
-    loadUnits();
-  }, [id]);
 
   const activeUnits = useMemo(
     () =>

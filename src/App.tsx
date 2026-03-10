@@ -8,11 +8,10 @@ import Login from "./pages/Login";
 import Catalog from "./pages/Catalog";
 import ItemDetail from "./pages/ItemDetail";
 import NotFound from "./pages/NotFound";
-import Admin from "./pages/Admin";
 import AdminUnits from "./pages/AdminUnits";
-import { AuthProvider } from "./context/AuthContext";
-import { useAuth } from "./context/AuthContext";
-import { ProductProvider } from "./context/ProductContext";
+import AdminPage from "./features/admin/pages/AdminPage";
+import { AuthProvider, useAuth } from "./features/auth/context/AuthContext";
+import { ProductProvider } from "./features/products/context/ProductContext";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
@@ -24,7 +23,7 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-        Verificando sesión...
+        Verificando sesion...
       </div>
     );
   }
@@ -51,7 +50,7 @@ const App = () => (
               <Route path="/register" element={<Navigate to="/login" replace />} />
               <Route path="/catalogo" element={<RequireAuth><Catalog /></RequireAuth>} />
               <Route path="/catalogo/:id" element={<RequireAuth><ItemDetail /></RequireAuth>} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/unidades" element={<AdminUnits />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
