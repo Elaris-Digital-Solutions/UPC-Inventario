@@ -16,8 +16,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
+const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
 
 const isValidUpcEmail = (email: string) => UPC_EMAIL_REGEX.test(email.trim().toLowerCase());
+
+const buildAuthRedirectUrl = (redirectPath = '/') => {
+  const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/';
+  const baseUrl = AUTH_REDIRECT_BASE_URL || window.location.origin;
+
+  return `${baseUrl}${safeRedirectPath}`;
+};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -74,7 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';
-    const explicitRedirect = `${window.location.origin}${safeRedirectPath}`;
+    const explicitRedirect = buildAuthRedirectUrl(safeRedirectPath);
 
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
@@ -88,7 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error: fallbackError } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: buildAuthRedirectUrl('/'),
         },
       });
 
@@ -104,10 +112,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
     }
 
+    const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'azure',
       options: {
-        redirectTo: `${window.location.origin}${redirectPath}`,
+        redirectTo: buildAuthRedirectUrl(safeRedirectPath),
         queryParams: {
           prompt: 'select_account',
           login_hint: normalizedEmail,
