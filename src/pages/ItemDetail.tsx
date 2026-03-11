@@ -4,14 +4,12 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, MapPin } from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
 import { supabase } from "@/supabaseClient";
 import { InventoryUnit } from "@/types/Inventory";
 
 type Campus = "Monterrico" | "San Miguel";
-
-const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
 
 const getCampusFromParam = (value: string | null): Campus =>
   value === "San Miguel" ? "San Miguel" : "Monterrico";
@@ -19,18 +17,14 @@ const getCampusFromParam = (value: string | null): Campus =>
 const ItemDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { products, loading } = useProducts();
   const item = products.find((product) => product.id === id);
 
   const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
-  const [selectedCampus, setSelectedCampus] = useState<Campus>(() => getCampusFromParam(searchParams.get("campus")));
+  const [selectedCampus] = useState<Campus>(() => getCampusFromParam(searchParams.get("campus")));
   const [activeImage, setActiveImage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSelectedCampus(getCampusFromParam(searchParams.get("campus")));
-  }, [searchParams]);
 
   useEffect(() => {
     if (!id) return;
@@ -77,13 +71,6 @@ const ItemDetail = () => {
   }, [units]);
 
   const selectedCampusHasUnits = campusAvailableCount[selectedCampus] > 0;
-
-  const handleCampusChange = (campus: Campus) => {
-    setSelectedCampus(campus);
-    const next = new URLSearchParams(searchParams);
-    next.set("campus", campus);
-    setSearchParams(next, { replace: true });
-  };
 
   const handleContinueReservation = () => {
     if (!item || !selectedCampusHasUnits) return;
@@ -177,46 +164,21 @@ const ItemDetail = () => {
             <p className="mt-3 text-sm leading-6 text-gray-600">{item.description}</p>
 
             <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5">
-              <h2 className="text-sm font-semibold text-gray-900">Selecciona sede</h2>
-              <p className="mt-1 text-sm text-gray-500">El sistema verificará horarios disponibles en el siguiente paso.</p>
-
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {CAMPUS_OPTIONS.map((campus) => {
-                  const availableCount = campusAvailableCount[campus];
-                  const isSelected = selectedCampus === campus;
-                  const isDisabled = availableCount === 0;
-
-                  return (
-                    <button
-                      key={campus}
-                      type="button"
-                      onClick={() => handleCampusChange(campus)}
-                      disabled={isDisabled}
-                      className={`rounded-lg border px-4 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "border-primary bg-[hsl(356_95%_45%/.08)]"
-                          : "border-gray-200 bg-white"
-                      } ${isDisabled ? "cursor-not-allowed opacity-50" : "hover:border-primary/45"}`}
-                    >
-                      <p className="text-sm font-semibold text-gray-900">{campus}</p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {availableCount > 0 ? `${availableCount} unidad(es) activas` : "Sin unidades activas"}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 rounded-lg border border-gray-200 bg-[#f7f7f7] px-4 py-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin size={15} className="text-gray-400" />
+                  <span>Sede:</span>
+                  <span className="font-semibold text-gray-900">{selectedCampus}</span>
+                </div>
                 {loadingUnits ? (
-                  <span className="text-sm text-gray-500">Cargando disponibilidad...</span>
+                  <span className="text-xs text-gray-400">Cargando...</span>
                 ) : selectedCampusHasUnits ? (
-                  <span className="flex items-center gap-1.5 text-sm" style={{ color: "hsl(142 71% 35%)" }}>
-                    <CheckCircle2 size={16} /> {campusAvailableCount[selectedCampus]} unidad(es) activas en {selectedCampus}
+                  <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(142 71% 35%)" }}>
+                    <CheckCircle2 size={13} /> {campusAvailableCount[selectedCampus]} unidad(es) disponibles
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-sm text-destructive">
-                    <XCircle size={16} /> No hay unidades activas en {selectedCampus}
+                  <span className="flex items-center gap-1 text-xs text-destructive">
+                    <XCircle size={13} /> Sin unidades activas
                   </span>
                 )}
               </div>
