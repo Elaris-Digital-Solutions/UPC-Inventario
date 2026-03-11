@@ -17,12 +17,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
 const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
+const FALLBACK_PRODUCTION_AUTH_URL = 'https://upc-inventario.netlify.app';
 
 const isValidUpcEmail = (email: string) => UPC_EMAIL_REGEX.test(email.trim().toLowerCase());
 
+const isLocalhostUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
+
+const getAuthRedirectBaseUrl = () => {
+  const browserOrigin = window.location.origin;
+  const browserIsLocalhost = isLocalhostUrl(browserOrigin);
+
+  if (!AUTH_REDIRECT_BASE_URL) {
+    return browserIsLocalhost ? browserOrigin : FALLBACK_PRODUCTION_AUTH_URL;
+  }
+
+  const configuredIsLocalhost = isLocalhostUrl(AUTH_REDIRECT_BASE_URL);
+  if (configuredIsLocalhost && !browserIsLocalhost) {
+    return FALLBACK_PRODUCTION_AUTH_URL;
+  }
+
+  return AUTH_REDIRECT_BASE_URL;
+};
+
 const buildAuthRedirectUrl = (redirectPath = '/') => {
   const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/';
-  const baseUrl = AUTH_REDIRECT_BASE_URL || window.location.origin;
+  const baseUrl = getAuthRedirectBaseUrl();
 
   return `${baseUrl}${safeRedirectPath}`;
 };
@@ -32,6 +58,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const syncSession = async (nextSession: Session | null) => {
       const email = nextSession?.user?.email || '';
       if (nextSession && email && !isValidUpcEmail(email)) {
@@ -42,11 +70,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSession(nextSession);
     };
 
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const consumeAuthSessionFromUrl = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (!error) {
+          await syncSession(data.session);
+          window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+          return true;
+        }
+      }
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+          await syncSession(data.session);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    const initializeAuth = async () => {
+      await consumeAuthSessionFromUrl();
+      const { data: { session } } = await supabase.auth.getSession();
       await syncSession(session);
-      setAuthLoading(false);
-    });
+      if (isMounted) {
+        setAuthLoading(false);
+      }
+    };
+
+    void initializeAuth();
 
     // Escuchar cambios en la autenticación
     const {
@@ -54,11 +119,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } = supabase.auth.onAuthStateChange((_event, session) => {
       void (async () => {
         await syncSession(session);
-        setAuthLoading(false);
+        if (isMounted) {
+          setAuthLoading(false);
+        }
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
