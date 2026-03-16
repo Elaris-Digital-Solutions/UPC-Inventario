@@ -116,22 +116,12 @@ const ItemDetail = () => {
 
         <div className="grid gap-6 xl:grid-cols-[1.15fr_1fr]">
           <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
-            <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-[#ececec]">
-              <div className="relative aspect-[4/3]">
-                <img
-                  src={activeImage || item.mainImage}
-                  alt={item.name}
-                  className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-2xl"
-                  aria-hidden="true"
-                />
-                <div className="relative flex h-full items-center justify-center p-4 sm:p-7">
-                  <img
-                    src={activeImage || item.mainImage}
-                    alt={item.name}
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-              </div>
+            <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white p-4">
+              <img
+                src={activeImage || item.mainImage}
+                alt={item.name}
+                className="max-h-full max-w-full object-contain mix-blend-multiply"
+              />
             </div>
 
             {imageGallery.length > 1 && (
@@ -149,7 +139,7 @@ const ItemDetail = () => {
                       aria-label={`Ver imagen ${index + 1}`}
                     >
                       <div className="aspect-square w-full">
-                        <img src={imageUrl} alt={`${item.name} ${index + 1}`} className="h-full w-full object-cover" />
+                        <img src={imageUrl} alt={`${item.name} ${index + 1}`} className="h-full w-full object-cover p-1" />
                       </div>
                     </button>
                   );
@@ -161,7 +151,10 @@ const ItemDetail = () => {
           <section>
             <Badge variant="secondary" className="mb-3">{item.category}</Badge>
             <h1 className="font-display text-4xl font-bold leading-tight text-gray-900">{item.name}</h1>
-            <p className="mt-3 text-sm leading-6 text-gray-600">{item.description}</p>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              {/* Ocultamos mágicamente la parte de "Lab:" y "Obs:" que vienen pegadas a la descripcion */}
+              {item.description.split("Lab:")[0].trim()}
+            </p>
 
             <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center justify-between">

@@ -56,7 +56,7 @@ const Header = ({ className }: HeaderProps) => {
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
-                className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-600 transition-colors duration-200 hover:text-gray-900"
+                className="inline-flex items-center bg-primary px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-200 hover:bg-[hsl(356,95%,36%)]"
               >
                 Cerrar Sesión
               </button>
