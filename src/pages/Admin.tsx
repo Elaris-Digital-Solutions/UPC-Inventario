@@ -929,7 +929,7 @@ const Admin = () => {
           <div className="mb-8 flex justify-between items-start">
             <div>
               <h1 className="font-playfair text-4xl font-bold text-gray-900 mb-4">Panel de Inventario UPC</h1>
-              <p className="font-inter text-gray-600">Registra equipos por código, gestiona unidades y da trazabilidad a reservas.</p>
+              <p className="font-inter text-gray-600">Registra dispositivos por código, gestiona unidades y da trazabilidad a reservas.</p>
             </div>
             <button
               onClick={logout}

@@ -79,10 +79,10 @@ const Index = () => {
             Universidad Peruana de Ciencias Aplicadas
           </span>
           <h1 className="mx-auto max-w-3xl font-display text-4xl font-bold leading-tight text-primary-foreground sm:text-5xl lg:text-6xl">
-            Reserva equipos y herramientas de la UPC
+            Reserva dispositivos y herramientas de la UPC
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg text-primary-foreground/75">
-            Accede al inventario de equipos tecnológicos, herramientas y materiales de la universidad. Reserva fácil, rápido y seguro.
+            Accede al inventario de dispositivos tecnológicos, herramientas y materiales de la universidad. Reserva fácil, rápido y seguro.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to={isAuthenticated ? "/catalogo" : "/login"}>
@@ -201,7 +201,7 @@ const Index = () => {
                     </div>
 
                     <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-gray-600">
-                      {cat.count} {cat.count === 1 ? "equipo" : "equipos"}
+                      {cat.count} {cat.count === 1 ? "equipo" : "dispositivos"}
                     </p>
 
                     <div className="mt-5 flex items-center gap-3">

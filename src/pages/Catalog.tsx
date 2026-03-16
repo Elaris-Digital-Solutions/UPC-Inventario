@@ -77,8 +77,8 @@ const Catalog = () => {
       <Header />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Catálogo de Equipos</h1>
-          <p className="mt-1 text-muted-foreground">Explora y reserva los equipos disponibles</p>
+          <h1 className="text-3xl font-bold text-foreground">Catálogo de Dispositivos</h1>
+          <p className="mt-1 text-muted-foreground">Explora y reserva los dispositivos disponibles</p>
         </div>
 
         {/* Filters */}
@@ -108,11 +108,10 @@ const Catalog = () => {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                activeCategory === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${activeCategory === cat
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
             >
               {cat}
             </button>
@@ -161,9 +160,8 @@ const Catalog = () => {
                         Stock: {available}
                       </span>
                       <span
-                        className={`inline-block h-2.5 w-2.5 rounded-full ${
-                          available > 0 ? "bg-green-500" : "bg-destructive"
-                        }`}
+                        className={`inline-block h-2.5 w-2.5 rounded-full ${available > 0 ? "bg-green-500" : "bg-destructive"
+                          }`}
                       />
                     </div>
                   </div>
