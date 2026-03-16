@@ -168,7 +168,7 @@ const ReservationOnboarding = () => {
         .from("inventory_reservations")
         .select("unit_id, start_at, end_at, status")
         .in("unit_id", unitIds)
-        .in("status", ["reserved", "completed"])
+        .in("status", ["reserved", "active", "completed"])
         .lt("start_at", dayEnd.toISOString())
         .gt("end_at", dayStart.toISOString());
 
@@ -191,10 +191,16 @@ const ReservationOnboarding = () => {
 
     const slotsForDay: SlotAvailability[] = [];
     const durationMinutes = durationHours * 60;
+    const now = new Date();
 
     for (let minuteOfDay = OPEN_HOUR * 60; minuteOfDay <= CLOSE_HOUR * 60 - durationMinutes; minuteOfDay += SLOT_STEP_MINUTES) {
       const slotStart = new Date(selectedDate);
       slotStart.setHours(Math.floor(minuteOfDay / 60), minuteOfDay % 60, 0, 0);
+
+      // No mostrar horarios pasados (si seleccionó hoy)
+      if (slotStart <= now) {
+        continue;
+      }
 
       const slotEnd = addMinutes(slotStart, durationMinutes);
       const availableUnits = units.filter((unit) => {
