@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Catalog from "./pages/Catalog";
 import ItemDetail from "./pages/ItemDetail";
 import ReservationOnboarding from "./pages/ReservationOnboarding";
+import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import AdminUnits from "./pages/AdminUnits";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Navigate to="/login" replace />} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/catalogo" element={<RequireAuth><Catalog /></RequireAuth>} />
               <Route path="/catalogo/:id" element={<RequireAuth><ItemDetail /></RequireAuth>} />
               <Route path="/catalogo/:id/reservar" element={<RequireAuth><ReservationOnboarding /></RequireAuth>} />

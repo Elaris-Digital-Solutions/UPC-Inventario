@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { addDays, addMinutes, format, startOfDay } from "date-fns";
+import { addDays, addMinutes, format, startOfDay, endOfWeek, addWeeks } from "date-fns";
 import { Calendar as CalendarIcon, ArrowLeft, Clock3, Building2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -25,15 +25,73 @@ type SlotAvailability = {
   availableUnits: number;
 };
 
-const FACULTY_OPTIONS = [
-  "Ingeniería",
-  "Negocios",
-  "Comunicaciones",
+const CAREER_OPTIONS = [
+  "Administración",
+  "Administración y Ciencia de Datos para Negocios",
+  "Administración y Finanzas",
+  "Administración y Marketing",
+  "Administración y Negocios Del Deporte",
+  "Administración y Negocios Digitales",
+  "Administración y Negocios Internacionales",
+  "Administración y Recursos Humanos",
   "Arquitectura",
+  "Artes Escénicas",
+  "Biología",
+  "Ciencias de la Actividad Física y el Deporte",
+  "Ciencias De La Computación",
+  "Ciencias Políticas",
+  "Comunicación Audiovisual y Medios Interactivos",
+  "Comunicación E Imagen Empresarial",
+  "Comunicación y Marketing",
+  "Comunicación y Periodismo",
+  "Comunicación y Publicidad",
+  "Contabilidad y Administración",
+  "Contabilidad y Finanzas",
   "Derecho",
-  "Salud",
-  "Educación",
-  "Otra",
+  "Diseño Industrial",
+  "Diseño Profesional De Interiores",
+  "Diseño Profesional Gráfico",
+  "Diseño y Gestión En Moda",
+  "Economía Gerencial",
+  "Economía y Ciencia de Datos",
+  "Economía y Finanzas",
+  "Economía y Negocios Internacionales",
+  "Educación y Gestión Del Aprendizaje",
+  "Enfermería",
+  "Farmacia y Bioquímica",
+  "Gastronomía y Gestión Culinaria",
+  "Hotelería y Administración",
+  "Ingeniería Ambiental",
+  "Ingeniería Biomédica",
+  "Ingeniería Civil",
+  "Ingeniería de Ciberseguridad",
+  "Ingeniería De Gestión Empresarial",
+  "Ingeniería De Gestión Minera",
+  "Ingeniería de Inteligencia Artificial",
+  "Ingeniería De Sistemas De Información",
+  "Ingeniería De Software",
+  "Ingeniería Electrónica",
+  "Ingeniería Industrial",
+  "Ingeniería Mecatrónica",
+  "Medicina",
+  "Medicina Veterinaria",
+  "Música",
+  "Nutrición y Dietética",
+  "Odontología",
+  "Psicología",
+  "Relaciones Internacionales",
+  "Terapia Física",
+  "Traducción E Interpretación Profesional",
+  "Turismo y Administración"
+];
+
+const PURPOSE_OPTIONS = [
+  "Práctica de laboratorio",
+  "Proyecto de curso",
+  "Trabajo de investigación",
+  "Desarrollo de Tesis",
+  "Actividad extracurricular",
+  "Otro",
 ];
 
 const DURATION_OPTIONS = [1, 2, 3, 4];
@@ -62,7 +120,6 @@ const ReservationOnboarding = () => {
   const item = products.find((product) => product.id === id);
 
   const [selectedCampus] = useState<Campus>(() => getCampusFromParam(searchParams.get("campus")));
-  const [faculty, setFaculty] = useState("");
   const [career, setCareer] = useState("");
   const [purpose, setPurpose] = useState("");
   const [durationHours, setDurationHours] = useState(2);
@@ -175,12 +232,12 @@ const ReservationOnboarding = () => {
 
   const handleReserve = async () => {
     if (!item) return;
-    if (!faculty) {
-      toast.error("Selecciona tu facultad");
+    if (!career) {
+      toast.error("Selecciona tu carrera");
       return;
     }
-    if (!career.trim()) {
-      toast.error("Ingresa tu carrera");
+    if (!purpose) {
+      toast.error("Selecciona el motivo de uso");
       return;
     }
     if (!selectedDate) {
@@ -200,9 +257,8 @@ const ReservationOnboarding = () => {
     const requesterCode = typeof user?.email === "string" ? user.email : null;
 
     const reservationPurpose = [
-      `Facultad: ${faculty}`,
-      `Carrera: ${career.trim()}`,
-      purpose.trim() ? `Motivo: ${purpose.trim()}` : null,
+      `Carrera: ${career}`,
+      `Motivo: ${purpose}`,
     ]
       .filter(Boolean)
       .join(" | ");
@@ -226,7 +282,7 @@ const ReservationOnboarding = () => {
 
     const reservationId = data?.id ? ` (#${String(data.id).slice(0, 8)})` : "";
     toast.success(`Reserva registrada${reservationId}`);
-    navigate(`/catalogo/${item.id}?campus=${encodeURIComponent(selectedCampus)}`);
+    navigate(`/faq`);
   };
 
   if (loading) {
@@ -269,19 +325,15 @@ const ReservationOnboarding = () => {
           <ArrowLeft size={16} /> Volver al producto
         </Link>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <section className="rounded-2xl border border-gray-200 bg-white p-5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500">Reserva</p>
             <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-gray-900">{item.name}</h1>
 
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-gray-200 bg-[#f7f7f7] px-3 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">Sede</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">{selectedCampus}</p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-[#f7f7f7] px-3 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">Duración</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">{durationHours} hora(s)</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-[#f7f7f7] px-3 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">Unidades activas</p>
@@ -289,41 +341,73 @@ const ReservationOnboarding = () => {
               </div>
             </div>
 
-            <div className="mt-6 rounded-xl border border-gray-200 p-4">
+            <div className="mt-8">
+              <Label htmlFor="durationHours" className="mb-2 block text-xs uppercase tracking-[0.14em] text-gray-500">
+                Cantidad de horas (máx. 4)
+              </Label>
+              <Select value={String(durationHours)} onValueChange={(value) => setDurationHours(Number(value))}>
+                <SelectTrigger id="durationHours" className="w-full sm:w-64 border-gray-300 bg-white shadow-sm">
+                  <SelectValue placeholder="Selecciona duración" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_OPTIONS.map((hours) => (
+                    <SelectItem key={hours} value={String(hours)}>{hours} hora(s)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="mt-7 rounded-xl border border-gray-200 p-4">
               <div className="mb-4 flex items-center gap-2 text-gray-800">
                 <CalendarIcon size={16} className="text-primary" />
                 <p className="text-sm font-semibold">Fecha y horario disponibles</p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-[220px_1fr]">
+              <div className="grid gap-4 sm:grid-cols-[280px_1fr]">
                 <div>
-                  <Label className="text-xs uppercase tracking-[0.14em] text-gray-500">Fecha</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn("mt-1 w-full justify-start border-gray-300 text-left font-normal", !selectedDate && "text-muted-foreground")}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Selecciona fecha"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        disabled={{ before: startOfDay(new Date()) }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label className="mb-2 block text-xs uppercase tracking-[0.14em] text-gray-500">
+                    Fecha
+                  </Label>
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm flex justify-center p-2">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) setSelectedDate(date);
+                      }}
+                      disabled={(date) => {
+                        const now = new Date();
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        
+                        // En Javascript, 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+                        const currentDayOfWeek = today.getDay();
+                        
+                        // REGLA DE NEGOCIO:
+                        // "Las reservas para la semana siguiente se habilitan desde el domingo a las 00:00"
+                        // Esto significa que de Lunes a Sábado, solo se puede reservar hasta el Domingo *de esta misma semana*.
+                        // Cuando llega el Domingo, se habilita hasta el Domingo *de la semana siguiente*.
+                        // Por tanto:
+                        // - Si hoy es Domingo (0), permitimos reservar hasta el próximo Domingo (+7 días).
+                        // - Si hoy es de Lunes a Sábado (1-6), permitimos reservar solo hasta ESTE Domingo (7 - día actual).
+                        const totalDaysToAdd = currentDayOfWeek === 0 ? 7 : (7 - currentDayOfWeek);
+                        
+                        const maxDate = new Date(today);
+                        maxDate.setDate(today.getDate() + totalDaysToAdd);
+                        maxDate.setHours(23, 59, 59, 999);
+
+                        return date < today || date > maxDate;
+                      }}
+                      initialFocus
+                      className="p-1 pointer-events-auto"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <Label className="text-xs uppercase tracking-[0.14em] text-gray-500">Horario</Label>
-                  <div className="mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-[#fafafa] p-2">
+                <div className="flex flex-col">
+                  <Label className="mb-2 block text-xs uppercase tracking-[0.14em] text-gray-500">
+                    Horario
+                  </Label>
+                  <div className="mt-1 flex-1 overflow-auto rounded-xl border border-gray-200 bg-[#fafafa] p-3 max-h-[340px]">
                     {loadingAvailability ? (
                       <p className="px-2 py-3 text-sm text-gray-500">Consultando disponibilidad...</p>
                     ) : units.length === 0 ? (
@@ -340,17 +424,19 @@ const ReservationOnboarding = () => {
                               key={slotISO}
                               type="button"
                               onClick={() => setSelectedSlotISO(slotISO)}
-                              className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                              className={`rounded-lg border px-3 py-2.5 text-left transition-all ${
                                 selected
-                                  ? "border-primary bg-[hsl(356_95%_45%/.08)]"
-                                  : "border-gray-200 bg-white hover:border-primary/40"
+                                  ? "border-primary bg-[hsl(356_95%_45%/.08)] shadow-sm"
+                                  : "border-gray-200 bg-white hover:border-primary/40 shadow-sm"
                               }`}
                             >
                               <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-                                <Clock3 size={14} className="text-primary" />
+                                <Clock3 size={15} className={selected ? "text-primary" : "text-gray-400"} />
                                 {format(slot.start, "HH:mm")} - {format(slot.end, "HH:mm")}
                               </p>
-                              <p className="mt-1 text-xs text-gray-500">{slot.availableUnits} unidad(es) libre(s)</p>
+                              <p className={`mt-1 text-xs ${selected ? "text-primary/80 font-medium" : "text-gray-500"}`}>
+                                {slot.availableUnits} unidad(es) libre(s)
+                              </p>
                             </button>
                           );
                         })}
@@ -368,13 +454,13 @@ const ReservationOnboarding = () => {
 
             <div className="mt-5 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="faculty">Facultad</Label>
-                <Select value={faculty} onValueChange={setFaculty}>
-                  <SelectTrigger id="faculty" className="border-gray-300">
-                    <SelectValue placeholder="Selecciona tu facultad" />
+                <Label htmlFor="career">Carrera</Label>
+                <Select value={career} onValueChange={setCareer}>
+                  <SelectTrigger id="career" className="border-gray-300">
+                    <SelectValue placeholder="Selecciona tu carrera" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FACULTY_OPTIONS.map((option) => (
+                    {CAREER_OPTIONS.map((option) => (
                       <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
                   </SelectContent>
@@ -382,36 +468,14 @@ const ReservationOnboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="career">Carrera</Label>
-                <Input
-                  id="career"
-                  value={career}
-                  onChange={(e) => setCareer(e.target.value)}
-                  placeholder="Ej. Ingeniería de Software"
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="purpose">Motivo de uso (opcional)</Label>
-                <Input
-                  id="purpose"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="Ej. Proyecto de laboratorio"
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="durationHours">Cantidad de horas (máx. 4)</Label>
-                <Select value={String(durationHours)} onValueChange={(value) => setDurationHours(Number(value))}>
-                  <SelectTrigger id="durationHours" className="border-gray-300">
-                    <SelectValue placeholder="Selecciona duración" />
+                <Label htmlFor="purpose">Motivo de uso</Label>
+                <Select value={purpose} onValueChange={setPurpose}>
+                  <SelectTrigger id="purpose" className="border-gray-300">
+                    <SelectValue placeholder="Selecciona un motivo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DURATION_OPTIONS.map((hours) => (
-                      <SelectItem key={hours} value={String(hours)}>{hours} hora(s)</SelectItem>
+                    {PURPOSE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -46,6 +46,12 @@ const Header = ({ className }: HeaderProps) => {
             >
               Catálogo
             </Link>
+            <Link
+              to="/faq"
+              className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-600 transition-colors duration-200 hover:text-gray-900"
+            >
+              Preguntas Frecuentes
+            </Link>
 
             {isAuthenticated ? (
               <button
@@ -96,6 +102,13 @@ const Header = ({ className }: HeaderProps) => {
               className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-700 hover:text-gray-900"
             >
               Catálogo
+            </Link>
+            <Link
+              to="/faq"
+              onClick={() => setMobileOpen(false)}
+              className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-700 hover:text-gray-900"
+            >
+              Preguntas Frecuentes
             </Link>
             {isAuthenticated ? (
               <button
