@@ -27,6 +27,6 @@ export interface InventoryReservation {
   purpose?: string | null;
   start_at: string;
   end_at: string;
-  status: "reserved" | "cancelled" | "completed";
+  status: "reserved" | "active" | "cancelled" | "completed";
   created_at: string;
 }

@@ -22,7 +22,7 @@ const ReservationsPanel = () => {
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'reserved' | 'completed' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'reserved' | 'active' | 'completed' | 'cancelled'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'next3days' | 'thisweek'>('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'start_desc' | 'start_asc' | 'created_desc'>('start_desc');
@@ -231,6 +231,7 @@ const ReservationsPanel = () => {
             >
               <option value="all">Todos</option>
               <option value="reserved">Reservado</option>
+              <option value="active">Activo</option>
               <option value="completed">Completado</option>
               <option value="cancelled">Cancelado</option>
             </select>
@@ -314,12 +315,15 @@ const ReservationsPanel = () => {
                               onChange={(e) => updateReservationStatus(reservation.id, e.target.value as InventoryReservation['status'])}
                               className={`text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-offset-1 ${reservation.status === 'reserved'
                                 ? 'bg-blue-100 text-blue-800 focus:ring-blue-500'
-                                : reservation.status === 'completed'
-                                  ? 'bg-green-100 text-green-800 focus:ring-green-500'
-                                  : 'bg-red-100 text-red-800 focus:ring-red-500'
+                                : reservation.status === 'active'
+                                  ? 'bg-amber-100 text-amber-800 focus:ring-amber-500'
+                                  : reservation.status === 'completed'
+                                    ? 'bg-green-100 text-green-800 focus:ring-green-500'
+                                    : 'bg-red-100 text-red-800 focus:ring-red-500'
                                 }`}
                             >
                               <option value="reserved">Reservado</option>
+                              <option value="active">Activo</option>
                               <option value="completed">Completado</option>
                               <option value="cancelled">Cancelado</option>
                             </select>
