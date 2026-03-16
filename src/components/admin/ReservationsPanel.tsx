@@ -89,6 +89,36 @@ const ReservationsPanel = () => {
 
       if (error) throw error;
 
+      if (newStatus === 'completed') {
+        const reservation = reservations.find((r) => r.id === reservationId);
+        if (reservation && reservation.requester_code) {
+          const endAtDate = new Date(reservation.end_at);
+          const now = new Date();
+          const diffInMinutes = (now.getTime() - endAtDate.getTime()) / (1000 * 60);
+
+          if (diffInMinutes > 30) {
+            const blockedUntil = new Date(now);
+            blockedUntil.setMonth(blockedUntil.getMonth() + 1);
+
+            const { error: blacklistError } = await supabase.from('inventory_blacklist').insert({
+              requester_code: reservation.requester_code,
+              blocked_until: blockedUntil.toISOString(),
+              reason: `Retraso de ${Math.round(diffInMinutes)} minutos en la devolución.`,
+            });
+
+            if (blacklistError) {
+              console.error('Error agregando a la lista negra:', blacklistError);
+            } else {
+              alert(
+                `¡Atención! El usuario ha sido sancionado por entregar con ${Math.round(
+                  diffInMinutes
+                )} minutos de retraso. Se le ha bloqueado por 1 mes.`
+              );
+            }
+          }
+        }
+      }
+
       setReservations((prev) =>
         prev.map((reservation) =>
           reservation.id === reservationId ? { ...reservation, status: newStatus } : reservation

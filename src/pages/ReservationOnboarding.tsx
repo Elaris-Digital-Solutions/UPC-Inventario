@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { addDays, addMinutes, format, startOfDay, endOfWeek, addWeeks } from "date-fns";
+import { addDays, addMinutes, addHours, subHours, format, startOfDay, endOfWeek, addWeeks } from "date-fns";
 import { Calendar as CalendarIcon, ArrowLeft, Clock3, Building2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -105,7 +105,7 @@ const getCampusFromParam = (value: string | null): Campus =>
 const overlaps = (reservation: ReservationPick, slotStart: Date, slotEnd: Date) => {
   const reservationStart = new Date(reservation.start_at);
   const reservationEnd = new Date(reservation.end_at);
-  return reservationStart < slotEnd && reservationEnd > slotStart;
+  return reservationStart < addHours(slotEnd, 2) && reservationEnd > subHours(slotStart, 2);
 };
 
 type ReservationPick = Pick<InventoryReservation, "unit_id" | "start_at" | "end_at" | "status">;
