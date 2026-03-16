@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/supabaseClient';
 import { InventoryReservation } from '@/types/Inventory';
+import { startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 
 type ReservationRow = InventoryReservation & {
   product?: {
@@ -22,6 +23,7 @@ const ReservationsPanel = () => {
   const [loading, setLoading] = useState(false);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'reserved' | 'completed' | 'cancelled'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'next3days' | 'thisweek'>('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'start_desc' | 'start_asc' | 'created_desc'>('start_desc');
 
@@ -100,8 +102,31 @@ const ReservationsPanel = () => {
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredReservations = useMemo(() => {
+    const now = new Date();
+    
     return reservations
       .filter((reservation) => statusFilter === 'all' || reservation.status === statusFilter)
+      .filter((reservation) => {
+        if (dateFilter === 'all') return true;
+        
+        const startDate = new Date(reservation.start_at);
+        if (isNaN(startDate.getTime())) return true;
+        
+        try {
+          if (dateFilter === 'today') {
+            return isWithinInterval(startDate, { start: startOfDay(now), end: endOfDay(now) });
+          }
+          if (dateFilter === 'next3days') {
+            return isWithinInterval(startDate, { start: startOfDay(now), end: endOfDay(addDays(now, 3)) });
+          }
+          if (dateFilter === 'thisweek') {
+            return isWithinInterval(startDate, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+          }
+        } catch (e) {
+          return false;
+        }
+        return true;
+      })
       .filter((reservation) => {
         if (!normalizedSearch) return true;
         const haystack = [
@@ -117,7 +142,7 @@ const ReservationsPanel = () => {
           .toLowerCase();
         return haystack.includes(normalizedSearch);
       });
-  }, [reservations, statusFilter, normalizedSearch]);
+  }, [reservations, statusFilter, dateFilter, normalizedSearch]);
 
   const sortedReservations = useMemo(() => {
     return [...filteredReservations].sort((a, b) => {
@@ -141,8 +166,8 @@ const ReservationsPanel = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white p-4 rounded-lg shadow-sm border border-beige-200">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="flex flex-col space-y-1 lg:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+          <div className="flex flex-col space-y-1 lg:col-span-4 md:col-span-2">
             <label className="text-sm font-medium text-gray-700">Buscar por solicitante, código o ítem</label>
             <input
               type="text"
@@ -153,7 +178,21 @@ const ReservationsPanel = () => {
             />
           </div>
 
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 lg:col-span-3">
+            <label className="text-sm font-medium text-gray-700">Fecha de Inicio</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as any)}
+              className="border-gray-300 rounded-md text-sm focus:ring-gold-500 focus:border-gold-500"
+            >
+              <option value="all">Todas las fechas</option>
+              <option value="today">Hoy</option>
+              <option value="next3days">Hoy a 3 días</option>
+              <option value="thisweek">Esta semana (Lun-Dom)</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col space-y-1 lg:col-span-2">
             <label className="text-sm font-medium text-gray-700">Estado</label>
             <select
               value={statusFilter}
@@ -167,7 +206,7 @@ const ReservationsPanel = () => {
             </select>
           </div>
 
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-1 lg:col-span-3">
             <label className="text-sm font-medium text-gray-700">Orden</label>
             <div className="flex items-center gap-3">
               <select
