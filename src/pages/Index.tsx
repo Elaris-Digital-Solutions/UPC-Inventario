@@ -22,7 +22,7 @@ const features = [
     description: "Acércate en el horario seleccionado y utiliza el equipo con responsabilidad.",
     cta: "Ver catálogo",
     ctaHref: "/catalogo",
-    image: "https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80",
+    image: "/Campus.png",
   },
   {
     step: "Paso 03",
