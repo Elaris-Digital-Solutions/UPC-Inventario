@@ -18,6 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
 const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
 const FALLBACK_PRODUCTION_AUTH_URL = 'https://upc-inventario.netlify.app';
+const ADMIN_EMAILS_RAW = import.meta.env.VITE_ADMIN_EMAILS;
 
 const isValidUpcEmail = (email: string) => UPC_EMAIL_REGEX.test(email.trim().toLowerCase());
 
@@ -53,20 +54,98 @@ const buildAuthRedirectUrl = (redirectPath = '/') => {
   return `${baseUrl}${safeRedirectPath}`;
 };
 
+const normalizeEmail = (value: string) => (value || '').trim().toLowerCase();
+
+const getAdminEmailSet = () => {
+  const raw = (ADMIN_EMAILS_RAW || '').trim();
+  if (!raw) return new Set<string>();
+  return new Set(
+    raw
+      .split(',')
+      .map((v) => normalizeEmail(v))
+      .filter(Boolean)
+  );
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const adminEmails = getAdminEmailSet();
+
+  const isAdminSession = (nextSession: Session | null) => {
+    if (!nextSession) return false;
+    const email = normalizeEmail(nextSession.user?.email || '');
+    if (email && adminEmails.has(email)) return true;
+
+    const appMeta: any = nextSession.user?.app_metadata || {};
+    const userMeta: any = nextSession.user?.user_metadata || {};
+
+    const role = String(appMeta?.role || userMeta?.role || '').toLowerCase();
+    if (role === 'admin') return true;
+
+    if (appMeta?.is_admin === true || userMeta?.is_admin === true) return true;
+    return false;
+  };
+
+  /**
+   * Returns:
+   * - string: alumno id if found
+   * - null: not registered
+   * - undefined: cannot verify (e.g., RLS/permission/network)
+   */
+  const getAlumnoIdByEmail = async (email: string): Promise<string | null | undefined> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('alumnos')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .eq('activo', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking alumnos table:', error);
+        return undefined;
+      }
+
+      return data?.id ? String(data.id) : null;
+    } catch (error) {
+      console.error('Unexpected alumnos check error:', error);
+      return undefined;
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     const syncSession = async (nextSession: Session | null) => {
       const email = nextSession?.user?.email || '';
-      if (nextSession && email && !isValidUpcEmail(email)) {
+
+      // Admin accounts may be outside UPC email domain; allow them via allowlist/role.
+      if (nextSession && email && !isValidUpcEmail(email) && !isAdminSession(nextSession)) {
         await supabase.auth.signOut();
         setSession(null);
         return;
       }
+
+      // Do not enforce alumnos membership for admin accounts
+      if (nextSession && email && !isAdminSession(nextSession)) {
+        const alumnoId = await getAlumnoIdByEmail(email);
+        if (alumnoId === null) {
+          try {
+            localStorage.setItem('upc_register_email', email.trim().toLowerCase());
+          } catch {
+            // ignore
+          }
+          await supabase.auth.signOut();
+          setSession(null);
+          return;
+        }
+      }
+
       setSession(nextSession);
     };
 
@@ -132,8 +211,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, password: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!isValidUpcEmail(normalizedEmail)) {
+    const normalizedEmail = normalizeEmail(email);
+    const isAdminEmail = normalizedEmail && adminEmails.has(normalizedEmail);
+    if (!isValidUpcEmail(normalizedEmail) && !isAdminEmail) {
       return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
     }
 
@@ -146,9 +226,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const sendMagicLink = async (email: string, redirectPath = '/catalogo') => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     if (!isValidUpcEmail(normalizedEmail)) {
       return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
+    }
+
+    // Best-effort pre-check: if we can confirm it's NOT registered, block.
+    // If we cannot verify (RLS), we allow the OTP request and enforce on session.
+    const alumnoId = await getAlumnoIdByEmail(normalizedEmail);
+    if (alumnoId === null) {
+      const err: any = new Error('Tu correo no está registrado. Regístrate primero.');
+      err.code = 'NOT_REGISTERED';
+      try {
+        localStorage.setItem('upc_register_email', normalizedEmail);
+      } catch {
+        // ignore
+      }
+      return { error: err };
     }
 
     const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';
@@ -177,9 +271,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const loginWithMicrosoft = async (email: string, redirectPath = '/catalogo') => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     if (!isValidUpcEmail(normalizedEmail)) {
       return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
+    }
+
+    const alumnoId = await getAlumnoIdByEmail(normalizedEmail);
+    if (alumnoId === null) {
+      const err: any = new Error('Tu correo no está registrado. Regístrate primero.');
+      err.code = 'NOT_REGISTERED';
+      try {
+        localStorage.setItem('upc_register_email', normalizedEmail);
+      } catch {
+        // ignore
+      }
+      return { error: err };
     }
 
     const safeRedirectPath = redirectPath.startsWith('/') ? redirectPath : '/catalogo';

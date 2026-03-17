@@ -25,66 +25,6 @@ type SlotAvailability = {
   availableUnits: number;
 };
 
-const CAREER_OPTIONS = [
-  "Administración",
-  "Administración y Ciencia de Datos para Negocios",
-  "Administración y Finanzas",
-  "Administración y Marketing",
-  "Administración y Negocios Del Deporte",
-  "Administración y Negocios Digitales",
-  "Administración y Negocios Internacionales",
-  "Administración y Recursos Humanos",
-  "Arquitectura",
-  "Artes Escénicas",
-  "Biología",
-  "Ciencias de la Actividad Física y el Deporte",
-  "Ciencias De La Computación",
-  "Ciencias Políticas",
-  "Comunicación Audiovisual y Medios Interactivos",
-  "Comunicación E Imagen Empresarial",
-  "Comunicación y Marketing",
-  "Comunicación y Periodismo",
-  "Comunicación y Publicidad",
-  "Contabilidad y Administración",
-  "Contabilidad y Finanzas",
-  "Derecho",
-  "Diseño Industrial",
-  "Diseño Profesional De Interiores",
-  "Diseño Profesional Gráfico",
-  "Diseño y Gestión En Moda",
-  "Economía Gerencial",
-  "Economía y Ciencia de Datos",
-  "Economía y Finanzas",
-  "Economía y Negocios Internacionales",
-  "Educación y Gestión Del Aprendizaje",
-  "Enfermería",
-  "Farmacia y Bioquímica",
-  "Gastronomía y Gestión Culinaria",
-  "Hotelería y Administración",
-  "Ingeniería Ambiental",
-  "Ingeniería Biomédica",
-  "Ingeniería Civil",
-  "Ingeniería de Ciberseguridad",
-  "Ingeniería De Gestión Empresarial",
-  "Ingeniería De Gestión Minera",
-  "Ingeniería de Inteligencia Artificial",
-  "Ingeniería De Sistemas De Información",
-  "Ingeniería De Software",
-  "Ingeniería Electrónica",
-  "Ingeniería Industrial",
-  "Ingeniería Mecatrónica",
-  "Medicina",
-  "Medicina Veterinaria",
-  "Música",
-  "Nutrición y Dietética",
-  "Odontología",
-  "Psicología",
-  "Relaciones Internacionales",
-  "Terapia Física",
-  "Traducción E Interpretación Profesional",
-  "Turismo y Administración"
-];
-
 const PURPOSE_OPTIONS = [
   "Práctica de laboratorio",
   "Proyecto de curso",
@@ -120,7 +60,6 @@ const ReservationOnboarding = () => {
   const item = products.find((product) => product.id === id);
 
   const [selectedCampus] = useState<Campus>(() => getCampusFromParam(searchParams.get("campus")));
-  const [career, setCareer] = useState("");
   const [purpose, setPurpose] = useState("");
   const [durationHours, setDurationHours] = useState(2);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -238,10 +177,6 @@ const ReservationOnboarding = () => {
 
   const handleReserve = async () => {
     if (!item) return;
-    if (!career) {
-      toast.error("Selecciona tu carrera");
-      return;
-    }
     if (!purpose) {
       toast.error("Selecciona el motivo de uso");
       return;
@@ -262,31 +197,133 @@ const ReservationOnboarding = () => {
 
     const requesterCode = typeof user?.email === "string" ? user.email : null;
 
-    const reservationPurpose = [
-      `Carrera: ${career}`,
-      `Motivo: ${purpose}`,
-    ]
-      .filter(Boolean)
-      .join(" | ");
+    const reservationPurpose = `Motivo: ${purpose}`;
+
+    const startAtISO = selectedSlot.start.toISOString();
+    const endAtISO = selectedSlot.end.toISOString();
+
+    const isRpcSignatureMismatch = (rpcError: any) => {
+      const message = String(rpcError?.message || '').toLowerCase();
+      const details = String(rpcError?.details || '').toLowerCase();
+      const hint = String(rpcError?.hint || '').toLowerCase();
+      const code = String(rpcError?.code || '').toLowerCase();
+
+      // PostgREST typically returns “Could not find the function ...” when args don't match.
+      return (
+        code === 'pgrst202' ||
+        message.includes('could not find the function') ||
+        message.includes('function') && message.includes('does not exist') ||
+        details.includes('could not find the function') ||
+        hint.includes('could not find the function')
+      );
+    };
+
+    const showRpcError = (rpcError: any, payload: any) => {
+      const messageParts = [
+        rpcError?.message,
+        rpcError?.details,
+        rpcError?.hint,
+        rpcError?.code ? `(${String(rpcError.code)})` : null,
+      ].filter(Boolean);
+
+      console.error("Error creando reserva (RPC create_inventory_reservation):", {
+        error: rpcError,
+        payload,
+      });
+
+      toast.error(messageParts.join(" ") || "No se pudo registrar la reserva");
+    };
+
+    const findAvailableUnitIdForSlot = () => {
+      const slotStart = selectedSlot.start;
+      const slotEnd = selectedSlot.end;
+
+      const unit = units.find((candidate) => {
+        const overlapsExistingReservation = reservations.some((reservation) => {
+          return reservation.unit_id === candidate.id && overlaps(reservation, slotStart, slotEnd);
+        });
+
+        return !overlapsExistingReservation;
+      });
+
+      return unit?.id || null;
+    };
 
     setIsSubmitting(true);
-    const { data, error } = await supabase.rpc("create_inventory_reservation", {
+    const campusPayload = {
       p_product_id: item.id,
       p_campus: selectedCampus,
       p_requester_name: requesterName,
       p_requester_code: requesterCode,
-      p_start_at: selectedSlot.start.toISOString(),
-      p_end_at: selectedSlot.end.toISOString(),
+      p_start_at: startAtISO,
+      p_end_at: endAtISO,
       p_purpose: reservationPurpose,
-    });
+    };
+
+    // 1) Try "campus" signature (older/current app).
+    let { data, error } = await supabase.rpc("create_inventory_reservation", campusPayload);
+
+    // 2) If the function signature doesn't match what's deployed, fallback to
+    //    the "profile-based" signature from supabase/002_RPC_FUNCTIONS.sql.
+    if (error && isRpcSignatureMismatch(error)) {
+      const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : '';
+      if (!email) {
+        setIsSubmitting(false);
+        toast.error('No se pudo identificar tu correo para registrar la reserva');
+        return;
+      }
+
+      // Resolve alumno_id from email
+      const { data: alumnoRow, error: alumnoError } = await supabase
+        .from('alumnos')
+        .select('id')
+        .eq('email', email)
+        .eq('activo', true)
+        .maybeSingle();
+
+      if (alumnoError) {
+        setIsSubmitting(false);
+        showRpcError(alumnoError, { step: 'lookup_alumno', email });
+        return;
+      }
+
+      const alumnoId = alumnoRow?.id ? String(alumnoRow.id) : null;
+      if (!alumnoId) {
+        setIsSubmitting(false);
+        toast.error('Tu correo no está registrado como alumno. Completa tu registro primero.');
+        return;
+      }
+
+      // Choose a concrete unit_id for the slot
+      const unitId = findAvailableUnitIdForSlot();
+      if (!unitId) {
+        setIsSubmitting(false);
+        toast.error('No hay unidades disponibles para el horario seleccionado');
+        return;
+      }
+
+      const profilePayload = {
+        p_product_id: item.id,
+        p_unit_id: unitId,
+        p_start_at: startAtISO,
+        p_end_at: endAtISO,
+        p_user_id: alumnoId,
+      };
+
+      ({ data, error } = await supabase.rpc('create_inventory_reservation', profilePayload));
+    }
+
     setIsSubmitting(false);
 
     if (error) {
-      toast.error(error.message || "No se pudo registrar la reserva");
+      showRpcError(error, campusPayload);
       return;
     }
 
-    const reservationId = data?.id ? ` (#${String(data.id).slice(0, 8)})` : "";
+    // Data shape depends on which RPC signature ran.
+    const row = Array.isArray(data) ? data[0] : data;
+    const reservationIdValue = row?.id || row?.reservation_id;
+    const reservationId = reservationIdValue ? ` (#${String(reservationIdValue).slice(0, 8)})` : "";
     toast.success(`Reserva registrada${reservationId}`);
     navigate(`/faq`);
   };
@@ -459,20 +496,6 @@ const ReservationOnboarding = () => {
             <p className="mt-1 text-sm text-gray-500">Completa el onboarding antes de confirmar.</p>
 
             <div className="mt-5 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="career">Carrera</Label>
-                <Select value={career} onValueChange={setCareer}>
-                  <SelectTrigger id="career" className="border-gray-300">
-                    <SelectValue placeholder="Selecciona tu carrera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CAREER_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="purpose">Motivo de uso</Label>
                 <Select value={purpose} onValueChange={setPurpose}>

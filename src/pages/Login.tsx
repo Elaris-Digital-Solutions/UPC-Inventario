@@ -1,11 +1,11 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import upcLogo from "@/assets/upc-logo.png";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
@@ -14,6 +14,18 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { sendMagicLink, isUniversityEmail, isAuthenticated, authLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('upc_register_email') || localStorage.getItem('upc_login_email_prefill');
+      if (stored && !email) {
+        setEmail(stored);
+      }
+    } catch {
+      // ignore
+    }
+  }, [email]);
 
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/catalogo";
 
@@ -30,6 +42,13 @@ const Login = () => {
 
     if (error) {
       console.error("Error enviando magic link:", error);
+      const code = (error as any)?.code;
+      if (code === "NOT_REGISTERED") {
+        toast.error("Tu correo no está registrado. Completa tu registro primero.");
+        navigate("/register", { state: { email } });
+        return;
+      }
+
       toast.error(error.message || "No se pudo iniciar sesión");
       return;
     }
@@ -76,7 +95,10 @@ const Login = () => {
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Si no puedes ingresar con tu cuenta institucional, contacta al administrador del laboratorio.
+              ¿Aún no estás registrado?{" "}
+              <Link to="/register" className="font-medium text-primary hover:underline">
+                Regístrate aquí
+              </Link>
             </p>
           </div>
         </div>
