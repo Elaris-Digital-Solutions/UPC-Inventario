@@ -5,8 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/context/ProductContext';
 import { studentService } from '@/services/StudentService';
 import { reservationService } from '@/services/ReservationService';
-import { ReservationWithCarrera } from '@/types/Database';
-import { Calendar, History, Trophy, Activity, XCircle, AlertCircle } from 'lucide-react';
+import { ReservationWithCarrera, Alumno } from '@/types/Database';
+import { Calendar, History, Trophy, Activity, XCircle, AlertCircle, User as UserIcon, Mail, GraduationCap } from 'lucide-react';
 import { format, isThisWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +30,7 @@ const UserDashboard = () => {
   
   const [reservations, setReservations] = useState<ReservationWithCarrera[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alumno, setAlumno] = useState<Alumno | null>(null);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -39,10 +40,11 @@ const UserDashboard = () => {
       try {
         if (!user?.email) return;
         
-        const alumno = await studentService.getStudentByEmail(user.email);
-        if (alumno) {
-          setAlumnoId(alumno.id);
-          const userReservations = await reservationService.getStudentReservations(alumno.id);
+        const student = await studentService.getStudentByEmail(user.email);
+        if (student) {
+          setAlumno(student);
+          setAlumnoId(student.id);
+          const userReservations = await reservationService.getStudentReservations(student.id);
           setReservations(userReservations);
         }
       } catch (error) {
@@ -147,6 +149,47 @@ const UserDashboard = () => {
             
             {/* Left Column: Stats */}
             <div className="lg:col-span-1 space-y-6">
+              
+              {alumno && (
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <UserIcon size={80} />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-lg mb-4">Tu Perfil</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gray-50 text-gray-500 p-2 rounded-lg shrink-0">
+                        <UserIcon size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500 uppercase tracking-widest">Nombre</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{alumno.nombre} {alumno.apellido}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gray-50 text-gray-500 p-2 rounded-lg shrink-0">
+                        <Mail size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500 uppercase tracking-widest">Correo</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{alumno.email}</p>
+                      </div>
+                    </div>
+                    {alumno.carrera?.nombre && (
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-50 text-gray-500 p-2 rounded-lg shrink-0">
+                          <GraduationCap size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-500 uppercase tracking-widest">Carrera</p>
+                          <p className="text-sm font-medium text-gray-900 truncate">{alumno.carrera.nombre}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5">
                   <Activity size={80} />

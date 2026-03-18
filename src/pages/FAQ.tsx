@@ -24,6 +24,10 @@ const faqs = [
     answer: "Si no retiras tu dispositivo reservado a tiempo por dos ocasiones consecutivas, recibirás una penalización de no poder solicitar préstamos por 15 días calendario.",
   },
   {
+    question: "¿Qué pasa con los días no laborables?",
+    answer: "Ante un día no laborable o imprevisto, todas las reservas realizadas para ese día serán canceladas automáticamente.",
+  },
+  {
     question: "¿Qué ocurre si el equipo presenta fallas o daños?",
     answer: "Si al recibir el equipo notas algún daño físico o falla de software, repórtalo inmediatamente al personal encargado de inventario. No te preocupes por los costos, los daños de los equipos están cubiertos por un seguro institucional.",
   },
