@@ -141,7 +141,7 @@ const toProduct = (name: string, category: string, description: string): Product
 });
 
 const Admin = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isAdmin, logout } = useAuth();
   const { products, addProduct, updateProduct, deleteProduct } = useProducts();
 
   const [activeTab, setActiveTab] = useState<'register' | 'manage' | 'reservations' | 'verification' | 'stats'>('register');
@@ -910,7 +910,7 @@ const Admin = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <Header />

@@ -16,13 +16,19 @@ type ReservationRow = InventoryReservation & {
     asset_code?: string | null;
     status?: string;
   } | null;
+  alumno?: {
+    id?: number;
+    nombre?: string;
+    apellido?: string;
+    email?: string;
+  } | null;
 };
 
 const ReservationsPanel = () => {
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'reserved' | 'active' | 'completed' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'reserved' | 'active' | 'completed' | 'cancelled' | 'not_returned'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'next3days' | 'thisweek'>('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'start_desc' | 'start_asc' | 'created_desc'>('start_desc');
@@ -36,15 +42,15 @@ const ReservationsPanel = () => {
           id,
           product_id,
           unit_id,
-          requester_name,
-          requester_code,
+          user_id,
           purpose,
           start_at,
           end_at,
           status,
           created_at,
           products:product_id (id, name, category),
-          inventory_units:unit_id (id, unit_code, asset_code, status)
+          inventory_units:unit_id (id, unit_code, asset_code, status),
+          alumnos:user_id (id, nombre, apellido, email)
         `)
         .order('start_at', { ascending: false });
 
@@ -54,8 +60,11 @@ const ReservationsPanel = () => {
         id: row.id,
         product_id: row.product_id,
         unit_id: row.unit_id,
-        requester_name: row.requester_name,
-        requester_code: row.requester_code,
+        user_id: row.user_id,
+        requester_name: row.alumnos
+          ? `${row.alumnos.nombre || ''} ${row.alumnos.apellido || ''}`.trim() || row.alumnos.email || 'Sin nombre'
+          : 'Sin nombre',
+        requester_code: row.alumnos?.email || null,
         purpose: row.purpose,
         start_at: row.start_at,
         end_at: row.end_at,
@@ -63,6 +72,7 @@ const ReservationsPanel = () => {
         created_at: row.created_at,
         product: Array.isArray(row.products) ? row.products[0] : row.products,
         unit: Array.isArray(row.inventory_units) ? row.inventory_units[0] : row.inventory_units,
+        alumno: Array.isArray(row.alumnos) ? row.alumnos[0] : row.alumnos,
       })) as ReservationRow[];
 
       setReservations(rows);
@@ -88,36 +98,6 @@ const ReservationsPanel = () => {
         .eq('id', reservationId);
 
       if (error) throw error;
-
-      if (newStatus === 'completed') {
-        const reservation = reservations.find((r) => r.id === reservationId);
-        if (reservation && reservation.requester_code) {
-          const endAtDate = new Date(reservation.end_at);
-          const now = new Date();
-          const diffInMinutes = (now.getTime() - endAtDate.getTime()) / (1000 * 60);
-
-          if (diffInMinutes > 30) {
-            const blockedUntil = new Date(now);
-            blockedUntil.setMonth(blockedUntil.getMonth() + 1);
-
-            const { error: blacklistError } = await supabase.from('inventory_blacklist').insert({
-              requester_code: reservation.requester_code,
-              blocked_until: blockedUntil.toISOString(),
-              reason: `Retraso de ${Math.round(diffInMinutes)} minutos en la devolución.`,
-            });
-
-            if (blacklistError) {
-              console.error('Error agregando a la lista negra:', blacklistError);
-            } else {
-              alert(
-                `¡Atención! El usuario ha sido sancionado por entregar con ${Math.round(
-                  diffInMinutes
-                )} minutos de retraso. Se le ha bloqueado por 1 mes.`
-              );
-            }
-          }
-        }
-      }
 
       setReservations((prev) =>
         prev.map((reservation) =>
@@ -234,6 +214,7 @@ const ReservationsPanel = () => {
               <option value="active">Activo</option>
               <option value="completed">Completado</option>
               <option value="cancelled">Cancelado</option>
+              <option value="not_returned">No devuelto</option>
             </select>
           </div>
 
@@ -319,6 +300,8 @@ const ReservationsPanel = () => {
                                   ? 'bg-amber-100 text-amber-800 focus:ring-amber-500'
                                   : reservation.status === 'completed'
                                     ? 'bg-green-100 text-green-800 focus:ring-green-500'
+                                    : reservation.status === 'not_returned'
+                                      ? 'bg-purple-100 text-purple-800 focus:ring-purple-500'
                                     : 'bg-red-100 text-red-800 focus:ring-red-500'
                                 }`}
                             >
@@ -326,6 +309,7 @@ const ReservationsPanel = () => {
                               <option value="active">Activo</option>
                               <option value="completed">Completado</option>
                               <option value="cancelled">Cancelado</option>
+                              <option value="not_returned">No devuelto</option>
                             </select>
                             <button
                               onClick={() => setSelectedReservationId(selected ? null : reservation.id)}

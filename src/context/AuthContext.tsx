@@ -4,6 +4,7 @@ import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isAdmin: boolean;
   authLoading: boolean;
   isUniversityEmail: (email: string) => boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
@@ -16,9 +17,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
+const ADMIN_EMAIL = 'admin@upc.edu.pe';
+const ADMIN_PASSWORD = '123456789';
 const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
 const FALLBACK_PRODUCTION_AUTH_URL = 'https://upc-inventario.netlify.app';
-const ADMIN_EMAILS_RAW = import.meta.env.VITE_ADMIN_EMAILS;
 
 const isValidUpcEmail = (email: string) => UPC_EMAIL_REGEX.test(email.trim().toLowerCase());
 
@@ -56,36 +58,16 @@ const buildAuthRedirectUrl = (redirectPath = '/') => {
 
 const normalizeEmail = (value: string) => (value || '').trim().toLowerCase();
 
-const getAdminEmailSet = () => {
-  const raw = (ADMIN_EMAILS_RAW || '').trim();
-  if (!raw) return new Set<string>();
-  return new Set(
-    raw
-      .split(',')
-      .map((v) => normalizeEmail(v))
-      .filter(Boolean)
-  );
-};
+const isAllowedAdminEmail = (email: string) => normalizeEmail(email) === ADMIN_EMAIL;
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const adminEmails = getAdminEmailSet();
-
   const isAdminSession = (nextSession: Session | null) => {
     if (!nextSession) return false;
     const email = normalizeEmail(nextSession.user?.email || '');
-    if (email && adminEmails.has(email)) return true;
-
-    const appMeta: any = nextSession.user?.app_metadata || {};
-    const userMeta: any = nextSession.user?.user_metadata || {};
-
-    const role = String(appMeta?.role || userMeta?.role || '').toLowerCase();
-    if (role === 'admin') return true;
-
-    if (appMeta?.is_admin === true || userMeta?.is_admin === true) return true;
-    return false;
+    return isAllowedAdminEmail(email);
   };
 
   /**
@@ -212,9 +194,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     const normalizedEmail = normalizeEmail(email);
-    const isAdminEmail = normalizedEmail && adminEmails.has(normalizedEmail);
-    if (!isValidUpcEmail(normalizedEmail) && !isAdminEmail) {
-      return { error: new Error('Solo se permiten cuentas @upc.edu.pe') };
+    if (!isAllowedAdminEmail(normalizedEmail)) {
+      return { error: new Error('Solo el correo admin@upc.edu.pe puede acceder al panel admin') };
+    }
+
+    if (password !== ADMIN_PASSWORD) {
+      return { error: new Error('Clave de administrador incorrecta') };
     }
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -313,6 +298,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <AuthContext.Provider value={{
       isAuthenticated: !!session,
+      isAdmin: isAdminSession(session),
       authLoading,
       isUniversityEmail: isValidUpcEmail,
       user: effectiveUser,

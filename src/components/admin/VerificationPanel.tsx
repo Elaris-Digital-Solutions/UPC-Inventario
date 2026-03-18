@@ -15,6 +15,12 @@ type ReservationRow = InventoryReservation & {
     unit_code?: string;
     asset_code?: string | null;
   } | null;
+  alumno?: {
+    id?: number;
+    nombre?: string;
+    apellido?: string;
+    email?: string;
+  } | null;
 };
 
 const VerificationPanel = () => {
@@ -34,15 +40,15 @@ const VerificationPanel = () => {
           id,
           product_id,
           unit_id,
-          requester_name,
-          requester_code,
+          user_id,
           purpose,
           start_at,
           end_at,
           status,
           created_at,
           products:product_id (id, name, category),
-          inventory_units:unit_id (id, unit_code, asset_code)
+          inventory_units:unit_id (id, unit_code, asset_code),
+          alumnos:user_id (id, nombre, apellido, email)
         `)
         .in('status', ['reserved', 'active'])
         .order('start_at', { ascending: true });
@@ -53,8 +59,11 @@ const VerificationPanel = () => {
         id: row.id,
         product_id: row.product_id,
         unit_id: row.unit_id,
-        requester_name: row.requester_name,
-        requester_code: row.requester_code,
+        user_id: row.user_id,
+        requester_name: row.alumnos
+          ? `${row.alumnos.nombre || ''} ${row.alumnos.apellido || ''}`.trim() || row.alumnos.email || 'Sin nombre'
+          : 'Sin nombre',
+        requester_code: row.alumnos?.email || null,
         purpose: row.purpose,
         start_at: row.start_at,
         end_at: row.end_at,
@@ -62,6 +71,7 @@ const VerificationPanel = () => {
         created_at: row.created_at,
         product: Array.isArray(row.products) ? row.products[0] : row.products,
         unit: Array.isArray(row.inventory_units) ? row.inventory_units[0] : row.inventory_units,
+        alumno: Array.isArray(row.alumnos) ? row.alumnos[0] : row.alumnos,
       })) as ReservationRow[];
 
       setReservations(rows);
@@ -212,25 +222,6 @@ const VerificationPanel = () => {
         .eq('id', reservation.id);
       if (error) throw error;
 
-      // Penalidad
-      if (reservation.requester_code) {
-        const endAtDate = new Date(reservation.end_at);
-        const rightNow = new Date();
-        const diffInMinutes = (rightNow.getTime() - endAtDate.getTime()) / (1000 * 60);
-
-        if (diffInMinutes > 30) {
-          const blockedUntil = new Date(rightNow);
-          blockedUntil.setMonth(blockedUntil.getMonth() + 1);
-
-          await supabase.from('inventory_blacklist').insert({
-            requester_code: reservation.requester_code,
-            blocked_until: blockedUntil.toISOString(),
-            reason: `Retraso de ${Math.round(diffInMinutes)} minutos en la devolución.`,
-          });
-          alert(`¡Atención! El usuario ha sido sancionado por entregar con ${Math.round(diffInMinutes)} minutos de retraso. Se le ha bloqueado por 1 mes.`);
-        }
-      }
-
       setReservations((prev) => prev.filter((row) => row.id !== reservation.id));
       setNoteDraftByReservation((prev) => ({ ...prev, [reservation.id]: '' }));
       alert('Recepción confirmada. La reserva quedó marcada como completada.');
@@ -253,22 +244,11 @@ const VerificationPanel = () => {
 
       const { error } = await supabase
         .from('inventory_reservations')
-        .update({ status: 'completed' })
+        .update({ status: 'not_returned' })
         .eq('id', reservation.id);
       if (error) throw error;
 
-      if (reservation.requester_code) {
-        const rightNow = new Date();
-        const blockedUntil = new Date(rightNow);
-        blockedUntil.setMonth(blockedUntil.getMonth() + 1);
-
-        await supabase.from('inventory_blacklist').insert({
-          requester_code: reservation.requester_code,
-          blocked_until: blockedUntil.toISOString(),
-          reason: `ALERTA ROJA: Producto no devuelto.`,
-        });
-        alert(`¡Alerta! Se ha bloqueado al usuario por 1 mes por NO devolver el producto.`);
-      }
+      alert('Estado marcado como NO DEVUELTO. El PERMABAN se aplica automáticamente desde la base de datos.');
 
       setReservations((prev) => prev.filter((row) => row.id !== reservation.id));
       setNoteDraftByReservation((prev) => ({ ...prev, [reservation.id]: '' }));

@@ -22,11 +22,12 @@ export interface InventoryReservation {
   id: string;
   product_id: string;
   unit_id: string;
-  requester_name: string;
+  user_id?: number | null;
+  requester_name?: string;
   requester_code?: string | null;
   purpose?: string | null;
   start_at: string;
   end_at: string;
-  status: "reserved" | "active" | "cancelled" | "completed";
+  status: "reserved" | "active" | "cancelled" | "completed" | "not_returned";
   created_at: string;
 }

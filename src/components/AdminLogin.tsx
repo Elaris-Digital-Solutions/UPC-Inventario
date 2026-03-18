@@ -6,6 +6,8 @@ interface AdminLoginProps {
   onLogin: () => void;
 }
 
+const ADMIN_EMAIL = 'admin@upc.edu.pe';
+
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +22,11 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
     setError('');
 
     try {
+      if (email.trim().toLowerCase() !== ADMIN_EMAIL) {
+        setError('Solo el correo admin@upc.edu.pe puede acceder al panel admin');
+        return;
+      }
+
       const { error } = await login(email, password);
       if (error) {
         setError('Credenciales incorrectas');
@@ -72,8 +79,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full rounded-none border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-colors duration-200 placeholder:text-gray-400 focus:border-primary"
-                placeholder="admin@inventario-upc.com"
+                placeholder="admin@upc.edu.pe"
               />
+              <p className="mt-1 text-xs text-gray-500">Correo permitido: admin@upc.edu.pe</p>
             </div>
 
             <div>

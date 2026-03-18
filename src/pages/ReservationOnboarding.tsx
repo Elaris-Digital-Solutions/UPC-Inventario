@@ -261,16 +261,6 @@ const ReservationOnboarding = () => {
     };
 
     setIsSubmitting(true);
-    const campusPayload = {
-      p_product_id: item.id,
-      p_campus: selectedCampus,
-      p_requester_name: requesterName,
-      p_requester_code: requesterCode,
-      p_start_at: startAtISO,
-      p_end_at: endAtISO,
-      p_purpose: reservationPurpose,
-    };
-
     const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : '';
     if (!email) {
       setIsSubmitting(false);
@@ -317,14 +307,15 @@ const ReservationOnboarding = () => {
       p_purpose: reservationPurpose,
     };
 
-    // 1) Try profile-based signature first (current schema with alumnos.user_id).
+    // Use only profile-based signature (current schema with required user_id).
     let attemptedPayload: Record<string, unknown> = profilePayload;
     let { data, error } = await supabase.rpc('create_inventory_reservation', profilePayload);
 
-    // 2) If deployed DB still has the legacy campus signature, fallback once.
     if (error && isRpcSignatureMismatch(error)) {
-      attemptedPayload = campusPayload;
-      ({ data, error } = await supabase.rpc('create_inventory_reservation', campusPayload));
+      setIsSubmitting(false);
+      toast.error('La función de reservas no está actualizada en base de datos. Ejecuta las migraciones SQL más recientes.');
+      showRpcError(error, attemptedPayload);
+      return;
     }
 
     setIsSubmitting(false);

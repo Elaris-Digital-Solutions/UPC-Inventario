@@ -45,6 +45,16 @@ BEGIN
     RETURN;
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM public.inventory_blacklist ib
+    WHERE ib.user_id = p_user_id
+      AND ib.blocked_until > NOW()
+  ) THEN
+    RETURN QUERY SELECT false, 'Usuario bloqueado temporalmente por 15 días por no recoger reservas.'::TEXT, NULL::UUID, NULL::INTEGER;
+    RETURN;
+  END IF;
+
   IF p_end_at <= p_start_at THEN
     RETURN QUERY SELECT false, 'End time must be after start time'::TEXT, NULL::UUID, NULL::INTEGER;
     RETURN;

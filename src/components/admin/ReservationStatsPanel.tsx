@@ -7,6 +7,17 @@ type ReservationRow = InventoryReservation & {
     name?: string;
     category?: string;
   } | null;
+  alumno?: {
+    id?: number;
+    carrera?: {
+      id?: number;
+      nombre?: string;
+      facultad?: {
+        id?: number;
+        nombre?: string;
+      } | null;
+    } | null;
+  } | null;
 };
 
 const maxValue = (arr: { value: number }[]) => arr.reduce((m, it) => Math.max(m, it.value), 0);
@@ -24,14 +35,24 @@ const ReservationStatsPanel = () => {
           id,
           product_id,
           unit_id,
-          requester_name,
-          requester_code,
+          user_id,
           purpose,
           start_at,
           end_at,
           status,
           created_at,
-          products:product_id (name, category)
+          products:product_id (name, category),
+          alumnos:user_id (
+            id,
+            carreras:carrera_id (
+              id,
+              nombre,
+              facultades:facultad_id (
+                id,
+                nombre
+              )
+            )
+          )
         `)
         .order('start_at', { ascending: false });
 
@@ -41,14 +62,38 @@ const ReservationStatsPanel = () => {
         id: row.id,
         product_id: row.product_id,
         unit_id: row.unit_id,
-        requester_name: row.requester_name,
-        requester_code: row.requester_code,
+        user_id: row.user_id,
         purpose: row.purpose,
         start_at: row.start_at,
         end_at: row.end_at,
         status: row.status,
         created_at: row.created_at,
         product: Array.isArray(row.products) ? row.products[0] : row.products,
+        alumno: (() => {
+          const alumnoRow = Array.isArray(row.alumnos) ? row.alumnos[0] : row.alumnos;
+          if (!alumnoRow) return null;
+
+          const carreraRow = Array.isArray(alumnoRow.carreras) ? alumnoRow.carreras[0] : alumnoRow.carreras;
+          const facultadRow = carreraRow
+            ? (Array.isArray(carreraRow.facultades) ? carreraRow.facultades[0] : carreraRow.facultades)
+            : null;
+
+          return {
+            id: alumnoRow.id,
+            carrera: carreraRow
+              ? {
+                  id: carreraRow.id,
+                  nombre: carreraRow.nombre,
+                  facultad: facultadRow
+                    ? {
+                        id: facultadRow.id,
+                        nombre: facultadRow.nombre,
+                      }
+                    : null,
+                }
+              : null,
+          };
+        })(),
       })) as ReservationRow[];
 
       setReservations(rows);
@@ -66,7 +111,8 @@ const ReservationStatsPanel = () => {
 
   const stats = useMemo(() => {
     const now = Date.now();
-    const byCategory = new Map<string, number>();
+    const byFaculty = new Map<string, number>();
+    const byCareer = new Map<string, number>();
     const byItem = new Map<string, number>();
     const byDay = new Map<string, number>();
 
@@ -84,9 +130,11 @@ const ReservationStatsPanel = () => {
       if (reservation.status === 'completed') completed += 1;
       if (reservation.status === 'cancelled') cancelled += 1;
 
-      const category = reservation.product?.category || 'Sin categoría';
+      const faculty = reservation.alumno?.carrera?.facultad?.nombre || 'Sin facultad';
+      const career = reservation.alumno?.carrera?.nombre || 'Sin carrera';
       const item = reservation.product?.name || 'Sin producto';
-      byCategory.set(category, (byCategory.get(category) || 0) + 1);
+      byFaculty.set(faculty, (byFaculty.get(faculty) || 0) + 1);
+      byCareer.set(career, (byCareer.get(career) || 0) + 1);
       byItem.set(item, (byItem.get(item) || 0) + 1);
       if (dayKey) byDay.set(dayKey, (byDay.get(dayKey) || 0) + 1);
     });
@@ -96,7 +144,8 @@ const ReservationStatsPanel = () => {
         .map(([label, value]) => ({ label, value }))
         .sort((a, b) => b.value - a.value);
 
-    const reservationsByCategory = toBars(byCategory);
+    const reservationsByFaculty = toBars(byFaculty);
+    const reservationsByCareer = toBars(byCareer);
     const reservationsByItem = toBars(byItem);
     const reservationsByDay = toBars(byDay).sort((a, b) => a.label.localeCompare(b.label)).slice(-12);
 
@@ -106,7 +155,8 @@ const ReservationStatsPanel = () => {
       completed,
       cancelled,
       topItem: reservationsByItem[0]?.label || 'Sin datos',
-      reservationsByCategory,
+      reservationsByFaculty,
+      reservationsByCareer,
       reservationsByItem,
       reservationsByDay,
     };
@@ -143,23 +193,22 @@ const ReservationStatsPanel = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Reservas por categoría</h4>
-            <span className="text-xs text-gray-500">Barras</span>
+            <h4 className="text-md font-semibold text-gray-900">Reservas por facultades</h4>
           </div>
           <div className="space-y-3">
-            {stats.reservationsByCategory.length === 0 ? (
+            {stats.reservationsByFaculty.length === 0 ? (
               <p className="text-sm text-gray-500">Sin datos aún.</p>
             ) : (
-              stats.reservationsByCategory.map((cat) => {
-                const max = Math.max(1, maxValue(stats.reservationsByCategory));
-                const pct = Math.max(4, (cat.value / max) * 100);
+              stats.reservationsByFaculty.map((row) => {
+                const max = Math.max(1, maxValue(stats.reservationsByFaculty));
+                const pct = Math.max(4, (row.value / max) * 100);
                 return (
-                  <div key={cat.label} className="flex items-center space-x-3">
-                    <span className="w-28 text-sm text-gray-700 truncate">{cat.label}</span>
+                  <div key={row.label} className="flex items-center space-x-3">
+                    <span className="w-32 text-sm text-gray-700 truncate">{row.label}</span>
                     <div className="flex-1 h-3 bg-cream-100 rounded-full overflow-hidden">
                       <div className="h-3 bg-gold-500" style={{ width: `${pct}%` }}></div>
                     </div>
-                    <span className="w-12 text-sm font-medium text-gray-800 text-right">{cat.value}</span>
+                    <span className="w-12 text-sm font-medium text-gray-800 text-right">{row.value}</span>
                   </div>
                 );
               })
@@ -167,6 +216,33 @@ const ReservationStatsPanel = () => {
           </div>
         </div>
 
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-md font-semibold text-gray-900">Reservas por carreras</h4>
+          </div>
+          <div className="space-y-3">
+            {stats.reservationsByCareer.length === 0 ? (
+              <p className="text-sm text-gray-500">Sin datos aún.</p>
+            ) : (
+              stats.reservationsByCareer.slice(0, 12).map((row) => {
+                const max = Math.max(1, maxValue(stats.reservationsByCareer));
+                const pct = Math.max(4, (row.value / max) * 100);
+                return (
+                  <div key={row.label} className="flex items-center space-x-3">
+                    <span className="w-36 text-sm text-gray-700 truncate">{row.label}</span>
+                    <div className="flex-1 h-3 bg-cream-100 rounded-full overflow-hidden">
+                      <div className="h-3 bg-gold-500" style={{ width: `${pct}%` }}></div>
+                    </div>
+                    <span className="w-12 text-sm font-medium text-gray-800 text-right">{row.value}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-md font-semibold text-gray-900">Reservas por día (inicio)</h4>
@@ -192,31 +268,31 @@ const ReservationStatsPanel = () => {
             )}
           </div>
         </div>
-      </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Reservas por ítem</h4>
-          <span className="text-xs text-gray-500">Trazabilidad por producto</span>
-        </div>
-        <div className="space-y-2">
-          {stats.reservationsByItem.length === 0 ? (
-            <p className="text-sm text-gray-500">Sin datos aún.</p>
-          ) : (
-            stats.reservationsByItem.slice(0, 12).map((row) => {
-              const max = Math.max(1, maxValue(stats.reservationsByItem));
-              const pct = Math.max(4, (row.value / max) * 100);
-              return (
-                <div key={row.label} className="flex items-center space-x-3">
-                  <span className="w-52 text-sm text-gray-700 truncate">{row.label}</span>
-                  <div className="flex-1 h-2.5 bg-cream-100 rounded-full overflow-hidden">
-                    <div className="h-2.5 bg-gold-500" style={{ width: `${pct}%` }}></div>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-md font-semibold text-gray-900">Reservas por ítem</h4>
+            <span className="text-xs text-gray-500">Trazabilidad por producto</span>
+          </div>
+          <div className="space-y-2">
+            {stats.reservationsByItem.length === 0 ? (
+              <p className="text-sm text-gray-500">Sin datos aún.</p>
+            ) : (
+              stats.reservationsByItem.slice(0, 12).map((row) => {
+                const max = Math.max(1, maxValue(stats.reservationsByItem));
+                const pct = Math.max(4, (row.value / max) * 100);
+                return (
+                  <div key={row.label} className="flex items-center space-x-3">
+                    <span className="w-52 text-sm text-gray-700 truncate">{row.label}</span>
+                    <div className="flex-1 h-2.5 bg-cream-100 rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-gold-500" style={{ width: `${pct}%` }}></div>
+                    </div>
+                    <span className="w-10 text-sm font-semibold text-gray-800 text-right">{row.value}</span>
                   </div>
-                  <span className="w-10 text-sm font-semibold text-gray-800 text-right">{row.value}</span>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
