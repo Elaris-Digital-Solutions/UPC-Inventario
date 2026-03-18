@@ -155,7 +155,7 @@ class ReservationService {
           nombre,
           apellido,
           carrera_id,
-          carreras(id, nombre, codigo)
+          carreras(id, nombre)
         )
       `)
       .eq('user_id', studentId)
@@ -183,7 +183,7 @@ class ReservationService {
           nombre,
           apellido,
           carrera_id,
-          carreras(id, nombre, codigo)
+          carreras(id, nombre)
         )
       `)
       .eq('id', reservationId)

@@ -127,7 +127,7 @@ class StudentService {
   async getStudentById(studentId: string): Promise<Alumno | null> {
     const { data, error } = await supabase
       .from('alumnos')
-      .select('*, carreras!inner(id, nombre, codigo, description)')
+      .select('*, carreras!inner(id, nombre, description)')
       .eq('id', studentId)
       .eq('activo', true)
       .single();
