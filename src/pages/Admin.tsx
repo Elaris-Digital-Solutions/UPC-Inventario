@@ -7,10 +7,11 @@ import { useProducts } from '@/context/ProductContext';
 import { Product } from '@/types/Product';
 import { InventoryUnit, InventoryUnitNote } from '@/types/Inventory';
 import { supabase } from '@/supabaseClient';
-import { BarChart3, Boxes, ClipboardList, ClipboardCheck, LogOut, PackagePlus, Star, Trash2, Wrench } from 'lucide-react';
+import { BarChart3, Boxes, ClipboardList, ClipboardCheck, LogOut, PackagePlus, Star, Trash2, Wrench, CalendarOff } from 'lucide-react';
 import ReservationsPanel from '@/components/admin/ReservationsPanel';
 import ReservationStatsPanel from '@/components/admin/ReservationStatsPanel';
 import VerificationPanel from '@/components/admin/VerificationPanel';
+import AdminDisabledDays from '@/components/admin/AdminDisabledDays';
 
 const INVENTORY_DEFAULT_CATEGORIES = [
   'Cables',
@@ -144,7 +145,7 @@ const Admin = () => {
   const { isAuthenticated, isAdmin, logout } = useAuth();
   const { products, addProduct, updateProduct, deleteProduct } = useProducts();
 
-  const [activeTab, setActiveTab] = useState<'register' | 'manage' | 'reservations' | 'verification' | 'stats'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'manage' | 'reservations' | 'verification' | 'stats' | 'disabled_days'>('register');
 
   const [productName, setProductName] = useState('');
   const [productCategory, setProductCategory] = useState(INVENTORY_DEFAULT_CATEGORIES[0]);
@@ -962,6 +963,10 @@ const Admin = () => {
                 <BarChart3 className="h-4 w-4 inline mr-2" />
                 Estadísticas
               </button>
+              <button onClick={() => setActiveTab('disabled_days')} className={`py-2 px-1 border-b-2 text-sm ${activeTab === 'disabled_days' ? 'border-gold-500 text-gold-600' : 'border-transparent text-gray-500'}`}>
+                <CalendarOff className="h-4 w-4 inline mr-2" />
+                Días Inhabilitados
+              </button>
             </nav>
           </div>
 
@@ -1333,6 +1338,7 @@ const Admin = () => {
           {activeTab === 'reservations' && <ReservationsPanel />}
           {activeTab === 'verification' && <VerificationPanel />}
           {activeTab === 'stats' && <ReservationStatsPanel />}
+          {activeTab === 'disabled_days' && <AdminDisabledDays />}
         </div>
       </div>
     </div>

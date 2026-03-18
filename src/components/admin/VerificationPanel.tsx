@@ -189,11 +189,36 @@ const VerificationPanel = () => {
     if (!window.confirm('¿Confirmar que el estudiante no retiró el producto? Se cancelará la reserva.')) return;
     setProcessingId(reservation.id);
     try {
+      const { data: previousRes } = await supabase
+        .from('inventory_reservations')
+        .select('status')
+        .eq('user_id', reservation.user_id)
+        .neq('id', reservation.id)
+        .order('start_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      const isSecondStrike = previousRes?.status === 'not_picked_up';
+
       const { error } = await supabase
         .from('inventory_reservations')
-        .update({ status: 'cancelled' })
+        .update({ status: 'not_picked_up' })
         .eq('id', reservation.id);
       if (error) throw error;
+
+      if (isSecondStrike && reservation.user_id) {
+        const banEndDate = new Date();
+        banEndDate.setDate(banEndDate.getDate() + 15);
+        
+        await supabase
+          .from('alumnos')
+          .update({ banned_until: banEndDate.toISOString() })
+          .eq('id', reservation.user_id);
+          
+        alert('El estudiante no retiró su equipo por segunda vez consecutiva. Se le ha aplicado una penalización de 15 días.');
+      } else {
+        alert('Reserva marcada como No Retirada. A la segunda vez consecutiva el alumno recibirá una penalidad.');
+      }
 
       setReservations((prev) => prev.filter((row) => row.id !== reservation.id));
       setNoteDraftByReservation((prev) => ({ ...prev, [reservation.id]: '' }));

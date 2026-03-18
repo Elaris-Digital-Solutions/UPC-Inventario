@@ -47,6 +47,7 @@ export interface Database {
           email_verificado: boolean;
           activo: boolean;
           auth_user_id: string | null;
+          banned_until: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -61,6 +62,7 @@ export interface Database {
           email_verificado?: boolean;
           activo?: boolean;
           auth_user_id?: string;
+          banned_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -75,6 +77,7 @@ export interface Database {
           email_verificado?: boolean;
           activo?: boolean;
           auth_user_id?: string;
+          banned_until?: string | null;
           updated_at?: string;
         };
       };
@@ -90,7 +93,7 @@ export interface Database {
           purpose: string | null;
           start_at: string;
           end_at: string;
-          status: 'reserved' | 'cancelled' | 'completed';
+          status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
         };
         Insert: {
           id?: string;
@@ -103,7 +106,7 @@ export interface Database {
           purpose?: string;
           start_at: string;
           end_at: string;
-          status?: 'reserved' | 'cancelled' | 'completed';
+          status?: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
         };
         Update: {
           id?: string;
@@ -116,7 +119,7 @@ export interface Database {
           purpose?: string | null;
           start_at?: string;
           end_at?: string;
-          status?: 'reserved' | 'cancelled' | 'completed';
+          status?: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
         };
       };
     };
@@ -158,6 +161,7 @@ export interface Alumno {
   emailVerificado: boolean;
   activo: boolean;
   authUserId: string | null;
+  bannedUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -254,7 +258,7 @@ export interface ReservationWithCarrera {
   purpose: string | null;
   startAt: Date;
   endAt: Date;
-  status: 'reserved' | 'cancelled' | 'completed';
+  status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
   
   // Joined data
   carrera?: Carrera;
@@ -276,7 +280,7 @@ export interface InventoryReservation {
   purpose: string | null;
   startAt: Date;
   endAt: Date;
-  status: 'reserved' | 'cancelled' | 'completed';
+  status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
 }
 
 /**

@@ -217,6 +217,7 @@ class StudentService {
       emailVerificado: row.email_verificado,
       activo: row.activo,
       authUserId: row.auth_user_id,
+      bannedUntil: row.banned_until ? new Date(row.banned_until) : null,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { addDays, addMinutes, addHours, subHours, format, startOfDay, endOfWeek, addWeeks } from "date-fns";
+import { es } from "date-fns/locale";
 import { Calendar as CalendarIcon, ArrowLeft, Clock3, Building2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -68,6 +69,32 @@ const ReservationOnboarding = () => {
   const [reservations, setReservations] = useState<ReservationPick[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [disabledDates, setDisabledDates] = useState<Date[]>([]);
+  const [bannedUntilDate, setBannedUntilDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      const { data: dDays } = await supabase.from('disabled_days').select('date');
+      if (dDays) {
+        setDisabledDates(dDays.map((d: any) => new Date(d.date + "T00:00:00")));
+      }
+
+      if (user?.email) {
+        const { data: studentData } = await supabase
+          .from('alumnos')
+          .select('banned_until')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (studentData?.banned_until) {
+          const bannerDate = new Date(studentData.banned_until);
+          if (bannerDate > new Date()) {
+            setBannedUntilDate(bannerDate);
+          }
+        }
+      }
+    };
+    fetchConfig();
+  }, [user]);
 
   useEffect(() => {
     if (!item || !selectedDate) return;
@@ -350,6 +377,29 @@ const ReservationOnboarding = () => {
     );
   }
 
+  if (bannedUntilDate) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex flex-1 items-center justify-center p-4 text-center">
+          <div className="max-w-md rounded-xl border border-red-200 bg-red-50 p-6">
+            <h1 className="text-xl font-bold text-red-900 mb-2">Has sido penalizado</h1>
+            <p className="text-red-800 text-sm">
+              Por no retirar tus equipos reservados en ocasiones consecutivas, tu cuenta se encuentra suspendida para realizar nuevas reservas.
+            </p>
+            <p className="mt-4 font-semibold text-red-900">
+              Podrás volver a reservar a partir del: {format(bannedUntilDate, "dd 'de' MMMM yyyy", { locale: es })}
+            </p>
+            <Link to="/catalogo">
+              <Button variant="outline" className="mt-6 border-red-200 hover:bg-red-100 text-red-700">Volver al catálogo</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   if (!item) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -448,7 +498,21 @@ const ReservationOnboarding = () => {
                         maxDate.setDate(today.getDate() + totalDaysToAdd);
                         maxDate.setHours(23, 59, 59, 999);
 
-                        return date < today || date > maxDate;
+                        const isPastOrTooFar = date < today || date > maxDate;
+                        const isDisabledDay = disabledDates.some(
+                          (d) =>
+                            d.getDate() === date.getDate() &&
+                            d.getMonth() === date.getMonth() &&
+                            d.getFullYear() === date.getFullYear()
+                        );
+
+                        return isPastOrTooFar || isDisabledDay;
+                      }}
+                      modifiers={{
+                        disabledDays: disabledDates
+                      }}
+                      modifiersStyles={{
+                        disabledDays: { color: "var(--muted)", textDecoration: "line-through" }
                       }}
                       initialFocus
                       className="p-1 pointer-events-auto"
