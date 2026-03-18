@@ -227,8 +227,19 @@ const ReservationOnboarding = () => {
       ].filter(Boolean);
 
       console.error("Error creando reserva (RPC create_inventory_reservation):", {
+        code: rpcError?.code ?? null,
+        message: rpcError?.message ?? null,
+        details: rpcError?.details ?? null,
+        hint: rpcError?.hint ?? null,
         error: rpcError,
         payload,
+        payloadJson: (() => {
+          try {
+            return JSON.stringify(payload);
+          } catch {
+            return '[payload no serializable]';
+          }
+        })(),
       });
 
       toast.error(messageParts.join(" ") || "No se pudo registrar la reserva");
@@ -260,68 +271,76 @@ const ReservationOnboarding = () => {
       p_purpose: reservationPurpose,
     };
 
-    // 1) Try "campus" signature (older/current app).
-    let { data, error } = await supabase.rpc("create_inventory_reservation", campusPayload);
+    const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : '';
+    if (!email) {
+      setIsSubmitting(false);
+      toast.error('No se pudo identificar tu correo para registrar la reserva');
+      return;
+    }
 
-    // 2) If the function signature doesn't match what's deployed, fallback to
-    //    the "profile-based" signature from supabase/002_RPC_FUNCTIONS.sql.
+    // Resolve alumno_id from email
+    const { data: alumnoRow, error: alumnoError } = await supabase
+      .from('alumnos')
+      .select('id')
+      .eq('email', email)
+      .eq('activo', true)
+      .maybeSingle();
+
+    if (alumnoError) {
+      setIsSubmitting(false);
+      showRpcError(alumnoError, { step: 'lookup_alumno', email });
+      return;
+    }
+
+    const alumnoIdRaw = alumnoRow?.id ?? null;
+    const alumnoId = alumnoIdRaw === null ? null : Number(alumnoIdRaw);
+    if (alumnoId === null || !Number.isFinite(alumnoId)) {
+      setIsSubmitting(false);
+      toast.error('Tu correo no está registrado como alumno. Completa tu registro primero.');
+      return;
+    }
+
+    // Choose a concrete unit_id for the slot
+    const unitId = findAvailableUnitIdForSlot();
+    if (!unitId) {
+      setIsSubmitting(false);
+      toast.error('No hay unidades disponibles para el horario seleccionado');
+      return;
+    }
+
+    const profilePayload = {
+      p_product_id: item.id,
+      p_unit_id: unitId,
+      p_start_at: startAtISO,
+      p_end_at: endAtISO,
+      p_user_id: alumnoId,
+      p_purpose: reservationPurpose,
+    };
+
+    // 1) Try profile-based signature first (current schema with alumnos.user_id).
+    let attemptedPayload: Record<string, unknown> = profilePayload;
+    let { data, error } = await supabase.rpc('create_inventory_reservation', profilePayload);
+
+    // 2) If deployed DB still has the legacy campus signature, fallback once.
     if (error && isRpcSignatureMismatch(error)) {
-      const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : '';
-      if (!email) {
-        setIsSubmitting(false);
-        toast.error('No se pudo identificar tu correo para registrar la reserva');
-        return;
-      }
-
-      // Resolve alumno_id from email
-      const { data: alumnoRow, error: alumnoError } = await supabase
-        .from('alumnos')
-        .select('id')
-        .eq('email', email)
-        .eq('activo', true)
-        .maybeSingle();
-
-      if (alumnoError) {
-        setIsSubmitting(false);
-        showRpcError(alumnoError, { step: 'lookup_alumno', email });
-        return;
-      }
-
-      const alumnoId = alumnoRow?.id ? String(alumnoRow.id) : null;
-      if (!alumnoId) {
-        setIsSubmitting(false);
-        toast.error('Tu correo no está registrado como alumno. Completa tu registro primero.');
-        return;
-      }
-
-      // Choose a concrete unit_id for the slot
-      const unitId = findAvailableUnitIdForSlot();
-      if (!unitId) {
-        setIsSubmitting(false);
-        toast.error('No hay unidades disponibles para el horario seleccionado');
-        return;
-      }
-
-      const profilePayload = {
-        p_product_id: item.id,
-        p_unit_id: unitId,
-        p_start_at: startAtISO,
-        p_end_at: endAtISO,
-        p_user_id: alumnoId,
-      };
-
-      ({ data, error } = await supabase.rpc('create_inventory_reservation', profilePayload));
+      attemptedPayload = campusPayload;
+      ({ data, error } = await supabase.rpc('create_inventory_reservation', campusPayload));
     }
 
     setIsSubmitting(false);
 
     if (error) {
-      showRpcError(error, campusPayload);
+      showRpcError(error, attemptedPayload);
       return;
     }
 
     // Data shape depends on which RPC signature ran.
     const row = Array.isArray(data) ? data[0] : data;
+    if (row && typeof row.success === 'boolean' && row.success === false) {
+      toast.error(String(row.message || 'No se pudo registrar la reserva'));
+      return;
+    }
+
     const reservationIdValue = row?.id || row?.reservation_id;
     const reservationId = reservationIdValue ? ` (#${String(reservationIdValue).slice(0, 8)})` : "";
     toast.success(`Reserva registrada${reservationId}`);
