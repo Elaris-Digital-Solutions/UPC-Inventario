@@ -17,7 +17,11 @@ const faqs = [
   },
   {
     question: "¿Puedo cancelar mi reserva?",
-    answer: "No, las reservas confirmadas no pueden ser canceladas. Por favor, asegúrate de tus horarios antes de confirmar tu solicitud.",
+    answer: "Sí, ahora puedes cancelar tu reserva confirmada desde tu panel de usuario antes de la hora programada.",
+  },
+  {
+    question: "¿Qué sucede si no retiro mi dispositivo reservado a tiempo?",
+    answer: "Si no retiras tu dispositivo reservado a tiempo por dos ocasiones consecutivas, recibirás una penalización de no poder solicitar préstamos por 15 días calendario.",
   },
   {
     question: "¿Qué ocurre si el equipo presenta fallas o daños?",
