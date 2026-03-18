@@ -53,6 +53,15 @@ const Header = ({ className }: HeaderProps) => {
               Preguntas Frecuentes
             </Link>
 
+            {isAuthenticated && (
+              <Link
+                to="/mi-panel"
+                className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-600 transition-colors duration-200 hover:text-gray-900"
+              >
+                Mi Panel
+              </Link>
+            )}
+
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
@@ -110,6 +119,15 @@ const Header = ({ className }: HeaderProps) => {
             >
               Preguntas Frecuentes
             </Link>
+            {isAuthenticated && (
+              <Link
+                to="/mi-panel"
+                onClick={() => setMobileOpen(false)}
+                className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-700 hover:text-gray-900"
+              >
+                Mi Panel
+              </Link>
+            )}
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}

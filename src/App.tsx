@@ -13,6 +13,7 @@ import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import AdminUnits from "./pages/AdminUnits";
+import UserDashboard from "./pages/UserDashboard";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./context/AuthContext";
 import { ProductProvider } from "./context/ProductContext";
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/mi-panel" element={<RequireAuth><UserDashboard /></RequireAuth>} />
               <Route path="/catalogo" element={<RequireAuth><Catalog /></RequireAuth>} />
               <Route path="/catalogo/:id" element={<RequireAuth><ItemDetail /></RequireAuth>} />
               <Route path="/catalogo/:id/reservar" element={<RequireAuth><ReservationOnboarding /></RequireAuth>} />
