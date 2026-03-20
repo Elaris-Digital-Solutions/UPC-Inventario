@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/supabaseClient';
 import { InventoryReservation } from '@/types/Inventory';
+import { endOfWeek, isWithinInterval, startOfWeek } from 'date-fns';
 
 type ReservationRow = InventoryReservation & {
   product?: {
@@ -21,6 +22,17 @@ type ReservationRow = InventoryReservation & {
 };
 
 const maxValue = (arr: { value: number }[]) => arr.reduce((m, it) => Math.max(m, it.value), 0);
+
+const weekdayOrder = [1, 2, 3, 4, 5, 6, 0];
+const weekdayLabelByNumber: Record<number, string> = {
+  0: 'Domingo',
+  1: 'Lunes',
+  2: 'Martes',
+  3: 'Miércoles',
+  4: 'Jueves',
+  5: 'Viernes',
+  6: 'Sábado',
+};
 
 const ReservationStatsPanel = () => {
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
@@ -114,21 +126,38 @@ const ReservationStatsPanel = () => {
     const byFaculty = new Map<string, number>();
     const byCareer = new Map<string, number>();
     const byItem = new Map<string, number>();
-    const byDay = new Map<string, number>();
+    const weeklyByWeekday = new Map<number, number>();
+
+    weekdayOrder.forEach((day) => {
+      weeklyByWeekday.set(day, 0);
+    });
+
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
 
     let activeNow = 0;
     let completed = 0;
     let cancelled = 0;
+    let thisWeekLoans = 0;
 
     reservations.forEach((reservation) => {
       const start = new Date(reservation.start_at).getTime();
       const end = new Date(reservation.end_at).getTime();
       const startDate = new Date(reservation.start_at);
-      const dayKey = Number.isNaN(startDate.getTime()) ? null : startDate.toISOString().slice(0, 10);
+      const isValidStartDate = !Number.isNaN(startDate.getTime());
 
       if (reservation.status === 'reserved' && start <= now && end >= now) activeNow += 1;
       if (reservation.status === 'completed') completed += 1;
       if (reservation.status === 'cancelled') cancelled += 1;
+
+      if (isValidStartDate && reservation.status !== 'cancelled') {
+        const inCurrentWeek = isWithinInterval(startDate, { start: weekStart, end: weekEnd });
+        if (inCurrentWeek) {
+          const weekday = startDate.getDay();
+          weeklyByWeekday.set(weekday, (weeklyByWeekday.get(weekday) || 0) + 1);
+          thisWeekLoans += 1;
+        }
+      }
 
       const faculty = reservation.alumno?.carrera?.facultad?.nombre || 'Sin facultad';
       const career = reservation.alumno?.carrera?.nombre || 'Sin carrera';
@@ -136,7 +165,6 @@ const ReservationStatsPanel = () => {
       byFaculty.set(faculty, (byFaculty.get(faculty) || 0) + 1);
       byCareer.set(career, (byCareer.get(career) || 0) + 1);
       byItem.set(item, (byItem.get(item) || 0) + 1);
-      if (dayKey) byDay.set(dayKey, (byDay.get(dayKey) || 0) + 1);
     });
 
     const toBars = (map: Map<string, number>) =>
@@ -147,18 +175,22 @@ const ReservationStatsPanel = () => {
     const reservationsByFaculty = toBars(byFaculty);
     const reservationsByCareer = toBars(byCareer);
     const reservationsByItem = toBars(byItem);
-    const reservationsByDay = toBars(byDay).sort((a, b) => a.label.localeCompare(b.label)).slice(-12);
+    const reservationsByWeekday = weekdayOrder.map((day) => ({
+      label: weekdayLabelByNumber[day],
+      value: weeklyByWeekday.get(day) || 0,
+    }));
 
     return {
       total: reservations.length,
       activeNow,
       completed,
       cancelled,
+      thisWeekLoans,
       topItem: reservationsByItem[0]?.label || 'Sin datos',
       reservationsByFaculty,
       reservationsByCareer,
       reservationsByItem,
-      reservationsByDay,
+      reservationsByWeekday,
     };
   }, [reservations]);
 
@@ -175,12 +207,13 @@ const ReservationStatsPanel = () => {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de reservas</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: 'Reservas registradas', value: stats.total.toLocaleString() },
+            { label: 'Préstamos esta semana', value: stats.thisWeekLoans.toLocaleString() },
             { label: 'Reservas activas ahora', value: stats.activeNow.toLocaleString() },
             { label: 'Completadas', value: stats.completed.toLocaleString() },
-            { label: 'Ítem más reservado', value: stats.topItem }
+            { label: 'Canceladas', value: stats.cancelled.toLocaleString() }
           ].map((card) => (
             <div key={card.label} className="bg-cream-50 border border-beige-200 rounded-lg p-4">
               <p className="text-sm text-gray-500">{card.label}</p>
@@ -188,6 +221,7 @@ const ReservationStatsPanel = () => {
             </div>
           ))}
         </div>
+        <p className="text-xs text-gray-500 mt-3">Ítem más reservado: <span className="font-medium text-gray-700">{stats.topItem}</span></p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -245,23 +279,23 @@ const ReservationStatsPanel = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-beige-200">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Reservas por día (inicio)</h4>
-            <span className="text-xs text-gray-500">Últimos 12 días con datos</span>
+            <h4 className="text-md font-semibold text-gray-900">Préstamos esta semana por día</h4>
+            <span className="text-xs text-gray-500">Lunes a domingo</span>
           </div>
-          <div className="space-y-2">
-            {stats.reservationsByDay.length === 0 ? (
+          <div className="space-y-3">
+            {stats.reservationsByWeekday.every((row) => row.value === 0) ? (
               <p className="text-sm text-gray-500">Sin datos aún.</p>
             ) : (
-              stats.reservationsByDay.map((row) => {
-                const max = Math.max(1, maxValue(stats.reservationsByDay));
+              stats.reservationsByWeekday.map((row) => {
+                const max = Math.max(1, maxValue(stats.reservationsByWeekday));
                 const pct = Math.max(4, (row.value / max) * 100);
                 return (
                   <div key={row.label} className="flex items-center space-x-3">
-                    <span className="w-28 text-[11px] text-gray-700 truncate">{row.label}</span>
-                    <div className="flex-1 h-2.5 bg-cream-100 rounded-full overflow-hidden">
-                      <div className="h-2.5 bg-gold-500" style={{ width: `${pct}%` }}></div>
+                    <span className="w-24 text-sm text-gray-700">{row.label}</span>
+                    <div className="flex-1 h-3 bg-cream-100 rounded-full overflow-hidden">
+                      <div className="h-3 bg-gold-500" style={{ width: `${pct}%` }}></div>
                     </div>
-                    <span className="w-8 text-[11px] font-medium text-gray-800 text-right">{row.value}</span>
+                    <span className="w-8 text-sm font-semibold text-gray-800 text-right">{row.value}</span>
                   </div>
                 );
               })

@@ -26,6 +26,7 @@ export interface InventoryReservation {
   requester_name?: string;
   requester_code?: string | null;
   purpose?: string | null;
+  cancellation_reason?: string | null;
   start_at: string;
   end_at: string;
   status: "reserved" | "active" | "cancelled" | "completed" | "not_returned";

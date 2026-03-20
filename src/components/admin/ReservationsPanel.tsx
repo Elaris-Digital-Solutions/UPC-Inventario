@@ -24,6 +24,9 @@ type ReservationRow = InventoryReservation & {
   } | null;
 };
 
+const isMissingCancellationReasonColumn = (error: any) =>
+  error?.code === '42703' && String(error?.message || '').includes('cancellation_reason');
+
 const ReservationsPanel = () => {
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ const ReservationsPanel = () => {
   const fetchReservations = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('inventory_reservations')
         .select(`
           id,
@@ -44,6 +47,7 @@ const ReservationsPanel = () => {
           unit_id,
           user_id,
           purpose,
+          cancellation_reason,
           start_at,
           end_at,
           status,
@@ -53,6 +57,29 @@ const ReservationsPanel = () => {
           alumnos:user_id (id, nombre, apellido, email)
         `)
         .order('start_at', { ascending: false });
+
+      if (isMissingCancellationReasonColumn(error)) {
+        const fallback = await supabase
+          .from('inventory_reservations')
+          .select(`
+            id,
+            product_id,
+            unit_id,
+            user_id,
+            purpose,
+            start_at,
+            end_at,
+            status,
+            created_at,
+            products:product_id (id, name, category),
+            inventory_units:unit_id (id, unit_code, asset_code, status),
+            alumnos:user_id (id, nombre, apellido, email)
+          `)
+          .order('start_at', { ascending: false });
+
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw error;
 
@@ -66,6 +93,7 @@ const ReservationsPanel = () => {
           : 'Sin nombre',
         requester_code: row.alumnos?.email || null,
         purpose: row.purpose,
+        cancellation_reason: row.cancellation_reason ?? null,
         start_at: row.start_at,
         end_at: row.end_at,
         status: row.status,
@@ -90,18 +118,54 @@ const ReservationsPanel = () => {
     fetchReservations();
   }, []);
 
-  const updateReservationStatus = async (reservationId: string, newStatus: InventoryReservation['status']) => {
+  const updateReservationStatus = async (
+    reservationId: string,
+    newStatus: InventoryReservation['status'],
+    currentStatus: InventoryReservation['status']
+  ) => {
     try {
-      const { error } = await supabase
+      let cancellationReason: string | null | undefined;
+
+      if (newStatus === 'cancelled' && currentStatus !== 'cancelled') {
+        const input = window.prompt('Ingresa la razón de cancelación (imprevisto):');
+
+        if (input === null) {
+          return;
+        }
+
+        const trimmedInput = input.trim();
+        if (!trimmedInput) {
+          alert('Debes indicar una razón de cancelación.');
+          return;
+        }
+
+        cancellationReason = trimmedInput;
+      }
+
+      if (newStatus !== 'cancelled') {
+        cancellationReason = null;
+      }
+
+      let { error } = await supabase
         .from('inventory_reservations')
-        .update({ status: newStatus })
+        .update({ status: newStatus, cancellation_reason: cancellationReason })
         .eq('id', reservationId);
+
+      if (isMissingCancellationReasonColumn(error)) {
+        const fallback = await supabase
+          .from('inventory_reservations')
+          .update({ status: newStatus })
+          .eq('id', reservationId);
+        error = fallback.error;
+      }
 
       if (error) throw error;
 
       setReservations((prev) =>
         prev.map((reservation) =>
-          reservation.id === reservationId ? { ...reservation, status: newStatus } : reservation
+          reservation.id === reservationId
+            ? { ...reservation, status: newStatus, cancellation_reason: cancellationReason ?? reservation.cancellation_reason }
+            : reservation
         )
       );
     } catch (error: any) {
@@ -293,7 +357,13 @@ const ReservationsPanel = () => {
                           <div className="flex items-center space-x-3">
                             <select
                               value={reservation.status}
-                              onChange={(e) => updateReservationStatus(reservation.id, e.target.value as InventoryReservation['status'])}
+                              onChange={(e) =>
+                                updateReservationStatus(
+                                  reservation.id,
+                                  e.target.value as InventoryReservation['status'],
+                                  reservation.status
+                                )
+                              }
                               className={`text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-offset-1 ${reservation.status === 'reserved'
                                 ? 'bg-blue-100 text-blue-800 focus:ring-blue-500'
                                 : reservation.status === 'active'
@@ -346,6 +416,12 @@ const ReservationsPanel = () => {
                                 <h4 className="font-bold text-gray-900 mb-2">Propósito</h4>
                                 <p className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-200">{reservation.purpose?.trim() || 'Sin propósito registrado'}</p>
                               </div>
+                              {reservation.status === 'cancelled' && (
+                                <div className="md:col-span-2">
+                                  <h4 className="font-bold text-gray-900 mb-2">Razón de cancelación</h4>
+                                  <p className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-200">{reservation.cancellation_reason?.trim() || 'Sin razón registrada'}</p>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>

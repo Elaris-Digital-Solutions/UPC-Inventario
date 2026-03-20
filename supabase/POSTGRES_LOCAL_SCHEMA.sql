@@ -203,6 +203,7 @@ CREATE TABLE inventory_reservations (
 
     -- Usage context
     purpose        TEXT,             -- Reason for the reservation (optional)
+    cancellation_reason TEXT,        -- Reason when reservation is cancelled (optional)
 
     -- Time window — max 2 hours enforced by CHECK and by the RPC function
     start_at       TIMESTAMPTZ NOT NULL,

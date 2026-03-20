@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+
+const isMissingCancellationReasonColumn = (error: any) =>
+  error?.code === '42703' && String(error?.message || '').includes('cancellation_reason');
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/supabaseClient";
@@ -80,12 +83,26 @@ const AdminDisabledDays = () => {
       const dayStart = startOfDay(selectedDate).toISOString();
       const dayEnd = endOfDay(selectedDate).toISOString();
 
-      const { error: cancelError } = await supabase
+      let { error: cancelError } = await supabase
         .from("inventory_reservations")
-        .update({ status: "cancelled", purpose: "Cancelado por la administración (Día Inhabilitado)" }) // We can hijack purpose or just status
+        .update({
+          status: "cancelled",
+          cancellation_reason: "Cancelado por la administración (Día inhabilitado)",
+        })
         .in("status", ["reserved", "active"])
         .gte("start_at", dayStart)
         .lte("start_at", dayEnd);
+
+      if (isMissingCancellationReasonColumn(cancelError)) {
+        const fallback = await supabase
+          .from("inventory_reservations")
+          .update({ status: "cancelled" })
+          .in("status", ["reserved", "active"])
+          .gte("start_at", dayStart)
+          .lte("start_at", dayEnd);
+
+        cancelError = fallback.error;
+      }
 
       if (cancelError) {
         console.error("Error cancelling reservations:", cancelError);

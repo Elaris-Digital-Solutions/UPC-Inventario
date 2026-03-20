@@ -13,6 +13,9 @@ import type {
   ReservationWithCarrera,
 } from '@/types/Database';
 
+const isMissingCancellationReasonColumn = (error: any) =>
+  error?.code === '42703' && String(error?.message || '').includes('cancellation_reason');
+
 class ReservationService {
   /**
    * Create a new reservation
@@ -204,7 +207,11 @@ class ReservationService {
    * Cancel a reservation
    * Only the owner can cancel
    */
-  async cancelReservation(reservationId: string, studentId: string): Promise<{
+  async cancelReservation(
+    reservationId: string,
+    studentId: string,
+    cancellationReason?: string
+  ): Promise<{
     success: boolean;
     error?: string;
   }> {
@@ -244,10 +251,22 @@ class ReservationService {
     }
 
     // Update status to cancelled
-    const { error: updateError } = await supabase
+    let { error: updateError } = await supabase
       .from('inventory_reservations')
-      .update({ status: 'cancelled' })
+      .update({
+        status: 'cancelled',
+        cancellation_reason: cancellationReason?.trim() || null,
+      })
       .eq('id', reservationId);
+
+    if (isMissingCancellationReasonColumn(updateError)) {
+      const fallback = await supabase
+        .from('inventory_reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', reservationId);
+
+      updateError = fallback.error;
+    }
 
     if (updateError) {
       console.error('Error cancelling reservation:', updateError);
@@ -311,6 +330,7 @@ class ReservationService {
       requesterName: row.requester_name,
       requesterCode: row.requester_code,
       purpose: row.purpose,
+      cancellationReason: row.cancellation_reason ?? null,
       startAt: new Date(row.start_at),
       endAt: new Date(row.end_at),
       status: row.status,
@@ -343,6 +363,7 @@ class ReservationService {
       emailVerificado: false,
       activo: true,
       authUserId: null,
+      bannedUntil: null,
       magicToken: null,
       magicTokenExpiry: null,
       createdAt: new Date(),

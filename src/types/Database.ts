@@ -91,6 +91,7 @@ export interface Database {
           requester_name: string;
           requester_code: string | null;
           purpose: string | null;
+          cancellation_reason: string | null;
           start_at: string;
           end_at: string;
           status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
@@ -104,6 +105,7 @@ export interface Database {
           requester_name: string;
           requester_code?: string;
           purpose?: string;
+          cancellation_reason?: string;
           start_at: string;
           end_at: string;
           status?: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
@@ -117,6 +119,7 @@ export interface Database {
           requester_name?: string;
           requester_code?: string | null;
           purpose?: string | null;
+          cancellation_reason?: string | null;
           start_at?: string;
           end_at?: string;
           status?: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
@@ -256,6 +259,7 @@ export interface ReservationWithCarrera {
   requesterName: string;
   requesterCode: string | null;
   purpose: string | null;
+  cancellationReason: string | null;
   startAt: Date;
   endAt: Date;
   status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
@@ -278,6 +282,7 @@ export interface InventoryReservation {
   requesterName: string;
   requesterCode: string | null;
   purpose: string | null;
+  cancellationReason: string | null;
   startAt: Date;
   endAt: Date;
   status: 'reserved' | 'cancelled' | 'completed' | 'not_picked_up' | 'not_returned';
