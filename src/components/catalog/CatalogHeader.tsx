@@ -1,6 +1,6 @@
 import CatalogFilterBar from "@/components/catalog/CatalogFilterBar";
 import CategoryChips from "@/components/catalog/CategoryChips";
-import CampusHero from "@/components/catalog/CampusHero";
+import CampusSelectorHero from "@/components/catalog/CampusSelectorHero";
 import { Campus } from "@/components/catalog/CampusDropdown";
 
 type CatalogHeaderProps = {
@@ -11,7 +11,6 @@ type CatalogHeaderProps = {
   selectedCampus: Campus;
   onCampusChange: (campus: Campus) => void;
   campusOptions: Campus[];
-  campusPreview: Record<Campus, { image: string; objectPosition: string }>;
   categories: string[];
   activeCategory: string;
   onCategoryChange: (category: string) => void;
@@ -25,7 +24,6 @@ const CatalogHeader = ({
   selectedCampus,
   onCampusChange,
   campusOptions,
-  campusPreview,
   categories,
   activeCategory,
   onCategoryChange,
@@ -37,15 +35,15 @@ const CatalogHeader = ({
         <p className="mt-1 text-muted-foreground">{subtitle}</p>
       </div>
 
-      <CampusHero campus={selectedCampus} />
+      <CampusSelectorHero
+        campus={selectedCampus}
+        onCampusChange={onCampusChange}
+        options={campusOptions}
+      />
 
       <CatalogFilterBar
         search={search}
         onSearchChange={onSearchChange}
-        selectedCampus={selectedCampus}
-        onCampusChange={onCampusChange}
-        campusOptions={campusOptions}
-        campusPreview={campusPreview}
       />
 
       <CategoryChips

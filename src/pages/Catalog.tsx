@@ -10,10 +10,6 @@ import CatalogHeader from "@/components/catalog/CatalogHeader";
 import { Campus } from "@/components/catalog/CampusDropdown";
 
 const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
-const CAMPUS_PREVIEW: Record<Campus, { image: string; objectPosition: string }> = {
-  Monterrico: { image: "/Campus.png", objectPosition: "center 40%" },
-  "San Miguel": { image: "/campus-san-miguel.webp", objectPosition: "center" },
-};
 
 type CampusStockByProduct = Record<string, Record<Campus, number>>;
 
@@ -86,7 +82,6 @@ const Catalog = () => {
           selectedCampus={selectedCampus}
           onCampusChange={setSelectedCampus}
           campusOptions={CAMPUS_OPTIONS}
-          campusPreview={CAMPUS_PREVIEW}
           categories={allCategories}
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
