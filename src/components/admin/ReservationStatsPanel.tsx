@@ -282,23 +282,32 @@ const ReservationStatsPanel = () => {
             <h4 className="text-md font-semibold text-gray-900">Préstamos esta semana por día</h4>
             <span className="text-xs text-gray-500">Lunes a domingo</span>
           </div>
-          <div className="space-y-3">
+          <div className="min-h-[220px]">
             {stats.reservationsByWeekday.every((row) => row.value === 0) ? (
               <p className="text-sm text-gray-500">Sin datos aún.</p>
             ) : (
-              stats.reservationsByWeekday.map((row) => {
-                const max = Math.max(1, maxValue(stats.reservationsByWeekday));
-                const pct = Math.max(4, (row.value / max) * 100);
-                return (
-                  <div key={row.label} className="flex items-center space-x-3">
-                    <span className="w-24 text-sm text-gray-700">{row.label}</span>
-                    <div className="flex-1 h-3 bg-cream-100 rounded-full overflow-hidden">
-                      <div className="h-3 bg-gold-500" style={{ width: `${pct}%` }}></div>
+              <div className="h-[220px] grid grid-cols-7 gap-3 items-end border-b border-beige-200 pb-6">
+                {stats.reservationsByWeekday.map((row) => {
+                  const max = Math.max(1, maxValue(stats.reservationsByWeekday));
+                  const chartHeight = 150;
+                  const scaledHeight = (row.value / max) * chartHeight;
+                  const barHeight = row.value === 0 ? 4 : Math.max(12, scaledHeight);
+                  const isZero = row.value === 0;
+                  return (
+                    <div key={row.label} className="flex flex-col items-center h-full justify-end">
+                      <span className="text-xs font-semibold text-gray-800 mb-2">{row.value}</span>
+                      <div className="w-full h-[160px] flex items-end justify-center bg-muted/20 rounded-md">
+                        <div
+                          className={`w-8 rounded-t-md ${isZero ? 'bg-muted/70' : 'bg-primary'}`}
+                          style={{ height: `${barHeight}px` }}
+                          aria-label={`${row.label}: ${row.value}`}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-700 mt-2 text-center leading-tight">{row.label}</span>
                     </div>
-                    <span className="w-8 text-sm font-semibold text-gray-800 text-right">{row.value}</span>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

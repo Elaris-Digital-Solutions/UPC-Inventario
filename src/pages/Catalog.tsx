@@ -2,16 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package } from "lucide-react";
+import { Package } from "lucide-react";
 import { useProducts } from "@/context/ProductContext";
 import { supabase } from "@/supabaseClient";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type Campus = "Monterrico" | "San Miguel";
+import CatalogHeader from "@/components/catalog/CatalogHeader";
+import { Campus } from "@/components/catalog/CampusDropdown";
 
 const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
+const CAMPUS_PREVIEW: Record<Campus, { image: string; objectPosition: string }> = {
+  Monterrico: { image: "/Campus.png", objectPosition: "center 40%" },
+  "San Miguel": { image: "/campus-san-miguel.webp", objectPosition: "center" },
+};
 
 type CampusStockByProduct = Record<string, Record<Campus, number>>;
 
@@ -76,47 +78,19 @@ const Catalog = () => {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Catálogo de Dispositivos</h1>
-          <p className="mt-1 text-muted-foreground">Explora y reserva los dispositivos disponibles</p>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-8 flex flex-wrap items-center gap-2">
-          <div className="relative h-10 w-[220px] shrink-0">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar equipo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-10 pl-10"
-            />
-          </div>
-          <div className="w-[190px]">
-            <Select value={selectedCampus} onValueChange={(value) => setSelectedCampus(value as Campus)}>
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Selecciona sede" />
-              </SelectTrigger>
-              <SelectContent>
-                {CAMPUS_OPTIONS.map((campus) => (
-                  <SelectItem key={campus} value={campus}>{campus}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {allCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${activeCategory === cat
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        <CatalogHeader
+          title="Catálogo de Dispositivos"
+          subtitle="Explora y reserva los dispositivos disponibles"
+          search={search}
+          onSearchChange={setSearch}
+          selectedCampus={selectedCampus}
+          onCampusChange={setSelectedCampus}
+          campusOptions={CAMPUS_OPTIONS}
+          campusPreview={CAMPUS_PREVIEW}
+          categories={allCategories}
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+        />
 
         {/* Grid */}
         {loading ? (
