@@ -18,7 +18,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
 const ADMIN_EMAIL = 'admin@upc.edu.pe';
-const ADMIN_PASSWORD = '123456789';
 const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
 const FALLBACK_PRODUCTION_AUTH_URL = 'https://upc-inventario.netlify.app';
 
@@ -196,10 +195,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const normalizedEmail = normalizeEmail(email);
     if (!isAllowedAdminEmail(normalizedEmail)) {
       return { error: new Error('Solo el correo admin@upc.edu.pe puede acceder al panel admin') };
-    }
-
-    if (password !== ADMIN_PASSWORD) {
-      return { error: new Error('Clave de administrador incorrecta') };
     }
 
     const { error } = await supabase.auth.signInWithPassword({
