@@ -1,16 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * @deprecated Importar desde `@/infrastructure/supabase/client` en código nuevo.
+ * Este barrel se mantiene para compatibilidad con imports existentes durante la migración.
+ */
+export { supabase } from '@/infrastructure/supabase/client';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-	throw new Error('Faltan VITE_SUPABASE_URL y/o VITE_SUPABASE_ANON_KEY en las variables de entorno');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-	auth: {
-		persistSession: true,
-		autoRefreshToken: true,
-		detectSessionInUrl: true,
-	},
-});

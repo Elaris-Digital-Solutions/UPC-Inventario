@@ -1,57 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package } from "lucide-react";
-import { useProducts } from "@/context/ProductContext";
-import { supabase } from "@/supabaseClient";
-import CatalogHeader from "@/components/catalog/CatalogHeader";
-import { Campus } from "@/components/catalog/CampusDropdown";
+import { Search, Package } from "lucide-react";
+import { useProducts } from "@/features/products/context/ProductContext";
+import { useCampusStock } from "@/features/catalog/hooks/useCampusStock";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { type Campus, CAMPUS_OPTIONS } from "@/shared/types/campus";
 
-const CAMPUS_OPTIONS: Campus[] = ["Monterrico", "San Miguel"];
-
-type CampusStockByProduct = Record<string, Record<Campus, number>>;
 
 const Catalog = () => {
   const { products, loading } = useProducts();
+  const { campusStock: campusStockByProduct } = useCampusStock();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedCampus, setSelectedCampus] = useState<Campus>("Monterrico");
-  const [campusStockByProduct, setCampusStockByProduct] = useState<CampusStockByProduct>({});
-
-  useEffect(() => {
-    const loadCampusStock = async () => {
-      const { data, error } = await supabase
-        .from("inventory_units")
-        .select("product_id, campus")
-        .eq("status", "active");
-
-      if (error) {
-        console.error(error);
-        setCampusStockByProduct({});
-        return;
-      }
-
-      const stockMap: CampusStockByProduct = {};
-      (data || []).forEach((unit: any) => {
-        const productId = String(unit.product_id || "");
-        if (!productId) return;
-
-        const campus = (unit.campus === "San Miguel" ? "San Miguel" : "Monterrico") as Campus;
-
-        if (!stockMap[productId]) {
-          stockMap[productId] = { Monterrico: 0, "San Miguel": 0 };
-        }
-
-        stockMap[productId][campus] += 1;
-      });
-
-      setCampusStockByProduct(stockMap);
-    };
-
-    loadCampusStock();
-  }, []);
 
   const allCategories = useMemo(
     () => ["Todos", ...Array.from(new Set(products.map((product) => (product.category || "").trim()).filter(Boolean)))],
@@ -74,18 +39,48 @@ const Catalog = () => {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
-        <CatalogHeader
-          title="Catálogo de Dispositivos"
-          subtitle="Explora y reserva los dispositivos disponibles"
-          search={search}
-          onSearchChange={setSearch}
-          selectedCampus={selectedCampus}
-          onCampusChange={setSelectedCampus}
-          campusOptions={CAMPUS_OPTIONS}
-          categories={allCategories}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Catálogo de Equipos</h1>
+          <p className="mt-1 text-muted-foreground">Explora y reserva los equipos disponibles</p>
+        </div>
+
+        {/* Filters */}
+        <div className="mb-8 flex flex-wrap items-center gap-2">
+          <div className="relative h-10 w-[220px] shrink-0">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar equipo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 pl-10"
+            />
+          </div>
+          <div className="w-[190px]">
+            <Select value={selectedCampus} onValueChange={(value) => setSelectedCampus(value as Campus)}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Selecciona sede" />
+              </SelectTrigger>
+              <SelectContent>
+                {CAMPUS_OPTIONS.map((campus) => (
+                  <SelectItem key={campus} value={campus}>{campus}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {allCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                activeCategory === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
         {/* Grid */}
         {loading ? (
@@ -129,8 +124,9 @@ const Catalog = () => {
                         Stock: {available}
                       </span>
                       <span
-                        className={`inline-block h-2.5 w-2.5 rounded-full ${available > 0 ? "bg-green-500" : "bg-destructive"
-                          }`}
+                        className={`inline-block h-2.5 w-2.5 rounded-full ${
+                          available > 0 ? "bg-green-500" : "bg-destructive"
+                        }`}
                       />
                     </div>
                   </div>

@@ -11,12 +11,11 @@ import ItemDetail from "./pages/ItemDetail";
 import ReservationOnboarding from "./pages/ReservationOnboarding";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
-import Admin from "./pages/Admin";
+import AdminPage from "./features/admin/pages/AdminPage";
 import AdminUnits from "./pages/AdminUnits";
 import UserDashboard from "./pages/UserDashboard";
-import { AuthProvider } from "./context/AuthContext";
-import { useAuth } from "./context/AuthContext";
-import { ProductProvider } from "./context/ProductContext";
+import { AuthProvider, useAuth } from "./features/auth/context/AuthContext";
+import { ProductProvider } from "./features/products/context/ProductContext";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
@@ -58,7 +57,7 @@ const App = () => (
               <Route path="/catalogo" element={<RequireAuth><Catalog /></RequireAuth>} />
               <Route path="/catalogo/:id" element={<RequireAuth><ItemDetail /></RequireAuth>} />
               <Route path="/catalogo/:id/reservar" element={<RequireAuth><ReservationOnboarding /></RequireAuth>} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/unidades" element={<AdminUnits />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

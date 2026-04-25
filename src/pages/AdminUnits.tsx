@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import SEO from "@/components/SEO";
 import AdminLogin from "@/components/AdminLogin";
 import { useAuth } from "@/context/AuthContext";
 import { useProducts } from "@/context/ProductContext";
-import { supabase } from "@/supabaseClient";
+import { inventoryService } from "@/features/inventory/services/inventoryService";
 import { InventoryUnit, InventoryUnitNote } from "@/types/Inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,45 +26,36 @@ const AdminUnits = () => {
     [units, selectedUnitId]
   );
 
+  // Cargar unidades cuando cambia el producto seleccionado
   useEffect(() => {
     if (!selectedProductId) return;
     const run = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inventory_units")
-        .select("*")
-        .eq("product_id", selectedProductId)
-        .order("unit_code", { ascending: true });
-
-      if (error) {
-        console.error(error);
+      try {
+        const data = await inventoryService.getUnitsByProduct(selectedProductId);
+        setUnits(data);
+      } catch (err: any) {
         toast.error("No se pudieron cargar los códigos del producto");
         setUnits([]);
-      } else {
-        setUnits((data || []) as InventoryUnit[]);
+      } finally {
+        setSelectedUnitId("");
+        setNotes([]);
+        setLoading(false);
       }
-      setSelectedUnitId("");
-      setNotes([]);
-      setLoading(false);
     };
     run();
   }, [selectedProductId]);
 
+  // Cargar historial de notas cuando cambia la unidad seleccionada
   useEffect(() => {
     if (!selectedUnitId) return;
     const run = async () => {
-      const { data, error } = await supabase
-        .from("inventory_unit_notes")
-        .select("*")
-        .eq("unit_id", selectedUnitId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error(error);
+      try {
+        const data = await inventoryService.getNotesByUnit(selectedUnitId);
+        setNotes(data);
+      } catch {
         toast.error("No se pudieron cargar las anotaciones");
         setNotes([]);
-      } else {
-        setNotes((data || []) as InventoryUnitNote[]);
       }
     };
     run();
@@ -72,53 +63,35 @@ const AdminUnits = () => {
 
   const updateUnitStatus = async (status: InventoryUnit["status"]) => {
     if (!selectedUnit) return;
-    const { error } = await supabase
-      .from("inventory_units")
-      .update({ status })
-      .eq("id", selectedUnit.id);
-
-    if (error) {
+    try {
+      await inventoryService.updateUnit(selectedUnit.id, { status });
+      setUnits((prev) =>
+        prev.map((unit) => (unit.id === selectedUnit.id ? { ...unit, status } : unit))
+      );
+      toast.success("Estado actualizado");
+    } catch {
       toast.error("No se pudo actualizar el estado");
-      return;
     }
-
-    setUnits((prev) => prev.map((unit) => (unit.id === selectedUnit.id ? { ...unit, status } : unit)));
-    toast.success("Estado actualizado");
   };
 
   const addNote = async () => {
     if (!selectedUnit || !newNote.trim()) return;
+    const text = newNote.trim();
+    try {
+      const note = await inventoryService.addNote(selectedUnit.id, text);
+      await inventoryService.updateUnit(selectedUnit.id, { current_note: text });
 
-    const payload = {
-      unit_id: selectedUnit.id,
-      note: newNote.trim(),
-      created_by: null,
-    };
-
-    const { data, error } = await supabase
-      .from("inventory_unit_notes")
-      .insert([payload])
-      .select()
-      .single();
-
-    if (error) {
+      setNotes((prev) => [note as InventoryUnitNote, ...prev]);
+      setUnits((prev) =>
+        prev.map((unit) =>
+          unit.id === selectedUnit.id ? { ...unit, current_note: text } : unit
+        )
+      );
+      setNewNote("");
+      toast.success("Anotación registrada");
+    } catch {
       toast.error("No se pudo guardar la anotación");
-      return;
     }
-
-    const { error: unitError } = await supabase
-      .from("inventory_units")
-      .update({ current_note: newNote.trim() })
-      .eq("id", selectedUnit.id);
-
-    if (unitError) {
-      toast.warning("La nota histórica se guardó, pero no se actualizó la nota actual");
-    }
-
-    setNotes((prev) => [data as InventoryUnitNote, ...prev]);
-    setUnits((prev) => prev.map((unit) => (unit.id === selectedUnit.id ? { ...unit, current_note: newNote.trim() } : unit)));
-    setNewNote("");
-    toast.success("Anotación registrada");
   };
 
   if (!isAuthenticated) {
@@ -167,7 +140,7 @@ const AdminUnits = () => {
                   <button
                     key={unit.id}
                     onClick={() => setSelectedUnitId(unit.id)}
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                    className={`w-full rounded-md border px-3 py-2 text-left text-sm ${ 
                       selectedUnitId === unit.id ? "border-primary bg-primary/10" : "border-border bg-background"
                     }`}
                   >
@@ -208,6 +181,7 @@ const AdminUnits = () => {
                       id="newNote"
                       value={newNote}
                       onChange={(e) => setNewNote(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addNote()}
                       placeholder="Ej. Imperfecto en esquina superior derecha"
                     />
                     <Button onClick={addNote}>Guardar</Button>
