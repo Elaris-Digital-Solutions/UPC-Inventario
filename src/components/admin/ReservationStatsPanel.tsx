@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/infrastructure/supabase/client';
 import { InventoryReservation } from '@/types/Inventory';
 import { endOfWeek, isWithinInterval, startOfWeek } from 'date-fns';
 

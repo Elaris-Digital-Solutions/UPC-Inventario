@@ -2,7 +2,7 @@
 import Header from "@/components/Header";
 import SEO from "@/components/SEO";
 import AdminLogin from "@/components/AdminLogin";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
 import { useProducts } from "@/context/ProductContext";
 import { inventoryService } from "@/features/inventory/services/inventoryService";
 import { InventoryUnit, InventoryUnitNote } from "@/types/Inventory";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 const AdminUnits = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isStaff, authLoading } = useAuth();
   const { products } = useProducts();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [units, setUnits] = useState<InventoryUnit[]>([]);
@@ -94,7 +94,15 @@ const AdminUnits = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Verificando sesión...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isStaff) {
     return (
       <div className="min-h-screen bg-background">
         <Header />

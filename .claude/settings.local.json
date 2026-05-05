@@ -14,7 +14,11 @@
       "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_6e34e48dab386fc8d6e015a62cbdf5dfc0f81abf' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check FROM pg_policies WHERE tablename IN \\('\\\\''disabled_days'\\\\'', '\\\\''inventory_reservations'\\\\'', '\\\\''final_satisfaction_surveys'\\\\''\\) ORDER BY tablename, policyname;\"}')",
       "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_6e34e48dab386fc8d6e015a62cbdf5dfc0f81abf' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT proname, prosecdef, pg_get_functiondef\\(oid\\) FROM pg_proc WHERE proname = '\\\\''create_inventory_reservation'\\\\'';\"}')",
       "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_6e34e48dab386fc8d6e015a62cbdf5dfc0f81abf' -H 'Content-Type: application/json' -d '{ *)",
-      "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_6e34e48dab386fc8d6e015a62cbdf5dfc0f81abf' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT tablename, policyname, roles, cmd, qual, with_check FROM pg_policies WHERE tablename IN \\('\\\\''disabled_days'\\\\'', '\\\\''inventory_reservations'\\\\'', '\\\\''final_satisfaction_surveys'\\\\''\\) ORDER BY tablename, policyname;\"}')"
+      "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_6e34e48dab386fc8d6e015a62cbdf5dfc0f81abf' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT tablename, policyname, roles, cmd, qual, with_check FROM pg_policies WHERE tablename IN \\('\\\\''disabled_days'\\\\'', '\\\\''inventory_reservations'\\\\'', '\\\\''final_satisfaction_surveys'\\\\''\\) ORDER BY tablename, policyname;\"}')",
+      "Bash(npm run *)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST https://api.supabase.com/v1/projects/jgqebhvbovtpsjoujgdw/database/query -H 'Authorization: Bearer sbp_bb0c69de8f4c2a9dd19bdac220486127e231279d' -H 'Content-Type: application/json' --data @/tmp/migration_payload.json)",
+      "Bash(node -e ' *)"
     ]
   }
 }

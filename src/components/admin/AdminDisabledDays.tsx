@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
-
-const isMissingCancellationReasonColumn = (error: any) =>
-  error?.code === '42703' && String(error?.message || '').includes('cancellation_reason');
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/supabaseClient";
+import { supabase } from "@/infrastructure/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, AlertTriangle, CalendarOff } from "lucide-react";
+import { userFriendlyError } from "@/shared/errors/userFriendlyError";
 
 type DisabledDay = {
   id: string;
@@ -70,86 +68,54 @@ const AdminDisabledDays = () => {
 
     setIsProcessing(true);
     try {
-      // 1. Insert the disabled day
-      const { data: newDay, error: insertError } = await supabase
-        .from("disabled_days")
-        .insert([{ date: formattedDate }])
-        .select()
-        .single();
+      // RPC server-side: inhabilita día y cancela reservas atómicamente.
+      const { data, error } = await supabase.rpc("disable_day", {
+        p_date: formattedDate,
+        p_reason: "Cancelado por la administración (Día inhabilitado)",
+      });
+      if (error) throw error;
 
-      if (insertError) throw insertError;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && row.success === false) throw new Error(row.message || "No autorizado");
 
-      // 2. Cancel all reservations for that day
-      const dayStart = startOfDay(selectedDate).toISOString();
-      const dayEnd = endOfDay(selectedDate).toISOString();
+      toast({
+        title: "Día Inhabilitado",
+        description: `Se cancelaron ${row?.cancelled_count ?? 0} reserva(s) afectada(s).`,
+      });
 
-      let { error: cancelError } = await supabase
-        .from("inventory_reservations")
-        .update({
-          status: "cancelled",
-          cancellation_reason: "Cancelado por la administración (Día inhabilitado)",
-        })
-        .in("status", ["reserved", "active"])
-        .gte("start_at", dayStart)
-        .lte("start_at", dayEnd);
-
-      if (isMissingCancellationReasonColumn(cancelError)) {
-        const fallback = await supabase
-          .from("inventory_reservations")
-          .update({ status: "cancelled" })
-          .in("status", ["reserved", "active"])
-          .gte("start_at", dayStart)
-          .lte("start_at", dayEnd);
-
-        cancelError = fallback.error;
-      }
-
-      if (cancelError) {
-        console.error("Error cancelling reservations:", cancelError);
-        toast({
-          variant: "destructive",
-          title: "Advertencia",
-          description: "El día fue inhabilitado pero hubo un error al cancelar las reservas de ese día.",
-        });
-      } else {
-        toast({
-          title: "Día Inhabilitado",
-          description: "Las reservas de ese día han sido canceladas exitosamente.",
-        });
-      }
-
-      setDisabledDays((prev) => [...prev, newDay]);
-    } catch (error: any) {
-      console.error(error);
+      // Refrescar lista
+      await fetchDisabledDays();
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Ocurrió un error inesperado.",
+        description: userFriendlyError(error, "Ocurrió un error al inhabilitar el día."),
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleRemoveDisabledDay = async (id: string, dateStr: string) => {
+  const handleRemoveDisabledDay = async (id: string, dateStr: string, isoDate: string) => {
     const confirmed = window.confirm(`¿Volver a habilitar el ${dateStr}?`);
     if (!confirmed) return;
 
     try {
-      const { error } = await supabase.from("disabled_days").delete().eq("id", id);
+      const { data, error } = await supabase.rpc("enable_day", { p_date: isoDate });
       if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && row.success === false) throw new Error(row.message || "No autorizado");
 
       setDisabledDays((prev) => prev.filter((d) => d.id !== id));
       toast({
         title: "Día Habilitado",
         description: "Se habilitó la fecha exitosamente.",
       });
-    } catch (error: any) {
-      console.error(error);
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo habilitar el día.",
+        description: userFriendlyError(error, "No se pudo habilitar el día."),
       });
     }
   };
@@ -233,7 +199,7 @@ const AdminDisabledDays = () => {
                     </div>
                     {!isPast && (
                       <button
-                        onClick={() => handleRemoveDisabledDay(day.id, format(dateObj, "dd/MM/yyyy"))}
+                        onClick={() => handleRemoveDisabledDay(day.id, format(dateObj, "dd/MM/yyyy"), day.date)}
                         className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors"
                         title="Habilitar nuevamente"
                       >

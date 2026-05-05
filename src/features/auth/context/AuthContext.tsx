@@ -1,18 +1,18 @@
 /**
- * AuthContext refactorizado.
+ * AuthContext refactorizado con soporte de roles (admin/gestor/student).
  *
- * Cambios respecto a la versión anterior:
- *  - Toda la lógica de Supabase Auth delegada a `authService`.
- *  - `user` tipado con `User` de Supabase en lugar de `any`.
- *  - Contexto separado del proveedor para facilitar tests.
+ * El rol se resuelve server-side vía `app_admins` (tabla con RLS).
+ * `isAdmin` / `isStaff` derivan del rol verificado, no de un email hardcoded.
  */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { authService } from '@/features/auth/services/authService';
+import { authService, type AppRole } from '@/features/auth/services/authService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isStaff: boolean;
+  role: AppRole | null;
   authLoading: boolean;
   user: User | null;
   isUniversityEmail: (email: string) => boolean;
@@ -26,34 +26,59 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    // Carga la sesión inicial
-    const init = async () => {
+    let cancelled = false;
+
+    const sync = async () => {
       const session = await authService.getSession();
       const revoked = await authService.enforceUpcEmailPolicy(session);
-      setUser(revoked ? null : (session?.user ?? null));
+      if (cancelled) return;
+
+      if (revoked || !session) {
+        setUser(null);
+        setRole(null);
+        setAuthLoading(false);
+        return;
+      }
+      setUser(session.user);
+      const r = await authService.resolveRole();
+      if (cancelled) return;
+      setRole(r);
       setAuthLoading(false);
     };
 
-    void init();
+    void sync();
 
-    // Escucha cambios de sesión en tiempo real
     const unsubscribe = authService.onAuthStateChange(async (session) => {
       const revoked = await authService.enforceUpcEmailPolicy(session);
-      setUser(revoked ? null : (session?.user ?? null));
+      if (revoked || !session) {
+        setUser(null);
+        setRole(null);
+        setAuthLoading(false);
+        return;
+      }
+      setUser(session.user);
+      const r = await authService.resolveRole();
+      setRole(r);
       setAuthLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated: !!user,
-        isAdmin: authService.isAdminEmail(user?.email ?? ''),
+        isAdmin: role === 'admin',
+        isStaff: role === 'admin' || role === 'gestor',
+        role,
         authLoading,
         user,
         isUniversityEmail: authService.isValidUpcEmail,

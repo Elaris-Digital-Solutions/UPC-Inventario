@@ -103,4 +103,41 @@ export const reservationService = {
 
     if (error) throw error;
   },
+
+  /** Obtiene las reservas de un alumno con join a producto y carrera. */
+  async getStudentReservations(alumnoId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('inventory_reservations')
+      .select(`
+        *,
+        alumnos!inner ( id, nombre, apellido, carrera_id, carreras ( id, nombre ) )
+      `)
+      .eq('user_id', alumnoId)
+      .order('start_at', { ascending: false });
+
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /**
+   * Cancela una reserva vía RPC SECURITY DEFINER.
+   * El servidor valida ownership y estado.
+   */
+  async cancelReservation(
+    reservationId: string,
+    reason?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const { data, error } = await supabase.rpc('cancel_reservation', {
+      p_reservation_id: reservationId,
+      p_reason: reason ?? null,
+    });
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      success: !!row?.success,
+      message: row?.message ?? 'Operación realizada',
+    };
+  },
 };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock3, RefreshCw } from 'lucide-react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/infrastructure/supabase/client';
 import { InventoryReservation } from '@/types/Inventory';
 import { startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 

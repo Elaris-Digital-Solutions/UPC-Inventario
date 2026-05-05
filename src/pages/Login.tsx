@@ -7,7 +7,8 @@ import Footer from "@/components/Footer";
 import upcLogo from "@/assets/upc-logo.png";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { userFriendlyError } from "@/shared/errors/userFriendlyError";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -41,19 +42,12 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      console.error("Error enviando magic link:", error);
-      const code = (error as any)?.code;
-      if (code === "NOT_REGISTERED") {
-        toast.error("Tu correo no está registrado. Completa tu registro primero.");
-        navigate("/register", { state: { email } });
-        return;
-      }
-
-      toast.error(error.message || "No se pudo iniciar sesión");
+      toast.error(userFriendlyError(error, "No se pudo iniciar sesión"));
       return;
     }
 
-    toast.success("Te enviamos un enlace de acceso a tu correo UPC");
+    // Mensaje genérico — no revela si el correo está o no registrado.
+    toast.success("Si tu correo está registrado, recibirás un enlace de acceso.");
   };
 
   if (!authLoading && isAuthenticated) {

@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { useAuth } from '@/context/AuthContext';
-import { useProducts } from '@/context/ProductContext';
-import { studentService } from '@/services/StudentService';
-import { reservationService } from '@/services/ReservationService';
-import { ReservationWithCarrera, Alumno } from '@/types/Database';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { useProducts } from '@/features/products/context/ProductContext';
+import { studentService } from '@/features/students/services/studentService';
+import { reservationService } from '@/features/reservations/services/reservationService';
 import { Calendar, History, Trophy, Activity, XCircle, AlertCircle, User as UserIcon, Mail, GraduationCap } from 'lucide-react';
 import { format, isThisWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -13,7 +12,27 @@ import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/infrastructure/supabase/client';
+import { userFriendlyError } from '@/shared/errors/userFriendlyError';
+
+interface ReservationView {
+  id: string;
+  productId: string;
+  unitId: string;
+  status: string;
+  startAt: string;
+  endAt: string;
+  createdAt: string;
+  cancellationReason?: string | null;
+}
+
+interface AlumnoView {
+  id: number;
+  email: string;
+  nombre: string;
+  apellido: string;
+  carrera?: { nombre: string };
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,20 +46,15 @@ import {
 
 const FINAL_SURVEY_ACTIVATION_DATE = new Date('2026-03-20T00:00:00-05:00');
 
-const normalizeAlumnoId = (value: string | number) => {
-  const asString = String(value);
-  return /^\d+$/.test(asString) ? Number(asString) : asString;
-};
-
 const UserDashboard = () => {
   const { user } = useAuth();
   const { products } = useProducts();
   const { toast } = useToast();
-  
-  const [reservations, setReservations] = useState<ReservationWithCarrera[]>([]);
+
+  const [reservations, setReservations] = useState<ReservationView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [alumno, setAlumno] = useState<Alumno | null>(null);
-  const [alumnoId, setAlumnoId] = useState<string | null>(null);
+  const [alumno, setAlumno] = useState<AlumnoView | null>(null);
+  const [alumnoId, setAlumnoId] = useState<number | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
@@ -62,18 +76,48 @@ const UserDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         if (!user?.email) return;
-        
+
         const student = await studentService.getStudentByEmail(user.email);
         if (student) {
-          setAlumno(student);
-          setAlumnoId(student.id);
-          const userReservations = await reservationService.getStudentReservations(student.id);
-          setReservations(userReservations);
+          // Resolver carrera (la RLS permite SELECT de carreras)
+          let carreraNombre: string | undefined;
+          if (student.carrera_id) {
+            const { data: carreraRow } = await supabase
+              .from('carreras')
+              .select('nombre')
+              .eq('id', student.carrera_id)
+              .maybeSingle();
+            carreraNombre = carreraRow?.nombre as string | undefined;
+          }
+
+          const alumnoView: AlumnoView = {
+            id: Number(student.id),
+            email: student.email,
+            nombre: student.nombre,
+            apellido: student.apellido,
+            carrera: carreraNombre ? { nombre: carreraNombre } : undefined,
+          };
+          setAlumno(alumnoView);
+          setAlumnoId(alumnoView.id);
+
+          // Reservas del alumno
+          const rows = await reservationService.getStudentReservations(alumnoView.id);
+          const mapped: ReservationView[] = rows.map((r: any) => ({
+            id: String(r.id),
+            productId: String(r.product_id),
+            unitId: String(r.unit_id),
+            status: String(r.status),
+            startAt: String(r.start_at),
+            endAt: String(r.end_at),
+            createdAt: String(r.created_at),
+            cancellationReason: r.cancellation_reason ?? null,
+          }));
+          setReservations(mapped);
 
           const { data: existingSurvey, error: surveyError } = await supabase
             .from('final_satisfaction_surveys')
             .select('platform_rating, service_rating, reservation_process_rating, support_clarity_rating, equipment_condition_rating, would_recommend, best_feature, improvement_area, comments, updated_at')
-            .eq('alumno_id', normalizeAlumnoId(student.id))
+            .eq('alumno_id', alumnoView.id)
             .maybeSingle();
 
           if (!surveyError && existingSurvey) {
@@ -88,13 +132,10 @@ const UserDashboard = () => {
             setSurveyComments(existingSurvey.comments || '');
             setSurveySavedAt(existingSurvey.updated_at || null);
           }
-
-          setSurveyCheckCompleted(true);
-        } else {
-          setSurveyCheckCompleted(true);
         }
+        setSurveyCheckCompleted(true);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        if (import.meta.env.DEV) console.error('Error fetching dashboard data:', error);
         setSurveyCheckCompleted(true);
       } finally {
         setLoading(false);
@@ -119,19 +160,17 @@ const UserDashboard = () => {
     
     setIsCancelling(true);
     try {
-      const response = await reservationService.cancelReservation(cancelId, alumnoId, trimmedReason);
-      
+      const response = await reservationService.cancelReservation(cancelId, trimmedReason);
+
       if (response.success) {
         toast({
           title: "Reserva cancelada",
           description: "Tu reserva ha sido cancelada exitosamente.",
         });
-        
-        // Update local state
-        setReservations(prev => 
-          prev.map(res => 
+        setReservations(prev =>
+          prev.map(res =>
             res.id === cancelId
-              ? { ...res, status: 'cancelled', cancellationReason: trimmedReason } as ReservationWithCarrera
+              ? { ...res, status: 'cancelled', cancellationReason: trimmedReason }
               : res
           )
         );
@@ -139,14 +178,14 @@ const UserDashboard = () => {
         toast({
           variant: "destructive",
           title: "Error al cancelar",
-          description: response.error || "No se pudo cancelar la reserva",
+          description: userFriendlyError(new Error(response.message), "No se pudo cancelar la reserva"),
         });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Ocurrió un error inesperado al cancelar.",
+        description: userFriendlyError(error, "Ocurrió un error inesperado al cancelar."),
       });
     } finally {
       setIsCancelling(false);
@@ -160,9 +199,8 @@ const UserDashboard = () => {
 
     setIsSavingSurvey(true);
     try {
-      const normalizedAlumnoId = normalizeAlumnoId(alumnoId);
       const payload = {
-        alumno_id: normalizedAlumnoId,
+        alumno_id: alumnoId,
         platform_rating: Number(platformRating),
         service_rating: Number(serviceRating),
         reservation_process_rating: Number(reservationProcessRating),
@@ -189,12 +227,11 @@ const UserDashboard = () => {
         title: 'Encuesta enviada',
         description: 'Gracias por compartir tu satisfacción sobre la plataforma y el servicio.',
       });
-    } catch (error: any) {
-      console.error('Error saving final survey:', error);
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'No se pudo enviar la encuesta',
-        description: error?.message || 'Inténtalo nuevamente en unos minutos.',
+        description: userFriendlyError(error, 'Inténtalo nuevamente en unos minutos.'),
       });
     } finally {
       setIsSavingSurvey(false);

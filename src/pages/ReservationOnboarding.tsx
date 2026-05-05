@@ -11,12 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useProducts } from "@/context/ProductContext";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/supabaseClient";
+import { useProducts } from "@/features/products/context/ProductContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { supabase } from "@/infrastructure/supabase/client";
 import { InventoryUnit, InventoryReservation } from "@/types/Inventory";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { userFriendlyError } from "@/shared/errors/userFriendlyError";
 
 type Campus = "Monterrico" | "San Miguel";
 
@@ -217,60 +217,9 @@ const ReservationOnboarding = () => {
       return;
     }
 
-    const requesterName =
-      (typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
-      (typeof user?.email === "string" && user.email.split("@")[0]) ||
-      "Usuario UPC";
-
-    const requesterCode = typeof user?.email === "string" ? user.email : null;
-
     const reservationPurpose = `Motivo: ${purpose}`;
-
     const startAtISO = selectedSlot.start.toISOString();
     const endAtISO = selectedSlot.end.toISOString();
-
-    const isRpcSignatureMismatch = (rpcError: any) => {
-      const message = String(rpcError?.message || '').toLowerCase();
-      const details = String(rpcError?.details || '').toLowerCase();
-      const hint = String(rpcError?.hint || '').toLowerCase();
-      const code = String(rpcError?.code || '').toLowerCase();
-
-      // PostgREST typically returns “Could not find the function ...” when args don't match.
-      return (
-        code === 'pgrst202' ||
-        message.includes('could not find the function') ||
-        message.includes('function') && message.includes('does not exist') ||
-        details.includes('could not find the function') ||
-        hint.includes('could not find the function')
-      );
-    };
-
-    const showRpcError = (rpcError: any, payload: any) => {
-      const messageParts = [
-        rpcError?.message,
-        rpcError?.details,
-        rpcError?.hint,
-        rpcError?.code ? `(${String(rpcError.code)})` : null,
-      ].filter(Boolean);
-
-      console.error("Error creando reserva (RPC create_inventory_reservation):", {
-        code: rpcError?.code ?? null,
-        message: rpcError?.message ?? null,
-        details: rpcError?.details ?? null,
-        hint: rpcError?.hint ?? null,
-        error: rpcError,
-        payload,
-        payloadJson: (() => {
-          try {
-            return JSON.stringify(payload);
-          } catch {
-            return '[payload no serializable]';
-          }
-        })(),
-      });
-
-      toast.error(messageParts.join(" ") || "No se pudo registrar la reserva");
-    };
 
     const findAvailableUnitIdForSlot = () => {
       const slotStart = selectedSlot.start;
@@ -295,7 +244,7 @@ const ReservationOnboarding = () => {
       return;
     }
 
-    // Resolve alumno_id from email
+    // Resolve alumno_id from email (RLS permite leer el propio registro)
     const { data: alumnoRow, error: alumnoError } = await supabase
       .from('alumnos')
       .select('id')
@@ -305,15 +254,14 @@ const ReservationOnboarding = () => {
 
     if (alumnoError) {
       setIsSubmitting(false);
-      showRpcError(alumnoError, { step: 'lookup_alumno', email });
+      toast.error(userFriendlyError(alumnoError, 'No se pudo verificar tu cuenta'));
       return;
     }
 
-    const alumnoIdRaw = alumnoRow?.id ?? null;
-    const alumnoId = alumnoIdRaw === null ? null : Number(alumnoIdRaw);
+    const alumnoId = alumnoRow?.id ? Number(alumnoRow.id) : null;
     if (alumnoId === null || !Number.isFinite(alumnoId)) {
       setIsSubmitting(false);
-      toast.error('Tu correo no está registrado como alumno. Completa tu registro primero.');
+      toast.error('Tu correo no está registrado como alumno.');
       return;
     }
 
@@ -325,41 +273,29 @@ const ReservationOnboarding = () => {
       return;
     }
 
-    const profilePayload = {
+    const { data, error } = await supabase.rpc('create_inventory_reservation', {
       p_product_id: item.id,
       p_unit_id: unitId,
       p_start_at: startAtISO,
       p_end_at: endAtISO,
       p_user_id: alumnoId,
       p_purpose: reservationPurpose,
-    };
-
-    // Use only profile-based signature (current schema with required user_id).
-    let attemptedPayload: Record<string, unknown> = profilePayload;
-    let { data, error } = await supabase.rpc('create_inventory_reservation', profilePayload);
-
-    if (error && isRpcSignatureMismatch(error)) {
-      setIsSubmitting(false);
-      toast.error('La función de reservas no está actualizada en base de datos. Ejecuta las migraciones SQL más recientes.');
-      showRpcError(error, attemptedPayload);
-      return;
-    }
+    });
 
     setIsSubmitting(false);
 
     if (error) {
-      showRpcError(error, attemptedPayload);
+      toast.error(userFriendlyError(error, 'No se pudo registrar la reserva'));
       return;
     }
 
-    // Data shape depends on which RPC signature ran.
     const row = Array.isArray(data) ? data[0] : data;
     if (row && typeof row.success === 'boolean' && row.success === false) {
       toast.error(String(row.message || 'No se pudo registrar la reserva'));
       return;
     }
 
-    const reservationIdValue = row?.id || row?.reservation_id;
+    const reservationIdValue = row?.reservation_id || row?.id;
     const reservationId = reservationIdValue ? ` (#${String(reservationIdValue).slice(0, 8)})` : "";
     toast.success(`Reserva registrada${reservationId}`);
     navigate(`/faq`);

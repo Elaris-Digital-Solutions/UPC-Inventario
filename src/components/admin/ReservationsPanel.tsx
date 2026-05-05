@@ -1,8 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/infrastructure/supabase/client';
 import { InventoryReservation } from '@/types/Inventory';
 import { startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { userFriendlyError } from '@/shared/errors/userFriendlyError';
+import { reservationService } from '@/features/reservations/services/reservationService';
+import { toast } from 'sonner';
 
 type ReservationRow = InventoryReservation & {
   product?: {
@@ -106,8 +109,7 @@ const ReservationsPanel = () => {
       setReservations(rows);
       setSelectedReservationId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : null));
     } catch (error) {
-      console.error('Error fetching reservations:', error);
-      alert('Error al cargar las reservas');
+      toast.error(userFriendlyError(error, 'Error al cargar las reservas'));
       setReservations([]);
     } finally {
       setLoading(false);
@@ -124,53 +126,47 @@ const ReservationsPanel = () => {
     currentStatus: InventoryReservation['status']
   ) => {
     try {
-      let cancellationReason: string | null | undefined;
-
+      // Cancelaciones siempre vía RPC (valida ownership/staff y estado)
       if (newStatus === 'cancelled' && currentStatus !== 'cancelled') {
-        const input = window.prompt('Ingresa la razón de cancelación (imprevisto):');
-
-        if (input === null) {
-          return;
-        }
-
+        const input = window.prompt('Ingresa la razón de cancelación:');
+        if (input === null) return;
         const trimmedInput = input.trim();
         if (!trimmedInput) {
-          alert('Debes indicar una razón de cancelación.');
+          toast.error('Debes indicar una razón de cancelación.');
           return;
         }
-
-        cancellationReason = trimmedInput;
+        const res = await reservationService.cancelReservation(reservationId, trimmedInput);
+        if (!res.success) {
+          toast.error(userFriendlyError(new Error(res.message), 'No se pudo cancelar'));
+          return;
+        }
+        setReservations((prev) =>
+          prev.map((r) =>
+            r.id === reservationId
+              ? { ...r, status: 'cancelled', cancellation_reason: trimmedInput }
+              : r
+          )
+        );
+        return;
       }
 
-      if (newStatus !== 'cancelled') {
-        cancellationReason = null;
-      }
-
-      let { error } = await supabase
+      // Otras transiciones: UPDATE directo (RLS + trigger validan)
+      const { error } = await supabase
         .from('inventory_reservations')
-        .update({ status: newStatus, cancellation_reason: cancellationReason })
+        .update({ status: newStatus })
         .eq('id', reservationId);
-
-      if (isMissingCancellationReasonColumn(error)) {
-        const fallback = await supabase
-          .from('inventory_reservations')
-          .update({ status: newStatus })
-          .eq('id', reservationId);
-        error = fallback.error;
-      }
 
       if (error) throw error;
 
       setReservations((prev) =>
         prev.map((reservation) =>
           reservation.id === reservationId
-            ? { ...reservation, status: newStatus, cancellation_reason: cancellationReason ?? reservation.cancellation_reason }
+            ? { ...reservation, status: newStatus }
             : reservation
         )
       );
-    } catch (error: any) {
-      console.error('Error updating reservation status:', error);
-      alert(`No se pudo actualizar el estado: ${error?.message || 'Error desconocido'}`);
+    } catch (error) {
+      toast.error(userFriendlyError(error, 'No se pudo actualizar el estado'));
     }
   };
 

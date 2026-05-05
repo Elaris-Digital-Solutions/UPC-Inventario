@@ -8,10 +8,11 @@ import Footer from "@/components/Footer";
 import upcLogo from "@/assets/upc-logo.png";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/supabaseClient";
+import { supabase } from "@/infrastructure/supabase/client";
+import { userFriendlyError } from "@/shared/errors/userFriendlyError";
 
 type CarreraOption = {
-  id: string;
+  id: number;
   nombre: string;
 };
 
@@ -59,7 +60,7 @@ const Register = () => {
       }
 
       const options = (data || []).map((row: any) => ({
-        id: String(row.id),
+        id: Number(row.id),
         nombre: String(row.nombre),
       }));
       setCarreras(options);
@@ -93,42 +94,25 @@ const Register = () => {
 
     setIsSubmitting(true);
 
-    // Prefer RPC (SECURITY DEFINER) if available; fallback to direct insert.
+    // RPC SECURITY DEFINER que valida dominio @upc.edu.pe server-side.
     const { data: rpcData, error: rpcError } = await supabase.rpc('register_alumno', {
       p_email: normalizedEmail,
       p_nombre: nombre.trim(),
       p_apellido: apellido.trim(),
-      p_carrera_id: carreraId,
+      p_carrera_id: Number(carreraId),
     });
 
+    setIsSubmitting(false);
+
     if (rpcError) {
-      const { error: insertError } = await supabase
-        .from('alumnos')
-        .insert([
-          {
-            email: normalizedEmail,
-            nombre: nombre.trim(),
-            apellido: apellido.trim(),
-            carrera_id: carreraId,
-          }
-        ]);
+      toast.error(userFriendlyError(rpcError, 'No se pudo completar el registro'));
+      return;
+    }
 
-      setIsSubmitting(false);
-
-      if (insertError) {
-        console.error('Error registrando alumno:', rpcError, insertError);
-        toast.error(insertError.message || rpcError.message || 'No se pudo completar el registro');
-        return;
-      }
-    } else {
-      // rpcData can be array or object depending on PostgREST
-      const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-      if (row && row.success === false) {
-        setIsSubmitting(false);
-        toast.error(row.message || 'No se pudo completar el registro');
-        return;
-      }
-      setIsSubmitting(false);
+    const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    if (row && row.success === false) {
+      toast.error(row.message || 'No se pudo completar el registro');
+      return;
     }
 
     toast.success('Registro completado. Ahora inicia sesión.');
@@ -195,7 +179,7 @@ const Register = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {carreras.map((carrera) => (
-                      <SelectItem key={carrera.id} value={carrera.id}>
+                      <SelectItem key={carrera.id} value={String(carrera.id)}>
                         {carrera.nombre}
                       </SelectItem>
                     ))}

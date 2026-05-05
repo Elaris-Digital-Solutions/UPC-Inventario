@@ -35,10 +35,18 @@ const TABS: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
 ];
 
 const AdminPage = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isAdmin, authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('register');
 
-  if (!isAuthenticated) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Verificando sesión...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
     return (
       <>
         <SEO title="Administración — UPC Inventario" />
