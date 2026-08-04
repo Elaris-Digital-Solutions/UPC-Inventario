@@ -25,3 +25,10 @@ dist-ssr
 *.sln
 *.sw?
 /CMS
+
+# Volcados de Git Bash en Windows
+*.stackdump
+
+# Inventarios fuente: se cargan a la BD, no se versionan.
+# Los originales quedan recuperables en el tag legacy/vite-final.
+*.xlsx
