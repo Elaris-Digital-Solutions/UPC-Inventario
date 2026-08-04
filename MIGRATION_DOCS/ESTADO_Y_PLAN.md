@@ -264,6 +264,17 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 > **Los ejecuta Alejandro, no Claude** (ver 7.0). Shell: PowerShell 5.1 — sin `&&`, sin `||`.
 > Repositorio: `Elaris-Digital-Solutions/UPC-Inventario`
 
+**Restricciones del entorno, verificadas el 2026-08-04:**
+
+1. **`gh` no está instalado.** Todo bloque de este anexo que lo use falla con `CommandNotFoundException`.
+   Se instala con `winget install --id GitHub.cli -e`, y hay que **reabrir la terminal** para que tome el
+   `PATH`. Mientras tanto, los PR se abren por la web:
+   `https://github.com/Elaris-Digital-Solutions/UPC-Inventario/compare/develop...<rama>?expand=1`
+2. **Nada de here-strings `@'...'@`.** Al pegarlos en la consola interactiva, el prompt de continuación
+   rompe el bloque. Los comandos van **en una sola línea**, y `git commit` usa varios `-m` en vez de un
+   mensaje multilínea.
+3. **Comillas simples** cuando el texto lleve `<`, `>` o `*`: PowerShell no expande nada dentro de ellas.
+
 ### A.1 · Crear y publicar `develop` *(tarea 0.4)*
 
 ```powershell
@@ -313,13 +324,16 @@ sobre `main`.
 git push -u origin feature/fase-0-fundaciones
 ```
 
-```powershell
-$prBody = @'
-Resumen de los cambios de la fase.
+Sin `gh`, se abre por la web (comprobar que la base sea `develop`, no `main`):
 
-Tareas cerradas: 0.1, 0.3, 0.5, 0.6, 0.7
-'@
-gh pr create --base develop --head feature/fase-0-fundaciones --title "Fase 0: fundaciones" --body $prBody
+```powershell
+Start-Process 'https://github.com/Elaris-Digital-Solutions/UPC-Inventario/compare/develop...feature/fase-0-fundaciones?expand=1'
+```
+
+Con `gh` instalado, en una sola línea:
+
+```powershell
+gh pr create --base develop --head feature/fase-0-fundaciones --title 'Fase 0: fundaciones' --body 'Resumen de la fase. Tareas cerradas: 0.1, 0.3, 0.5, 0.7'
 ```
 
 ### A.5 · Verificar estado
