@@ -18,7 +18,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const UPC_EMAIL_REGEX = /^[a-zA-Z0-9._-]+@upc\.edu\.pe$/i;
 const ADMIN_EMAIL = 'admin@upc.edu.pe';
-const ADMIN_PASSWORD = '123456789';
 const AUTH_REDIRECT_BASE_URL = import.meta.env.VITE_AUTH_REDIRECT_URL?.replace(/\/+$/, '');
 const FALLBACK_PRODUCTION_AUTH_URL = 'https://upc-inventario.netlify.app';
 
@@ -198,16 +197,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { error: new Error('Solo el correo admin@upc.edu.pe puede acceder al panel admin') };
     }
 
-    if (password !== ADMIN_PASSWORD) {
-      return { error: new Error('Clave de administrador incorrecta') };
-    }
-
+    // La contraseña la valida Supabase Auth, no el cliente. Comprobarla acá
+    // obligaba a tenerla en el código y no aportaba control: cualquiera puede
+    // llamar a signInWithPassword salteándose este archivo.
     const { error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password,
     });
 
-    return { error };
+    if (error) {
+      const isBadCredentials = /invalid login credentials/i.test(error.message);
+      return { error: isBadCredentials ? new Error('Clave de administrador incorrecta') : error };
+    }
+
+    return { error: null };
   };
 
   const sendMagicLink = async (email: string, redirectPath = '/catalogo') => {
