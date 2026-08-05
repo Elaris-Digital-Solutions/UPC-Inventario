@@ -1,10 +1,11 @@
 # UPC-Inventario — Estado del proyecto y plan de implementación
 
 > **Documento vivo.** Es la referencia de dónde estamos y qué falta. Se actualiza al cerrar cada fase.
-> Complemento: [`ESPECIFICACION_FUNCIONAL.md`](./ESPECIFICACION_FUNCIONAL.md) describe *qué hace* el sistema actual.
+> Complementos: [`ESPECIFICACION_FUNCIONAL.md`](./ESPECIFICACION_FUNCIONAL.md) describe *qué hace* el sistema
+> actual, y [`FASE_1_DISENO.md`](./FASE_1_DISENO.md) describe *cómo se construye* la base de datos nueva.
 > Este documento describe *en qué estado está* y *cómo se reconstruye*.
 >
-> Última actualización: **2026-08-04**
+> Última actualización: **2026-08-05**
 
 ---
 
@@ -91,6 +92,20 @@ Detalle y evidencia en la auditoría; acá el registro de seguimiento.
 | P0-4 | `VITE_CLOUDINARY_API_SECRET` con prefijo `VITE_` en `.env` | `.env` | ✅ Corregido *(0.2)* |
 | P0-5 | Registro con `INSERT` directo en `alumnos` como anónimo si falla la RPC | `src/pages/Register.tsx:105-114` | Abierto → Fase 1 |
 
+> **Corrección del diagnóstico de P0-2 (2026-08-05).** La auditoría lo describe como «~40 escrituras
+> privilegiadas salen del navegador con la clave anónima». Verificado contra la línea base: las once tablas
+> tienen RLS activo y **solo políticas de `SELECT`**. Un `INSERT` o `UPDATE` de admin se deniega por falta de
+> política. Es decir, **el panel de administración no funciona contra el proyecto canónico**; no hay una vía
+> de escritura abierta. El riesgo real es lo que entraría si las políticas de escritura de la tarea 1.2 se
+> escribieran permisivas. No rebaja la prioridad: la sube, porque la Fase 1 es el momento en que se abre esa
+> superficie.
+>
+> **El agujero que sí está vivo es P1-10, y está mal calibrado como «alto».** `alumnos_update_own` es
+> `FOR UPDATE USING (auth_user_id = auth.uid())` **sin `WITH CHECK`**, y `authenticated` tiene `GRANT ALL`
+> sobre la tabla. Un alumno puede ponerse `banned_until = NULL` y **levantarse su propia sanción**, o
+> reescribir `email`, `activo` y `auth_user_id`. Mismo defecto en `surveys_update_own`. En la práctica anula
+> el modelo de penalizaciones completo. Se cierra en la tanda 1.
+
 > **Corrección del diagnóstico de P0-4 (2026-08-04).** La auditoría lo clasificó como crítico por exposición
 > del secreto. La verificación posterior lo desmiente en dos puntos: **(a)** ningún archivo de `src/`
 > referencia `VITE_CLOUDINARY_API_SECRET`, y Vite solo sustituye las `import.meta.env.VITE_*` citadas
@@ -142,6 +157,13 @@ inventario versionados en la raíz.
 | D-6 | **El código Vite se congela con el tag anotado `legacy/vite-final`** y se borra del árbol en el primer commit de la Fase 2. **Sin carpeta `legacy/`:** el historial ya es el archivo, y una carpeta muerta obliga a excluirla de lint, typecheck y CI, y vuelve ambiguo qué código está vivo. Recuperación: `git show legacy/vite-final:<ruta>` | 2026-08-04 |
 | D-7 | El lint **no bloquea** el CI hasta cerrar la Fase 2. Los 59 errores viven en código que la migración elimina; corregirlos sería trabajo tirado | 2026-08-04 |
 | D-8 | **Los cuatro Excel de inventario se versionan** (`Monterrico`, `San Miguel`, `Inventario_Unificado`, `Inventario_2026_CC_ISW_V1 1`). Revierte la parte de 0.7 que los sacaba del repositorio: son el origen de los datos de catálogo, pesan 182 kB en total, y tenerlos en `main` pero no en `develop` hacía que git los borrara del disco al saltar entre ramas | 2026-08-04 |
+| D-9 | **Autenticación primero, perfil después.** Desaparece el registro previo: un trigger sobre `auth.users` crea la fila en `alumnos` ya vinculada cuando el correo termina en `@upc.edu.pe`, y el alumno completa nombre, apellido y carrera en su primer ingreso. Cierra P0-5 **por ausencia de política**, no por validación: `anon` nunca necesita `INSERT`. Deja sin efecto BR-02 — el dominio pasa a ser la única puerta | 2026-08-05 |
+| D-10 | **Buffer por producto** (`products.buffer_minutes`, 120 por defecto), en espejo de D-1. El buffer es tiempo de retorno —revisar, cargar batería, limpiar— y eso varía por equipo. *Cierra Q-1* | 2026-08-05 |
+| D-11 | **El operador es estrictamente operativo.** Lee las reservas que va a entregar o recibir, con nombre y correo del alumno porque lo necesita en el mostrador, y escribe anotaciones de unidad. Sin estadísticas, sin inventario, sin acceso a `alumnos` fuera de sus reservas vigentes. *Cierra Q-3* | 2026-08-05 |
+| D-12 | **Un único modelo de sanción:** `alumnos.banned_until`, poblado por un solo trigger. Se descartan las tres variantes de `inventory_blacklist`. El disparador de los 15 días son **2 `not_picked_up` acumuladas en los últimos 90 días**, no dos de por vida: si no, el alumno queda a un fallo del bloqueo para siempre. `not_returned` sigue siendo permanente. *Resuelve C-2 y C-3* | 2026-08-05 |
+| D-13 | **Privilegios por columna además de RLS.** Se revocan los `GRANT ALL` de la línea base y se otorga por operación y por columna. RLS no sabe de columnas: `WITH CHECK` ve la fila nueva y nunca la vieja, así que no puede impedir que un valor concreto cambie. El `GRANT` sí | 2026-08-05 |
+| D-14 | **Las pruebas se escriben en pgTAP**, no en Vitest. Un arnés en JavaScript se apoya en el toolchain de Vite, que la Fase 2 borra; las pruebas en SQL sobreviven a la migración y viven junto a las migraciones que verifican | 2026-08-05 |
+| D-15 | **Los 23 `.sql` sueltos se borran en la tanda 3** de la Fase 1, no antes: son referencia útil justo mientras se reescribe esa misma lógica. *Cierra Q-9* | 2026-08-05 |
 
 ---
 
@@ -192,17 +214,44 @@ hace lo que debía — reporta sin frenar.
 
 *Objetivo: un esquema correcto, seguro y probado, del que Next.js sea el primer consumidor.*
 
-- [ ] **1.1** Tabla `staff_members` (`user_id`, `role` enum admin/operator, `activo`) *(D-2)*
-- [ ] **1.2** Políticas RLS completas: `TO authenticated`, con `USING` y `WITH CHECK` en cada `UPDATE`
-- [ ] **1.3** Triggers de trazabilidad: `reservation_status_log.changed_by`, `created_by` en notas y días inhabilitados *(D-2)*
-- [ ] **1.4** `products.max_duration_hours` y ventana móvil configurable *(D-1, D-3)*
-- [ ] **1.5** RPC única de reserva: rotación justa + buffer + límite diario + feriados + duración por producto
-- [ ] **1.6** Constraint de exclusión `EXCLUDE USING gist` contra doble reserva *(corrige P1-6)*
-- [ ] **1.7** Máquina de estados de reserva con transiciones válidas *(corrige P1-7)*
-- [ ] **1.8** Sanciones unificadas en un único trigger *(resuelve C-2 y C-3)*
-- [ ] **1.9** Corregir los avisos del linter: vista `SECURITY DEFINER`, `search_path`, políticas faltantes
-- [ ] **1.10** Stock derivado por vista o columna generada; eliminar `stock`, `in_stock`, `current_note`
-- [ ] **1.11** Tests de RLS: alumno A contra datos de B; operador contra operaciones de admin
+> **Diseño aprobado el 2026-08-05: [`FASE_1_DISENO.md`](./FASE_1_DISENO.md).** Contiene el SQL concreto de
+> cada tarea, las pruebas y los riesgos. Se implementa en **cuatro tandas, un PR por tanda**, cada una con
+> sus pruebas — los tests no se dejan para el final.
+
+**Tanda 0 · Entorno local** *(cierra Q-8; no toca el esquema)*
+
+- [ ] **1.0** `supabase init`, `config.toml` versionado, extensiones `btree_gist` y `pgtap`, `seed.sql`
+      determinista con UUID fijos, y el CI corriendo `supabase test db`
+
+**Tanda 1 · Identidad y autorización**
+
+- [ ] **1.1** Esquema `private` con helpers `SECURITY DEFINER` + tabla `staff_members` *(D-2, D-11)*
+- [ ] **1.2** Revocar los `GRANT ALL` de la línea base; privilegios por operación y por columna, y políticas
+      RLS completas `TO authenticated` con `USING` y `WITH CHECK` *(D-13, cierra P1-10 y P0-2)*
+- [ ] **1.3** Trazabilidad: `created_by` por `DEFAULT auth.uid()` con `GRANT` acotado, y trigger de
+      `reservation_status_log` sobre una tabla solo-anexar *(D-2)*
+- [ ] **1.3-bis** Trigger de alta de alumno sobre `auth.users` *(D-9, cierra P0-5)*
+
+**Tanda 2 · Reglas de reserva**
+
+- [ ] **1.4** `products.max_duration_hours`, `products.buffer_minutes` y tabla `app_settings` *(D-1, D-3, D-10)*
+- [ ] **1.5** RPC única de reserva: perfil completo, sanción, ventana móvil, feriados, horario en
+      `America/Lima`, duración por producto, límite diario y rotación justa *(corrige P1-9, C-4, C-7, M-8)*
+- [ ] **1.6** Columna `blocked_range` por trigger + `EXCLUDE USING gist` parcial *(corrige P1-6)*
+- [ ] **1.7** Máquina de estados con transiciones válidas *(corrige P1-7)*
+- [ ] **1.8** Sanciones en un único trigger *(D-12, resuelve C-2 y C-3)*
+
+**Tanda 3 · Derivados, linter y limpieza**
+
+- [ ] **1.9** Avisos del linter: `security_invoker` en la vista, `search_path` en la función, políticas de
+      lectura para `reservation_status_log`
+- [ ] **1.10** Disponibilidad por franja sobre `product_availability` — **ver corrección abajo**
+- [ ] **1.11** Batería pgTAP completa: RLS, constraint, RPC, máquina de estados y sanciones *(D-14)*
+- [ ] **1.12** Borrar los 23 `.sql` sueltos de `supabase/` *(D-15, cierra Q-9)*
+
+> **Corrección a la tarea 1.10 (2026-08-05).** El plan original decía «eliminar `stock`, `in_stock`,
+> `current_note`». **Esas columnas no existen en el esquema canónico** — eran del proyecto deprecado
+> `jgqebhvbovtpsjoujgdw`. La vista `product_availability` ya deriva el stock. 1.10 se reduce a afinarla.
 
 **Terminado cuando:** los advisors de seguridad no reportan nada, los tests de RLS pasan, y toda la lógica de
 integridad es inviolable desde un cliente que llame a la API directamente.
@@ -276,15 +325,15 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 
 | # | Tema | Estado |
 |---|---|---|
-| Q-1 | ¿El buffer de 2 h entre reservas debería ser por producto, como la duración? | Abierto — señalado al decidir D-1 |
+| Q-1 | ¿El buffer de 2 h entre reservas debería ser por producto, como la duración? | ✅ **Cerrado el 2026-08-05** → D-10: sí, `products.buffer_minutes` |
 | Q-2 | ¿El corte dominical existía a propósito para que el personal cerrara la semana planificada? Si sí, se revierte D-3 | Abierto |
-| Q-3 | ¿Qué permisos exactos tiene el operador sobre estadísticas? (¿solo lectura, o nada?) | Abierto |
+| Q-3 | ¿Qué permisos exactos tiene el operador sobre estadísticas? (¿solo lectura, o nada?) | ✅ **Cerrado el 2026-08-05** → D-11: ninguno. Estrictamente operativo |
 | Q-4 | ¿Se necesitan notificaciones por correo al alumno? (confirmación, recordatorio, vencimiento) | Propuesto como M-10, sin decidir |
 | Q-5 | **Protección de `main` y `develop`** — aplazada el 2026-08-04. `enforce_admins: true` junto a `required_approving_review_count: 1` bloquea los merges propios cuando no hay un segundo revisor, y hace falta confirmar quién tiene rol de admin en la organización. Sin protección el CI corre igual en cada PR; solo deja de ser bloqueante | Aplazado |
 | Q-6 | ¿Rotar la credencial de Cloudinary? Ya no es urgente: se verificó que el secreto nunca llegó al bundle ni al historial de git (ver nota bajo P0-4). Queda como higiene | Abierto |
 | Q-7 | La rama remota `refactor` sigue huérfana. ¿Se borra o guarda algo aprovechable? | Abierto |
-| Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | Abierto → bloquea 1.11 |
-| Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | Abierto |
+| Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | Abierto → **es la tanda 0 de la Fase 1** (tarea 1.0) |
+| Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | ✅ **Cerrado el 2026-08-05** → D-15: en la tanda 3 (tarea 1.12) |
 | Q-10 | **15 vulnerabilidades de dependencias** (1 crítica en `vitest`; altas en `vite`, `postcss`, `undici`, `ws`, `lodash`, `js-yaml`). Dependabot reporta 58 porque cuenta por ruta y no agrupa por paquete. Casi todas son `devDependencies` del stack Vite que la Fase 2 elimina, y el sistema no está desplegado. Revisar contra el árbol de Next.js en vez de parchear el actual | Abierto → Fase 2 |
 
 ---
@@ -415,4 +464,7 @@ npx supabase migration list
 | 2026-08-04 | Supabase CLI 2.111.0 instalada, `login` y `link --project-ref zqfkzgdyeqxzgzpxgadi` correctos. Flags de `db pull` verificados contra la versión real |
 | 2026-08-05 | **Tarea 0.6 cerrada.** Línea base `20260805030123_baseline.sql` generada y registrada en el historial remoto. Dos obstáculos resueltos: Docker Desktop estaba instalado pero apagado, y un primer intento fallido dejó un archivo de migración de 0 bytes. **La CLI sugería `migration repair --status applied`, que habría sido un error**: el sobrante era local, no remoto — la tabla `supabase_migrations.schema_migrations` ni siquiera existía en el servidor. Se resolvió borrando el archivo huérfano |
 | 2026-08-05 | **FASE 0 CERRADA.** PR #2 mergeado (`e7ff433`). Las 4 corridas de CI en verde. Ramas `feature/fase-0-*` borradas en local y remoto. `gh` 2.97.0 instalado y autenticado: Claude puede consultar el estado del CI en modo lectura; las escrituras siguen siendo de Alejandro. Nuevos pendientes Q-8 (falta `config.toml`), Q-9 (23 SQL sueltos), Q-10 (vulnerabilidades de dependencias) |
-| 2026-08-05 | PR #3: actions del CI a v7, desaparece el aviso de deprecación de Node 20. Se añade `CLAUDE.md` en la raíz con las reglas operativas, versionado para que viaje con el repositorio |
+| 2026-08-05 | PR #3: actions del CI a v7, desaparece el aviso de deprecación de Node 20 |
+| 2026-08-05 | PR #4: `CLAUDE.md` en la raíz con las reglas operativas, versionado para que viaje con el repositorio. CI en verde en `develop` (`31032952184`, 38 s) |
+| 2026-08-05 | **Arranca la Fase 1.** Diseño completo del esquema en `FASE_1_DISENO.md`, aprobado. Decisiones D-9 a D-15; cerrados Q-1, Q-3 y Q-9. **Dos correcciones a la auditoría al leer la línea base:** (a) P0-2 no es una vía de escritura abierta sino una aplicación rota —RLS activo sin políticas de escritura deniega los `INSERT` de admin—, y (b) el defecto que sí está vivo es P1-10, catalogado como «alto» pero capaz de anular el modelo de penalizaciones entero: sin `WITH CHECK`, un alumno se levanta su propia sanción. **Corrección al plan:** la tarea 1.10 se reduce, porque `stock`, `in_stock` y `current_note` no existen en el esquema canónico |
+| 2026-08-05 | **Hallazgo técnico del diseño:** el `EXCLUDE` de la tarea 1.6 no puede calcular el buffer en la expresión del índice, porque `timestamptz - interval` es `STABLE` y los índices exigen `IMMUTABLE`. Se resuelve con una columna `blocked_range` poblada por trigger, que además permite el buffer por producto de D-10. El buffer se suma **solo al final** del rango: sumarlo a ambos lados duplicaría la separación exigida |
