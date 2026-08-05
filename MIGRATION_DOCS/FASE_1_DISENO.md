@@ -99,9 +99,27 @@ grant insert (unit_id, note) on public.inventory_unit_notes to authenticated;
 
 ---
 
-## 4. Tanda 0 · Entorno local *(cierra Q-8)*
+## 4. Tanda 0 · Entorno local *(cierra Q-8)* — ✅ **CERRADA el 2026-08-05**
 
 Sin esto no hay dónde correr las pruebas. No toca el esquema remoto.
+
+**Lo que quedó, y dos desvíos respecto de lo planeado:**
+
+- `analytics` y `storage` se apagan en `config.toml`, **no** con `supabase start -x`. No responden a ese
+  flag; el arranque fallaba con `LegacyHealthCheckTimeoutError` hasta descubrirlo. Storage además no lo
+  usa este proyecto: las imágenes van a Cloudinary.
+- La lista de servicios excluibles de la CLI 2.111.0 **no incluye `pgbouncer`**, que este documento daba
+  por válido. Un nombre inexistente hace fallar `supabase start` entero.
+- **`supabase db reset` exige el stack completo**, porque al terminar reinicia los contenedores. Con
+  servicios excluidos muere en `failed to bootstrap the local database`. Por eso el CI no lo usa: en un
+  runner limpio, `supabase start` ya crea la base, aplica las migraciones y carga el seed.
+
+**Cómo se trabaja en local, entonces:**
+
+| Para | Comando |
+|---|---|
+| Desarrollar, o rehacer la base tras cambiar una migración | `npx supabase start` y luego `npx supabase db reset` |
+| Solo correr las pruebas | `npx supabase test db` |
 
 - `supabase init` → `supabase/config.toml` versionado.
 - Extensiones: `btree_gist` (la exige el `EXCLUDE` de la tanda 2) y `pgtap` (las pruebas).
@@ -110,15 +128,28 @@ Sin esto no hay dónde correr las pruebas. No toca el esquema remoto.
   operador). UUID fijos, escritos a mano, para que las aserciones sean estables.
 - Un `.github/workflows` que corra `supabase db reset` y `supabase test db` en los PR hacia `develop`.
 
-### Punto a verificar antes de escribir políticas
+### Resuelto: `GRANT EXECUTE` en los helpers de política *(medido el 2026-08-05)*
 
-Si a un helper `SECURITY DEFINER` se le revoca `EXECUTE` a `authenticated`, **¿sigue evaluándose dentro
-de una política RLS?** La expresión de una política se evalúa como el usuario que consulta, así que es
-probable que no y que el `REVOKE` rompa la política en vez de endurecerla.
+La pregunta era si a un helper `SECURITY DEFINER` se le puede revocar `EXECUTE` a `authenticated` y aun
+así seguir usándolo dentro de una política RLS. **La respuesta es no.** Evidencia reproducible en
+`supabase/tests/01_grants_definer.sql`:
 
-El diseño no depende de ese `REVOKE`: los helpers viven en el esquema `private`, que PostgREST no expone,
-y eso ya los hace inalcanzables por HTTP. Se comprueba contra el stack local y se deja registrado el
-resultado; **no se asume en ninguna dirección**.
+| Caso | Resultado observado |
+|---|---|
+| `EXECUTE` concedido a `authenticated` | La política evalúa el helper y devuelve la fila |
+| `EXECUTE` revocado a `authenticated` **y a `PUBLIC`** | `ERROR: permission denied for function allowed` (SQLSTATE `42501`) |
+
+**La expresión de una política se evalúa como el usuario que consulta, no como el dueño de la tabla.**
+Quitarle el permiso al helper no lo blinda: rompe la política entera, y la consulta se deniega antes
+siquiera de filtrar filas.
+
+**Regla para la tanda 1:** a los helpers de `private` se les **concede** `EXECUTE` a `authenticated`. Lo
+que los mantiene fuera del alcance de un cliente HTTP no es el permiso, sino el esquema: PostgREST solo
+expone lo que liste `config.toml` → `api.schemas`, hoy `["public", "graphql_public"]`.
+
+> Detalle que se lleva por delante el experimento ingenuo: al crear una función, `PUBLIC` recibe
+> `EXECUTE` por defecto. Revocárselo solo a `authenticated` no cambia nada. Hay que revocar a los dos —
+> razón de más para no hacerlo.
 
 ---
 
@@ -130,6 +161,10 @@ resultado; **no se asume en ninguna dirección**.
 create schema if not exists private;
 revoke all on schema private from public, anon;
 grant usage on schema private to authenticated;
+
+-- EXECUTE se concede, no se revoca: sin el, la politica no se puede evaluar.
+-- Medido en supabase/tests/01_grants_definer.sql, ver seccion 4.
+-- (repetir por cada helper, tras crearlo)
 
 create or replace function private.current_alumno_id() returns uuid
   language sql stable security definer set search_path = '' as $$
@@ -576,7 +611,7 @@ prioridad, según §7.1 del plan:
 
 | Riesgo | Mitigación |
 |---|---|
-| El `REVOKE EXECUTE` sobre helpers rompe las políticas en vez de endurecerlas | Se comprueba en la tanda 0 antes de escribir ninguna política (§4) |
+| ~~El `REVOKE EXECUTE` sobre helpers rompe las políticas en vez de endurecerlas~~ | ✅ **Confirmado el 2026-08-05.** Sí las rompe. Se concede `EXECUTE`; ver §4 y `supabase/tests/01_grants_definer.sql` |
 | Revocar los `GRANT ALL` deja sin acceso a algo no previsto | La app Vite ya no funciona contra esta base; no hay consumidor que romper. Next.js será el primero, construido contra el esquema nuevo |
 | El bucle de la RPC abre una subtransacción por unidad | A 92 unidades y pocas por producto, el coste es despreciable. Si creciera, se sustituye por un pre-filtro con `&&` sobre `blocked_range` |
 | `supabase db push` contra un proyecto hibernado falla | Reintentar; la primera llamada lo despierta |

@@ -44,6 +44,7 @@ Sin commits directos a `main` ni `develop`; todo entra por PR.
 | Supabase | Proyecto canónico `zqfkzgdyeqxzgzpxgadi`. **Hiberna**: si un comando falla, reintentar |
 | Migraciones | Solo por CLI versionada. Nada de SQL suelto |
 | Docker Desktop | Instalado. Debe estar **arrancado** para `supabase db pull` y `supabase start` |
+| Stack local | `npx supabase start` y luego `npx supabase db reset`. **`db reset` exige el stack completo**: falla si se arrancó con `-x`. Pruebas: `npx supabase test db` |
 | Shell | PowerShell 5.1 |
 
 ## Estado

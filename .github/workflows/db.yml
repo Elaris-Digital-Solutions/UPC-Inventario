@@ -1,0 +1,46 @@
+name: Base de datos
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pgtap:
+    name: Migraciones y pruebas pgTAP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7
+
+      # Fijada a la misma version que se usa en local, para que un cambio de
+      # comportamiento del CLI no aparezca primero en CI.
+      - name: Instalar la CLI de Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      # Las pruebas pgTAP corren dentro de Postgres y no tocan la API, asi que se
+      # excluye todo lo demas. La lista sale de `supabase start --help` en la 2.111.0;
+      # un nombre que no exista hace fallar el arranque.
+      #
+      # analytics y storage NO se apagan desde aca: no responden al flag -x. Su
+      # interruptor esta en supabase/config.toml, donde ya quedaron en enabled = false.
+      - name: Levantar Postgres y aplicar migraciones y seed
+        run: >
+          supabase start
+          -x gotrue,realtime,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,supavisor
+
+      # Aca NO va un `supabase db reset`. En un runner limpio no hace falta: el
+      # `start` de arriba ya crea la base desde cero, aplica las migraciones y
+      # carga el seed. Ademas `db reset` termina reiniciando contenedores y falla
+      # con "failed to bootstrap the local database" cuando faltan los servicios
+      # excluidos. En local, con el stack completo, si funciona.
+      - name: Pruebas pgTAP
+        run: supabase test db
