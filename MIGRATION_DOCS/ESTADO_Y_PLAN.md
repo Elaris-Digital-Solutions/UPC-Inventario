@@ -4,6 +4,8 @@
 > Complementos: [`ESPECIFICACION_FUNCIONAL.md`](./ESPECIFICACION_FUNCIONAL.md) describe *qué hace* el sistema
 > actual, y [`FASE_1_DISENO.md`](./FASE_1_DISENO.md) describe *cómo se construye* la base de datos nueva.
 > Este documento describe *en qué estado está* y *cómo se reconstruye*.
+> [`PLANES/`](./PLANES/) guarda el desglose paso a paso de cada tanda, con las correcciones que trajo
+> ejecutarlo.
 >
 > Última actualización: **2026-08-05**
 
