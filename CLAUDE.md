@@ -5,8 +5,10 @@ reconstruyendo primero la base de datos.
 
 > **Fuente de verdad del estado: [`MIGRATION_DOCS/ESTADO_Y_PLAN.md`](./MIGRATION_DOCS/ESTADO_Y_PLAN.md).**
 > Leerlo antes de tocar nada. Contiene las decisiones (D-n), los pendientes (Q-n), el plan por fases y la
-> bitácora. Complementos: `ESPECIFICACION_FUNCIONAL.md` describe *qué hace* el sistema, y
-> `FASE_1_DISENO.md` *cómo se construye* la base de datos nueva.
+> bitácora. Complementos: `ESPECIFICACION_FUNCIONAL.md` describe *qué hace* el sistema,
+> `FASE_1_DISENO.md` *cómo se construye* la base de datos nueva, y `PLANES/` guarda el desglose paso a
+> paso de cada tanda. **Los planes no se reescriben tras ejecutar:** lo que la ejecución desmiente va en
+> una cabecera de correcciones, para no borrar lo aprendido.
 
 ## Cómo se trabaja
 
