@@ -164,8 +164,22 @@ inventario versionados en la raíz.
       Los `*.xlsx` se ignoran por defecto **con excepción nominal de los cuatro inventarios** *(D-8)*
 
 **Terminado cuando:** un PR a `develop` corre CI en verde y `supabase migration list` muestra la línea base.
+→ ✅ **CUMPLIDO el 2026-08-05.**
 
-**Estado de los pasos del CI al escribir el workflow** (verificado en local, 2026-08-04):
+**Corridas reales de GitHub Actions** (verificadas con `gh run list`):
+
+| Corrida | Rama | Disparador | Resultado |
+|---|---|---|---|
+| PR #1 · Fase 0 fundaciones | `feature/fase-0-fundaciones` | `pull_request` | ✅ success · 39 s |
+| merge #1 | `develop` | `push` | ✅ success · 42 s |
+| PR #2 · Fase 0 baseline | `feature/fase-0-baseline` | `pull_request` | ✅ success · 34 s |
+| merge #2 | `develop` | `push` | ✅ success · 48 s |
+
+**D-7 confirmado en la práctica:** el paso de lint aparece en las anotaciones como
+`Process completed with exit code 1`, y aun así el job cierra en verde. El `continue-on-error`
+hace lo que debía — reporta sin frenar.
+
+**Estado de los pasos** (verificado en local, 2026-08-04):
 
 | Paso | Resultado |
 |---|---|
@@ -218,9 +232,14 @@ lógica de autorización en el cliente.
 
 ### 7.0 Regla operativa: quién toca el remoto
 
-**Claude no ejecuta `git push` ni ninguna operación de GitHub** — ni PRs, ni ramas remotas, ni protecciones
-de rama, ni `gh`. Trabaja en local (editar, `git add`, commits locales cuando se le pida) y **entrega los
-comandos listos para PowerShell** para que Alejandro los ejecute, con una línea explicando qué hace cada uno.
+**Claude no escribe en el remoto.** Nada de `git push`, PRs, merges, ramas remotas ni protecciones de rama.
+Trabaja en local (editar, `git add`, commits locales cuando se le pida) y **entrega los comandos listos para
+PowerShell** para que Alejandro los ejecute, con una línea explicando qué hace cada uno.
+
+**Excepción de solo lectura, acordada el 2026-08-05:** Claude puede consultar el remoto para diagnosticar —
+`gh run list`, `gh run view --log-failed`, `gh pr checks`, `gh pr view`, `gh api` sobre endpoints de lectura,
+`git ls-remote`. Sirve para leer el estado del CI sin que Alejandro tenga que copiar y pegar salidas.
+Cualquier comando que modifique el repositorio sigue siendo suyo.
 
 > Recordatorio de sintaxis: el shell es **PowerShell 5.1**. No admite `&&` ni `||`. Encadenar con `;` o
 > `if ($?) { ... }`.
@@ -263,6 +282,7 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 | Q-7 | La rama remota `refactor` sigue huérfana. ¿Se borra o guarda algo aprovechable? | Abierto |
 | Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | Abierto → bloquea 1.11 |
 | Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | Abierto |
+| Q-10 | **15 vulnerabilidades de dependencias** (1 crítica en `vitest`; altas en `vite`, `postcss`, `undici`, `ws`, `lodash`, `js-yaml`). Dependabot reporta 58 porque cuenta por ruta y no agrupa por paquete. Casi todas son `devDependencies` del stack Vite que la Fase 2 elimina, y el sistema no está desplegado. Revisar contra el árbol de Next.js en vez de parchear el actual | Abierto → Fase 2 |
 
 ---
 
@@ -273,10 +293,12 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 
 **Restricciones del entorno, verificadas el 2026-08-04:**
 
-1. **`gh` no está instalado.** Todo bloque de este anexo que lo use falla con `CommandNotFoundException`.
-   Se instala con `winget install --id GitHub.cli -e`, y hay que **reabrir la terminal** para que tome el
-   `PATH`. Mientras tanto, los PR se abren por la web:
+1. **`gh` 2.97.0 instalado el 2026-08-05** y autenticado como `Elkfle` (scopes `repo`, `workflow`,
+   `read:org`, `gist`). Los bloques de este anexo que lo usan ya funcionan. Alternativa por web para
+   abrir PRs, si se prefiere:
    `https://github.com/Elaris-Digital-Solutions/UPC-Inventario/compare/develop...<rama>?expand=1`
+   > Si una sesión no reconoce `gh` recién instalado, refrescar el `PATH` sin cerrar la terminal:
+   > `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`
 2. **Nada de here-strings `@'...'@`.** Al pegarlos en la consola interactiva, el prompt de continuación
    rompe el bloque. Los comandos van **en una sola línea**, y `git commit` usa varios `-m` en vez de un
    mensaje multilínea.
@@ -389,3 +411,4 @@ npx supabase migration list
 | 2026-08-04 | **Incidente: los 4 Excel desaparecieron del disco.** El `git pull` que llevó `develop` de `f39d2e9` a `5359770` aplicó al working tree la eliminación que introdujo la tarea 0.7. No fue el `git rm --cached`, que nunca toca el disco. Recuperados intactos desde `legacy/vite-final` y versionados de nuevo *(D-8)*. Lección: mientras una rama versione un archivo y otra no, saltar entre ellas lo crea y lo borra |
 | 2026-08-04 | Supabase CLI 2.111.0 instalada, `login` y `link --project-ref zqfkzgdyeqxzgzpxgadi` correctos. Flags de `db pull` verificados contra la versión real |
 | 2026-08-05 | **Tarea 0.6 cerrada.** Línea base `20260805030123_baseline.sql` generada y registrada en el historial remoto. Dos obstáculos resueltos: Docker Desktop estaba instalado pero apagado, y un primer intento fallido dejó un archivo de migración de 0 bytes. **La CLI sugería `migration repair --status applied`, que habría sido un error**: el sobrante era local, no remoto — la tabla `supabase_migrations.schema_migrations` ni siquiera existía en el servidor. Se resolvió borrando el archivo huérfano |
+| 2026-08-05 | **FASE 0 CERRADA.** PR #2 mergeado (`e7ff433`). Las 4 corridas de CI en verde. Ramas `feature/fase-0-*` borradas en local y remoto. `gh` 2.97.0 instalado y autenticado: Claude puede consultar el estado del CI en modo lectura; las escrituras siguen siendo de Alejandro. Nuevos pendientes Q-8 (falta `config.toml`), Q-9 (23 SQL sueltos), Q-10 (vulnerabilidades de dependencias) |

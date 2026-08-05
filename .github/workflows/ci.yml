@@ -17,11 +17,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # v7 en ambas: las v4 declaran `using: node20` en su manifiesto y el runner
+      # ya no soporta ese runtime, así que las forzaba a Node 24 con un aviso de
+      # deprecación. Ojo, esto es el Node que ejecuta LAS ACTIONS; el `node-version`
+      # de abajo es el Node que ejecuta nuestro código. Son dos capas distintas.
       - name: Clonar el repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Preparar Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -49,7 +53,10 @@ jobs:
         run: npm run build
 
       # NO BLOQUEANTE: informa vulnerabilidades sin frenar el trabajo.
+      # Al 2026-08-05: 15 vulnerabilidades (1 crítica en vitest, 9 altas en vite,
+      # postcss, undici, ws, lodash…), casi todas devDependencies del stack Vite.
       # Se vuelve bloqueante cuando el árbol de dependencias sea el de Next.js.
+      # Ver Q-10 en MIGRATION_DOCS/ESTADO_Y_PLAN.md.
       - name: Auditoría de dependencias
         run: npm audit --audit-level=high
         continue-on-error: true
