@@ -230,6 +230,9 @@ lógica de autorización en el cliente.
 
 ## 7. Convenciones de trabajo
 
+> Las reglas de esta sección están resumidas en [`CLAUDE.md`](../CLAUDE.md), en la raíz del repositorio,
+> para que se carguen solas al abrir una sesión. Si una regla cambia, actualizar **los dos**.
+
 ### 7.0 Regla operativa: quién toca el remoto
 
 **Claude no escribe en el remoto.** Nada de `git push`, PRs, merges, ramas remotas ni protecciones de rama.
@@ -412,3 +415,4 @@ npx supabase migration list
 | 2026-08-04 | Supabase CLI 2.111.0 instalada, `login` y `link --project-ref zqfkzgdyeqxzgzpxgadi` correctos. Flags de `db pull` verificados contra la versión real |
 | 2026-08-05 | **Tarea 0.6 cerrada.** Línea base `20260805030123_baseline.sql` generada y registrada en el historial remoto. Dos obstáculos resueltos: Docker Desktop estaba instalado pero apagado, y un primer intento fallido dejó un archivo de migración de 0 bytes. **La CLI sugería `migration repair --status applied`, que habría sido un error**: el sobrante era local, no remoto — la tabla `supabase_migrations.schema_migrations` ni siquiera existía en el servidor. Se resolvió borrando el archivo huérfano |
 | 2026-08-05 | **FASE 0 CERRADA.** PR #2 mergeado (`e7ff433`). Las 4 corridas de CI en verde. Ramas `feature/fase-0-*` borradas en local y remoto. `gh` 2.97.0 instalado y autenticado: Claude puede consultar el estado del CI en modo lectura; las escrituras siguen siendo de Alejandro. Nuevos pendientes Q-8 (falta `config.toml`), Q-9 (23 SQL sueltos), Q-10 (vulnerabilidades de dependencias) |
+| 2026-08-05 | PR #3: actions del CI a v7, desaparece el aviso de deprecación de Node 20. Se añade `CLAUDE.md` en la raíz con las reglas operativas, versionado para que viaje con el repositorio |
