@@ -153,7 +153,10 @@ expone lo que liste `config.toml` → `api.schemas`, hoy `["public", "graphql_pu
 
 ---
 
-## 5. Tanda 1 · Identidad y autorización *(1.1, 1.2, 1.3)*
+## 5. Tanda 1 · Identidad y autorización *(1.1, 1.2, 1.3)* — ✅ **CERRADA el 2026-08-05**
+
+8 migraciones, 62 aserciones pgTAP. Cierra **P0-2**, **P0-5** y **P1-10**. Tres correcciones al diseño,
+al final de la sección.
 
 ### 5.1 Esquema `private` y helpers
 
@@ -267,15 +270,14 @@ y `WITH CHECK`.
 create policy alumnos_select_own on public.alumnos for select to authenticated
   using (auth_user_id = (select auth.uid()));
 
+-- private.tiene_reserva_viva() existe para romper una recursion, no por comodidad.
+-- Ver la corrección C-2 al final de esta sección.
 create policy alumnos_select_staff on public.alumnos for select to authenticated
   using (
     (select private.is_admin())
     or (
       (select private.current_staff_role()) = 'operator'
-      and exists (
-        select 1 from public.inventory_reservations r
-        where r.alumno_id = alumnos.id and r.status in ('reserved', 'active')
-      )
+      and private.tiene_reserva_viva(alumnos.id)
     )
   );
 
@@ -287,6 +289,33 @@ create policy alumnos_update_own on public.alumnos for update to authenticated
 
 `inventory_reservations` **no recibe política de `INSERT` para nadie**. La única puerta es la RPC de la
 tanda 2. Lo mismo con el cambio de estado: pasa por RPC, no por `UPDATE` directo.
+
+#### Correcciones descubiertas al implementar *(2026-08-05)*
+
+**C-1 · La sanción no puede vivir en un `GRANT`.** El diseño concedía
+`UPDATE (activo, banned_until)` a `authenticated` para que el admin sancionara. **No sirve.** Un
+privilegio de columna se concede a un **rol**, y `authenticated` son todos los usuarios con sesión: dárselo
+al admin se lo da también al alumno, a quien la política `alumnos_update_own` ya le permite escribir en su
+propia fila. P1-10 reabierto por la puerta de atrás.
+
+Esas dos columnas **no se conceden a nadie**. Las escribe el trigger de sanciones de la tanda 2, que es
+`SECURITY DEFINER` y no depende de privilegios de tabla. **Deuda que hereda la tanda 2:** una RPC de admin
+para levantar una sanción a mano; sin ella, una sanción solo caduca por tiempo.
+
+**C-2 · Una política que lee otra tabla protegida hereda sus políticas.** La versión original de
+`alumnos_select_staff` consultaba `inventory_reservations` con un `exists`. Esa tabla tenía en la línea
+base una política que consultaba `alumnos`, y el resultado fue
+`infinite recursion detected in policy for relation "alumnos"`.
+
+Se resuelve con `private.tiene_reserva_viva(uuid)`, `SECURITY DEFINER`, que salta RLS y corta el ciclo —
+la misma razón por la que los helpers de rol lo son. **Regla:** si dos tablas se consultan mutuamente
+desde sus políticas, la consulta va en un helper.
+
+**C-3 · Falta de privilegio y falta de política fallan distinto.** Sin privilegio, Postgres lanza
+`42501`. Sin política, RLS no encuentra filas y el `UPDATE` o `DELETE` afecta a **cero filas, sin error**.
+Las dos son seguras, pero una prueba escrita con `throws_ok` donde correspondía comprobar el efecto da un
+falso negativo. En la batería, los intentos del operador se verifican leyendo el valor después, no
+esperando la excepción.
 
 ### 5.5 Trazabilidad *(1.3)*
 

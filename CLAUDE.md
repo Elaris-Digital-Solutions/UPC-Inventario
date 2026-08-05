@@ -52,12 +52,18 @@ Sin commits directos a `main` ni `develop`; todo entra por PR.
 Fase 0 cerrada. En curso la **Fase 1: base de datos**, con el diseño aprobado en
 `MIGRATION_DOCS/FASE_1_DISENO.md` y dividida en cuatro tandas, **un PR por tanda**:
 
-| Tanda | Contenido |
-|---|---|
-| 0 | Entorno local: `supabase init`, `config.toml`, `seed.sql`, pgTAP en el CI |
-| 1 | Identidad y autorización: `staff_members`, privilegios por columna, RLS completa, trazabilidad |
-| 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones |
-| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos |
+| Tanda | Contenido | Estado |
+|---|---|---|
+| 0 | Entorno local: `supabase init`, `config.toml`, `seed.sql`, pgTAP en el CI | ✅ cerrada |
+| 1 | Identidad y autorización: `staff_members`, privilegios por columna, RLS completa, trazabilidad | ✅ cerrada |
+| 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ← siguiente |
+| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | |
+
+**Al escribir SQL de la Fase 1, tres reglas que costaron un fallo cada una:** a los helpers de política se
+les **concede** `EXECUTE` (revocarlo rompe la política); una política que consulta otra tabla protegida
+necesita un helper `SECURITY DEFINER` o entra en recursión; y falta de privilegio lanza `42501`, mientras
+que falta de política deja el `UPDATE` en cero filas **sin error** — las pruebas deben comprobar el efecto,
+no la excepción.
 
 El código Vite está congelado en el tag `legacy/vite-final` y se borra en la Fase 2; se recupera con
 `git show legacy/vite-final:<ruta>`.

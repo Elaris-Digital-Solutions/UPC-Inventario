@@ -65,3 +65,38 @@ insert into public.product_images (id, product_id, cloudinary_public_id, secure_
 -- inhabilitado no dependan de cuando se ejecuten.
 insert into public.disabled_days (id, date, reason) values
   ('eeeeeeee-0000-0000-0000-000000000001', date '2026-12-25', 'Navidad');
+
+
+-- Usuarios de prueba.
+--
+-- Las contrasenas son un literal inservible a proposito: las pruebas pgTAP no
+-- inician sesion, falsifican el claim del JWT con
+--   set local request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}'
+-- que es lo que lee auth.uid().
+--
+--   a0000000-...0001  alumno A
+--   a0000000-...0002  alumno B
+--   a0000000-...000a  admin
+--   a0000000-...000b  operador
+--   a0000000-...000f  externo, correo que no es de la UPC
+insert into auth.users
+  (instance_id, id, aud, role, email, encrypted_password,
+   email_confirmed_at, created_at, updated_at,
+   raw_app_meta_data, raw_user_meta_data, is_super_admin)
+values
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'alumno.a@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'alumno.b@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'admin@upc.edu.pe',    'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'operador@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000f', 'authenticated', 'authenticated', 'alguien@gmail.com',   'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+
+
+-- El primer miembro del personal se siembra a mano porque no hay admin que lo
+-- inserte y RLS bloquea el intento.
+--
+-- En produccion esto NO es una migracion: es una sentencia puntual con
+-- service_role, una vez que la persona haya entrado con su cuenta UPC. Un correo
+-- concreto es dato de entorno, no esquema.
+insert into public.staff_members (user_id, role) values
+  ('a0000000-0000-0000-0000-00000000000a', 'admin'),
+  ('a0000000-0000-0000-0000-00000000000b', 'operator');

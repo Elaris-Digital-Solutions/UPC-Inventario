@@ -20,8 +20,10 @@ migración no reemplaza; todo lo que se corrija ahí se capitaliza una sola vez.
 del agujero de autorización es RLS en Postgres, no un backend — poner la autorización en Next.js dejando RLS
 permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
-**Estado general:** ⚠️ No apto para producción. **Tres** defectos críticos abiertos (P0-2, P0-3, P0-5);
-P0-1 y P0-4 cerrados en la Fase 0. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
+**Estado general:** ⚠️ No apto para producción. **Un** defecto crítico abierto: **P0-3** (tokens de sesión
+propios firmados con la cadena literal `'signature'`), que se cierra en la Fase 2 al pasar a Supabase Auth.
+P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1 de la Fase 1**. Ninguno llegó a
+explotarse porque no hay usuarios ni datos personales.
 
 ---
 
@@ -87,10 +89,10 @@ Detalle y evidencia en la auditoría; acá el registro de seguimiento.
 | ID | Defecto | Ubicación | Estado |
 |---|---|---|---|
 | P0-1 | Contraseña de administrador `123456789` literal en el código | `src/context/AuthContext.tsx:21` | ✅ Corregido *(0.3)* |
-| P0-2 | Autorización de admin únicamente en React; ~40 escrituras privilegiadas salen del navegador con la clave anónima | `Admin.tsx`, `VerificationPanel.tsx`, `ReservationsPanel.tsx`, `AdminDisabledDays.tsx`, `AdminUnits.tsx`, `ProductContext.tsx` | Abierto → Fase 1 |
+| P0-2 | Autorización de admin únicamente en React; ~40 escrituras privilegiadas salen del navegador con la clave anónima | `Admin.tsx`, `VerificationPanel.tsx`, `ReservationsPanel.tsx`, `AdminDisabledDays.tsx`, `AdminUnits.tsx`, `ProductContext.tsx` | ✅ Corregido en la base *(tanda 1)*. La autorización vive en `staff_members` + RLS. Queda quitar el `if (isAdmin)` del cliente en la Fase 2 |
 | P0-3 | Tokens de sesión firmados con la cadena literal `'signature'`, verificación sin validar firma | `src/services/AuthService.ts:224-258` | Abierto → Fase 2 |
 | P0-4 | `VITE_CLOUDINARY_API_SECRET` con prefijo `VITE_` en `.env` | `.env` | ✅ Corregido *(0.2)* |
-| P0-5 | Registro con `INSERT` directo en `alumnos` como anónimo si falla la RPC | `src/pages/Register.tsx:105-114` | Abierto → Fase 1 |
+| P0-5 | Registro con `INSERT` directo en `alumnos` como anónimo si falla la RPC | `src/pages/Register.tsx:105-114` | ✅ Corregido *(tanda 1)* |
 
 > **Corrección del diagnóstico de P0-2 (2026-08-05).** La auditoría lo describe como «~40 escrituras
 > privilegiadas salen del navegador con la clave anónima». Verificado contra la línea base: las once tablas
@@ -123,7 +125,7 @@ Detalle y evidencia en la auditoría; acá el registro de seguimiento.
 | P1-7 | Filtro de conflictos invertido: bloquea con `completed`, ignora `active` |
 | P1-8 | **El flujo de reserva está roto:** `Number()` sobre un `alumno_id` UUID produce `NaN` (`ReservationOnboarding.tsx:313`) |
 | P1-9 | Reglas de negocio en el cliente, saltables llamando a la API |
-| P1-10 | Políticas para el rol `public` en vez de `TO authenticated`; `UPDATE` sin `WITH CHECK` |
+| P1-10 | ✅ **Corregido en la tanda 1.** Políticas para el rol `public` en vez de `TO authenticated`; `UPDATE` sin `WITH CHECK`. Era el único defecto explotable de verdad: permitía a un alumno levantarse su propia sanción |
 
 ### 🟡 Deuda
 
@@ -226,12 +228,15 @@ hace lo que debía — reporta sin frenar.
 
 **Tanda 1 · Identidad y autorización**
 
-- [ ] **1.1** Esquema `private` con helpers `SECURITY DEFINER` + tabla `staff_members` *(D-2, D-11)*
-- [ ] **1.2** Revocar los `GRANT ALL` de la línea base; privilegios por operación y por columna, y políticas
+- [x] **1.1** Esquema `private` con helpers `SECURITY DEFINER` + tabla `staff_members` *(D-2, D-11)*
+- [x] **1.2** Revocar los `GRANT ALL` de la línea base; privilegios por operación y por columna, y políticas
       RLS completas `TO authenticated` con `USING` y `WITH CHECK` *(D-13, cierra P1-10 y P0-2)*
-- [ ] **1.3** Trazabilidad: `created_by` por `DEFAULT auth.uid()` con `GRANT` acotado, y trigger de
+- [x] **1.3** Trazabilidad: `created_by` por `DEFAULT auth.uid()` con `GRANT` acotado, y trigger de
       `reservation_status_log` sobre una tabla solo-anexar *(D-2)*
-- [ ] **1.3-bis** Trigger de alta de alumno sobre `auth.users` *(D-9, cierra P0-5)*
+- [x] **1.3-bis** Trigger de alta de alumno sobre `auth.users` *(D-9, cierra P0-5)*
+
+> **Tanda 1 cerrada el 2026-08-05.** 8 migraciones, 62 aserciones pgTAP. Las 12 tablas de `public` con RLS
+> activo y al menos una política, vigilado por `supabase/tests/18_rls_coverage.sql`.
 
 **Tanda 2 · Reglas de reserva**
 
@@ -468,6 +473,9 @@ npx supabase migration list
 | 2026-08-05 | PR #3: actions del CI a v7, desaparece el aviso de deprecación de Node 20 |
 | 2026-08-05 | PR #4: `CLAUDE.md` en la raíz con las reglas operativas, versionado para que viaje con el repositorio. CI en verde en `develop` (`31032952184`, 38 s) |
 | 2026-08-05 | **Arranca la Fase 1.** Diseño completo del esquema en `FASE_1_DISENO.md`, aprobado. Decisiones D-9 a D-15; cerrados Q-1, Q-3 y Q-9. **Dos correcciones a la auditoría al leer la línea base:** (a) P0-2 no es una vía de escritura abierta sino una aplicación rota —RLS activo sin políticas de escritura deniega los `INSERT` de admin—, y (b) el defecto que sí está vivo es P1-10, catalogado como «alto» pero capaz de anular el modelo de penalizaciones entero: sin `WITH CHECK`, un alumno se levanta su propia sanción. **Corrección al plan:** la tarea 1.10 se reduce, porque `stock`, `in_stock` y `current_note` no existen en el esquema canónico |
+| 2026-08-05 | **TANDA 1 CERRADA.** 8 migraciones y 62 aserciones pgTAP. Cierra **P0-2** en la base (la autorización vive en `staff_members` + RLS; queda quitar el `if (isAdmin)` del cliente en la Fase 2), **P0-5** (el alta de alumno la hace un trigger sobre `auth.users`, así que `anon` nunca necesita `INSERT`) y **P1-10** (el alumno ya no puede levantarse su propia sanción). Las 12 tablas con RLS activo y políticas, vigilado por `18_rls_coverage.sql` |
+| 2026-08-05 | **La trampa que se descubrió antes de crear nada.** La línea base traía un `ALTER DEFAULT PRIVILEGES` que concedía **todos** los privilegios a `anon` y `authenticated` sobre cada tabla nueva de `public`. Medido creando una tabla vacía: salía con `anon=arwdDxtm`, o sea con `INSERT`, `UPDATE` y `DELETE`. `staff_members` —la tabla que decide quién es administrador— habría nacido escribible por el rol anónimo. Por eso la primera migración de la tanda no crea nada: revoca. Contados antes: 14 privilegios heredados por tabla nueva y 39 permisos de escritura para `anon` |
+| 2026-08-05 | **Tres correcciones al diseño, descubiertas al implementar.** (a) La sanción **no puede vivir en un `GRANT`**: un privilegio de columna se concede a un rol, y `authenticated` incluye a los alumnos, así que dárselo al admin lo reabría todo. `activo` y `banned_until` no se conceden a nadie; los escribirá el trigger de la tanda 2, que hereda además la deuda de una RPC para levantar sanciones a mano. (b) **Una política que consulta otra tabla protegida hereda sus políticas**: `alumnos` ↔ `inventory_reservations` dio `infinite recursion detected in policy`, resuelto con el helper `private.tiene_reserva_viva()`. (c) **Falta de privilegio y falta de política fallan distinto**: la primera lanza `42501`, la segunda deja el `UPDATE` en cero filas sin error. Una prueba escrita con `throws_ok` donde tocaba comprobar el efecto da un falso negativo |
 | 2026-08-05 | **Tanda 0 cerrada.** Stack local en marcha, `config.toml` versionado, `btree_gist` como migración, `seed.sql` determinista y workflow `db.yml` **bloqueante**. 11 aserciones pgTAP en verde. La prueba de humo se escribió primero con una aserción falsa a propósito (99 productos donde hay 4) y se confirmó que fallaba, antes de corregirla: sin ese paso no habría forma de saber si el arnés estaba corriendo de verdad |
 | 2026-08-05 | **Dos desvíos de la tanda 0.** (a) `analytics` y `storage` **no se apagan con `supabase start -x`**; su interruptor es `config.toml`, y hasta descubrirlo el arranque moría con `LegacyHealthCheckTimeoutError`. Storage además no lo usa este proyecto, que guarda las imágenes en Cloudinary. (b) La lista de servicios excluibles de la CLI 2.111.0 **no incluye `pgbouncer`**, que el plan daba por válido; un nombre inexistente hace fallar el arranque entero, así que el workflow habría reventado en el primer PR. (c) **`supabase db reset` exige el stack completo**: al terminar reinicia los contenedores y con servicios excluidos muere en `failed to bootstrap the local database`. El CI no lo necesita, porque en un runner limpio `supabase start` ya crea la base, migra y siembra |
 | 2026-08-05 | **Pregunta abierta del diseño, resuelta con evidencia.** Revocar `EXECUTE` a un helper `SECURITY DEFINER` **rompe** la política RLS que lo usa (`permission denied for function`, SQLSTATE `42501`), no la endurece: la expresión de una política se evalúa como el usuario que consulta. La tanda 1 **concede** `EXECUTE`; el aislamiento lo da el esquema `private`, fuera de `api.schemas`. Prueba permanente en `supabase/tests/01_grants_definer.sql`. Detalle que casi se escapa: al crear una función, `PUBLIC` recibe `EXECUTE` por defecto, así que revocárselo solo a `authenticated` no cambia nada |
