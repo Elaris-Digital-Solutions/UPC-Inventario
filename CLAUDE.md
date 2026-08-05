@@ -5,7 +5,8 @@ reconstruyendo primero la base de datos.
 
 > **Fuente de verdad del estado: [`MIGRATION_DOCS/ESTADO_Y_PLAN.md`](./MIGRATION_DOCS/ESTADO_Y_PLAN.md).**
 > Leerlo antes de tocar nada. Contiene las decisiones (D-n), los pendientes (Q-n), el plan por fases y la
-> bitácora. Complemento: `ESPECIFICACION_FUNCIONAL.md` describe *qué hace* el sistema.
+> bitácora. Complementos: `ESPECIFICACION_FUNCIONAL.md` describe *qué hace* el sistema, y
+> `FASE_1_DISENO.md` *cómo se construye* la base de datos nueva.
 
 ## Cómo se trabaja
 
@@ -47,6 +48,15 @@ Sin commits directos a `main` ni `develop`; todo entra por PR.
 
 ## Estado
 
-Fase 0 cerrada. Sigue la **Fase 1: base de datos** — RLS, RPC de reserva, constraints. El código Vite está
-congelado en el tag `legacy/vite-final` y se borra en la Fase 2; se recupera con
+Fase 0 cerrada. En curso la **Fase 1: base de datos**, con el diseño aprobado en
+`MIGRATION_DOCS/FASE_1_DISENO.md` y dividida en cuatro tandas, **un PR por tanda**:
+
+| Tanda | Contenido |
+|---|---|
+| 0 | Entorno local: `supabase init`, `config.toml`, `seed.sql`, pgTAP en el CI |
+| 1 | Identidad y autorización: `staff_members`, privilegios por columna, RLS completa, trazabilidad |
+| 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones |
+| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos |
+
+El código Vite está congelado en el tag `legacy/vite-final` y se borra en la Fase 2; se recupera con
 `git show legacy/vite-final:<ruta>`.
