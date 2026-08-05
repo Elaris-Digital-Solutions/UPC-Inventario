@@ -19,8 +19,8 @@ migración no reemplaza; todo lo que se corrija ahí se capitaliza una sola vez.
 del agujero de autorización es RLS en Postgres, no un backend — poner la autorización en Next.js dejando RLS
 permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
-**Estado general:** ⚠️ No apto para producción. Cinco defectos críticos abiertos, ninguno explotado porque
-no hay usuarios ni datos personales todavía.
+**Estado general:** ⚠️ No apto para producción. **Tres** defectos críticos abiertos (P0-2, P0-3, P0-5);
+P0-1 y P0-4 cerrados en la Fase 0. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
 
 ---
 
@@ -58,7 +58,8 @@ Faltante en la BD:
 - ❌ Todas las RPCs que el código invoca. La única función es `fn_update_updated_at`.
 - ❌ Todas las políticas de escritura. Las 13 políticas existentes son de lectura, salvo `alumnos_update_own` y las de encuestas.
 - ❌ Cualquier noción de rol administrativo.
-- ❌ Historial de migraciones (`list_migrations` vacío). El esquema se aplicó pegando SQL a mano.
+- ✅ ~~Historial de migraciones~~ — resuelto en 0.6: línea base `20260805030123` registrada en local y
+  remoto. Antes el esquema se había aplicado pegando SQL a mano.
 
 Avisos del linter de Supabase:
 
@@ -140,6 +141,7 @@ inventario versionados en la raíz.
 | D-5 | **Se mantiene el repositorio `UPC-Inventario`.** Next.js reemplaza al Vite en la raíz; no se abre repo nuevo. Evita duplicar CI, protecciones y secretos, y conserva la continuidad del historial de decisiones | 2026-08-04 |
 | D-6 | **El código Vite se congela con el tag anotado `legacy/vite-final`** y se borra del árbol en el primer commit de la Fase 2. **Sin carpeta `legacy/`:** el historial ya es el archivo, y una carpeta muerta obliga a excluirla de lint, typecheck y CI, y vuelve ambiguo qué código está vivo. Recuperación: `git show legacy/vite-final:<ruta>` | 2026-08-04 |
 | D-7 | El lint **no bloquea** el CI hasta cerrar la Fase 2. Los 59 errores viven en código que la migración elimina; corregirlos sería trabajo tirado | 2026-08-04 |
+| D-8 | **Los cuatro Excel de inventario se versionan** (`Monterrico`, `San Miguel`, `Inventario_Unificado`, `Inventario_2026_CC_ISW_V1 1`). Revierte la parte de 0.7 que los sacaba del repositorio: son el origen de los datos de catálogo, pesan 182 kB en total, y tenerlos en `main` pero no en `develop` hacía que git los borrara del disco al saltar entre ramas | 2026-08-04 |
 
 ---
 
@@ -153,10 +155,13 @@ inventario versionados en la raíz.
 - [x] **0.1** Apuntar `.env` al proyecto canónico `zqfkzgdyeqxzgzpxgadi`
 - [x] **0.2** Quitarle el prefijo `VITE_` al secreto de Cloudinary — *rotación pendiente, ver Q-6*
 - [x] **0.3** Eliminar `ADMIN_PASSWORD` del código (`AuthContext.tsx:21`)
-- [~] **0.4** Rama `develop` creada y publicada. **Protecciones aplazadas** — ver Q-5
+- [~] **0.4** Rama `develop` creada, publicada y con la Fase 0 integrada. **Protecciones aplazadas** — ver Q-5
 - [x] **0.5** Workflow de CI en `.github/workflows/ci.yml` *(lint y auditoría no bloqueantes, D-7)*
-- [ ] **0.6** Enlazar Supabase CLI y generar la migración de línea base del esquema actual
-- [x] **0.7** Añadir `*.stackdump` y `*.xlsx` al `.gitignore` (+ `git rm --cached` de los 4 ya versionados)
+- [x] **0.6** Línea base `supabase/migrations/20260805030123_baseline.sql` (899 líneas), presente en
+      local y en el historial remoto. Contenido verificado contra la base: 11 tablas, 2 enums,
+      13 políticas, 5 triggers `updated_at`, 7 índices, 1 vista
+- [x] **0.7** Añadir `*.stackdump`, `supabase/.temp` y `supabase/.branches` al `.gitignore`.
+      Los `*.xlsx` se ignoran por defecto **con excepción nominal de los cuatro inventarios** *(D-8)*
 
 **Terminado cuando:** un PR a `develop` corre CI en verde y `supabase migration list` muestra la línea base.
 
@@ -256,6 +261,8 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 | Q-5 | **Protección de `main` y `develop`** — aplazada el 2026-08-04. `enforce_admins: true` junto a `required_approving_review_count: 1` bloquea los merges propios cuando no hay un segundo revisor, y hace falta confirmar quién tiene rol de admin en la organización. Sin protección el CI corre igual en cada PR; solo deja de ser bloqueante | Aplazado |
 | Q-6 | ¿Rotar la credencial de Cloudinary? Ya no es urgente: se verificó que el secreto nunca llegó al bundle ni al historial de git (ver nota bajo P0-4). Queda como higiene | Abierto |
 | Q-7 | La rama remota `refactor` sigue huérfana. ¿Se borra o guarda algo aprovechable? | Abierto |
+| Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | Abierto → bloquea 1.11 |
+| Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | Abierto |
 
 ---
 
@@ -346,19 +353,28 @@ gh pr list --state open
 
 ### A.6 · Supabase CLI *(tarea 0.6)*
 
+Verificado contra la **CLI 2.111.0** el 2026-08-04. Un comando por línea:
+
 ```powershell
-npx supabase --version
 npx supabase login
+```
+```powershell
 npx supabase link --project-ref zqfkzgdyeqxzgzpxgadi
-npx supabase db pull baseline --yes
+```
+```powershell
+npx supabase db pull baseline --linked
+```
+```powershell
 npx supabase migration list
 ```
 
+> `db pull` pide la contraseña de Postgres del proyecto (dashboard → Settings → Database). Se puede pasar
+> con `-p <password>`, pero conviene escribirla en el prompt para que no quede en el historial del shell.
+>
 > El proyecto **hiberna** por inactividad. Si un comando falla por ese motivo, volver a ejecutarlo: la
 > primera llamada lo despierta.
 >
-> ⚠️ A diferencia de A.1–A.5, **estos flags no están verificados**: la CLI de Supabase cambia entre versiones.
-> Confirmar con `npx supabase db pull --help` antes de ejecutar y ajustar el bloque.
+> `supabase link` crea `supabase/.temp/` con estado local de la máquina. Está en `.gitignore`; no versionarlo.
 
 ---
 
@@ -369,3 +385,7 @@ npx supabase migration list
 | 2026-08-03 | Auditoría integral. Se detectan los dos proyectos Supabase y se define el orden BD → Next.js |
 | 2026-08-04 | Especificación funcional completa por ingeniería inversa. Decisiones D-1, D-2, D-3, D-4 |
 | 2026-08-04 | **Fase 0.** Decisiones D-5, D-6, D-7. Tag `legacy/vite-final` publicado; `develop` creada. Cerradas 0.0–0.3, 0.5, 0.7. P0-1 corregido; **P0-4 reclasificado tras verificar que el secreto nunca se filtró**. Protecciones de rama aplazadas *(Q-5)*. Queda 0.6 |
+| 2026-08-04 | `feature/fase-0-fundaciones` mergeada a `develop` (`5359770`). `main` intacta en `f39d2e9`: la migración no la toca hasta que haya algo desplegable |
+| 2026-08-04 | **Incidente: los 4 Excel desaparecieron del disco.** El `git pull` que llevó `develop` de `f39d2e9` a `5359770` aplicó al working tree la eliminación que introdujo la tarea 0.7. No fue el `git rm --cached`, que nunca toca el disco. Recuperados intactos desde `legacy/vite-final` y versionados de nuevo *(D-8)*. Lección: mientras una rama versione un archivo y otra no, saltar entre ellas lo crea y lo borra |
+| 2026-08-04 | Supabase CLI 2.111.0 instalada, `login` y `link --project-ref zqfkzgdyeqxzgzpxgadi` correctos. Flags de `db pull` verificados contra la versión real |
+| 2026-08-05 | **Tarea 0.6 cerrada.** Línea base `20260805030123_baseline.sql` generada y registrada en el historial remoto. Dos obstáculos resueltos: Docker Desktop estaba instalado pero apagado, y un primer intento fallido dejó un archivo de migración de 0 bytes. **La CLI sugería `migration repair --status applied`, que habría sido un error**: el sobrante era local, no remoto — la tabla `supabase_migrations.schema_migrations` ni siquiera existía en el servidor. Se resolvió borrando el archivo huérfano |

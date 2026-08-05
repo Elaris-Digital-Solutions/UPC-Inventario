@@ -29,6 +29,18 @@ dist-ssr
 # Volcados de Git Bash en Windows
 *.stackdump
 
-# Inventarios fuente: se cargan a la BD, no se versionan.
-# Los originales quedan recuperables en el tag legacy/vite-final.
+# Supabase CLI: estado local del enlace, propio de cada máquina.
+supabase/.temp
+supabase/.branches
+
+# Excel sueltos: ignorados por defecto para que no se acumulen exports temporales.
 *.xlsx
+
+# Excepción: los inventarios fuente SÍ se versionan (decisión D-8, 2026-08-04).
+# Son el origen de los datos de catálogo de las dos sedes y pesan 182 kB en total.
+# Además, tenerlos en una rama y no en otra hace que git los borre del disco al
+# saltar entre ramas — pasó el 2026-08-04 con el pull a develop.
+!Monterrico.xlsx
+!San Miguel.xlsx
+!Inventario_Unificado.xlsx
+!Inventario_2026_CC_ISW_V1 1.xlsx
