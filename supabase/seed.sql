@@ -100,3 +100,31 @@ values
 insert into public.staff_members (user_id, role) values
   ('a0000000-0000-0000-0000-00000000000a', 'admin'),
   ('a0000000-0000-0000-0000-00000000000b', 'operator');
+
+
+-- Duraciones y buffers distintos por producto, para que las pruebas ejerciten
+-- D-1 y D-10 en vez de leer siempre el valor por defecto.
+--   producto 2 (tripode) -> buffer de 30 min: se revisa rapido
+--   producto 3 (laptop)  -> hasta 8 horas: jornada completa de edicion
+update public.products set buffer_minutes     = 30 where id = 'bbbbbbbb-0000-0000-0000-000000000002';
+update public.products set max_duration_hours = 8  where id = 'bbbbbbbb-0000-0000-0000-000000000003';
+
+
+-- Perfiles completos. El trigger de alta crea la fila con nombre y apellido en
+-- nulo (D-9), y la RPC de reserva exige el perfil completo: sin esto ninguna
+-- prueba de reserva pasaria de la primera validacion.
+--
+-- La prueba de "perfil incompleto" pone nombre en nulo dentro de su propia
+-- transaccion, que se revierte.
+update public.alumnos
+   set nombre = 'Ana', apellido = 'Perez',
+       carrera_id = 'caaaaaaa-0000-0000-0000-000000000001'
+ where auth_user_id = 'a0000000-0000-0000-0000-000000000001';
+
+update public.alumnos
+   set nombre = 'Bruno', apellido = 'Diaz',
+       carrera_id = 'caaaaaaa-0000-0000-0000-000000000002'
+ where auth_user_id = 'a0000000-0000-0000-0000-000000000002';
+
+-- NO se siembran reservas. 14_rls_alumnos.sql afirma que el operador solo se ve a
+-- si mismo mientras no haya reservas vivas; una reserva sembrada rompe esa prueba.

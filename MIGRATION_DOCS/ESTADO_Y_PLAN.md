@@ -123,10 +123,10 @@ Detalle y evidencia en la auditoría; acá el registro de seguimiento.
 
 | ID | Defecto |
 |---|---|
-| P1-6 | Doble reserva posible: se consulta y luego se inserta, sin constraint que lo impida |
-| P1-7 | Filtro de conflictos invertido: bloquea con `completed`, ignora `active` |
-| P1-8 | **El flujo de reserva está roto:** `Number()` sobre un `alumno_id` UUID produce `NaN` (`ReservationOnboarding.tsx:313`) |
-| P1-9 | Reglas de negocio en el cliente, saltables llamando a la API |
+| P1-6 | ✅ **Corregido en la tanda 2.** Doble reserva posible: se consultaba y luego se insertaba, sin constraint que lo impidiera. Ahora lo impide `inventory_reservations_no_overlap`, un `EXCLUDE USING gist` parcial sobre `blocked_range` |
+| P1-7 | ✅ **Corregido en la tanda 2.** Filtro de conflictos invertido: bloqueaba con `completed` e ignoraba `active`. Corregido de raíz: el estado ya no puede ir de cualquier sitio a cualquier otro |
+| P1-8 | **El flujo de reserva está roto:** `Number()` sobre un `alumno_id` UUID produce `NaN` (`ReservationOnboarding.tsx:313`). Vive en código que la Fase 2 borra |
+| P1-9 | ✅ **Corregido en la tanda 2.** Reglas de negocio en el cliente, saltables llamando a la API. Ahora viven en `create_reservation`, y nadie tiene `INSERT` sobre `inventory_reservations`: no hay otra puerta |
 | P1-10 | ✅ **Corregido en la tanda 1.** Políticas para el rol `public` en vez de `TO authenticated`; `UPDATE` sin `WITH CHECK`. Era el único defecto explotable de verdad: permitía a un alumno levantarse su propia sanción |
 
 ### 🟡 Deuda
@@ -168,6 +168,8 @@ inventario versionados en la raíz.
 | D-13 | **Privilegios por columna además de RLS.** Se revocan los `GRANT ALL` de la línea base y se otorga por operación y por columna. RLS no sabe de columnas: `WITH CHECK` ve la fila nueva y nunca la vieja, así que no puede impedir que un valor concreto cambie. El `GRANT` sí | 2026-08-05 |
 | D-14 | **Las pruebas se escriben en pgTAP**, no en Vitest. Un arnés en JavaScript se apoya en el toolchain de Vite, que la Fase 2 borra; las pruebas en SQL sobreviven a la migración y viven junto a las migraciones que verifican | 2026-08-05 |
 | D-15 | **Los 23 `.sql` sueltos se borran en la tanda 3** de la Fase 1, no antes: son referencia útil justo mientras se reescribe esa misma lógica. *Cierra Q-9* | 2026-08-05 |
+| D-16 | **Mueve el estado de una reserva todo el personal, admin y operador.** Quien está en el mostrador es quien sabe si el equipo se entregó, si volvió o si nadie lo recogió. La máquina de estados ya impide los saltos absurdos, así que partir la política entre los dos roles añadiría complejidad sin cerrar ningún agujero. Una sola política, `reservations_update_staff` | 2026-08-05 |
+| D-17 | **Las migraciones se empujan al remoto al cerrar la Fase 1, después de la tanda 3.** No por tanda. Una migración empujada es inmutable en la práctica, y dentro de la fase todavía hay que rehacer archivos —pasó con `20260806004020`, corregida después de aplicarse—. Además nadie consume el remoto hoy, y los advisors, que corren contra él, solo dan señal limpia una vez que la tanda 3 haya cerrado sus tres avisos conocidos | 2026-08-05 |
 
 ---
 
@@ -242,12 +244,20 @@ hace lo que debía — reporta sin frenar.
 
 **Tanda 2 · Reglas de reserva**
 
-- [ ] **1.4** `products.max_duration_hours`, `products.buffer_minutes` y tabla `app_settings` *(D-1, D-3, D-10)*
-- [ ] **1.5** RPC única de reserva: perfil completo, sanción, ventana móvil, feriados, horario en
+- [x] **1.4** `products.max_duration_hours`, `products.buffer_minutes` y tabla `app_settings` *(D-1, D-3, D-10)*
+- [x] **1.5** RPC única de reserva: perfil completo, sanción, ventana móvil, feriados, horario en
       `America/Lima`, duración por producto, límite diario y rotación justa *(corrige P1-9, C-4, C-7, M-8)*
-- [ ] **1.6** Columna `blocked_range` por trigger + `EXCLUDE USING gist` parcial *(corrige P1-6)*
-- [ ] **1.7** Máquina de estados con transiciones válidas *(corrige P1-7)*
-- [ ] **1.8** Sanciones en un único trigger *(D-12, resuelve C-2 y C-3)*
+- [x] **1.6** Columna `blocked_range` por trigger + `EXCLUDE USING gist` parcial *(corrige P1-6)*
+- [x] **1.7** Máquina de estados con transiciones válidas *(corrige P1-7)*
+- [x] **1.8** Sanciones en un único trigger *(D-12, resuelve C-2 y C-3)*
+- [x] **1.8-bis** `cancel_reservation` con motivo obligatorio *(BR-17)*, y `admin_set_ban` /
+      `admin_set_alumno_activo`, que cierran la deuda que la tanda 1 dejó anotada: `banned_until` y
+      `activo` no tienen `GRANT` para nadie, así que sin RPC nadie podía levantar una sanción a mano
+
+> **Tanda 2 cerrada el 2026-08-05.** 6 migraciones, 46 aserciones pgTAP nuevas (108 en total). Las reglas
+> de negocio dejan de ser saltables: `create_reservation` es la única puerta de entrada, y nadie tiene
+> `INSERT` sobre `inventory_reservations`. Detalle y correcciones en
+> [`PLANES/TANDA_2.md`](./PLANES/TANDA_2.md).
 
 **Tanda 3 · Derivados, linter y limpieza**
 
@@ -343,6 +353,7 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 | Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | ✅ **Cerrado el 2026-08-05** con la tanda 0 (tarea 1.0) |
 | Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | ✅ **Cerrado el 2026-08-05** → D-15: en la tanda 3 (tarea 1.12) |
 | Q-10 | **15 vulnerabilidades de dependencias** (1 crítica en `vitest`; altas en `vite`, `postcss`, `undici`, `ws`, `lodash`, `js-yaml`). Dependabot reporta 58 porque cuenta por ruta y no agrupa por paquete. Casi todas son `devDependencies` del stack Vite que la Fase 2 elimina, y el sistema no está desplegado. Revisar contra el árbol de Next.js en vez de parchear el actual | Abierto → Fase 2 |
+| Q-11 | **`min_duration_minutes` = 15 contra `slot_minutes` = 30.** La RPC exige que la hora de inicio caiga en un bloque, pero no que la duración sea múltiplo de uno: una reserva de 15 minutos empieza alineada y **termina** a mitad de bloque, dejando un hueco que nadie puede pedir. O la duración mínima sube a 30, o se acepta el hueco a propósito. Abierto el 2026-08-05 al implementar la tanda 2 | Abierto |
 
 ---
 
@@ -482,3 +493,6 @@ npx supabase migration list
 | 2026-08-05 | **Dos desvíos de la tanda 0.** (a) `analytics` y `storage` **no se apagan con `supabase start -x`**; su interruptor es `config.toml`, y hasta descubrirlo el arranque moría con `LegacyHealthCheckTimeoutError`. Storage además no lo usa este proyecto, que guarda las imágenes en Cloudinary. (b) La lista de servicios excluibles de la CLI 2.111.0 **no incluye `pgbouncer`**, que el plan daba por válido; un nombre inexistente hace fallar el arranque entero, así que el workflow habría reventado en el primer PR. (c) **`supabase db reset` exige el stack completo**: al terminar reinicia los contenedores y con servicios excluidos muere en `failed to bootstrap the local database`. El CI no lo necesita, porque en un runner limpio `supabase start` ya crea la base, migra y siembra |
 | 2026-08-05 | **Pregunta abierta del diseño, resuelta con evidencia.** Revocar `EXECUTE` a un helper `SECURITY DEFINER` **rompe** la política RLS que lo usa (`permission denied for function`, SQLSTATE `42501`), no la endurece: la expresión de una política se evalúa como el usuario que consulta. La tanda 1 **concede** `EXECUTE`; el aislamiento lo da el esquema `private`, fuera de `api.schemas`. Prueba permanente en `supabase/tests/01_grants_definer.sql`. Detalle que casi se escapa: al crear una función, `PUBLIC` recibe `EXECUTE` por defecto, así que revocárselo solo a `authenticated` no cambia nada |
 | 2026-08-05 | **Hallazgo técnico del diseño:** el `EXCLUDE` de la tarea 1.6 no puede calcular el buffer en la expresión del índice, porque `timestamptz - interval` es `STABLE` y los índices exigen `IMMUTABLE`. Se resuelve con una columna `blocked_range` poblada por trigger, que además permite el buffer por producto de D-10. El buffer se suma **solo al final** del rango: sumarlo a ambos lados duplicaría la separación exigida |
+| 2026-08-05 | **TANDA 2 CERRADA.** 6 migraciones y 46 aserciones pgTAP nuevas, 108 en total. Cierra **P1-6** (`EXCLUDE USING gist` parcial sobre `blocked_range`, con el buffer por producto), **P1-7** (máquina de estados: el estado deja de poder ir de cualquier sitio a cualquier otro) y **P1-9** (las reglas viven en `create_reservation`, y nadie tiene `INSERT` sobre `inventory_reservations`, así que no hay otra puerta). Se añaden `cancel_reservation` con motivo obligatorio —BR-17 en el motor y no en un diálogo del navegador— y las dos RPC de admin que cierran la deuda de la tanda 1. Decisiones D-16 y D-17; abierto Q-11 |
+| 2026-08-05 | **Dos trampas de la tanda 2 que no eran de lógica sino de forma.** (a) **`SET LOCAL` en una migración no hace nada:** la CLI aplica cada archivo fuera de un bloque de transacción y responde `WARNING (25P01)`. El `EXCLUDE` se creaba gracias al `search_path` que Supabase deja puesto en la base, no gracias al archivo — habría funcionado hasta que esa configuración cambiara. Se cualificó el opclass como `extensions.gist_uuid_ops`. (b) **El orden de las validaciones importa tanto como las validaciones:** la comprobación de bloque horario quedó antes que la de fecha pasada, así que a quien pedía una hora de ayer se le contestaba por la rejilla. Cuando varias reglas rechazan la misma entrada, contesta la más fundamental. Lo detectó una prueba que afirma el **mensaje**; con `throws_ok` sobre el SQLSTATE habría pasado en verde con el mensaje equivocado |
+| 2026-08-05 | **La lección de la tanda 1, por el lado contrario.** Conceder `UPDATE (status, cancellation_reason)` a `authenticated` —necesario para que la política del personal tenga sobre qué aplicarse— rompió una prueba de la tanda 1 que afirmaba `42501`. Al alumno ya no le falta privilegio, le falta **política**, y sin política el `UPDATE` afecta a cero filas **sin error**. Sigue igual de cerrado, pero cambió el mecanismo que lo cierra. **Y una prueba propia pasaba por casualidad:** «cancelar libera la franja» estaba escrita sobre un producto con tres unidades, así que la rotación justa le daba otra unidad al segundo alumno y la aserción se cumplía sin que ninguna cancelación hubiera ocurrido — en verde antes de que la función existiera. Verla fallar es lo único que la delató |

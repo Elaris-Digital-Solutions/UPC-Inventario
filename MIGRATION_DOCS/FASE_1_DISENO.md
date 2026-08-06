@@ -346,7 +346,44 @@ create trigger trg_log_reservation_status
 
 ---
 
-## 6. Tanda 2 · Reglas de reserva *(1.4 a 1.8)*
+## 6. Tanda 2 · Reglas de reserva *(1.4 a 1.8)* — ✅ **CERRADA el 2026-08-05**
+
+### Correcciones al implementar (2026-08-05)
+
+El SQL de abajo es el diseño aprobado. Lo que la ejecución cambió, sin reescribirlo:
+
+- **§6.2 · El `EXCLUDE` no puede depender del `search_path`.** El diseño da por hecho que `btree_gist`
+  está al alcance. Poner `set local search_path = public, extensions;` en la migración **no sirve**: la
+  CLI aplica cada archivo fuera de un bloque de transacción y responde
+  `WARNING (25P01): SET LOCAL can only be used in transaction blocks`. El constraint se creaba gracias a
+  la configuración que Supabase deja puesta en la base, invisible desde el archivo. La versión aplicada
+  cualifica el opclass: `exclude using gist (unit_id extensions.gist_uuid_ops with =, blocked_range with &&)`.
+  `range_ops` no se cualifica: el gist de `tstzrange` lo trae `pg_catalog`.
+- **§6.1 · `app_settings` lleva tres constraints más y su fila por defecto.** `closing_time > opening_time`,
+  `60 % slot_minutes = 0` y los rangos de `slot_minutes` y `min_duration_minutes`. La fila única se
+  inserta **en la migración**, no en el seed: `seed.sql` no llega al proyecto remoto, y sin esa fila la
+  RPC aborta.
+- **§6.4 · `slot_minutes` no lo usaba nadie.** El diseño declara la columna y ninguna regla la lee, así
+  que una llamada directa a la API podía pedir las 10:07. La RPC aplicada valida que la hora de inicio
+  caiga en un bloque. Queda **Q-11** abierto: `min_duration_minutes` = 15 contra `slot_minutes` = 30
+  permite reservas que terminan a mitad de bloque.
+- **§6.4 · El orden de las validaciones.** La comprobación de bloque va **después** de la ventana móvil y
+  del horario, no antes: puesta antes, a quien pedía una hora de ayer se le contestaba «La hora de inicio
+  no cae en un bloque de 30 minutos» en vez de «No se puede reservar en el pasado». Cuando varias reglas
+  rechazan la misma entrada, contesta la más fundamental.
+- **§6.4 · Quién mueve el estado.** El diseño no lo decía. **D-16:** todo el personal, admin y operador,
+  con una sola política `reservations_update_staff`. El privilegio se acota por columna a
+  `status, cancellation_reason`.
+- **§6.4 · `cancel_reservation` tiene firma.** El diseño la despacha en una línea. La aplicada es
+  `cancel_reservation(p_reservation_id uuid, p_reason text) returns void`: comprueba la propiedad a mano
+  —`SECURITY DEFINER` no pasa por RLS— y solo cancela desde `reserved`. El motivo obligatorio vive en el
+  **trigger de la máquina de estados**, no en la RPC, para que también lo cumpla el personal cuando
+  cancela por `UPDATE`.
+- **§6.5 · Faltaban las puertas manuales.** `banned_until` y `activo` no tienen `GRANT` para nadie, así
+  que sin RPC ninguna persona podía levantar una sanción ni desactivar a un alumno. Se añaden
+  `admin_set_ban(uuid, timestamptz)` y `admin_set_alumno_activo(uuid, boolean)`, ambas `SECURITY DEFINER`
+  y con comprobación de rol a mano. **Deuda:** ninguna de las dos deja rastro de auditoría;
+  `reservation_status_log` es por reserva.
 
 ### 6.1 Configuración *(1.4)*
 

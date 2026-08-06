@@ -58,14 +58,22 @@ Fase 0 cerrada. En curso la **Fase 1: base de datos**, con el diseño aprobado e
 |---|---|---|
 | 0 | Entorno local: `supabase init`, `config.toml`, `seed.sql`, pgTAP en el CI | ✅ cerrada |
 | 1 | Identidad y autorización: `staff_members`, privilegios por columna, RLS completa, trazabilidad | ✅ cerrada |
-| 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ← siguiente |
-| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | |
+| 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ✅ cerrada |
+| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | ← siguiente |
 
-**Al escribir SQL de la Fase 1, tres reglas que costaron un fallo cada una:** a los helpers de política se
-les **concede** `EXECUTE` (revocarlo rompe la política); una política que consulta otra tabla protegida
-necesita un helper `SECURITY DEFINER` o entra en recursión; y falta de privilegio lanza `42501`, mientras
-que falta de política deja el `UPDATE` en cero filas **sin error** — las pruebas deben comprobar el efecto,
-no la excepción.
+**Al escribir SQL de la Fase 1, cinco reglas que costaron un fallo cada una:**
+
+1. A los helpers de política se les **concede** `EXECUTE`; revocarlo rompe la política.
+2. Una política que consulta otra tabla protegida necesita un helper `SECURITY DEFINER` o entra en
+   recursión.
+3. Falta de privilegio lanza `42501`; falta de política deja el `UPDATE` en cero filas **sin error**. Las
+   pruebas comprueban el efecto, no la excepción. **Y ampliar un `GRANT` cambia el modo de fallo de quien
+   no debería tenerlo:** conceder algo a `authenticated` se lo concede también a los alumnos, así que una
+   prueba con `throws_ok` que hoy es correcta puede dejar de serlo mañana.
+4. **`SET LOCAL` en una migración no hace nada:** la CLI aplica cada archivo fuera de un bloque de
+   transacción. Lo que dependa del `search_path` se cualifica con esquema.
+5. Cuando varias reglas rechazan la misma entrada, **contesta la más fundamental**: ordenar mal las
+   validaciones de una RPC da mensajes ciertos e inútiles.
 
 El código Vite está congelado en el tag `legacy/vite-final` y se borra en la Fase 2; se recupera con
 `git show legacy/vite-final:<ruta>`.
