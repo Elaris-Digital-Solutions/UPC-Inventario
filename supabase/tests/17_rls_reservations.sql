@@ -7,6 +7,10 @@
 --
 -- Las politicas de encuesta de la linea base tenian el mismo defecto que
 -- alumnos_update_own: UPDATE sin WITH CHECK. Se rehacen.
+--
+-- Actualizada en la tanda 2: la escritura del alumno sobre inventory_reservations
+-- sigue cerrada, pero cambio el mecanismo que la cierra. Ver el comentario largo
+-- junto a la prueba del alumno B.
 
 begin;
 
@@ -42,11 +46,6 @@ select throws_ok(
   '42501', null,
   'un alumno no inserta reservas: la unica puerta sera la RPC');
 
-select throws_ok(
-  $$update public.inventory_reservations set status = 'completed'$$,
-  '42501', null,
-  'un alumno no cambia el estado de una reserva');
-
 -- Encuesta propia: si. Ajena: no.
 select lives_ok(
   $$insert into public.final_satisfaction_surveys (alumno_id, platform_rating)
@@ -62,14 +61,31 @@ select throws_ok(
 reset role;
 
 
--- Alumno B: ve la suya.
+-- Alumno B: ve la suya, y no la mueve.
 set local request.jwt.claims = '{"sub":"a0000000-0000-0000-0000-000000000002","role":"authenticated"}';
 set local role authenticated;
 
 select is((select count(*)::int from public.inventory_reservations), 1,
   'el alumno B ve su propia reserva');
 
+-- Esta prueba cambio de forma en la tanda 2, y el motivo importa.
+--
+-- Antes decia throws_ok(..., '42501'): el alumno no tenia NINGUN privilegio sobre
+-- la tabla y el UPDATE moria por falta de privilegio. La tanda 2 concede
+-- UPDATE (status, cancellation_reason) a `authenticated` para que la politica del
+-- personal tenga sobre que aplicarse, y `authenticated` incluye a los alumnos.
+--
+-- Ahora al alumno le falta POLITICA, no privilegio: su UPDATE afecta a cero filas
+-- y no lanza nada. Las dos formas son igual de seguras, pero solo una se puede
+-- comprobar con throws_ok. Se comprueba el efecto.
+update public.inventory_reservations set status = 'active';
+
 reset role;
+
+select is(
+  (select status::text from public.inventory_reservations),
+  'reserved',
+  'el alumno B no mueve el estado de su propia reserva');
 
 
 -- Operador: ve todas, porque tiene que entregarlas y recibirlas.
