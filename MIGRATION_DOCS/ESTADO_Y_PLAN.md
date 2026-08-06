@@ -2,12 +2,13 @@
 
 > **Documento vivo.** Es la referencia de dónde estamos y qué falta. Se actualiza al cerrar cada fase.
 > Complementos: [`ESPECIFICACION_FUNCIONAL.md`](./ESPECIFICACION_FUNCIONAL.md) describe *qué hace* el sistema
-> actual, y [`FASE_1_DISENO.md`](./FASE_1_DISENO.md) describe *cómo se construye* la base de datos nueva.
+> actual, [`FASE_1_DISENO.md`](./FASE_1_DISENO.md) describe *cómo se construye* la base de datos nueva, y
+> [`FASE_2_DISENO.md`](./FASE_2_DISENO.md), *cómo se construye* la aplicación Next.js.
 > Este documento describe *en qué estado está* y *cómo se reconstruye*.
 > [`PLANES/`](./PLANES/) guarda el desglose paso a paso de cada tanda, con las correcciones que trajo
 > ejecutarlo.
 >
-> Última actualización: **2026-08-05**
+> Última actualización: **2026-08-06**
 
 ---
 
@@ -219,6 +220,16 @@ inventario versionados en la raíz.
 | D-16 | **Mueve el estado de una reserva todo el personal, admin y operador.** Quien está en el mostrador es quien sabe si el equipo se entregó, si volvió o si nadie lo recogió. La máquina de estados ya impide los saltos absurdos, así que partir la política entre los dos roles añadiría complejidad sin cerrar ningún agujero. Una sola política, `reservations_update_staff` | 2026-08-05 |
 | D-17 | **Las migraciones se empujan al remoto al cerrar la Fase 1, después de la tanda 3.** No por tanda. Una migración empujada es inmutable en la práctica, y dentro de la fase todavía hay que rehacer archivos —pasó con `20260806004020`, corregida después de aplicarse—. Además nadie consume el remoto hoy, y los advisors, que corren contra él, solo dan señal limpia una vez que la tanda 3 haya cerrado sus tres avisos conocidos | 2026-08-05 |
 | D-18 | **Sin sesión, sin stock.** Al poner `security_invoker` en `product_availability`, un anónimo dejaría de ver `inventory_units` y la vista le devolvería ceros: diría «sin stock» de todo, que es peor que no decir nada. Se le revoca el `SELECT` sobre la vista. La landing muestra el catálogo; la disponibilidad se ve con sesión. Coherente con lo que la tanda 1 decidió sobre el inventario físico. **Si la Fase 2 necesita disponibilidad pública**, el arreglo no es quitar `security_invoker` sino dar a `anon` una política de lectura sobre `inventory_units` con el `GRANT` acotado a `(id, product_id, campus_id, status)` | 2026-08-05 |
+| D-19 | **La duración de una reserva tiene que ser múltiplo de `slot_minutes`**, con mínimo un bloque. `min_duration_minutes` pasa de 15 a 30 y `create_reservation` gana una validación después de la de rango. El enunciado original de Q-11 era incompleto por dos lados: subir el mínimo a 30 **no** alinea nada (45 sigue sin ser múltiplo), y lo que desalinea la rejilla es `duración + buffer`, no la duración sola — con `buffer_minutes = 120`, una reserva de 10:00 a 10:15 bloquea hasta las **12:15**. *Cierra Q-11* | 2026-08-06 |
+| D-20 | **`available_slots(...)`: la rejilla del día en una sola llamada**, en vez de 28 a `available_units`. No es solo velocidad: 28 llamadas son 28 fotos distintas de la base. Delega en `available_units` en vez de repetir la fórmula del rango, y filtra el pasado, los feriados y la ventana móvil, para que **todo lo que la rejilla ofrece lo acepte la RPC** | 2026-08-06 |
+| D-21 | **La landing muestra catálogo, no disponibilidad.** `/` es una vitrina pública —`products` y `product_images` son legibles por `anon`— y `/catalogo`, con sus filtros por sede y BR-14, exige sesión. Un catálogo que filtra por un stock que no puede leer no es incompleto: **miente**. Cierra lo que D-18 dejó abierto, sin tocar la base | 2026-08-06 |
+| D-22 | **App Router con grupos de rutas por perfil**, y el layout del grupo como comodidad, no como cerco: un layout no se vuelve a ejecutar al navegar entre rutas hermanas. El archivo de proxy se llama **`proxy.ts`, no `middleware.ts`** — Next.js 16 renombró Middleware a Proxy | 2026-08-06 |
+| D-23 | **Los tokens de diseño se copian tal cual a `app/globals.css`; las fuentes pasan a `next/font`.** Se cae el `@import` de Google Fonts: es una petición bloqueante a un tercero y obligaría a abrirle la CSP de la tanda 4. Tailwind va a la 4, con el `theme.extend` traducido a `@theme` una vez | 2026-08-06 |
+| D-24 | **Tres clientes de `@supabase/ssr` —navegador, servidor y proxy—, y ninguno compartido entre peticiones.** `lib/supabase/server.ts` exporta una **función**, nunca una constante de módulo: un singleton lleva dentro las cookies de una petición y termina sirviéndole a un alumno la sesión de otro | 2026-08-06 |
+| D-25 | **`getClaims()` para proteger; `getSession()` nunca para decidir.** Medido el 2026-08-06 contra el JWKS del proyecto: firma con **ES256**, así que `getClaims()` verifica la firma en local con WebCrypto y no cuesta una llamada de red por petición. Con HS256 sí la costaría. `getSession()` lee la cookie sin revalidar: es **P0-3 otra vez**, con otro nombre | 2026-08-06 |
+| D-26 | **Los tipos salen de `supabase gen types`, y un paso del CI comprueba que no estén desactualizados.** Un tipo viejo no rompe la compilación: da un `any` silencioso o un campo que el editor autocompleta y la base no tiene. Mismo modo de fallo silencioso que persiguió la Fase 1 | 2026-08-06 |
+| D-27 | **La Fase 2 se implementa en cinco tandas, una por perfil**, un PR cada una. En la Fase 1 cada tanda dejaba una propiedad verificable del motor; aquí, un perfil que puede hacer su trabajo entero, que es lo que un E2E puede afirmar | 2026-08-06 |
+| D-28 | **Clave publicable `sb_publishable_…`, no la `anon` heredada en formato JWT.** Rotación independiente. Y en Next.js **cualquier variable `NEXT_PUBLIC_` viaja al navegador**: es la trampa de P0-4 con otro prefijo | 2026-08-06 |
 
 ---
 
@@ -351,16 +362,43 @@ de creación de reservas es `create_reservation`, porque **nadie tiene `INSERT` 
 
 *Objetivo: reconstruir la interfaz sobre una BD ya correcta.*
 
+> **Diseño escrito el 2026-08-06: [`FASE_2_DISENO.md`](./FASE_2_DISENO.md).** Contiene la estructura del
+> App Router, dónde viven los tokens, cómo se conecta `@supabase/ssr`, el flujo de autenticación, el
+> inventario de rutas por perfil y los riesgos. Se implementa en **cinco tandas, una por perfil, un PR
+> cada una** *(D-27)*.
+
+**Principio rector, y es lo único que hay que no estropear:** la autorización ya vive en la base. Ningún
+control del cliente es un control. El proxy redirige, el layout es comodidad, el componente oculta, y
+**quien decide es RLS**. La prueba mental: *un `curl` con la clave publicable y una cookie válida, ¿qué
+consigue?* La respuesta tiene que ser la misma con la interfaz y sin ella. Corolario verificado: **la
+aplicación nunca usa `service_role`** — si un flujo la necesitara, no falta una clave, falta una política.
+
+| Tanda | Contenido | Tareas | Estado |
+|---|---|---|---|
+| **T0** · Cimientos | Borrar Vite y los documentos muertos, Next.js 16 + App Router + Tailwind con los tokens + shadcn, tipos generados, CI adaptado, y **la última migración: D-19 y D-20** | 2.1, 2.2, 2.3 · D-6 · Q-12 | ⏳ siguiente |
+| **T1** · Sesión | `@supabase/ssr`, `proxy.ts`, magic link y Microsoft, `/completar-perfil`, primer admin | 2.4, 2.4-bis | pendiente |
+| **T2** · Alumno | Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta | 2.5, 2.6 | pendiente |
+| **T3** · Personal | Mostrador, inventario, imágenes con firma, reservas, días, estadísticas, personal | 2.7, 2.8, 2.9 | pendiente |
+| **T4** · Endurecimiento | Cabeceras, E2E, lint y auditoría bloqueantes, Q-10, Q-13 | 2.10, 2.11 | pendiente |
+
+> **La migración de D-19 y D-20 va en T0, no en T2 donde se usa**, para que ninguna otra tanda toque SQL.
+> Es la última migración del proyecto, y así los tipos que genera T0 salen ya del esquema definitivo.
+>
+> **Riesgo anotado: T2 es la tanda grande.** Si al escribir su plan pasa de unas quince tareas, se parte en
+> dos —«catálogo y detalle» y «reserva y panel»— y son seis PR. Se decide escribiendo el plan, no a mitad
+> de ejecutarlo.
+
 - [ ] **2.1** Proyecto Next.js (App Router) + `@supabase/ssr` + shadcn inicializado
-- [ ] **2.2** Copiar tokens de diseño; migrar las fuentes a `next/font`
-- [ ] **2.3** Tipos generados con `supabase gen types` (nunca escritos a mano)
-- [ ] **2.4** Autenticación: magic link + Microsoft, con middleware de sesión
+- [ ] **2.2** Copiar tokens de diseño; migrar las fuentes a `next/font` *(D-23)*
+- [ ] **2.3** Tipos generados con `supabase gen types` (nunca escritos a mano) *(D-26)*
+- [ ] **2.3-bis** **La última migración:** duración múltiplo del bloque *(D-19)* y `available_slots` *(D-20)*
+- [ ] **2.4** Autenticación: magic link + Microsoft, con `proxy.ts` de sesión *(D-22, D-25)*
 - [ ] **2.4-bis** **Sembrar el primer miembro del personal en el remoto.** Va justo después de 2.4 y no
       antes: `auth.users` está vacío porque hasta ese momento nada usa Supabase Auth, así que el `insert`
       no encontraría a nadie e insertaría **cero filas sin dar error**. Una sentencia puntual con
       `service_role`, después de que esa persona haya entrado con su cuenta UPC:
       `insert into public.staff_members (user_id, role) select id, 'admin' from auth.users where email = '<correo>@upc.edu.pe';`
-- [ ] **2.5** Flujo público: landing, FAQ, login, registro
+- [ ] **2.5** Flujo público: landing como vitrina sin stock *(D-21)*, FAQ, login. **Sin registro** *(D-9)*
 - [ ] **2.6** Flujo del alumno: catálogo, detalle, reserva, panel, encuesta
 - [ ] **2.7** Flujo del operador: verificación operativa (entregas y recepciones)
 - [ ] **2.8** Flujo del admin: inventario, imágenes, reservas, días inhabilitados, estadísticas
@@ -431,9 +469,10 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 | Q-8 | **No hay `supabase/config.toml`.** `link` solo creó `.temp/`. Hace falta `supabase init` antes de poder levantar el stack local con `supabase start`, que es donde correrán los tests de RLS e integración de la Fase 1 | ✅ **Cerrado el 2026-08-05** con la tanda 0 (tarea 1.0) |
 | Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | ✅ **Cerrado el 2026-08-05** → D-15: en la tanda 3 (tarea 1.12) |
 | Q-10 | **15 vulnerabilidades de dependencias** (1 crítica en `vitest`; altas en `vite`, `postcss`, `undici`, `ws`, `lodash`, `js-yaml`). Dependabot reporta 58 porque cuenta por ruta y no agrupa por paquete. Casi todas son `devDependencies` del stack Vite que la Fase 2 elimina, y el sistema no está desplegado. Revisar contra el árbol de Next.js en vez de parchear el actual | Abierto → Fase 2 |
-| Q-11 | **`min_duration_minutes` = 15 contra `slot_minutes` = 30.** La RPC exige que la hora de inicio caiga en un bloque, pero no que la duración sea múltiplo de uno: una reserva de 15 minutos empieza alineada y **termina** a mitad de bloque, dejando un hueco que nadie puede pedir. O la duración mínima sube a 30, o se acepta el hueco a propósito. Abierto el 2026-08-05 al implementar la tanda 2 | Abierto |
-| Q-12 | **Cinco documentos de la raíz describen una arquitectura que ya no existe.** `DELIVERABLES.md`, `MIGRATION_GUIDE.md`, `README_REFACTORING.md`, `SUPABASE_RPC_CHEATSHEET.md` y `SUPABASE_RPC_GUIDE.md` son de la etapa generada con IA: documentan RPCs que nunca existieron en el proyecto canónico y un flujo de instalación obsoleto, y tras la tarea 1.12 sus enlaces a `supabase/*.sql` están rotos. Igual `scripts/generate_inventory_seed.py`, que genera un archivo que ya no se versiona. Ninguno es código ni CI. ¿Se borran con el código Vite en la Fase 2, o antes? Abierto el 2026-08-05 al ejecutar la tanda 3 | Abierto → Fase 2 |
-| Q-13 | **22 avisos de rendimiento del linter, todos prematuros.** 7 «índice sin usar» —la base nunca ha servido una consulta, así que «sin usar» significa «sin tráfico», incluido el `EXCLUDE` recién creado—; 6 claves foráneas sin índice, de las que solo dos valdrán la pena con datos (`reservation_status_log.reservation_id` y `inventory_reservations.product_id`, que consultan la política del log y la RPC); y 9 «políticas permisivas múltiples», que es estructural: cada tabla con «lo propio» + «admin_all» evalúa dos políticas en cada lectura. Unificarlas con un `OR` las vuelve ilegibles, y sin datos no hay forma de saber si compensa. Revisar en la Fase 2 con tráfico real | Abierto → Fase 2 |
+| Q-11 | **`min_duration_minutes` = 15 contra `slot_minutes` = 30.** La RPC exige que la hora de inicio caiga en un bloque, pero no que la duración sea múltiplo de uno. Abierto el 2026-08-05 al implementar la tanda 2 | ✅ **Cerrado el 2026-08-06** → D-19: la duración tiene que ser múltiplo del bloque. **El enunciado estaba incompleto por dos lados:** subir el mínimo a 30 no alinea nada, y lo que desalinea es `duración + buffer` |
+| Q-12 | **Cinco documentos de la raíz describen una arquitectura que ya no existe.** `DELIVERABLES.md`, `MIGRATION_GUIDE.md`, `README_REFACTORING.md`, `SUPABASE_RPC_CHEATSHEET.md` y `SUPABASE_RPC_GUIDE.md` son de la etapa generada con IA: documentan RPCs que nunca existieron en el proyecto canónico y un flujo de instalación obsoleto, y tras la tarea 1.12 sus enlaces a `supabase/*.sql` están rotos. Igual `scripts/generate_inventory_seed.py`. Abierto el 2026-08-05 al ejecutar la tanda 3 | ✅ **Cerrado el 2026-08-06** → se van con el código Vite en el primer commit de la tanda 0 *(D-6)*, junto a `API_EXAMPLES.md`, `BACKEND_SETUP.md` y `FRONTEND_INTEGRATION.md`, que la pregunta no contaba. Sin trabajo propio: una línea más del mismo `git rm` |
+| Q-13 | **22 avisos de rendimiento del linter, todos prematuros.** 7 «índice sin usar» —la base nunca ha servido una consulta, así que «sin usar» significa «sin tráfico», incluido el `EXCLUDE` recién creado—; 6 claves foráneas sin índice, de las que solo dos valdrán la pena con datos (`reservation_status_log.reservation_id` y `inventory_reservations.product_id`, que consultan la política del log y la RPC); y 9 «políticas permisivas múltiples», que es estructural: cada tabla con «lo propio» + «admin_all» evalúa dos políticas en cada lectura. Unificarlas con un `OR` las vuelve ilegibles, y sin datos no hay forma de saber si compensa. Revisar con tráfico real | Abierto → Fase 2, tanda 4 |
+| Q-14 | **El buffer desalinea la cola del bloqueo igual que la duración.** D-19 obliga a que la duración sea múltiplo del bloque, pero `products.buffer_minutes` solo tiene `check (between 0 and 480)`: un buffer de 45 minutos reabre el problema por la puerta de atrás. **No se decide ahora** porque un `CHECK` de tabla no puede leer `app_settings`, así que atarlo exige elegir entre un trigger sobre `products`, redondear `blocked_range` al bloque siguiente —que toca una migración probada y mueve el borde que afirma `21_constraint_overlap.sql`— o que la interfaz de admin solo ofrezca múltiplos. `buffer_minutes` no tiene interfaz hasta la tanda 3, y para entonces se sabrá si hacen falta buffers finos. **Riesgo mientras tanto: ninguno.** Los 34 productos tienen 120, que es múltiplo de 30. Abierto el 2026-08-06 al escribir `FASE_2_DISENO.md` | Abierto → Fase 2, tanda 3 |
 
 ---
 
@@ -582,3 +621,5 @@ npx supabase migration list
 | 2026-08-05 | **Las 18 migraciones empujadas al remoto** *(D-17)*. `migration list` con `Local` y `Remote` idénticos. El catálogo real sobrevivió intacto —34 productos, 92 unidades— y `app_settings` llegó con su fila: el riesgo de añadir columnas con `default` sobre tablas pobladas no se materializó. **Los advisors, ya con señal limpia, confirmaron que los tres avisos originales desaparecieron** y destaparon otros dos frentes: seis funciones de trigger expuestas como RPC *(pendiente de arreglar; no explotable, medido)* y 22 avisos de rendimiento prematuros *(Q-13)*. **Corrección sobre la marcha:** sembrar el primer admin **no** era un paso pendiente de ahora sino de la Fase 2. `auth.users` está vacío porque nada usa Supabase Auth todavía, así que el `insert ... select` habría insertado cero filas **sin dar error** — el mismo modo de fallo silencioso contra el que se escribió media batería |
 | 2026-08-05 | **Cerrado el frente de seguridad que abrieron los advisors.** Seis funciones de trigger estaban publicadas en `/rest/v1/rpc/` porque `PUBLIC` recibe `EXECUTE` por defecto y la tanda 1 solo se lo revocó a las cinco RPC de verdad. Se revocaron **las seis**, no solo las tres que marcaba el linter: arreglar la mitad habría obligado a que la prueba de cobertura llevara excepciones. **La pregunta abierta que resolvió el arreglo:** un trigger **no** necesita `EXECUTE` sobre su función —las 124 aserciones pasan tras revocarlo—, al revés que un helper de política RLS, donde revocarlo la rompe. A un trigger lo invoca el motor; una política se evalúa como el usuario que consulta. Esa asimetría es la que justifica el esquema `private` de la tanda 1: donde no se puede revocar, el aislamiento tiene que venir del esquema |
 | 2026-08-05 | **FASE 1 CUMPLIDA ENTERA, advisors incluidos.** Empujado el arreglo al remoto y vueltos a correr: **de 11 avisos de seguridad a 5**, y los 5 son los que se decidió dejar —las RPC que `authenticated` debe poder ejecutar, cada una con su comprobación de autorización por dentro—. Ninguna función de trigger aparece ya. 19 migraciones con `Local` y `Remote` idénticos, 124 aserciones pgTAP. **La Fase 1 se cerró primero con la salvedad de que los advisors estaban pendientes; se cierra de verdad aquí.** La lección de haberlo hecho en ese orden: un cierre con salvedad es un cierre a medias, y el trabajo que destapó la salvedad —seis funciones expuestas— habría entrado en la Fase 2 como deuda si no se hubiera mirado el mismo día |
+| 2026-08-06 | **Arranca la Fase 2.** Diseño completo de la aplicación en [`FASE_2_DISENO.md`](./FASE_2_DISENO.md). Decisiones D-19 a D-28; cerrados **Q-11** y **Q-12**; abierto **Q-14**. **Tres cosas verificadas antes de escribir, y las tres cambian el diseño:** (a) **Next.js 16 renombró `middleware.ts` a `proxy.ts`**, y su documentación dice explícitamente que el proxy *no* es una solución de sesión ni de autorización, solo chequeos optimistas — encaja exacto con que la autorización viva en RLS; (b) **Supabase ya no recomienda `getUser()` sino `getClaims()`** para proteger páginas; (c) **el proyecto firma con ES256**, medido contra su JWKS, así que `getClaims()` verifica la firma en local con WebCrypto y no cuesta una llamada de red por petición — con HS256 sí la costaría. **Corrección al enunciado de Q-11:** estaba incompleto por dos lados. Subir `min_duration_minutes` a 30 no alinea nada, porque 45 sigue sin ser múltiplo de 30; y lo que desalinea la rejilla es `duración + buffer`, no la duración sola — con `buffer_minutes = 120`, una reserva de 10:00 a 10:15 bloquea hasta las 12:15, así que el hueco perdido está al final del **bloqueo** y no al final de la reserva. Lo que Q-11 sí acertaba: había que decidirlo antes de construir el calendario |
+| 2026-08-06 | **Hueco de cobertura destapado al diseñar, no al ejecutar.** `19_function_hardening.sql` solo vigila que ninguna función **de trigger** sea ejecutable por `anon`; **nadie afirma lo mismo de las cinco RPC de verdad**. D-19 recrea `create_reservation` con `create or replace`, que según la documentación conserva los privilegios de la función — pero si no lo hiciera, la RPC de reserva volvería a publicarse en `/rest/v1/rpc/` para el rol anónimo y nada lo detectaría. Queda como punto a verificar de la tanda 0, con la aserción que falta añadida en cualquiera de los dos desenlaces. Es la misma forma de hallazgo que la tanda 3: aparece **leyendo**, no ejecutando |

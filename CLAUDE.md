@@ -6,9 +6,10 @@ reconstruyendo primero la base de datos.
 > **Fuente de verdad del estado: [`MIGRATION_DOCS/ESTADO_Y_PLAN.md`](./MIGRATION_DOCS/ESTADO_Y_PLAN.md).**
 > Leerlo antes de tocar nada. Contiene las decisiones (D-n), los pendientes (Q-n), el plan por fases y la
 > bitácora. Complementos: `ESPECIFICACION_FUNCIONAL.md` describe *qué hace* el sistema,
-> `FASE_1_DISENO.md` *cómo se construye* la base de datos nueva, y `PLANES/` guarda el desglose paso a
-> paso de cada tanda. **Los planes no se reescriben tras ejecutar:** lo que la ejecución desmiente va en
-> una cabecera de correcciones, para no borrar lo aprendido.
+> `FASE_1_DISENO.md` *cómo se construye* la base de datos nueva, `FASE_2_DISENO.md` *cómo se construye* la
+> aplicación Next.js, y `PLANES/` guarda el desglose paso a paso de cada tanda. **Los planes no se
+> reescriben tras ejecutar:** lo que la ejecución desmiente va en una cabecera de correcciones, para no
+> borrar lo aprendido.
 
 ## Cómo se trabaja
 
@@ -79,7 +80,29 @@ llegó con su fila. Los tres avisos originales del linter desaparecieron.
 Supabase Auth todavía; se conecta en la tarea 2.4. Antes de eso, el `insert ... select` no encontraría a
 nadie e insertaría cero filas **sin dar error**.
 
-**Siguiente:** Fase 2, la aplicación Next.js.
+## Fase 2 en marcha
+
+**Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
+cada una *(D-27)*: **T0** cimientos —borrar Vite, Next.js, tokens, tipos, y la última migración—, **T1**
+sesión, **T2** alumno, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-28; cerrados Q-11 y
+Q-12; abierto Q-14.
+
+**Lo único que hay que no estropear: la autorización ya vive en la base.** Ningún control del cliente es
+un control. El proxy redirige, el layout es comodidad, el componente oculta, y **quien decide es RLS**. Si
+quitar una comprobación del cliente abre un agujero, estaba en el sitio equivocado. Corolario verificado:
+**la aplicación nunca usa `service_role`** — si un flujo la necesita, no falta una clave, falta una
+política.
+
+**Cuatro cosas medidas al diseñar, y las cuatro contradicen lo que uno escribiría de memoria:**
+
+1. **Next.js 16 renombró `middleware.ts` a `proxy.ts`.** Y su documentación dice que el proxy *no* es una
+   solución de sesión ni de autorización: solo chequeos optimistas.
+2. **Supabase ya no recomienda `getUser()` sino `getClaims()`** para proteger páginas. `getSession()` no
+   revalida la cookie: usarlo para decidir es **P0-3 otra vez**, con otro nombre.
+3. **El proyecto firma con ES256**, medido contra su JWKS, así que `getClaims()` verifica en local con
+   WebCrypto. Con HS256 sería una llamada de red por petición.
+4. **El cliente de servidor de `@supabase/ssr` se crea por petición, nunca en el ámbito del módulo.** Un
+   singleton lleva las cookies de una petición y termina sirviéndole a un alumno la sesión de otro.
 
 **Al escribir SQL de la Fase 1, seis reglas que costaron un fallo cada una:**
 
