@@ -87,9 +87,12 @@ nadie e insertaría cero filas **sin dar error**.
 ## Fase 2 en marcha
 
 **Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
-cada una *(D-27)*: **T0** cimientos —borrar Vite, Next.js, tokens, tipos, y la última migración—, **T1**
-sesión, **T2** alumno, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-28; cerrados Q-11 y
-Q-12; abierto Q-14.
+cada una *(D-27)*: **T0** cimientos —borrar Vite, Next.js, tokens, tipos, y las dos últimas migraciones—,
+**T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-29; cerrados
+Q-7, Q-11 y Q-12; abierto Q-14.
+
+**Plan de la T0 listo y sin ejecutar: `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.** Ocho tareas y cuatro
+puntos a verificar. **Ninguna pantalla de negocio**: al cerrar, el stack respira y no hay una sola ruta.
 
 **Lo único que hay que no estropear: la autorización ya vive en la base.** Ningún control del cliente es
 un control. El proxy redirige, el layout es comodidad, el componente oculta, y **quien decide es RLS**. Si

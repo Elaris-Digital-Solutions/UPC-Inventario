@@ -494,6 +494,17 @@ sería cierto e inútil.
 
 ### 11.2 D-20 · `available_slots(...)`: el día entero en una llamada
 
+> **Corrección (2026-08-06), detectada al escribir el plan de la tanda 0.** La primera versión de esta
+> función filtraba la ventana móvil comparando **fechas**:
+> `p_date <= (now() at time zone 'America/Lima')::date + booking_window_days`. La RPC compara **instantes**.
+> Si son las 10:00 de hoy, ese filtro ofrecía el séptimo día entero mientras `create_reservation` solo
+> acepta hasta las 10:00 de ese día: **las franjas de 10:30 a 20:00 del día 7 se ofrecían y luego se
+> rechazaban.** Era exactamente el fallo que esta función existe para evitar. El SQL de abajo ya está
+> corregido; el detalle, en [`PLANES/FASE_2_TANDA_0.md`](./PLANES/FASE_2_TANDA_0.md), corrección 1.
+>
+> **La regla que salió de ahí, y vale más que el arreglo:** la rejilla puede ser **más estricta** que la
+> RPC, nunca más laxa.
+
 Con la rejilla de 08:00 a 22:00 en bloques de 30, un día son 28 franjas. Pintarlo con `available_units`
 son **28 llamadas**, y eso son 28 viajes a la base y —lo que importa más— **28 fotos distintas**: la
 primera franja y la última se responden con estados diferentes de la tabla.
@@ -520,8 +531,8 @@ as $$
          public.available_units(p_product_id, p_campus_id, g.slot_start, p_duration_minutes)
     from grid g
    where g.slot_start > now()
-     and p_date <= (now() at time zone 'America/Lima')::date
-                   + (select booking_window_days from s)
+     and g.slot_start <= now()
+           + make_interval(days => (select booking_window_days from s))
      and not exists (select 1 from public.disabled_days d where d.date = p_date);
 $$;
 
@@ -537,7 +548,9 @@ Cuatro decisiones dentro de esas veinte líneas:
   el calendario miente — es la advertencia que ya lleva escrita `20260806023952_available_units.sql`.
 - **Filtra el pasado, los feriados y la ventana móvil** *(BR-13, C-7, D-3)*. No es cosmética: la propiedad
   que se quiere es que **todo lo que la rejilla ofrezca lo acepte la RPC**. Un día inhabilitado devuelve
-  cero filas, no 28 franjas grises.
+  cero filas, no 28 franjas grises. La ventana se compara sobre **instantes**, igual que la RPC — ver la
+  corrección de arriba. El pasado, en cambio, usa `>` donde la RPC usa `<`: en el instante exacto la
+  rejilla no lo ofrece y la RPC sí lo aceptaría, y esa asimetría es la segura.
 - **`SECURITY DEFINER`**, por el mismo motivo medido en la tanda 3: un alumno no ve las reservas ajenas, y
   con sus propios privilegios vería libre todo lo que otros tienen ocupado.
 - **La última franja es `closing_time - duración`**, para que la reserva termine justo al cierre. Coincide
