@@ -12,6 +12,58 @@
 
 ---
 
+## 0. Pendiente inmediato — leer esto primero
+
+> **Bloque temporal.** Se borra en cuanto se cierre lo de abajo.
+
+**La tanda 0 de la Fase 2 está hecha y verificada. Falta una sola cosa: publicar la rama y mergear el
+PR #17.** No se hizo por una causa externa, no por el trabajo.
+
+**Qué pasó.** El 2026-08-06 hubo un **incidente mayor de GitHub Actions** (15:22 UTC). Con los webhooks
+limitados al **15%**, la mayoría de pushes y PRs no disparaban workflows, y de los jobs encolados solo el
+65% terminaba bien. Un push en esas condiciones tenía ~10% de dar una corrida verde, y una corrida roja
+por infraestructura es peor que ninguna: invita a arreglar algo que no está roto.
+
+**Estado de git al parar:**
+
+| | |
+|---|---|
+| Rama local | `feature/fase-2-tanda-0`, 8 commits (0.1 a 0.8), árbol limpio |
+| Frente al remoto | `ahead 1, behind 2` — el remoto tiene un `0.8` viejo y un commit vacío de prueba que ya no existen en local |
+| PR | **#17**, abierto contra `develop`, **sin ningún check** |
+
+**Los tres comandos que faltan**, en orden, cuando <https://www.githubstatus.com> diga **resolved** (no
+«recovering»):
+
+```powershell
+git push --force-with-lease
+```
+
+El `--force-with-lease` es necesario porque el historial local se reescribió al quitar el commit vacío.
+
+Luego, con los checks en verde, el merge del PR #17 a `develop`.
+
+**Cómo leer el resultado del CI**, que con la caída no es obvio:
+
+- **Sin checks** → el webhook se perdió. Reintentar más tarde.
+- **Fallo en `Instalar la CLI de Supabase`, arranque del runner o un timeout** → infraestructura.
+- **Fallo en `Typecheck`, `Lint`, `Build` o `Pruebas pgTAP`** → eso sí sería código. **Pero los cuatro
+  pasan:** ambos workflows se simularon enteros el 2026-08-06 sobre un clon limpio, con `npm ci` contra el
+  lock, el `typecheck` sobre un árbol **sin `.next/`** y `supabase start` con los diez servicios
+  excluidos. Todos los pasos en `exit=0`, 135 aserciones en verde.
+
+**Si el incidente se alarga y bloquea la tanda 1**, mergear sin CI es una decisión razonable. En ese caso
+hay que **anotarlo aquí y en el plan** —qué entró sin corrida— y cubrirlo con el primer PR de la tanda 1.
+Que sea una decisión registrada, no un olvido. Nótese que los workflows también corren con `push` sobre
+`develop`, así que durante la caída ese segundo pase también se pierde: el código entraría sin que ninguna
+corrida lo hubiera visto.
+
+**Lo que NO está pendiente, para no rehacerlo:** las 21 migraciones ya están en el remoto, el catálogo
+está intacto y los advisors ya se corrieron —6 avisos, todos intencionales—. Todo eso se hizo el
+2026-08-06 y está verificado consultando la base.
+
+---
+
 ## 1. Resumen ejecutivo
 
 Sistema de reserva y préstamo de equipamiento tecnológico para alumnos UPC. Construido con IA en una etapa
