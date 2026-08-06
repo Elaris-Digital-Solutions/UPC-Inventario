@@ -1,26 +1,217 @@
+/* Lenguaje visual de UPC-Inventario (D-23).
+ *
+ * Los bloques :root y .dark se copian TAL CUAL del Vite -git show
+ * legacy/vite-final:src/index.css-. Son variables CSS: no dependen del bundler
+ * ni de la version de Tailwind, y por eso son lo unico del codigo viejo que la
+ * Fase 2 conserva.
+ *
+ * Lo que NO se copia es la linea 1 del original, el
+ * @import url('https://fonts.googleapis.com/...'). Dos motivos, y el segundo es
+ * el que decide: es una peticion bloqueante a un tercero en el camino critico
+ * del primer render, y choca de frente con la CSP de la tanda 4 -mantenerla
+ * obliga a abrir fonts.googleapis.com en style-src y fonts.gstatic.com en
+ * font-src, o sea a debilitar la politica por comodidad-. Las fuentes las sirve
+ * next/font desde el propio dominio, enganchadas aqui como --font-sans y
+ * --font-display.
+ *
+ * El theme.extend del tailwind.config.ts del Vite esta traducido al bloque
+ * @theme inline de mas abajo. `inline` no es un detalle: hace que Tailwind
+ * sustituya la expresion dentro de cada utilidad en vez de congelar el valor en
+ * :root, que es lo que permite que .dark siga cambiando los colores por
+ * cascada.
+ */
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Tailwind 4 no tiene darkMode: ["class"] en un config; la variante se declara. */
+@custom-variant dark (&:is(.dark *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    --primary: 356 95% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 12%;
+
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 356 95% 95%;
+    --accent-foreground: 356 95% 35%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 356 95% 45%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 356 95% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 356 95% 95%;
+    --sidebar-accent-foreground: 356 95% 35%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 356 95% 45%;
+
+    /* Custom UPC tokens */
+    --upc-red: 356 95% 45%;
+    --upc-red-dark: 356 95% 35%;
+    --upc-red-light: 356 95% 93%;
+    --upc-gray: 0 0% 55%;
+    --upc-dark: 0 0% 15%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 35%));
+    --gradient-hero-overlay: linear-gradient(180deg, hsl(0 0% 0% / 0.6), hsl(0 0% 0% / 0.3));
+    --shadow-card: 0 4px 24px -4px hsl(0 0% 0% / 0.08);
+    --shadow-card-hover: 0 8px 32px -4px hsl(356 95% 45% / 0.15);
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 356 95% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 356 95% 16%;
+    --accent-foreground: 356 95% 80%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 356 95% 50%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* El theme.extend del Vite, traducido una vez. Los pesos y las familias son los
+ * mismos que pedia el @import de Google Fonts -300 a 800 en Montserrat, 600 a
+ * 800 en Playfair-, para que nada cambie de aspecto. */
+@theme inline {
+  --font-sans: var(--font-montserrat), Arial, Helvetica, sans-serif;
+  --font-serif: var(--font-playfair), Georgia, Cambria, serif;
+  --font-display: var(--font-playfair), Georgia, Cambria, serif;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-upc-red: hsl(var(--upc-red));
+  --color-upc-red-dark: hsl(var(--upc-red-dark));
+  --color-upc-red-light: hsl(var(--upc-red-light));
+  --color-upc-gray: hsl(var(--upc-gray));
+  --color-upc-dark: hsl(var(--upc-dark));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+
+  /* Las dos animaciones que usa el acordeon de shadcn. En el Vite las traia el
+   * plugin tailwindcss-animate, cuyo require() en un archivo TypeScript era uno
+   * de los 59 errores de lint que D-7 declaro no bloqueantes. Aqui son CSS. */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* El container centrado del Vite. En Tailwind 4 no se configura, se declara. */
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  max-width: 1400px;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .text-gradient-upc {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 30%));
+  }
+
+  .bg-gradient-upc {
+    background: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 32%));
+  }
+
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, hsl(356 95% 40%), hsl(356 95% 28%), hsl(0 0% 12%));
+  }
 }
