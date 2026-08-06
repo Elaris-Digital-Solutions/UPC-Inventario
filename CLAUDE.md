@@ -96,14 +96,19 @@ nadie e insertaría cero filas **sin dar error**.
 
 **Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
 cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento.
-Decisiones D-19 a D-30; cerrados Q-7, Q-11 y Q-12; abierto Q-14.
+Decisiones D-19 a D-31; cerrados Q-7, Q-11 y Q-12; abiertos Q-14 y Q-15.
 
-**T0 cerrada el 2026-08-06.** Siete commits. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
+**T0 cerrada el 2026-08-06.** Ocho commits numerados, 0.1 a 0.8. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
 Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
 CI adaptado. Las dos últimas migraciones del proyecto *(D-19, D-20)*: **21 migraciones y 135 aserciones
 pgTAP**. **Desde aquí ninguna tanda vuelve a tocar SQL.** Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`. **Siguiente: T1, la sesión** — `@supabase/ssr`, `proxy.ts`,
 magic link y Microsoft, y sembrar el primer admin. Cierra P0-3.
+
+**La T0 entró sin CI** *(D-31)*: una caída mayor de GitHub Actions impidió correrlo el 2026-08-06, y los
+dos workflows se simularon enteros sobre un clon limpio en su lugar. **Consecuencia para la T1: su primer
+PR es también la primera corrida real de la T0.** Si sale roja, lo primero que se sospecha es la T0 y no
+el cambio nuevo. Ahí se cierra **Q-15**, el `.gitattributes` con `eol=lf`.
 
 **Estado del árbol tras la T0:** `app/` con el andamio y **ninguna pantalla de negocio** —`/` es un
 marcador de posición, la landing es la tarea 2.5—, `components/ui/` con `button` y `card`, `lib/utils.ts`

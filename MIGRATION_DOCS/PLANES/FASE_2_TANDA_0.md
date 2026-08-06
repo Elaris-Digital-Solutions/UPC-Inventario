@@ -101,6 +101,22 @@ inyección de la CLI en cada `shadcn add` de las tandas 2 y 3.
   `git check-ignore`. Era el riesgo nº 2.
 - **La batería pgTAP no se enteró de que se borró el Vite:** 135 en verde antes y después.
 
+### Cómo se cerró: sin CI, y anotado
+
+**La tanda entró en `develop` sin una sola corrida de CI** *(D-31)*. Lo impidió una caída mayor de GitHub
+Actions que duró todo el 2026-08-06, no nada del trabajo. **La firma, medida dos días seguidos:** al
+empujar el commit, `vercel`, `netlify` y `claude` crean su check-suite y `github-actions` no crea ninguna.
+Cuando tres apps reaccionan al mismo commit y una no, el problema es de la cuarta.
+
+**Lo que entró sin corrida es esto entero:** las dos migraciones de D-19 y D-20, las 11 aserciones pgTAP
+nuevas, el borrado del árbol Vite y el andamio de Next.js 16 completo.
+
+**Lo que lo sustituye:** ambos workflows simulados sobre un clon limpio, paso a paso, todos en `exit=0`.
+**Lo que lo cubre:** el primer PR de la tanda 1 los corre sobre un `develop` que ya incluye este código.
+**Si esa corrida sale roja, lo primero que se sospecha es esta tanda, no el cambio nuevo.** Ahí se cierra
+también **Q-15**, el `.gitattributes` con `eol=lf` que no se añadió aquí justamente por no renormalizar
+archivos en un PR que nadie iba a poder validar.
+
 ---
 
 **Goal:** dejar el repositorio listo para construir pantallas, y **sin una sola pantalla construida**. Al

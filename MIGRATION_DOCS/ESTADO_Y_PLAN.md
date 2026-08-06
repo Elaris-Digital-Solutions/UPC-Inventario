@@ -12,58 +12,6 @@
 
 ---
 
-## 0. Pendiente inmediato — leer esto primero
-
-> **Bloque temporal.** Se borra en cuanto se cierre lo de abajo.
-
-**La tanda 0 de la Fase 2 está hecha y verificada. Falta una sola cosa: publicar la rama y mergear el
-PR #17.** No se hizo por una causa externa, no por el trabajo.
-
-**Qué pasó.** El 2026-08-06 hubo un **incidente mayor de GitHub Actions** (15:22 UTC). Con los webhooks
-limitados al **15%**, la mayoría de pushes y PRs no disparaban workflows, y de los jobs encolados solo el
-65% terminaba bien. Un push en esas condiciones tenía ~10% de dar una corrida verde, y una corrida roja
-por infraestructura es peor que ninguna: invita a arreglar algo que no está roto.
-
-**Estado de git al parar:**
-
-| | |
-|---|---|
-| Rama local | `feature/fase-2-tanda-0`, 8 commits (0.1 a 0.8), árbol limpio |
-| Frente al remoto | `ahead 1, behind 2` — el remoto tiene un `0.8` viejo y un commit vacío de prueba que ya no existen en local |
-| PR | **#17**, abierto contra `develop`, **sin ningún check** |
-
-**Los tres comandos que faltan**, en orden, cuando <https://www.githubstatus.com> diga **resolved** (no
-«recovering»):
-
-```powershell
-git push --force-with-lease
-```
-
-El `--force-with-lease` es necesario porque el historial local se reescribió al quitar el commit vacío.
-
-Luego, con los checks en verde, el merge del PR #17 a `develop`.
-
-**Cómo leer el resultado del CI**, que con la caída no es obvio:
-
-- **Sin checks** → el webhook se perdió. Reintentar más tarde.
-- **Fallo en `Instalar la CLI de Supabase`, arranque del runner o un timeout** → infraestructura.
-- **Fallo en `Typecheck`, `Lint`, `Build` o `Pruebas pgTAP`** → eso sí sería código. **Pero los cuatro
-  pasan:** ambos workflows se simularon enteros el 2026-08-06 sobre un clon limpio, con `npm ci` contra el
-  lock, el `typecheck` sobre un árbol **sin `.next/`** y `supabase start` con los diez servicios
-  excluidos. Todos los pasos en `exit=0`, 135 aserciones en verde.
-
-**Si el incidente se alarga y bloquea la tanda 1**, mergear sin CI es una decisión razonable. En ese caso
-hay que **anotarlo aquí y en el plan** —qué entró sin corrida— y cubrirlo con el primer PR de la tanda 1.
-Que sea una decisión registrada, no un olvido. Nótese que los workflows también corren con `push` sobre
-`develop`, así que durante la caída ese segundo pase también se pierde: el código entraría sin que ninguna
-corrida lo hubiera visto.
-
-**Lo que NO está pendiente, para no rehacerlo:** las 21 migraciones ya están en el remoto, el catálogo
-está intacto y los advisors ya se corrieron —6 avisos, todos intencionales—. Todo eso se hizo el
-2026-08-06 y está verificado consultando la base.
-
----
-
 ## 1. Resumen ejecutivo
 
 Sistema de reserva y préstamo de equipamiento tecnológico para alumnos UPC. Construido con IA en una etapa
@@ -300,6 +248,7 @@ inventario versionados en la raíz.
 | D-28 | **Clave publicable `sb_publishable_…`, no la `anon` heredada en formato JWT.** Rotación independiente. Y en Next.js **cualquier variable `NEXT_PUBLIC_` viaja al navegador**: es la trampa de P0-4 con otro prefijo | 2026-08-06 |
 | D-30 | **Los tokens de diseño se escriben en formato de color completo** —`hsl(356 95% 45%)`—, no en el HSL crudo del Vite —`356 95% 45%`—, y el `@theme` los referencia con `var(--x)` en vez de envolverlos con `hsl(var(--x))`. **Los valores no cambian: uno a uno son los mismos, y el aspecto tampoco.** El motivo salió al ejecutar: `shadcn init` escribe sus tokens en formato completo y los inyecta **al final** de `globals.css`, así que gana por cascada — `--primary` pasó de rojo UPC a `oklch(0.205 0 0)` sin un solo error ni warning, con el build en verde. Los dos formatos no conviven en un mismo `@theme`, y conservar el viejo obligaría a limpiar esa inyección en cada `shadcn add` de las tandas 2 y 3 | 2026-08-06 |
 | D-29 | **Solo quedan `main` y `develop`.** Se borran las 10 ramas ya integradas —sus commits siguen alcanzables desde `develop`, así que no se pierde nada— y **`refactor` se congela primero en el tag anotado `legacy/refactor-marzo`**, porque era la única referencia que sostenía `c3f5c1f` y borrarla lo habría dejado inalcanzable. Mismo patrón que D-6 con el Vite. Se hace **antes de la tanda 0** y no después: a partir de ese commit cada rama vieja difiere en ~13.000 líneas, y este repositorio ya perdió los cuatro Excel del disco una vez por saltar entre ramas que versionaban distinto. *Cierra Q-7* | 2026-08-06 |
+| D-31 | **La tanda 0 se mergea sin corrida de CI**, por la caída mayor de GitHub Actions del 2026-08-06. No es una excepción a «nada entra sin verde»: durante la caída **ninguna corrida era posible**, y los workflows también disparan con `push` sobre `develop`, así que esperar no cambiaba el resultado, solo la fecha. **Lo que sustituye a la corrida:** los dos workflows simulados enteros sobre un clon limpio, paso a paso y en el mismo orden, todos en `exit=0` —`npm ci` contra el lock, `typecheck` sobre un árbol sin `.next/`, 135 aserciones pgTAP y el chequeo de tipos—. **Lo que la cubre:** el primer PR de la tanda 1 corre ambos workflows sobre un `develop` que ya incluye este código, así que su primera corrida verde es también la primera de la tanda 0. **Si sale roja, lo primero que se sospecha es la tanda 0, no el cambio nuevo** | 2026-08-06 |
 
 ---
 
@@ -704,7 +653,8 @@ npx supabase migration list
 | 2026-08-06 | **Limpieza de ramas antes de la tanda 0** *(D-29, cierra Q-7)*. El remoto pasa de 12 ramas a **2**: `main` y `develop`. Las 10 integradas se borran sin pérdida, porque sus commits siguen alcanzables desde `develop`. **`refactor` era el caso distinto y por eso se trató distinto:** no estaba mergeada en ningún sitio, así que la rama era la **única referencia** que sostenía `c3f5c1f` —29 archivos de JorgeGarciaCS del 2026-03-09, todo código Vite que la Fase 2 borra— y eliminarla lo habría dejado inalcanzable. Se congeló primero en el tag anotado `legacy/refactor-marzo`, el mismo patrón que D-6 usó con el Vite. Verificado después: el tag apunta a `c3f5c1f`, conserva la autoría original y `git show legacy/refactor-marzo` recupera los 29 archivos. **El motivo de hacerlo ahora y no después:** la tanda 0 borra el árbol Vite entero, y a partir de ahí cada rama vieja difiere de `develop` en ~13.000 líneas. Es el incidente del 2026-08-04 esperando a repetirse, con todo el árbol en vez de con cuatro Excel |
 | 2026-08-06 | **Las 21 migraciones en el remoto, y los advisors dan exactamente lo previsto.** El `db push` aplicó D-19 y D-20 sobre `zqfkzgdyeqxzgzpxgadi`. Verificado consultando la base y no fiándose del «Finished»: `min_duration_minutes` = 30, 21 migraciones registradas, `available_slots` presente, catálogo intacto —34 productos, 92 unidades— y **cero funciones de `public` ejecutables por `anon`**. Eso último **confirma en el proyecto real** lo que la tanda había medido con una sonda en local: `create or replace` conservó el `revoke` al reemplazar una `create_reservation` que ya llevaba días desplegada. **Advisors: 6 avisos, los 5 intencionales más `available_slots`** — exactamente lo que el plan predijo, sin una sola sorpresa. **El `push` cerró con un `Warning` largo de `pg-delta`** (`failed to cache migrations catalog`, timeout de conexión): ruido, no fallo — el catálogo cacheado es una comodidad de la CLI para diffs futuros y las migraciones ya estaban aplicadas |
 | 2026-08-06 | **El CI de la tanda 0 no pudo correr: incidente mayor de GitHub Actions**, abierto a las 15:22 UTC con severidad crítica. Diagnosticado descartando por medición facturación (73/2000 min), YAML, codificación, trigger, presencia de los workflows en la rama, políticas de repositorio y organización, tamaño del PR y `[skip ci]`. **La firma que lo delató:** Actions no creaba ni su check-suite, mientras Vercel, Netlify y Claude sí reaccionaban al mismo commit — comparado contra el PR #16, que sí tenía las dos suites de `github-actions`. **Los dos workflows se simularon en un clon limpio:** `ci.yml` con sus seis pasos en `exit=0` —incluido `npm ci` contra el lock y el `typecheck` sobre un árbol **sin `.next/`**, que es donde `tsc --noEmit` a secas habría fallado— y `db.yml` con `supabase start` recortado a los diez servicios excluidos, 135 aserciones y el chequeo de tipos. **Pendiente anotado:** con `core.autocrlf = true`, clonar en Windows materializa `lib/database.types.ts` con CRLF y el paso de tipos da un diff falso; el blob versionado es LF y coincide byte a byte con lo que genera la CLI, así que el runner Linux pasa. Un `.gitattributes` con `eol=lf` lo cerraría, y no se añadió para no renormalizar archivos en un PR sin CI que lo valide |
-| 2026-08-06 | **TANDA 0 DE LA FASE 2 CERRADA.** Ocho tareas, siete commits. **Las dos últimas migraciones del proyecto** —D-19 y D-20—, **135 aserciones pgTAP** (11 nuevas), el árbol Vite fuera —121 archivos, 18.633 líneas— y el de Next.js 16 en pie: App Router, TypeScript estricto, Tailwind 4, shadcn 4 sobre Radix, tipos generados y CI adaptado. Cierra **Q-11** y **Q-12**; decisión **D-30**. **Los cuatro puntos a verificar se resolvieron midiendo, y los cuatro salieron por el lado bueno:** `create or replace` conserva el `revoke` —y `drop`+`create` lo reabre, medido también, que es lo que justifica que la migración no lleve `drop`—; ninguna función de `public` es ejecutable por `anon`; `gen types --local` funciona con el stack recortado, comprobado parando `postgres-meta`; y Tailwind 4 + shadcn 4 + Next 16 se llevan bien, así que no hubo que bajar a 3.4. Detalle y las trece correcciones al plan en [`PLANES/FASE_2_TANDA_0.md`](./PLANES/FASE_2_TANDA_0.md) |
+| 2026-08-06 | **TANDA 0 DE LA FASE 2 CERRADA.** Ocho tareas, ocho commits numerados —0.1 a 0.8— más los de registro. **Las dos últimas migraciones del proyecto** —D-19 y D-20—, **135 aserciones pgTAP** (11 nuevas), el árbol Vite fuera —121 archivos, 18.633 líneas— y el de Next.js 16 en pie: App Router, TypeScript estricto, Tailwind 4, shadcn 4 sobre Radix, tipos generados y CI adaptado. Cierra **Q-11** y **Q-12**; decisión **D-30**. **Los cuatro puntos a verificar se resolvieron midiendo, y los cuatro salieron por el lado bueno:** `create or replace` conserva el `revoke` —y `drop`+`create` lo reabre, medido también, que es lo que justifica que la migración no lleve `drop`—; ninguna función de `public` es ejecutable por `anon`; `gen types --local` funciona con el stack recortado, comprobado parando `postgres-meta`; y Tailwind 4 + shadcn 4 + Next 16 se llevan bien, así que no hubo que bajar a 3.4. Detalle y las trece correcciones al plan en [`PLANES/FASE_2_TANDA_0.md`](./PLANES/FASE_2_TANDA_0.md) |
 | 2026-08-06 | **Tres fallos silenciosos que la tanda 0 destapó al ejecutar, y ninguno daba error.** (a) **`shadcn init` pisa los tokens por cascada:** inyecta su paleta en `oklch` al final de `globals.css`, así que `--primary` pasó de rojo UPC a gris casi negro y `--radius` de `0.75rem` a `0.625rem` — sin error, sin warning, con el build en verde. De ahí D-30. Un token pisado no se ve leyendo el archivo por arriba: **quien gana es el último**. (b) **`create-next-app` genera su propio `CLAUDE.md`**, y el plan solo protegía `public/`, `README.md` y `.gitignore`: la copia con `-Force` habría borrado las reglas de trabajo del proyecto. (c) **`tsc --noEmit` a secas habría roto el CI en el primer PR:** Next 16 tipa las rutas, `LayoutProps` se genera desde `app/` y vive en `.next/`, que está ignorado. El script pasa a `next typegen && tsc --noEmit`, verificado borrando `.next` entero. **Los tres son del mismo género que persiguió la Fase 1 —efecto silencioso en vez de excepción— pero en el lado del cliente**, que es donde esta fase todavía no tenía cicatrices |
 | 2026-08-06 | **Lo que delató «verla fallar», otra vez.** Las cuatro pruebas de `28_duration_slot.sql` fallaron, cuando el plan predecía dos. La cuarta, porque `min_duration_minutes` valía 15 y 20 minutos sí entraba en rango. **La tercera, en cascada por culpa de la segunda:** como 45 minutos hoy se acepta, esa llamada creaba una reserva real y consumía el cupo diario del producto. **Las aserciones de un archivo pgTAP comparten una sola transacción, así que una prueba que hoy “pasa de más” contamina a la siguiente.** Y `29_available_slots.sql`, tal como lo traía el plan, no podía funcionar: insertaba el día inhabilitado bajo el rol de alumno y RLS lo rechazaba. Que hiciera falta salir del rol para montar el escenario es, de paso, la prueba de que la política está puesta |
 | 2026-08-06 | **Plan de la tanda 0 de la Fase 2 escrito:** [`PLANES/FASE_2_TANDA_0.md`](./PLANES/FASE_2_TANDA_0.md). Ocho tareas, cuatro puntos a verificar con sus dos desenlaces cada uno, y **cuatro correcciones al diseño detectadas leyendo, no ejecutando**. La primera es un **fallo real y no un matiz**: `available_slots` filtraba la ventana móvil comparando **fechas**, mientras `create_reservation` compara **instantes**. A las 10:00 de hoy, la rejilla habría ofrecido el séptimo día entero cuando la RPC solo acepta hasta las 10:00 de ese día — **las franjas de 10:30 a 20:00 del día 7 se ofrecían y luego se rechazaban**, que es exactamente el fallo que esa función existe para evitar. Corregido en el diseño con su nota fechada. **La regla que salió de ahí:** la rejilla puede ser más **estricta** que la RPC, nunca más laxa; por eso el filtro del pasado usa `>` donde la RPC usa `<`. Las otras tres: «la última migración» son **dos**; **el lint puede volverse bloqueante en la tanda 0 y no en la 4**, porque el motivo de D-7 —«los 59 errores viven en código que la migración elimina»— muere en el commit que borra ese código; y **`create-next-app` no puede andamiar sobre la raíz**, porque choca con `public/`, `README.md` y `.gitignore`, que se quedan |
+| 2026-08-06 | **La tanda 0 entra en `develop` sin haber corrido el CI** *(D-31)*. La caída de Actions seguía en `major_outage` a las 23:07 UTC, ocho horas después de abrirse, con los webhooks ya recuperados. El push forzado —el historial local se había reescrito para quitar un commit vacío— dejó la rama sincronizada y **devolvió exactamente la misma firma que el día anterior**: `vercel`, `netlify` y `claude` crearon su check-suite para el commit; `github-actions`, ninguna. Sondeado dos minutos más por si tardaba. **No hay nada que investigar en el repositorio:** que tres apps reaccionen al mismo commit y una no, es de la cuarta. Se mergea con la simulación local como evidencia y con el primer PR de la tanda 1 como cobertura. **Lo que no se rehízo, porque ya estaba hecho:** las 21 migraciones ya estaban en el remoto y los advisors ya se habían corrido. **Lección operativa del incidente:** para redisparar un workflow no hacen falta commits vacíos —cerrar y reabrir el PR dispara igual, porque `pull_request` sin filtrar tipos incluye `reopened`—, y un commit vacío deja rastro en el historial mientras que reabrir no |
