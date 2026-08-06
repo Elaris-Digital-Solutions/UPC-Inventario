@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
 
 // D-23: las fuentes las descarga next/font en el build y las sirve desde el
 // propio dominio. Sustituyen al @import de Google Fonts del Vite, que era una
@@ -8,6 +9,10 @@ import "./globals.css";
 // tanda 4. Los pesos son los mismos que pedia aquel @import, para que nada
 // cambie de aspecto: recortarlos cambiaria el render y pareceria un fallo de la
 // migracion cuando seria una decision.
+//
+// `shadcn init` metio aqui una tercera fuente, Geist, y la engancho como
+// --font-sans. Se quito: la tipografia del cuerpo es Montserrat, que es la
+// decision, y el preset de un generador no la revoca.
 const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -32,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${montserrat.variable} ${playfair.variable} h-full`}
+      className={cn("h-full", montserrat.variable, playfair.variable)}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
