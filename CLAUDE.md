@@ -40,6 +40,10 @@ cambios sin versionar que bloquean el siguiente `checkout`.
 Gitflow: `main` (producción) · `develop` (integración) · `feature/*` `fix/*` `docs/*` `hotfix/*`.
 Sin commits directos a `main` ni `develop`; todo entra por PR.
 
+**En el remoto solo viven `main` y `develop`** *(D-29)*. Una rama se borra al mergearla. Lo que no está
+integrado se congela antes en un tag anotado, nunca se borra a secas: si la rama es la única referencia
+que sostiene un commit, borrarla lo pierde. Tags vivos: `legacy/vite-final` y `legacy/refactor-marzo`.
+
 ## Entorno
 
 | | |
