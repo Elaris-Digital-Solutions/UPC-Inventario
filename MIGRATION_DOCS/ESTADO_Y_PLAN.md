@@ -230,6 +230,7 @@ inventario versionados en la raíz.
 | D-26 | **Los tipos salen de `supabase gen types`, y un paso del CI comprueba que no estén desactualizados.** Un tipo viejo no rompe la compilación: da un `any` silencioso o un campo que el editor autocompleta y la base no tiene. Mismo modo de fallo silencioso que persiguió la Fase 1 | 2026-08-06 |
 | D-27 | **La Fase 2 se implementa en cinco tandas, una por perfil**, un PR cada una. En la Fase 1 cada tanda dejaba una propiedad verificable del motor; aquí, un perfil que puede hacer su trabajo entero, que es lo que un E2E puede afirmar | 2026-08-06 |
 | D-28 | **Clave publicable `sb_publishable_…`, no la `anon` heredada en formato JWT.** Rotación independiente. Y en Next.js **cualquier variable `NEXT_PUBLIC_` viaja al navegador**: es la trampa de P0-4 con otro prefijo | 2026-08-06 |
+| D-30 | **Los tokens de diseño se escriben en formato de color completo** —`hsl(356 95% 45%)`—, no en el HSL crudo del Vite —`356 95% 45%`—, y el `@theme` los referencia con `var(--x)` en vez de envolverlos con `hsl(var(--x))`. **Los valores no cambian: uno a uno son los mismos, y el aspecto tampoco.** El motivo salió al ejecutar: `shadcn init` escribe sus tokens en formato completo y los inyecta **al final** de `globals.css`, así que gana por cascada — `--primary` pasó de rojo UPC a `oklch(0.205 0 0)` sin un solo error ni warning, con el build en verde. Los dos formatos no conviven en un mismo `@theme`, y conservar el viejo obligaría a limpiar esa inyección en cada `shadcn add` de las tandas 2 y 3 | 2026-08-06 |
 | D-29 | **Solo quedan `main` y `develop`.** Se borran las 10 ramas ya integradas —sus commits siguen alcanzables desde `develop`, así que no se pierde nada— y **`refactor` se congela primero en el tag anotado `legacy/refactor-marzo`**, porque era la única referencia que sostenía `c3f5c1f` y borrarla lo habría dejado inalcanzable. Mismo patrón que D-6 con el Vite. Se hace **antes de la tanda 0** y no después: a partir de ese commit cada rama vieja difiere en ~13.000 líneas, y este repositorio ya perdió los cuatro Excel del disco una vez por saltar entre ramas que versionaban distinto. *Cierra Q-7* | 2026-08-06 |
 
 ---
@@ -376,7 +377,7 @@ aplicación nunca usa `service_role`** — si un flujo la necesitara, no falta u
 
 | Tanda | Contenido | Tareas | Estado |
 |---|---|---|---|
-| **T0** · Cimientos | Borrar Vite y los documentos muertos, Next.js 16 + App Router + Tailwind con los tokens + shadcn, tipos generados, CI adaptado, y **la última migración: D-19 y D-20** | 2.1, 2.2, 2.3 · D-6 · Q-12 | ⏳ siguiente |
+| **T0** · Cimientos | Borrar Vite y los documentos muertos, Next.js 16 + App Router + Tailwind con los tokens + shadcn, tipos generados, CI adaptado, y **las dos últimas migraciones: D-19 y D-20** | 2.1, 2.2, 2.3 · D-6 · Q-12 | ✅ **cerrada** |
 | **T1** · Sesión | `@supabase/ssr`, `proxy.ts`, magic link y Microsoft, `/completar-perfil`, primer admin | 2.4, 2.4-bis | pendiente |
 | **T2** · Alumno | Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta | 2.5, 2.6 | pendiente |
 | **T3** · Personal | Mostrador, inventario, imágenes con firma, reservas, días, estadísticas, personal | 2.7, 2.8, 2.9 | pendiente |

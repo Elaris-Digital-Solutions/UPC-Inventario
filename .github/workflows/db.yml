@@ -44,3 +44,20 @@ jobs:
       # excluidos. En local, con el stack completo, si funciona.
       - name: Pruebas pgTAP
         run: supabase test db
+
+      # D-26. Un tipo desactualizado NO rompe la compilacion: da un `any`
+      # silencioso o, peor, un campo que el editor autocompleta y la base no
+      # tiene. Es el mismo modo de fallo -efecto silencioso en vez de excepcion-
+      # contra el que se escribio media bateria de la Fase 1, asi que se vigila
+      # igual: afirmando la propiedad, no confiando en que alguien se acuerde.
+      #
+      # Va aqui y no en ci.yml porque este workflow ya tiene la base en pie.
+      # MEDIDO el 2026-08-06 antes de escribirlo: `gen types --local` funciona
+      # con la lista recortada de arriba. Se comprobo parando el contenedor de
+      # postgres-meta y volviendo a generar; la CLI anuncia "Connecting to db
+      # 5432" y sale por conexion directa a Postgres. No hace falta devolverle
+      # ningun servicio al `-x`.
+      - name: Los tipos coinciden con el esquema
+        run: |
+          supabase gen types typescript --local > /tmp/types.ts
+          diff -u lib/database.types.ts /tmp/types.ts
