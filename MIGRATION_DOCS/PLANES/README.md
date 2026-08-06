@@ -15,6 +15,7 @@ y qué comando la verifica.
 | [`TANDA_0.md`](./TANDA_0.md) | Entorno local | ✅ ejecutado el 2026-08-05 · 3 desvíos |
 | [`TANDA_1.md`](./TANDA_1.md) | Identidad y autorización | ✅ ejecutado el 2026-08-05 · 3 correcciones |
 | [`TANDA_2.md`](./TANDA_2.md) | Reglas de reserva | ✅ ejecutado el 2026-08-05 · 5 correcciones |
+| [`TANDA_3.md`](./TANDA_3.md) | Derivados, linter y limpieza | ✅ ejecutado el 2026-08-05 · 2 correcciones · cierra la Fase 1 |
 
 ## Cómo leerlos
 

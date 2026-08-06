@@ -11,7 +11,7 @@ begin;
 
 set local search_path = extensions, public, pg_catalog;
 
-select plan(5);
+select plan(6);
 
 
 set local request.jwt.claims = '{"sub":"a0000000-0000-0000-0000-00000000000b","role":"authenticated"}';
@@ -51,6 +51,12 @@ select throws_ok(
   $$delete from public.reservation_status_log$$,
   '42501', null,
   'ni el admin borra lineas de la auditoria');
+
+-- Borrar no es la unica forma de falsear una auditoria: reescribirla tambien.
+select throws_ok(
+  $$update public.reservation_status_log set new_status = 'completed'$$,
+  '42501', null,
+  'ni el admin edita una linea de la auditoria');
 
 reset role;
 

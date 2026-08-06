@@ -9,7 +9,7 @@ begin;
 
 set local search_path = extensions, public, pg_catalog;
 
-select plan(5);
+select plan(6);
 
 
 -- Manana a las 10:00 en Lima. Fijo respecto del momento de la corrida, para que
@@ -71,6 +71,33 @@ select lives_ok(
            alumno_a, 'pegada', t10 + interval '4 hours', t10 + interval '6 hours'
       from fx$$,
   'una reserva que empieza justo al terminar el buffer si entra');
+
+
+-- El otro lado del borde: a un minuto de distancia, se rechaza. Junto con la
+-- anterior, esto fija el limite exacto: 4 h entra, 3 h 59 min no.
+--
+-- Va sobre la UNIDAD 2, no sobre la 1. La unidad 1 ya tiene dos reservas -"primera"
+-- y "pegada"- y una a t10+3h59 chocaria contra las dos: saldria 23P01 igual, pero
+-- por el motivo equivocado, y la prueba pasaria sin probar nada. La unidad 2 se
+-- siembra aqui con una sola reserva, para que el unico conflicto posible sea el
+-- que interesa.
+insert into public.inventory_reservations
+  (product_id, unit_id, alumno_id, purpose, start_at, end_at)
+select 'bbbbbbbb-0000-0000-0000-000000000001',
+       'dddddddd-0000-0000-0000-000000000002',
+       alumno_a, 'base del borde', t10, t10 + interval '2 hours'
+  from fx;
+
+select throws_ok(
+  $$insert into public.inventory_reservations
+      (product_id, unit_id, alumno_id, purpose, start_at, end_at)
+    select 'bbbbbbbb-0000-0000-0000-000000000001',
+           'dddddddd-0000-0000-0000-000000000002',
+           alumno_a, 'casi pegada',
+           t10 + interval '3 hours 59 minutes', t10 + interval '5 hours'
+      from fx$$,
+  '23P01', null,
+  'a un minuto del borde del buffer, se rechaza');
 
 
 -- El EXCLUDE es parcial: una reserva cancelada deja de bloquear.
