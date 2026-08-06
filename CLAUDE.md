@@ -106,10 +106,10 @@ pgTAP**. **Desde aquí ninguna tanda vuelve a tocar SQL.** Correcciones en
 magic link y Microsoft, y sembrar el primer admin. Cierra P0-3.
 
 **La T0 estuvo a punto de entrar sin CI** *(D-31)*, por una caída mayor de GitHub Actions que duró todo el
-2026-08-06. **Acabó teniéndolo:** Actions drenó su atrasado a las 23:19 UTC y las dos corridas salieron
-verdes sobre `5aeae24`, el árbol completo de la tanda. Lo único que ninguna corrida vio es el commit de
-cierre —tres archivos Markdown— y el commit de merge. **Q-15 sigue abierto** y es el primer candidato de
-la T1: falta un `.gitattributes` con `eol=lf`.
+2026-08-06. **Acabó teniéndolo entero:** Actions drenó su atrasado hacia las 23:26 UTC y corrió los dos
+workflows sobre cada commit, el merge en `develop` incluido. **Diez corridas, las diez verdes.** D-31 se
+conserva anotada: el criterio vale para la próxima caída, pero la deuda no llegó a existir. **Q-15 sigue
+abierto** y es el primer candidato de la T1: falta un `.gitattributes` con `eol=lf`.
 
 **Estado del árbol tras la T0:** `app/` con el andamio y **ninguna pantalla de negocio** —`/` es un
 marcador de posición, la landing es la tarea 2.5—, `components/ui/` con `button` y `card`, `lib/utils.ts`
