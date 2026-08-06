@@ -22,10 +22,19 @@ migración no reemplaza; todo lo que se corrija ahí se capitaliza una sola vez.
 del agujero de autorización es RLS en Postgres, no un backend — poner la autorización en Next.js dejando RLS
 permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
-**Estado general:** ⚠️ No apto para producción. **Un** defecto crítico abierto: **P0-3** (tokens de sesión
-propios firmados con la cadena literal `'signature'`), que se cierra en la Fase 2 al pasar a Supabase Auth.
-P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1 de la Fase 1**. Ninguno llegó a
-explotarse porque no hay usuarios ni datos personales.
+**Estado general:** ⚠️ No apto para producción, pero **la base de datos ya lo es**. La Fase 1 cerró el
+2026-08-05 con 18 migraciones y 123 aserciones pgTAP. **Un** defecto crítico abierto: **P0-3** (tokens de
+sesión propios firmados con la cadena literal `'signature'`), que se cierra en la Fase 2 al pasar a
+Supabase Auth. P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1**; **P1-6, P1-7 y P1-9 en
+la tanda 2**; P1-10 en la tanda 1. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
+
+**Lo que cambió de fondo:** las reglas de negocio dejaron de ser una convención del cliente y pasaron a ser
+una propiedad del motor. No porque estén bien programadas, sino porque **nadie tiene `INSERT` sobre
+`inventory_reservations`**: la única vía es `create_reservation`. Un cliente que llame a PostgREST
+directamente con la clave anónima no tiene por dónde entrar.
+
+> **Salvedad:** todo esto vive en migraciones locales y en `develop`. El proyecto remoto sigue con la línea
+> base hasta el `db push` de **D-17**.
 
 ---
 
@@ -59,26 +68,43 @@ inactividad; cualquier consulta lo despierta.
 **Catálogo cargado, cero datos transaccionales y cero datos personales.** Esto da libertad total para
 rediseñar el esquema sin migrar datos y sin riesgo sobre información de alumnos.
 
-Faltante en la BD:
-- ❌ Todas las RPCs que el código invoca. La única función es `fn_update_updated_at`.
-- ❌ Todas las políticas de escritura. Las 13 políticas existentes son de lectura, salvo `alumnos_update_own` y las de encuestas.
-- ❌ Cualquier noción de rol administrativo.
+Faltante en la BD **del proyecto remoto**, que sigue con la línea base. Todo lo de abajo está resuelto en
+las 18 migraciones locales y entra en el remoto con el `db push` de D-17:
+- ✅ ~~Todas las RPCs que el código invoca~~ — `create_reservation`, `cancel_reservation`,
+  `available_units`, `admin_set_ban` y `admin_set_alumno_activo`, más 5 helpers en `private` *(tandas 1 a 3)*.
+- ✅ ~~Todas las políticas de escritura~~ — RLS completa con `USING` y `WITH CHECK`, y privilegios por
+  columna *(tanda 1)*.
+- ✅ ~~Cualquier noción de rol administrativo~~ — `staff_members` con `admin` y `operator` *(tanda 1)*.
 - ✅ ~~Historial de migraciones~~ — resuelto en 0.6: línea base `20260805030123` registrada en local y
   remoto. Antes el esquema se había aplicado pegando SQL a mano.
 
 Avisos del linter de Supabase:
 
-| Nivel | Aviso |
-|---|---|
-| 🔴 ERROR | Vista `product_availability` con `SECURITY DEFINER` — saltea el RLS de quien consulta |
-| 🟡 WARN | `fn_update_updated_at` sin `search_path` fijo |
-| 🔵 INFO | `reservation_status_log` con RLS activo y cero políticas |
+| Nivel | Aviso | Estado |
+|---|---|---|
+| 🔴 ERROR | Vista `product_availability` con `SECURITY DEFINER` — saltea el RLS de quien consulta | ✅ **Cerrado en la tanda 3.** `security_invoker = on`, y `SELECT` revocado a `anon` *(D-18)*. No era teórico: medido antes de arreglarlo, un anónimo consultaba la vista sin error y veía el conteo de unidades |
+| 🟡 WARN | `fn_update_updated_at` sin `search_path` fijo | ✅ **Cerrado en la tanda 3.** Recreada con el mismo cuerpo y la misma firma, así que los cinco triggers que la usan no se tocaron. Vigilado por `19_function_hardening.sql` |
+| 🔵 INFO | `reservation_status_log` con RLS activo y cero políticas | ✅ **Cerrado en la tanda 1**, no en la 3: `log_select_own` ya le dio lectura al personal y al alumno sobre sus propias reservas, sin ningún `GRANT` de escritura |
+
+> **Los tres están corregidos en las migraciones locales, no en el remoto.** El linter corre contra
+> `zqfkzgdyeqxzgzpxgadi`, que sigue con la línea base: hasta el `db push` de D-17 seguirá reportándolos.
 
 ### 2.3 Deuda documental
 
-23 archivos `.sql` sueltos en `supabase/` con numeración colisionada (**dos `003_`, dos `004_`**) y 11 sin
-numerar. Contienen **cinco versiones sucesivas** de la misma RPC de reserva y **tres modelos incompatibles**
-de lista negra. No son reconstruibles en orden; sirven solo como referencia arqueológica.
+✅ **Resuelta en la tanda 3 (tarea 1.12).** Eran archivos `.sql` sueltos en `supabase/` con numeración
+colisionada (**dos `003_`, dos `004_`**) y 11 sin numerar, con **cinco versiones sucesivas** de la misma RPC
+de reserva y **tres modelos incompatibles** de lista negra. Borrados el 2026-08-05 en `dea78ec`: 2.707
+líneas. El historial de git es el archivo — `git show dea78ec^:supabase/<archivo>.sql` los recupera.
+
+> **Corrección del conteo (2026-08-05).** La auditoría, D-15 y Q-9 hablan de «23 sueltos». Al borrarlos se
+> vio que son **22**: el archivo número 23 era `supabase/seed.sql`, que no es deuda sino el seed
+> determinista de las pruebas, y se queda. Los registros fechados no se reescriben; el número correcto es
+> este.
+
+**Deuda residual, no cerrada:** cinco documentos en la raíz —`DELIVERABLES.md`, `MIGRATION_GUIDE.md`,
+`README_REFACTORING.md`, `SUPABASE_RPC_CHEATSHEET.md`, `SUPABASE_RPC_GUIDE.md`— y
+`scripts/generate_inventory_seed.py` siguen apuntando a esos archivos. Ninguno es código ni CI, así que
+nada se rompe, pero describen una arquitectura que ya no existe. Ver **Q-12**.
 
 ---
 
@@ -143,7 +169,7 @@ inventario versionados en la raíz.
 |---|---|
 | **Lenguaje visual** — `src/index.css` + `tailwind.config.ts` (~230 líneas: paleta UPC, Montserrat/Playfair, sombras, gradientes, modo oscuro). Copia directa. | Todo el código de aplicación (~9.400 líneas) |
 | **Componentes shadcn** — se regeneran nativos para App Router, no se portan | La capa de datos y autenticación completa |
-| **Reglas de negocio** — 20 reglas documentadas en la especificación funcional | Los 23 SQL sueltos (quedan como referencia) |
+| **Reglas de negocio** — 20 reglas documentadas en la especificación funcional | ~~Los 23 SQL sueltos (quedan como referencia)~~ — borrados en la tanda 3, y eran 22 |
 | **Datos de catálogo** — 34 productos, 92 unidades, 60 carreras, 2 sedes | Las columnas denormalizadas `stock`, `in_stock`, `current_note` |
 
 ---
@@ -170,6 +196,7 @@ inventario versionados en la raíz.
 | D-15 | **Los 23 `.sql` sueltos se borran en la tanda 3** de la Fase 1, no antes: son referencia útil justo mientras se reescribe esa misma lógica. *Cierra Q-9* | 2026-08-05 |
 | D-16 | **Mueve el estado de una reserva todo el personal, admin y operador.** Quien está en el mostrador es quien sabe si el equipo se entregó, si volvió o si nadie lo recogió. La máquina de estados ya impide los saltos absurdos, así que partir la política entre los dos roles añadiría complejidad sin cerrar ningún agujero. Una sola política, `reservations_update_staff` | 2026-08-05 |
 | D-17 | **Las migraciones se empujan al remoto al cerrar la Fase 1, después de la tanda 3.** No por tanda. Una migración empujada es inmutable en la práctica, y dentro de la fase todavía hay que rehacer archivos —pasó con `20260806004020`, corregida después de aplicarse—. Además nadie consume el remoto hoy, y los advisors, que corren contra él, solo dan señal limpia una vez que la tanda 3 haya cerrado sus tres avisos conocidos | 2026-08-05 |
+| D-18 | **Sin sesión, sin stock.** Al poner `security_invoker` en `product_availability`, un anónimo dejaría de ver `inventory_units` y la vista le devolvería ceros: diría «sin stock» de todo, que es peor que no decir nada. Se le revoca el `SELECT` sobre la vista. La landing muestra el catálogo; la disponibilidad se ve con sesión. Coherente con lo que la tanda 1 decidió sobre el inventario físico. **Si la Fase 2 necesita disponibilidad pública**, el arreglo no es quitar `security_invoker` sino dar a `anon` una política de lectura sobre `inventory_units` con el `GRANT` acotado a `(id, product_id, campus_id, status)` | 2026-08-05 |
 
 ---
 
@@ -261,11 +288,16 @@ hace lo que debía — reporta sin frenar.
 
 **Tanda 3 · Derivados, linter y limpieza**
 
-- [ ] **1.9** Avisos del linter: `security_invoker` en la vista, `search_path` en la función, políticas de
-      lectura para `reservation_status_log`
-- [ ] **1.10** Disponibilidad por franja sobre `product_availability` — **ver corrección abajo**
-- [ ] **1.11** Batería pgTAP completa: RLS, constraint, RPC, máquina de estados y sanciones *(D-14)*
-- [ ] **1.12** Borrar los 23 `.sql` sueltos de `supabase/` *(D-15, cierra Q-9)*
+- [x] **1.9** Avisos del linter: `security_invoker` en la vista y `search_path` en la función. Las
+      políticas de `reservation_status_log` ya las había puesto la tanda 1, así que eran dos y no tres
+- [x] **1.10** Disponibilidad por franja — **como función `available_units(...)`, no como columna de la
+      vista:** depende de la franja que se pregunte y una vista no recibe parámetros
+- [x] **1.11** Batería pgTAP *(D-14)*. No hubo que escribirla: las tandas 1 y 2 ya la habían dejado casi
+      entera, así que se taparon los tres huecos que quedaban y se añadió `19_function_hardening.sql`
+- [x] **1.12** Borrar los `.sql` sueltos de `supabase/` *(D-15, cierra Q-9)* — **22, no 23**
+
+> **Tanda 3 cerrada el 2026-08-05.** 2 migraciones, 123 aserciones pgTAP, y 2.707 líneas de SQL muerto
+> fuera. Detalle en [`PLANES/TANDA_3.md`](./PLANES/TANDA_3.md).
 
 > **Corrección a la tarea 1.10 (2026-08-05).** El plan original decía «eliminar `stock`, `in_stock`,
 > `current_note`». **Esas columnas no existen en el esquema canónico** — eran del proyecto deprecado
@@ -273,6 +305,20 @@ hace lo que debía — reporta sin frenar.
 
 **Terminado cuando:** los advisors de seguridad no reportan nada, los tests de RLS pasan, y toda la lógica de
 integridad es inviolable desde un cliente que llame a la API directamente.
+
+→ ✅ **FASE 1 CERRADA el 2026-08-05**, con una salvedad explícita: **los advisors siguen pendientes**, no
+porque falle algo, sino porque corren contra el proyecto remoto y las 18 migraciones todavía no se han
+empujado *(D-17)*. Los tres avisos conocidos están cerrados en local y vigilados por pruebas. Lo demás sí
+está cumplido: **123 aserciones pgTAP** en verde en el CI, las 13 tablas con RLS y políticas, y la única
+vía de creación de reservas es `create_reservation`, porque nadie tiene `INSERT` sobre
+`inventory_reservations`.
+
+| | |
+|---|---|
+| Migraciones | 18 |
+| Aserciones pgTAP | 123, en 20 archivos |
+| Defectos cerrados | P0-2, P0-5, P1-6, P1-7, P1-9, P1-10 |
+| Pendiente | El `db push` y los advisors contra el remoto |
 
 ### Fase 2 · Aplicación Next.js
 
@@ -354,6 +400,7 @@ Sin push directo a `main` ni `develop`; todo entra por PR con checks en verde.
 | Q-9 | **Los 23 `.sql` sueltos siguen en `supabase/`**, conviviendo con `migrations/`. Ya son redundantes: la línea base los reemplaza y las reglas están en la especificación funcional. Se borran en la Fase 1 o se dejan hasta la Fase 2 | ✅ **Cerrado el 2026-08-05** → D-15: en la tanda 3 (tarea 1.12) |
 | Q-10 | **15 vulnerabilidades de dependencias** (1 crítica en `vitest`; altas en `vite`, `postcss`, `undici`, `ws`, `lodash`, `js-yaml`). Dependabot reporta 58 porque cuenta por ruta y no agrupa por paquete. Casi todas son `devDependencies` del stack Vite que la Fase 2 elimina, y el sistema no está desplegado. Revisar contra el árbol de Next.js en vez de parchear el actual | Abierto → Fase 2 |
 | Q-11 | **`min_duration_minutes` = 15 contra `slot_minutes` = 30.** La RPC exige que la hora de inicio caiga en un bloque, pero no que la duración sea múltiplo de uno: una reserva de 15 minutos empieza alineada y **termina** a mitad de bloque, dejando un hueco que nadie puede pedir. O la duración mínima sube a 30, o se acepta el hueco a propósito. Abierto el 2026-08-05 al implementar la tanda 2 | Abierto |
+| Q-12 | **Cinco documentos de la raíz describen una arquitectura que ya no existe.** `DELIVERABLES.md`, `MIGRATION_GUIDE.md`, `README_REFACTORING.md`, `SUPABASE_RPC_CHEATSHEET.md` y `SUPABASE_RPC_GUIDE.md` son de la etapa generada con IA: documentan RPCs que nunca existieron en el proyecto canónico y un flujo de instalación obsoleto, y tras la tarea 1.12 sus enlaces a `supabase/*.sql` están rotos. Igual `scripts/generate_inventory_seed.py`, que genera un archivo que ya no se versiona. Ninguno es código ni CI. ¿Se borran con el código Vite en la Fase 2, o antes? Abierto el 2026-08-05 al ejecutar la tanda 3 | Abierto → Fase 2 |
 
 ---
 
@@ -496,3 +543,6 @@ npx supabase migration list
 | 2026-08-05 | **TANDA 2 CERRADA.** 6 migraciones y 46 aserciones pgTAP nuevas, 108 en total. Cierra **P1-6** (`EXCLUDE USING gist` parcial sobre `blocked_range`, con el buffer por producto), **P1-7** (máquina de estados: el estado deja de poder ir de cualquier sitio a cualquier otro) y **P1-9** (las reglas viven en `create_reservation`, y nadie tiene `INSERT` sobre `inventory_reservations`, así que no hay otra puerta). Se añaden `cancel_reservation` con motivo obligatorio —BR-17 en el motor y no en un diálogo del navegador— y las dos RPC de admin que cierran la deuda de la tanda 1. Decisiones D-16 y D-17; abierto Q-11 |
 | 2026-08-05 | **Dos trampas de la tanda 2 que no eran de lógica sino de forma.** (a) **`SET LOCAL` en una migración no hace nada:** la CLI aplica cada archivo fuera de un bloque de transacción y responde `WARNING (25P01)`. El `EXCLUDE` se creaba gracias al `search_path` que Supabase deja puesto en la base, no gracias al archivo — habría funcionado hasta que esa configuración cambiara. Se cualificó el opclass como `extensions.gist_uuid_ops`. (b) **El orden de las validaciones importa tanto como las validaciones:** la comprobación de bloque horario quedó antes que la de fecha pasada, así que a quien pedía una hora de ayer se le contestaba por la rejilla. Cuando varias reglas rechazan la misma entrada, contesta la más fundamental. Lo detectó una prueba que afirma el **mensaje**; con `throws_ok` sobre el SQLSTATE habría pasado en verde con el mensaje equivocado |
 | 2026-08-05 | **La lección de la tanda 1, por el lado contrario.** Conceder `UPDATE (status, cancellation_reason)` a `authenticated` —necesario para que la política del personal tenga sobre qué aplicarse— rompió una prueba de la tanda 1 que afirmaba `42501`. Al alumno ya no le falta privilegio, le falta **política**, y sin política el `UPDATE` afecta a cero filas **sin error**. Sigue igual de cerrado, pero cambió el mecanismo que lo cierra. **Y una prueba propia pasaba por casualidad:** «cancelar libera la franja» estaba escrita sobre un producto con tres unidades, así que la rotación justa le daba otra unidad al segundo alumno y la aserción se cumplía sin que ninguna cancelación hubiera ocurrido — en verde antes de que la función existiera. Verla fallar es lo único que la delató |
+| 2026-08-05 | **FASE 1 CERRADA.** Tanda 3: 2 migraciones y 123 aserciones pgTAP. Los tres avisos del linter cerrados —dos en esta tanda y uno que ya lo estaba desde la tanda 1—, disponibilidad por franja como función `available_units(...)`, tres huecos tapados en la batería y **2.707 líneas de SQL muerto fuera** (`dea78ec`). Decisión D-18; abierto Q-12. Queda el `db push` de D-17, que es lo único que separa al proyecto remoto de lo que ya está probado en local |
+| 2026-08-05 | **Tres cosas del diseño de la tanda 3 que no eran ciertas, detectadas al escribir el plan y no al ejecutarlo.** (a) El 🔵 INFO del linter ya lo había cerrado la tanda 1, así que la tarea 1.9 eran dos arreglos y no tres. (b) La batería de §8 estaba casi entera hecha: seis de los siete archivos existían con otro nombre, así que 1.11 no era escribirla sino tapar tres huecos. (c) **La disponibilidad por franja no cabe en una vista**, porque depende de la franja que se pregunte y una vista no recibe parámetros: es una función. Escribir el plan antes de tocar nada es lo que hizo que las tres aparecieran en la lectura y no a mitad de la implementación |
+| 2026-08-05 | **Dos hallazgos de la tanda 3 sobre lo que significa «arreglar un aviso de seguridad».** (a) `security_invoker` **no bloquea** al anónimo: lo hace mentir. La vista sigue siendo consultable y devuelve `active_units = 0` para todo, porque bajo el RLS del anónimo el `LEFT JOIN` no encuentra unidades. El arreglo del aviso, por sí solo, cambia una fuga de información por un dato falso; por eso hacen falta las dos líneas, la de la vista y el `REVOKE` (D-18). (b) **Saltarse el RLS es a veces lo correcto:** `available_units` es `SECURITY DEFINER` a propósito, porque un alumno no ve las reservas ajenas y contando con sus privilegios vería libre todo lo ocupado. Medido: con `DEFINER` el alumno B ve 2 unidades, sin él ve 3. Es seguro porque devuelve un conteo y no filas |

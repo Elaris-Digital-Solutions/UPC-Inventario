@@ -12,7 +12,7 @@
 --
 -- La cadena que se compara es la representacion real que guarda Postgres:
 -- `set search_path = ''` se almacena como el elemento search_path="". Verificado
--- el 2026-08-06 con `select proconfig from pg_proc`.
+-- el 2026-08-05 con `select proconfig from pg_proc`.
 
 begin;
 

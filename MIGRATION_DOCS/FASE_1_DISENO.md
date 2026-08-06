@@ -644,7 +644,26 @@ corriendo.
 
 ---
 
-## 7. Tanda 3 · Derivados, linter y limpieza *(1.9, 1.10, Q-9)*
+## 7. Tanda 3 · Derivados, linter y limpieza *(1.9, 1.10, Q-9)* — ✅ **CERRADA el 2026-08-05**
+
+### Correcciones al implementar (2026-08-05)
+
+- **El 🔵 INFO ya estaba cerrado.** El tercer punto de la lista de abajo —políticas de lectura para
+  `reservation_status_log`— lo resolvió la **tanda 1** con `log_select_own`. La tarea 1.9 fueron dos
+  arreglos, no tres.
+- **`security_invoker` no basta.** Poner la vista a respetar el RLS no bloquea al anónimo: le devuelve
+  `active_units = 0` para todo, porque bajo su RLS el `LEFT JOIN` a `inventory_units` no encuentra nada.
+  El arreglo del aviso, solo, cambia una fuga de información por un dato falso. Hace falta además
+  `revoke select on public.product_availability from anon` **(D-18)**.
+- **La disponibilidad por franja no cabe en la vista.** El cuarto punto decía que la vista la ganaba. No
+  puede: depende de la franja que se pregunte y una vista no recibe parámetros. Se implementó como
+  `public.available_units(p_product_id, p_campus_id, p_start_at, p_duration_minutes) returns int`, que es
+  **`SECURITY DEFINER` a propósito**: un alumno no ve las reservas ajenas, así que evaluada con sus
+  privilegios le diría que está libre todo lo ocupado. Medido: con `DEFINER` el alumno B ve 2 unidades,
+  sin él ve 3. Es seguro porque devuelve un conteo y no filas.
+- **Eran 22 sueltos, no 23.** El archivo número 23 era `seed.sql`, que se queda.
+
+---
 
 - `product_availability` recreada con `with (security_invoker = on)`: la vista pasa a respetar el RLS de
   quien consulta en lugar de saltárselo. Cierra el 🔴 ERROR del linter.
@@ -656,7 +675,21 @@ corriendo.
 
 ---
 
-## 8. Pruebas *(1.11)*
+## 8. Pruebas *(1.11)* — ✅ **CERRADA el 2026-08-05 · 123 aserciones en 20 archivos**
+
+> **Corrección (2026-08-05).** Esta tabla planteaba la batería como trabajo de la tanda 3. No lo fue: las
+> tandas 1 y 2 la escribieron sobre la marcha, y para cuando llegó la 3 **seis de los siete archivos ya
+> existían con otro nombre** — `rls_alumnos`→`14`, `rls_staff`→`12`, `rls_log`→`16`,
+> `constraint_overlap`→`21`, `rpc_reservation`→`23`, `state_machine`→`22`, `penalties`→`25`. La tarea 1.11
+> se redujo a tapar tres huecos: que la auditoría tampoco se **edita** (no solo que no se borra), que el
+> borde del buffer rechaza a un minuto de distancia, y que dos plantones separados por más de 90 días no
+> acumulan.
+>
+> Se añadieron además dos pruebas que esta tabla no contemplaba, y que son las que más rinden porque no
+> verifican una regla sino **que no haya olvidos**: `18_rls_coverage.sql` (ninguna tabla sin RLS ni sin
+> política) y `19_function_hardening.sql` (ninguna función sin `search_path` fijo). Las dos consultan el
+> catálogo de Postgres, así que no hay que actualizarlas al añadir una tabla o una función: se actualizan
+> solas.
 
 pgTAP en `supabase/tests/`, corriendo con `supabase test db` sobre el seed determinista. Por orden de
 prioridad, según §7.1 del plan:

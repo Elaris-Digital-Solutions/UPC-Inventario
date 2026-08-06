@@ -6,7 +6,7 @@
 -- invisibles y le diria que esta libre todo lo que otros tienen ocupado. Ese es
 -- el calendario que ofrece franjas que la RPC luego rechaza.
 --
--- Que esa asercion detecta el fallo esta MEDIDO, no razonado. El 2026-08-06, con
+-- Que esa asercion detecta el fallo esta MEDIDO, no razonado. El 2026-08-05, con
 -- una reserva del alumno A sobre una de las tres camaras, se llamo a la funcion
 -- como alumno B en sus dos versiones:
 --

@@ -1,7 +1,37 @@
-# Tanda 3 — Derivados, linter y limpieza · Plan de implementación
+> ## ✅ Ejecutado el 2026-08-05 · dos correcciones · **cierra la Fase 1**
+>
+> El plan de abajo es **el que se escribió antes de ejecutar**. Resultado: 2 migraciones, 123 aserciones
+> pgTAP, 2.707 líneas de SQL muerto fuera, y la Fase 1 cerrada salvo el `db push` de D-17.
+>
+> **Esta vez el plan casi no falló, y el motivo es que las correcciones se hicieron antes.** Las tres cosas
+> del diseño que no eran ciertas —el 🔵 INFO ya cerrado, la batería casi hecha, la disponibilidad que no
+> cabe en una vista— se detectaron **leyendo**, y están en la sección «Correcciones al diseño» de más
+> abajo, no aquí. Lo que la ejecución añadió fue solo esto:
+>
+> 1. **`isnt(..., null)` no compila.** *Detectado escribiendo la prueba.* `is()` e `isnt()` son
+>    polimórficas, y con un `NULL` sin tipo Postgres no resuelve la firma. El plan lo escribía sin tipar;
+>    la prueba usa `null::text[]`. Es la tercera vez que aparece en la Fase 1 — ya había pasado dos veces
+>    en la tanda 2.
+> 2. **La cadena que guarda Postgres es `search_path=""`, no `search_path=`.** *Punto a verificar de la
+>    Task 3, resuelto midiendo.* `set search_path = ''` se almacena en `pg_proc.proconfig` con las comillas
+>    dentro. Comparar contra `search_path=` habría dado una prueba que falla siempre; comparar «que no sea
+>    nulo» habría aceptado `search_path=public`, que no endurece nada.
+>
+> **Lo que el plan acertó, y valía el rato de escribirlo:**
+>
+> - El **punto a verificar 2** avisaba de que `available_units` tenía que ser `SECURITY DEFINER` y de que
+>   eso había que comprobarlo, no suponerlo. Se comprobó: con `DEFINER` el alumno B ve 2 unidades, sin él
+>   ve 3. La medición quedó anotada en `27_available_units.sql`.
+> - La **autorrevisión** marcó la Task 3 Step 2 como lo más fácil de escribir mal, porque un `23P01` contra
+>   la reserva equivocada pasa igual de verde. Al escribirla se confirmó: la unidad 1 ya tenía dos reservas
+>   y había que sembrar una tercera limpia en la unidad 2.
+> - El **punto a verificar 1** —qué ve el visitante anónimo— resultó no ser técnico sino de producto, y se
+>   decidió antes de tocar SQL: **D-18**, sin sesión, sin stock.
+>
+> **Hallazgo que no estaba en ningún sitio:** cinco documentos de la raíz y un script de Python siguen
+> apuntando a los `.sql` borrados. Ninguno es código ni CI. Abierto como **Q-12**.
 
-> Escrito **antes** de ejecutar. La cabecera de correcciones se añade arriba al cerrar la tanda, sin
-> reescribir lo de abajo *(ver [`README.md`](./README.md))*.
+# Tanda 3 — Derivados, linter y limpieza · Plan de implementación
 
 **Goal:** cerrar la Fase 1. Apagar los avisos del linter, dar disponibilidad por franja a quien pinta el
 calendario, tapar los tres huecos que quedan en la batería, y borrar los 23 `.sql` sueltos. Al final,

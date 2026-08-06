@@ -51,15 +51,27 @@ Sin commits directos a `main` ni `develop`; todo entra por PR.
 
 ## Estado
 
-Fase 0 cerrada. En curso la **Fase 1: base de datos**, con el diseño aprobado en
-`MIGRATION_DOCS/FASE_1_DISENO.md` y dividida en cuatro tandas, **un PR por tanda**:
+**Fases 0 y 1 cerradas.** La base de datos está terminada y probada: 18 migraciones, 123 aserciones pgTAP
+en 20 archivos, las 13 tablas con RLS y políticas. Diseño en `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado
+en cuatro tandas con un PR cada una.
 
 | Tanda | Contenido | Estado |
 |---|---|---|
 | 0 | Entorno local: `supabase init`, `config.toml`, `seed.sql`, pgTAP en el CI | ✅ cerrada |
 | 1 | Identidad y autorización: `staff_members`, privilegios por columna, RLS completa, trazabilidad | ✅ cerrada |
 | 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ✅ cerrada |
-| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | ← siguiente |
+| 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | ✅ cerrada |
+
+**Dos cosas pendientes antes de la Fase 2**, las dos de Alejandro:
+
+1. **`npx supabase db push`** *(D-17)*. Las 18 migraciones **nunca se han empujado**: el proyecto remoto
+   `zqfkzgdyeqxzgzpxgadi` sigue solo con la línea base. Hasta que se empujen, los advisors de seguridad
+   siguen reportando los tres avisos ya corregidos en local.
+2. **Sembrar el primer admin en el remoto.** El seed no viaja con `db push`, y sin una fila en
+   `staff_members` no hay administrador. Es una sentencia puntual con `service_role`, después de que esa
+   persona haya entrado con su cuenta UPC.
+
+**Siguiente:** Fase 2, la aplicación Next.js.
 
 **Al escribir SQL de la Fase 1, cinco reglas que costaron un fallo cada una:**
 
