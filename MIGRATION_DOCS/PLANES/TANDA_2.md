@@ -1,7 +1,49 @@
-# Tanda 2 — Reglas de reserva · Plan de implementación
+> ## ✅ Ejecutado el 2026-08-05 · cinco correcciones
+>
+> El plan de abajo es **el que se escribió antes de ejecutar**. Resultado: 6 migraciones, 46 aserciones
+> pgTAP nuevas (108 en total), y P1-6, P1-7 y P1-9 cerrados. Las seis tareas salieron en el orden
+> previsto; ninguna hubo que reordenarla.
+>
+> 1. **El `SET LOCAL` de una migración no hace nada.** *Punto a verificar 1, resuelto por el segundo
+>    desenlace.* La migración del `EXCLUDE` empezaba con `set local search_path = public, extensions;` y
+>    la CLI respondió `WARNING (25P01): SET LOCAL can only be used in transaction blocks`: aplica cada
+>    migración fuera de un bloque explícito. El constraint se creó igual, pero **gracias al `search_path`
+>    que Supabase deja puesto en la base, no gracias al archivo**. Habría funcionado sin que nadie se
+>    enterara hasta que esa configuración cambiara. Se resolvió cualificando el opclass:
+>    `unit_id extensions.gist_uuid_ops with =`.
+> 2. **El orden de las validaciones de la RPC importa tanto como las validaciones.** *Detectado
+>    ejecutando.* La comprobación de alineación con el bloque —añadida sobre el diseño, ver punto a
+>    verificar 3— quedó **antes** que la de fecha pasada. Pedir una hora de ayer devolvía «La hora de
+>    inicio no cae en un bloque de 30 minutos»: cierto e inútil. Se movió después de la ventana y del
+>    horario. La prueba lo encontró porque afirma el **mensaje**; con `throws_ok(..., 'P0001')` habría
+>    pasado en verde con el mensaje equivocado.
+> 3. **`throws_like` distingue mayúsculas.** *Detectado ejecutando.* Usa `LIKE`, así que
+>    `'%completa tu perfil%'` no casa con «Completa tu perfil antes de reservar». Cuatro pruebas fallaban
+>    por la capitalización, que es lo único que no interesaba comprobar. Toda la batería 23 usa
+>    `throws_ilike`.
+> 4. **Ampliar un privilegio cambia el modo de fallo de quien no debería tenerlo.** *Detectado
+>    ejecutando.* La Task 3 concede `UPDATE (status, cancellation_reason)` a `authenticated` para que la
+>    política del personal tenga sobre qué aplicarse, y `authenticated` incluye a los alumnos. Eso rompió
+>    `17_rls_reservations.sql`, de la tanda 1, que afirmaba `42501`: al alumno ya no le falta privilegio,
+>    le falta **política**, y sin política el `UPDATE` afecta a cero filas sin error. Sigue igual de
+>    cerrado, pero solo una de las dos formas se comprueba con `throws_ok`. Es la lección de la tanda 1
+>    apareciendo por el lado contrario: allí una prueba con `throws_ok` era un falso negativo; aquí una
+>    que era correcta dejó de serlo al ampliar los privilegios.
+> 5. **Una prueba pasaba por casualidad.** *Detectado al verla fallar.* «Cancelar libera la franja» estaba
+>    escrita sobre la cámara, que tiene tres unidades: la rotación justa le daba otra unidad al segundo
+>    alumno y la aserción se cumplía **sin que ninguna cancelación hubiera ocurrido** — pasaba en verde
+>    antes de que la función existiera. Reescrita sobre el trípode, que tiene una unidad única. Sin el
+>    paso de «verla fallar» habría quedado una prueba que no comprueba nada, en verde para siempre.
+>
+> **Decisiones tomadas al ejecutar:** D-16 (mueven el estado admin y operador, punto a verificar 2) y
+> D-17 (las migraciones se empujan al remoto al cerrar la Fase 1, no por tanda). **Pendiente abierto:**
+> Q-11, la tensión entre `min_duration_minutes` = 15 y `slot_minutes` = 30.
+>
+> **Lo que el plan acertó:** las tres trampas que la autorrevisión anticipó —fechas relativas y no
+> literales, `throws_ok` donde falta política, y el seed sin reservas— no dieron ni un fallo. Las cinco
+> correcciones son todas de cosas que el plan no había mirado.
 
-> Escrito **antes** de ejecutar. La cabecera de correcciones se añade arriba al cerrar la tanda, sin
-> reescribir lo de abajo *(ver [`README.md`](./README.md))*.
+# Tanda 2 — Reglas de reserva · Plan de implementación
 
 **Goal:** que reservar sea imposible fuera de las reglas. Hoy no se puede reservar por ninguna vía: la
 tanda 1 cerró la escritura sobre `inventory_reservations` y dejó la puerta por abrir. Esta tanda la abre,
