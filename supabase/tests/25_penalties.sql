@@ -10,7 +10,7 @@ begin;
 
 set local search_path = extensions, public, pg_catalog;
 
-select plan(7);
+select plan(8);
 
 
 create temporary table fx as
@@ -130,6 +130,49 @@ select is(
   (select banned_until from public.alumnos where id = (select alumno_a from fx)),
   null::timestamptz,
   'la sancion queda levantada');
+
+
+-- El reloj de la sancion son 90 dias, no toda la vida: dos plantones separados
+-- por mas de 90 dias no acumulan. Es lo que evita que un alumno que falla dos
+-- veces en cuatro anos quede a un fallo del bloqueo para el resto de su carrera.
+--
+-- Para envejecer una reserva hay que apagar el trigger de updated_at, que si no
+-- la pisa con now() en el mismo UPDATE. ALTER TABLE es transaccional: el rollback
+-- del final lo deja como estaba.
+alter table public.inventory_reservations
+  disable trigger trg_inventory_reservations_updated_at;
+
+update public.inventory_reservations
+   set updated_at = now() - interval '120 days'
+ where id in ('33333333-0000-0000-0000-000000000001',
+              '33333333-0000-0000-0000-000000000002',
+              '33333333-0000-0000-0000-000000000003');
+
+alter table public.inventory_reservations
+  enable trigger trg_inventory_reservations_updated_at;
+
+update public.alumnos set banned_until = null where id = (select alumno_a from fx);
+
+insert into public.inventory_reservations
+  (id, product_id, unit_id, alumno_id, purpose, start_at, end_at)
+select '33333333-0000-0000-0000-00000000000c',
+       'bbbbbbbb-0000-0000-0000-000000000004',
+       'dddddddd-0000-0000-0000-000000000007',
+       alumno_a, 'planton viejo', t10, t10 + interval '2 hours'
+  from fx;
+
+set local request.jwt.claims = '{"sub":"a0000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+set local role authenticated;
+
+update public.inventory_reservations set status = 'not_picked_up'
+ where id = '33333333-0000-0000-0000-00000000000c';
+
+reset role;
+
+select is(
+  (select banned_until from public.alumnos where id = (select alumno_a from fx)),
+  null::timestamptz,
+  'los plantones de hace mas de 90 dias no cuentan');
 
 
 select * from finish();
