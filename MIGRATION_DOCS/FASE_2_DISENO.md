@@ -87,8 +87,13 @@ código está vivo.
 ```
 src/  index.html  vite.config.ts  vitest.config.ts  eslint.config.js
 tsconfig.app.json  tsconfig.node.json  netlify.toml  components.json
-dist/  server/  public/  bun.lockb
+dist/  server/  bun.lockb
 ```
+
+> **`public/` NO está en esa lista, y es la trampa de este commit.** Parece andamiaje y no lo es: contiene
+> `Campus.png`, `campus-san-miguel.webp`, `favicon.png`, `placeholder.svg` y `robots.txt` — las fotos de
+> las dos sedes y el favicon, que son **contenido**. Y Next.js usa `public/` para estáticos exactamente
+> igual que Vite, así que ni siquiera hay que moverla. Se queda tal cual.
 
 Y con ellos, **los cinco documentos de la raíz que Q-12 dejó abiertos** —`DELIVERABLES.md`,
 `MIGRATION_GUIDE.md`, `README_REFACTORING.md`, `SUPABASE_RPC_CHEATSHEET.md`, `SUPABASE_RPC_GUIDE.md`—
@@ -98,7 +103,7 @@ y enlazan a los `.sql` que borró la tanda 3. **Q-12 se cierra aquí**, sin trab
 del mismo `git rm`.
 
 **Lo que se queda:** `supabase/` entero, `MIGRATION_DOCS/`, `CLAUDE.md`, los cuatro Excel *(D-8)*,
-`.github/workflows/db.yml` sin tocar, y `README.md`, que se reescribe.
+`public/` con sus estáticos, `.github/workflows/db.yml` sin tocar, y `README.md`, que se reescribe.
 
 **Lo que se copia antes de borrar:** `src/index.css` y `tailwind.config.ts`. Son las ~230 líneas del
 lenguaje visual, lo único del código Vite que la Fase 2 conserva *(§6)*.
@@ -629,9 +634,10 @@ de 45 minutos vuelve a dejar la cola del bloqueo a mitad de bloque, por la puert
 **Por qué no se decide ahora:** un `CHECK` de tabla **no puede leer `app_settings`**, así que atarlo exige
 elegir entre tres salidas con costes distintos —un trigger sobre `products`, redondear `blocked_range`
 hacia el bloque siguiente, o que la interfaz de admin solo ofrezca múltiplos—, y la de en medio toca una
-migración de la Fase 1 que está probada y mueve el borde que afirma
-`21_constraint_overlap.sql`. **`buffer_minutes` no tiene interfaz hasta la tanda 3**, y para entonces se
-sabrá si el admin necesita buffers finos o no.
+migración de la Fase 1 que está probada y mueve el borde que afirma `21_no_overlap.sql`: «una reserva que
+empieza justo al terminar el buffer sí entra» y «a un minuto del borde del buffer, se rechaza».
+**`buffer_minutes` no tiene interfaz hasta la tanda 3**, y para entonces se sabrá si el admin necesita
+buffers finos o no.
 
 **Riesgo mientras tanto: ninguno con los datos actuales.** Los 34 productos tienen `buffer_minutes = 120`,
 que es múltiplo de 30. Hoy el único desalineador posible era la duración, y D-19 lo cierra.
