@@ -117,6 +117,17 @@ nuevas, el borrado del árbol Vite y el andamio de Next.js 16 completo.
 también **Q-15**, el `.gitattributes` con `eol=lf` que no se añadió aquí justamente por no renormalizar
 archivos en un PR que nadie iba a poder validar.
 
+> ⚠ **Corrección, doce minutos después de escribir lo de arriba.** Actions drenó su atrasado a las
+> **23:19 UTC** y las dos corridas del push de las 23:07 salieron **verdes sobre `5aeae24`**: `CI` en
+> 1m00s y `Base de datos` en 1m25s, con las 135 aserciones y el chequeo de tipos. Ese commit lleva el
+> árbol completo de la tanda, así que **el código sí pasó por el CI** y lo de arriba dejó de ser cierto
+> mientras se escribía. Sin corrida quedan solo el commit de cierre —tres archivos Markdown— y el commit
+> de merge, cuyo `push` sobre `develop` no llegó a disparar nada.
+>
+> **Lo que se aprende no es de GitHub sino del orden en que se escribe el registro.** El cierre se
+> commiteó *antes* del merge porque en `develop` no se commitea directo, y por eso afirmó un resultado
+> del CI que todavía no existía. **Un resultado se registra cuando se mide, no cuando toca escribirlo.**
+
 ---
 
 **Goal:** dejar el repositorio listo para construir pantallas, y **sin una sola pantalla construida**. Al
