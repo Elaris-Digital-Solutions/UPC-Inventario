@@ -127,6 +127,14 @@ archivos en un PR que nadie iba a poder validar.
 > **Lo que se aprende no es de GitHub sino del orden en que se escribe el registro.** El cierre se
 > commiteó *antes* del merge porque en `develop` no se commitea directo, y por eso afirmó un resultado
 > del CI que todavía no existía. **Un resultado se registra cuando se mide, no cuando toca escribirlo.**
+>
+> ⚠ **Y la corrección de arriba caducó a los diez minutos, igual que lo que corregía.** Actions terminó
+> de drenar hacia las 23:26 UTC y corrió los dos workflows sobre **cada commit**, el de cierre y el de
+> merge incluidos: **diez corridas, las diez verdes**, y `develop` verificado de punta a punta con la
+> tanda dentro. **Tres versiones del mismo hecho en veinte minutos**, las tres escritas de buena fe con
+> la evidencia de su minuto. La conclusión de verdad no es «escribir con más cuidado» sino **no escribir
+> todavía**: un sistema que se está recuperando devuelve verdades con fecha de caducidad. Las tres
+> versiones se conservan aquí porque el error es la parte útil.
 
 ---
 
