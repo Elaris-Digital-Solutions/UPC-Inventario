@@ -18,6 +18,12 @@ y qué comando la verifica.
 | [`TANDA_3.md`](./TANDA_3.md) | Derivados, linter y limpieza | ✅ ejecutado el 2026-08-05 · 2 correcciones · cierra la Fase 1 |
 | [`FIX_FUNCIONES_TRIGGER.md`](./FIX_FUNCIONES_TRIGGER.md) | *Fix posterior:* funciones de trigger expuestas como RPC | ✅ ejecutado el 2026-08-05 · sin correcciones |
 
+### Fase 2 · La aplicación Next.js
+
+| Plan | Tanda | Estado |
+|---|---|---|
+| [`FASE_2_TANDA_0.md`](./FASE_2_TANDA_0.md) | Cimientos: borrar el Vite, Next.js, tokens, tipos, y las dos últimas migraciones | 📝 escrito el 2026-08-06 · 4 correcciones al diseño · sin ejecutar |
+
 ## Cómo leerlos
 
 **Para saber cómo quedó el sistema, estos NO son la fuente.** Lo son:
