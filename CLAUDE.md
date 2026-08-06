@@ -62,14 +62,22 @@ en cuatro tandas con un PR cada una.
 | 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ✅ cerrada |
 | 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | ✅ cerrada |
 
-**Dos cosas pendientes antes de la Fase 2**, las dos de Alejandro:
+**Las 18 migraciones están empujadas al remoto** *(D-17, hecho el 2026-08-05)*. `migration list` muestra
+`Local` y `Remote` idénticos, el catálogo sobrevivió intacto —34 productos, 92 unidades— y `app_settings`
+llegó con su fila. Los tres avisos originales del linter desaparecieron.
 
-1. **`npx supabase db push`** *(D-17)*. Las 18 migraciones **nunca se han empujado**: el proyecto remoto
-   `zqfkzgdyeqxzgzpxgadi` sigue solo con la línea base. Hasta que se empujen, los advisors de seguridad
-   siguen reportando los tres avisos ya corregidos en local.
-2. **Sembrar el primer admin en el remoto.** El seed no viaja con `db push`, y sin una fila en
-   `staff_members` no hay administrador. Es una sentencia puntual con `service_role`, después de que esa
-   persona haya entrado con su cuenta UPC.
+**Los advisors, ya con señal limpia, dejaron dos cosas:**
+
+- **Seis funciones de trigger están expuestas como RPC** en `/rest/v1/rpc/...`. Es la lección de la tanda 0
+  aplicada a medias: `PUBLIC` recibe `EXECUTE` por defecto, y solo se le revocó a las cinco RPC de verdad.
+  **No es explotable** —plpgsql responde `trigger functions can only be called as triggers`, medido—, pero
+  la protección es del intérprete y no del diseño. Pendiente: revocarlo, verificando con la batería que los
+  triggers siguen disparando. *Cuidado: revocar `EXECUTE` a un helper de política sí rompe la política.*
+- **22 avisos de rendimiento**, todos prematuros: la base nunca ha servido una consulta. Ver Q-13.
+
+**Sembrar el primer admin es tarea de la Fase 2, no de ahora.** `auth.users` está vacío porque nada usa
+Supabase Auth todavía; se conecta en la tarea 2.4. Antes de eso, el `insert ... select` no encontraría a
+nadie e insertaría cero filas **sin dar error**.
 
 **Siguiente:** Fase 2, la aplicación Next.js.
 
