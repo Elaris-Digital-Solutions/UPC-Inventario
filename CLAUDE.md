@@ -11,6 +11,13 @@ reconstruyendo primero la base de datos.
 > reescriben tras ejecutar:** lo que la ejecución desmiente va en una cabecera de correcciones, para no
 > borrar lo aprendido.
 
+@AGENTS.md
+
+> `AGENTS.md` lo generó `create-next-app` y son las reglas oficiales de **Next.js 16**, que abre avisando
+> «*This is NOT the Next.js you know*» y remite a los docs de la versión instalada en
+> `node_modules/next/dist/docs/`. Se conserva porque este proyecto ya pagó ese aviso a mano: el archivo de
+> proxy se llama `proxy.ts` y no `middleware.ts` desde la 16, y se descubrió midiendo.
+
 ## Cómo se trabaja
 
 **Claude no escribe en el remoto.** Nada de `git push`, PRs, merges, ramas remotas ni protecciones de rama.
