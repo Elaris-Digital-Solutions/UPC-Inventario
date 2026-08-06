@@ -1,7 +1,28 @@
-# Fix — Funciones de trigger expuestas como RPC · Plan de implementación
+> ## ✅ Ejecutado el 2026-08-05 · sin correcciones
+>
+> El plan de abajo es **el que se escribió antes de ejecutar**, y salió tal cual: una migración, una
+> aserción, 124 en verde. Es el primero de la Fase 1 que no necesita corregir nada, y probablemente porque
+> es también el más pequeño.
+>
+> **La pregunta abierta quedó respondida, y en el sentido cómodo:** **un trigger no necesita `EXECUTE` sobre
+> su función.** Tras revocarlo a las seis, las 124 aserciones pasan —incluidas `21`, `22` y `25`, que caen
+> en el acto si los triggers dejan de dispararse—. No hizo falta el plan B de moverlas a `private`.
+>
+> **La asimetría que eso destapa es lo que vale la pena guardar.** Con un helper de política RLS, revocar
+> `EXECUTE` **rompe** la política (medido en la tanda 0). Con una función de trigger, no. El motivo: a un
+> trigger lo invoca el **motor**, mientras que la expresión de una política se evalúa como el **usuario que
+> consulta**, así que necesita poder ejecutar lo que invoca.
+>
+> Y eso, a su vez, explica por qué el esquema `private` de la tanda 1 no era un capricho: donde no se puede
+> revocar sin romper, el aislamiento tiene que venir del esquema. **Dos herramientas para el mismo fin, y
+> cuál sirve depende de quién invoca la función.**
+>
+> **Un tropiezo que no fue del plan:** el primer `supabase db reset` murió con
+> `failed to bootstrap the local database` **antes de aplicar ninguna migración**, en «Initialising
+> schema». No tenía que ver con el `REVOKE`; el contenedor se recreó sano y el reintento pasó sin más. Si
+> vuelve a ocurrir, mirar `docker ps` antes de sospechar del SQL.
 
-> Escrito **antes** de ejecutar. No es una tanda: es un arreglo puntual posterior al cierre de la Fase 1,
-> detectado por los advisors del remoto. La cabecera de correcciones se añade arriba al terminar.
+# Fix — Funciones de trigger expuestas como RPC · Plan de implementación
 
 **Goal:** que las seis funciones de trigger de `public` dejen de ser invocables por HTTP. Cierra los seis
 avisos `WARN` de los advisors que sí son reales.
