@@ -24,9 +24,8 @@ permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
 **Estado general:** ⚠️ No apto para producción, pero **la base de datos ya lo es**. La Fase 1 cerró el
 2026-08-05 con 19 migraciones y 124 aserciones pgTAP, contando el arreglo posterior de las funciones de
-trigger. **Un** defecto crítico abierto: **P0-3** (tokens de
-sesión propios firmados con la cadena literal `'signature'`), que se cierra en la Fase 2 al pasar a
-Supabase Auth. P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1**; **P1-6, P1-7 y P1-9 en
+trigger. **Un** defecto crítico abierto: **P0-3** (tokens de sesión propios firmados con la cadena literal
+`'signature'`), que se cierra en la Fase 2 al pasar a Supabase Auth. P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1**; **P1-6, P1-7 y P1-9 en
 la tanda 2**; P1-10 en la tanda 1. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
 
 **Lo que cambió de fondo:** las reglas de negocio dejaron de ser una convención del cliente y pasaron a ser
@@ -34,9 +33,10 @@ una propiedad del motor. No porque estén bien programadas, sino porque **nadie 
 `inventory_reservations`**: la única vía es `create_reservation`. Un cliente que llame a PostgREST
 directamente con la clave anónima no tiene por dónde entrar.
 
-**Empujado al remoto el 2026-08-05** *(D-17)*. `migration list` muestra las 18 migraciones con `Local` y
-`Remote` idénticos. El catálogo real sobrevivió —34 productos, 92 unidades— y `app_settings` llegó con su
-fila: el riesgo de añadir columnas con `default` sobre tablas pobladas no se materializó.
+**Empujado al remoto el 2026-08-05** *(D-17)*. `migration list` muestra las **19 migraciones** con `Local`
+y `Remote` idénticos. El catálogo real sobrevivió —34 productos, 92 unidades— y `app_settings` llegó con su
+fila: el riesgo de añadir columnas con `default` sobre tablas pobladas no se materializó. Los advisors
+quedan en **5 avisos de seguridad, todos intencionales**.
 
 ---
 
@@ -328,19 +328,24 @@ hace lo que debía — reporta sin frenar.
 **Terminado cuando:** los advisors de seguridad no reportan nada, los tests de RLS pasan, y toda la lógica de
 integridad es inviolable desde un cliente que llame a la API directamente.
 
-→ ✅ **FASE 1 CERRADA el 2026-08-05**, con una salvedad explícita: **los advisors siguen pendientes**, no
-porque falle algo, sino porque corren contra el proyecto remoto y las 18 migraciones todavía no se han
-empujado *(D-17)*. Los tres avisos conocidos están cerrados en local y vigilados por pruebas. Lo demás sí
-está cumplido: **123 aserciones pgTAP** en verde en el CI, las 13 tablas con RLS y políticas, y la única
-vía de creación de reservas es `create_reservation`, porque nadie tiene `INSERT` sobre
-`inventory_reservations`.
+→ ✅ **FASE 1 CERRADA el 2026-08-05, y cumplida entera**, advisors incluidos. Se cerró primero con la
+salvedad de que estaban pendientes —corren contra el remoto y las migraciones no se habían empujado—; el
+mismo día se empujaron, los advisors destaparon un frente real, se arregló, y se volvieron a correr.
 
 | | |
 |---|---|
-| Migraciones | 18 |
-| Aserciones pgTAP | 123, en 20 archivos |
+| Migraciones | 19, `Local` y `Remote` idénticos |
+| Aserciones pgTAP | 124, en 20 archivos, verdes en el CI |
 | Defectos cerrados | P0-2, P0-5, P1-6, P1-7, P1-9, P1-10 |
-| Pendiente | El `db push` y los advisors contra el remoto |
+| Avisos de seguridad | 5, **todos intencionales**: las RPC de `authenticated`, que comprueban la autorización por dentro |
+| Avisos de rendimiento | 22, todos prematuros *(Q-13)* |
+
+**Verificado contra el remoto el 2026-08-05, después del arreglo:** los advisors bajaron de 11 avisos a 5,
+y los 5 son exactamente los que se decidió dejar. Ninguna función de trigger aparece ya.
+
+Toda la lógica de integridad es inviolable desde un cliente que llame a la API directamente: la única vía
+de creación de reservas es `create_reservation`, porque **nadie tiene `INSERT` sobre
+`inventory_reservations`**.
 
 ### Fase 2 · Aplicación Next.js
 
@@ -576,3 +581,4 @@ npx supabase migration list
 | 2026-08-05 | **Dos hallazgos de la tanda 3 sobre lo que significa «arreglar un aviso de seguridad».** (a) `security_invoker` **no bloquea** al anónimo: lo hace mentir. La vista sigue siendo consultable y devuelve `active_units = 0` para todo, porque bajo el RLS del anónimo el `LEFT JOIN` no encuentra unidades. El arreglo del aviso, por sí solo, cambia una fuga de información por un dato falso; por eso hacen falta las dos líneas, la de la vista y el `REVOKE` (D-18). (b) **Saltarse el RLS es a veces lo correcto:** `available_units` es `SECURITY DEFINER` a propósito, porque un alumno no ve las reservas ajenas y contando con sus privilegios vería libre todo lo ocupado. Medido: con `DEFINER` el alumno B ve 2 unidades, sin él ve 3. Es seguro porque devuelve un conteo y no filas |
 | 2026-08-05 | **Las 18 migraciones empujadas al remoto** *(D-17)*. `migration list` con `Local` y `Remote` idénticos. El catálogo real sobrevivió intacto —34 productos, 92 unidades— y `app_settings` llegó con su fila: el riesgo de añadir columnas con `default` sobre tablas pobladas no se materializó. **Los advisors, ya con señal limpia, confirmaron que los tres avisos originales desaparecieron** y destaparon otros dos frentes: seis funciones de trigger expuestas como RPC *(pendiente de arreglar; no explotable, medido)* y 22 avisos de rendimiento prematuros *(Q-13)*. **Corrección sobre la marcha:** sembrar el primer admin **no** era un paso pendiente de ahora sino de la Fase 2. `auth.users` está vacío porque nada usa Supabase Auth todavía, así que el `insert ... select` habría insertado cero filas **sin dar error** — el mismo modo de fallo silencioso contra el que se escribió media batería |
 | 2026-08-05 | **Cerrado el frente de seguridad que abrieron los advisors.** Seis funciones de trigger estaban publicadas en `/rest/v1/rpc/` porque `PUBLIC` recibe `EXECUTE` por defecto y la tanda 1 solo se lo revocó a las cinco RPC de verdad. Se revocaron **las seis**, no solo las tres que marcaba el linter: arreglar la mitad habría obligado a que la prueba de cobertura llevara excepciones. **La pregunta abierta que resolvió el arreglo:** un trigger **no** necesita `EXECUTE` sobre su función —las 124 aserciones pasan tras revocarlo—, al revés que un helper de política RLS, donde revocarlo la rompe. A un trigger lo invoca el motor; una política se evalúa como el usuario que consulta. Esa asimetría es la que justifica el esquema `private` de la tanda 1: donde no se puede revocar, el aislamiento tiene que venir del esquema |
+| 2026-08-05 | **FASE 1 CUMPLIDA ENTERA, advisors incluidos.** Empujado el arreglo al remoto y vueltos a correr: **de 11 avisos de seguridad a 5**, y los 5 son los que se decidió dejar —las RPC que `authenticated` debe poder ejecutar, cada una con su comprobación de autorización por dentro—. Ninguna función de trigger aparece ya. 19 migraciones con `Local` y `Remote` idénticos, 124 aserciones pgTAP. **La Fase 1 se cerró primero con la salvedad de que los advisors estaban pendientes; se cierra de verdad aquí.** La lección de haberlo hecho en ese orden: un cierre con salvedad es un cierre a medias, y el trabajo que destapó la salvedad —seis funciones expuestas— habría entrado en la Fase 2 como deuda si no se hubiera mirado el mismo día |

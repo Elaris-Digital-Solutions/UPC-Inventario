@@ -62,11 +62,11 @@ en cuatro tandas con un PR cada una, más un arreglo posterior.
 | 2 | Reglas de reserva: RPC única, `EXCLUDE` anti-solape, máquina de estados, sanciones | ✅ cerrada |
 | 3 | Derivados, avisos del linter, pruebas y limpieza de los SQL sueltos | ✅ cerrada |
 
-**Las 18 migraciones están empujadas al remoto** *(D-17, hecho el 2026-08-05)*. `migration list` muestra
+**Las 19 migraciones están empujadas al remoto** *(D-17, hecho el 2026-08-05)*. `migration list` muestra
 `Local` y `Remote` idénticos, el catálogo sobrevivió intacto —34 productos, 92 unidades— y `app_settings`
 llegó con su fila. Los tres avisos originales del linter desaparecieron.
 
-**Los advisors, ya con señal limpia, dejaron dos cosas:**
+**Los advisors, ya con señal limpia, dejaron esto** (verificado tras el arreglo: bajaron de 11 avisos a 5):
 
 - ✅ **Seis funciones de trigger estaban expuestas como RPC** en `/rest/v1/rpc/...`, porque `PUBLIC` recibe
   `EXECUTE` por defecto y solo se le revocó a las cinco RPC de verdad. **Cerrado** revocándoselo a las seis.

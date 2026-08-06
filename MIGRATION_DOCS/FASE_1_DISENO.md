@@ -675,7 +675,7 @@ corriendo.
 
 ---
 
-## 8. Pruebas *(1.11)* — ✅ **CERRADA el 2026-08-05 · 123 aserciones en 20 archivos**
+## 8. Pruebas *(1.11)* — ✅ **CERRADA el 2026-08-05 · 124 aserciones en 20 archivos**
 
 > **Corrección (2026-08-05).** Esta tabla planteaba la batería como trabajo de la tanda 3. No lo fue: las
 > tandas 1 y 2 la escribieron sobre la marcha, y para cuando llegó la 3 **seis de los siete archivos ya
