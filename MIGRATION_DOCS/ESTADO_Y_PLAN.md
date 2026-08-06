@@ -23,7 +23,8 @@ del agujero de autorización es RLS en Postgres, no un backend — poner la auto
 permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
 **Estado general:** ⚠️ No apto para producción, pero **la base de datos ya lo es**. La Fase 1 cerró el
-2026-08-05 con 18 migraciones y 123 aserciones pgTAP. **Un** defecto crítico abierto: **P0-3** (tokens de
+2026-08-05 con 19 migraciones y 124 aserciones pgTAP, contando el arreglo posterior de las funciones de
+trigger. **Un** defecto crítico abierto: **P0-3** (tokens de
 sesión propios firmados con la cadena literal `'signature'`), que se cierra en la Fase 2 al pasar a
 Supabase Auth. P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1**; **P1-6, P1-7 y P1-9 en
 la tanda 2**; P1-10 en la tanda 1. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
@@ -94,13 +95,21 @@ reportan es señal:
 
 | Nivel | Aviso | Lectura |
 |---|---|---|
-| 🟡 WARN ×6 | `apply_penalties`, `handle_new_auth_user` y `log_reservation_status` son ejecutables como RPC por `anon` y `authenticated` | **Real, pero no explotable.** Son funciones de **trigger**: medido el 2026-08-05, llamarlas directamente responde `trigger functions can only be called as triggers`. Aun así es superficie de API que no debería existir, y la protección la da el intérprete, no el diseño. Es la lección de la tanda 0 aplicada a medias: `PUBLIC` recibe `EXECUTE` por defecto, y solo se le revocó a las cinco RPC de verdad. **Pendiente de arreglar** |
-| 🟡 WARN ×5 | `create_reservation`, `cancel_reservation`, `available_units`, `admin_set_ban` y `admin_set_alumno_activo` son ejecutables por `authenticated` | **Intencional: es el diseño entero.** Cada una comprueba la autorización por dentro. El linter las marca para que se confirme la intención. Pasarlas a `SECURITY INVOKER` rompería la Fase 1 |
+| 🟡 WARN ×6 | `apply_penalties`, `handle_new_auth_user` y `log_reservation_status` son ejecutables como RPC por `anon` y `authenticated` | ✅ **Cerrado el 2026-08-05** con [`FIX_FUNCIONES_TRIGGER.md`](./PLANES/FIX_FUNCIONES_TRIGGER.md). Era la lección de la tanda 0 aplicada a medias: `PUBLIC` recibe `EXECUTE` por defecto y solo se le revocó a las cinco RPC de verdad. Se revocó a **las seis** funciones de trigger, no solo a las tres que marcaba el linter. Vigilado por `19_function_hardening.sql` |
+| 🟡 WARN ×5 | `create_reservation`, `cancel_reservation`, `available_units`, `admin_set_ban` y `admin_set_alumno_activo` son ejecutables por `authenticated` | **Intencional: es el diseño entero.** Cada una comprueba la autorización por dentro. El linter las marca para que se confirme la intención. Pasarlas a `SECURITY INVOKER` rompería la Fase 1. **Se queda así** |
 
-> **Al arreglar lo primero, no dar por hecho que revocar es inocuo.** La tanda 0 midió que revocar
-> `EXECUTE` a un helper de política **rompe** la política que lo usa. No está comprobado que un trigger se
-> comporte distinto: hay que revocarlo y correr la batería, donde las pruebas 21, 22 y 25 caerían en el acto
-> si los triggers dejaran de dispararse.
+> **Lo que se aprendió al arreglarlo, y era la pregunta abierta:** **un trigger no necesita `EXECUTE` sobre
+> su función.** Medido — tras revocarlo, las 124 aserciones pasan, incluidas `21`, `22` y `25`, que caerían
+> en el acto si los triggers dejaran de dispararse.
+>
+> **Es lo contrario que con las políticas RLS**, donde la tanda 0 midió que revocar `EXECUTE` al helper
+> **rompe** la política. La asimetría: a un trigger lo invoca el **motor**, mientras que la expresión de una
+> política se evalúa como el usuario que consulta, así que necesita poder ejecutar lo que invoca.
+>
+> Eso explica por qué el esquema `private` fue la decisión correcta en la tanda 1 y no un capricho: con los
+> helpers no se podía revocar sin romperlos, así que el aislamiento tuvo que venir del esquema. Con las
+> funciones de trigger sí se puede. **Dos herramientas para el mismo fin, y cuál sirve depende de quién
+> invoca la función.**
 
 ### 2.3 Deuda documental
 
@@ -566,3 +575,4 @@ npx supabase migration list
 | 2026-08-05 | **Tres cosas del diseño de la tanda 3 que no eran ciertas, detectadas al escribir el plan y no al ejecutarlo.** (a) El 🔵 INFO del linter ya lo había cerrado la tanda 1, así que la tarea 1.9 eran dos arreglos y no tres. (b) La batería de §8 estaba casi entera hecha: seis de los siete archivos existían con otro nombre, así que 1.11 no era escribirla sino tapar tres huecos. (c) **La disponibilidad por franja no cabe en una vista**, porque depende de la franja que se pregunte y una vista no recibe parámetros: es una función. Escribir el plan antes de tocar nada es lo que hizo que las tres aparecieran en la lectura y no a mitad de la implementación |
 | 2026-08-05 | **Dos hallazgos de la tanda 3 sobre lo que significa «arreglar un aviso de seguridad».** (a) `security_invoker` **no bloquea** al anónimo: lo hace mentir. La vista sigue siendo consultable y devuelve `active_units = 0` para todo, porque bajo el RLS del anónimo el `LEFT JOIN` no encuentra unidades. El arreglo del aviso, por sí solo, cambia una fuga de información por un dato falso; por eso hacen falta las dos líneas, la de la vista y el `REVOKE` (D-18). (b) **Saltarse el RLS es a veces lo correcto:** `available_units` es `SECURITY DEFINER` a propósito, porque un alumno no ve las reservas ajenas y contando con sus privilegios vería libre todo lo ocupado. Medido: con `DEFINER` el alumno B ve 2 unidades, sin él ve 3. Es seguro porque devuelve un conteo y no filas |
 | 2026-08-05 | **Las 18 migraciones empujadas al remoto** *(D-17)*. `migration list` con `Local` y `Remote` idénticos. El catálogo real sobrevivió intacto —34 productos, 92 unidades— y `app_settings` llegó con su fila: el riesgo de añadir columnas con `default` sobre tablas pobladas no se materializó. **Los advisors, ya con señal limpia, confirmaron que los tres avisos originales desaparecieron** y destaparon otros dos frentes: seis funciones de trigger expuestas como RPC *(pendiente de arreglar; no explotable, medido)* y 22 avisos de rendimiento prematuros *(Q-13)*. **Corrección sobre la marcha:** sembrar el primer admin **no** era un paso pendiente de ahora sino de la Fase 2. `auth.users` está vacío porque nada usa Supabase Auth todavía, así que el `insert ... select` habría insertado cero filas **sin dar error** — el mismo modo de fallo silencioso contra el que se escribió media batería |
+| 2026-08-05 | **Cerrado el frente de seguridad que abrieron los advisors.** Seis funciones de trigger estaban publicadas en `/rest/v1/rpc/` porque `PUBLIC` recibe `EXECUTE` por defecto y la tanda 1 solo se lo revocó a las cinco RPC de verdad. Se revocaron **las seis**, no solo las tres que marcaba el linter: arreglar la mitad habría obligado a que la prueba de cobertura llevara excepciones. **La pregunta abierta que resolvió el arreglo:** un trigger **no** necesita `EXECUTE` sobre su función —las 124 aserciones pasan tras revocarlo—, al revés que un helper de política RLS, donde revocarlo la rompe. A un trigger lo invoca el motor; una política se evalúa como el usuario que consulta. Esa asimetría es la que justifica el esquema `private` de la tanda 1: donde no se puede revocar, el aislamiento tiene que venir del esquema |
