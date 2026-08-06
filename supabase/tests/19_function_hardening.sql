@@ -18,7 +18,7 @@ begin;
 
 set local search_path = extensions, public, pg_catalog;
 
-select plan(2);
+select plan(3);
 
 
 select is(
@@ -40,6 +40,36 @@ select is(
       and not ('search_path=""' = any(p.proconfig))),
   0,
   'las SECURITY DEFINER lo tienen ademas vacio, no solo fijo'
+);
+
+
+-- Una funcion de trigger no tiene por que ser invocable por HTTP. PostgREST
+-- publica en /rest/v1/rpc/ todo lo que el rol pueda ejecutar, y al crear una
+-- funcion PUBLIC recibe EXECUTE por defecto: si no se revoca, quedan ahi.
+--
+-- Hoy plpgsql las rechaza con "trigger functions can only be called as triggers",
+-- pero esa proteccion es del intérprete y no del diseño: desaparece en cuanto
+-- alguna deje de ser de trigger.
+--
+-- prorettype = trigger es como Postgres las identifica, asi que esta asercion
+-- cubre tambien las que se anadan en el futuro sin enumerarlas.
+--
+-- Revocarles EXECUTE es seguro, y esta MEDIDO: un trigger no necesita el
+-- privilegio porque lo invoca el motor. Ojo con generalizarlo -a un helper de
+-- politica RLS revocarselo SI la rompe (ver 01_grants_definer.sql)-: la expresion
+-- de una politica se evalua como el usuario que consulta.
+--
+-- Quien lo demuestra no es esta asercion sino 21, 22 y 25: si los triggers
+-- dejaran de dispararse, esas tres caen.
+select is(
+  (select count(*)::int
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prorettype = 'pg_catalog.trigger'::regtype
+      and (has_function_privilege('anon', p.oid, 'EXECUTE')
+        or has_function_privilege('authenticated', p.oid, 'EXECUTE'))),
+  0,
+  'ninguna funcion de trigger queda expuesta como RPC'
 );
 
 
