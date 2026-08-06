@@ -1,3 +1,19 @@
+# Dependencias
+node_modules
+/.pnp
+.pnp.*
+
+# Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+
+# Pruebas
+/coverage
+
 # Logs
 logs
 *.log
@@ -7,18 +23,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Variables de entorno. NEXT_PUBLIC_* viaja al navegador (D-28), pero el archivo
+# no se versiona igualmente: CLOUDINARY_API_SECRET vive aqui.
 .env
 .env.*.local
+*.local
+!.env.example
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.pem
 *.suo
 *.ntvs*
 *.njsproj

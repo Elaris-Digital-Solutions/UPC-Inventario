@@ -1,0 +1,256 @@
+/* Lenguaje visual de UPC-Inventario (D-23).
+ *
+ * Los VALORES son los del Vite, uno a uno -git show
+ * legacy/vite-final:src/index.css-. Lo unico que cambia es la sintaxis: alli los
+ * tokens eran HSL crudo -"356 95% 45%"- y el config los envolvia con
+ * hsl(var(--x)); aqui son colores completos -hsl(356 95% 45%)- y el @theme los
+ * referencia con var(--x) a secas.
+ *
+ * El motivo no es estetico. shadcn 4 escribe sus tokens en formato completo, y
+ * al correr `init` inyecto su propia paleta al final del archivo, ganando por
+ * cascada: --primary paso de rojo UPC a gris. Los dos formatos no conviven en un
+ * mismo @theme. Se adopto el suyo para que cada `shadcn add` de las tandas 2 y 3
+ * encaje en vez de pelearse. Ver D-30.
+ *
+ * Lo que NO se copia del original es su linea 1, el
+ * @import url('https://fonts.googleapis.com/...'). Es una peticion bloqueante a
+ * un tercero en el camino critico del primer render, y choca de frente con la
+ * CSP de la tanda 4 -mantenerla obliga a abrir fonts.googleapis.com en style-src
+ * y fonts.gstatic.com en font-src, o sea a debilitar la politica por comodidad-.
+ * Las fuentes las sirve next/font desde el propio dominio.
+ *
+ * `@theme inline` no es un detalle: hace que Tailwind sustituya la expresion
+ * dentro de cada utilidad en vez de congelar el valor en :root, que es lo que
+ * permite que .dark siga cambiando los colores por cascada.
+ */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Tailwind 4 no tiene darkMode: ["class"] en un config; la variante se declara. */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: hsl(0 0% 98%);
+  --foreground: hsl(0 0% 12%);
+
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 12%);
+
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 12%);
+
+  --primary: hsl(356 95% 45%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  --secondary: hsl(0 0% 95%);
+  --secondary-foreground: hsl(0 0% 12%);
+
+  --muted: hsl(0 0% 93%);
+  --muted-foreground: hsl(0 0% 40%);
+
+  --accent: hsl(356 95% 95%);
+  --accent-foreground: hsl(356 95% 35%);
+
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  --border: hsl(0 0% 88%);
+  --input: hsl(0 0% 88%);
+  --ring: hsl(356 95% 45%);
+
+  --radius: 0.75rem;
+
+  /* shadcn 4 llama a este token --sidebar, no --sidebar-background como el
+   * shadcn del Vite. El nombre se moderniza; el valor es el mismo. */
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(356 95% 45%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(356 95% 95%);
+  --sidebar-accent-foreground: hsl(356 95% 35%);
+  --sidebar-border: hsl(0 0% 88%);
+  --sidebar-ring: hsl(356 95% 45%);
+
+  /* Tokens propios de UPC */
+  --upc-red: hsl(356 95% 45%);
+  --upc-red-dark: hsl(356 95% 35%);
+  --upc-red-light: hsl(356 95% 93%);
+  --upc-gray: hsl(0 0% 55%);
+  --upc-dark: hsl(0 0% 15%);
+
+  /* Serie de graficos. El Vite no tenia: la trajo shadcn, en gris, y se
+   * reemplazo por una escala del rojo UPC hacia los neutros. Se revisa en la
+   * tanda 3, que es cuando existe /admin/estadisticas y hay algo que pintar. */
+  --chart-1: hsl(356 95% 45%);
+  --chart-2: hsl(356 60% 60%);
+  --chart-3: hsl(0 0% 55%);
+  --chart-4: hsl(0 0% 35%);
+  --chart-5: hsl(0 0% 15%);
+
+  --gradient-hero: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 35%));
+  --gradient-hero-overlay: linear-gradient(180deg, hsl(0 0% 0% / 0.6), hsl(0 0% 0% / 0.3));
+  --shadow-card: 0 4px 24px -4px hsl(0 0% 0% / 0.08);
+  --shadow-card-hover: 0 8px 32px -4px hsl(356 95% 45% / 0.15);
+}
+
+.dark {
+  --background: hsl(0 0% 8%);
+  --foreground: hsl(0 0% 95%);
+  --card: hsl(0 0% 11%);
+  --card-foreground: hsl(0 0% 95%);
+  --popover: hsl(0 0% 11%);
+  --popover-foreground: hsl(0 0% 95%);
+  --primary: hsl(356 95% 50%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 16%);
+  --secondary-foreground: hsl(0 0% 95%);
+  --muted: hsl(0 0% 16%);
+  --muted-foreground: hsl(0 0% 60%);
+  --accent: hsl(356 95% 16%);
+  --accent-foreground: hsl(356 95% 80%);
+  --destructive: hsl(0 62% 30%);
+  --destructive-foreground: hsl(0 0% 95%);
+  --border: hsl(0 0% 20%);
+  --input: hsl(0 0% 20%);
+  --ring: hsl(356 95% 50%);
+
+  --sidebar: hsl(0 0% 11%);
+  --sidebar-foreground: hsl(0 0% 95%);
+  --sidebar-primary: hsl(356 95% 50%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(356 95% 16%);
+  --sidebar-accent-foreground: hsl(356 95% 80%);
+  --sidebar-border: hsl(0 0% 20%);
+  --sidebar-ring: hsl(356 95% 50%);
+
+  --chart-1: hsl(356 95% 55%);
+  --chart-2: hsl(356 60% 68%);
+  --chart-3: hsl(0 0% 65%);
+  --chart-4: hsl(0 0% 50%);
+  --chart-5: hsl(0 0% 80%);
+}
+
+/* El theme.extend del tailwind.config.ts del Vite, traducido una vez. */
+@theme inline {
+  --font-sans: var(--font-montserrat), Arial, Helvetica, sans-serif;
+  --font-serif: var(--font-playfair), Georgia, Cambria, serif;
+  --font-display: var(--font-playfair), Georgia, Cambria, serif;
+  --font-heading: var(--font-playfair), Georgia, Cambria, serif;
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-upc-red: var(--upc-red);
+  --color-upc-red-dark: var(--upc-red-dark);
+  --color-upc-red-light: var(--upc-red-light);
+  --color-upc-gray: var(--upc-gray);
+  --color-upc-dark: var(--upc-dark);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+
+  /* Las dos animaciones del acordeon de shadcn. En el Vite las traia el plugin
+   * tailwindcss-animate, cuyo require() en un archivo TypeScript era uno de los
+   * 59 errores de lint que D-7 declaro no bloqueantes. Aqui son CSS. */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* El container centrado del Vite. En Tailwind 4 no se configura, se declara. */
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  max-width: 1400px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .text-gradient-upc {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 30%));
+  }
+
+  .bg-gradient-upc {
+    background: linear-gradient(135deg, hsl(356 95% 45%), hsl(356 95% 32%));
+  }
+
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, hsl(356 95% 40%), hsl(356 95% 28%), hsl(0 0% 12%));
+  }
+}

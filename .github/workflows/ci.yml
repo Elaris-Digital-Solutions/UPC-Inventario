@@ -36,15 +36,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # NO BLOQUEANTE hasta la Fase 2.
-      # Hoy hay 59 errores, casi todos `no-explicit-any` en src/services/,
-      # src/types/Database.ts y un require() en tailwind.config.ts. Ese código
-      # se elimina al migrar a Next.js, así que corregirlo sería trabajo tirado.
-      # Al cerrar la Fase 2 hay que quitar el continue-on-error de acá abajo.
-      # Ver MIGRATION_DOCS/ESTADO_Y_PLAN.md, sección 3 (Deuda).
+      # BLOQUEANTE desde la tanda 0 de la Fase 2 (2026-08-06).
+      #
+      # D-7 lo dejó sin bloquear con un motivo concreto: «los 59 errores viven en
+      # código que la migración elimina», así que corregirlos sería trabajo
+      # tirado. Ese motivo murió en la tanda 0.3, cuando ese código dejó de
+      # existir. El diseño lo colocaba en la tanda 4; adelantarlo evita acumular
+      # deuda nueva durante tres tandas, que es justo lo que D-7 no quería.
+      #
+      # El árbol de Next.js sale limpio de lint, así que esto no frena nada hoy.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Tests
         run: npm run test
@@ -52,10 +54,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      # NO BLOQUEANTE: informa vulnerabilidades sin frenar el trabajo.
-      # Al 2026-08-05: 15 vulnerabilidades (1 crítica en vitest, 9 altas en vite,
-      # postcss, undici, ws, lodash…), casi todas devDependencies del stack Vite.
-      # Se vuelve bloqueante cuando el árbol de dependencias sea el de Next.js.
+      # SIGUE NO BLOQUEANTE, hasta la tanda 4.
+      # El árbol de Vite traía 15 vulnerabilidades (1 crítica en vitest, 9 altas
+      # en vite, postcss, undici, ws, lodash…). El de Next.js reporta **0**,
+      # medido el 2026-08-06 tras instalarlo. Se deja sin bloquear un poco más
+      # a propósito: el árbol acaba de nacer y conviene ver qué reporta cuando
+      # las tandas 1 a 3 le añadan dependencias, antes de frenar con ello.
       # Ver Q-10 en MIGRATION_DOCS/ESTADO_Y_PLAN.md.
       - name: Auditoría de dependencias
         run: npm audit --audit-level=high

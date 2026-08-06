@@ -18,7 +18,7 @@ begin;
 
 set local search_path = extensions, public, pg_catalog;
 
-select plan(3);
+select plan(4);
 
 
 select is(
@@ -70,6 +70,31 @@ select is(
         or has_function_privilege('authenticated', p.oid, 'EXECUTE'))),
   0,
   'ninguna funcion de trigger queda expuesta como RPC'
+);
+
+
+-- El hueco que destapo el diseno de la Fase 2: la asercion de arriba vigila las
+-- funciones de TRIGGER, pero nadie afirmaba lo mismo de las RPC de verdad.
+--
+-- Importa ahora porque D-19 recrea create_reservation con CREATE OR REPLACE. La
+-- documentacion dice que reemplazar una funcion conserva sus privilegios, y esta
+-- MEDIDO contra esta misma base el 2026-08-06: tras el replace, anon sigue en
+-- false. El contraejemplo tambien se midio -drop + create lo devuelve a true-,
+-- que es el motivo de que la migracion de D-19 no lleve un drop delante.
+--
+-- Si alguna vez alguien la recreara con DROP + CREATE, la RPC volveria a
+-- publicarse en /rest/v1/rpc/ para el rol anonimo sin que nada lo notara.
+--
+-- btree_gist y pgtap viven en `extensions`, asi que public no tiene funciones de
+-- extension que ensucien este conteo.
+select is(
+  (select count(*)::int
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prorettype <> 'pg_catalog.trigger'::regtype
+      and has_function_privilege('anon', p.oid, 'EXECUTE')),
+  0,
+  'ninguna funcion de public es ejecutable por anon'
 );
 
 

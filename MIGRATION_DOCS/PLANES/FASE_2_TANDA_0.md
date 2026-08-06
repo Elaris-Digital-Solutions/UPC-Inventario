@@ -1,5 +1,124 @@
 # Fase 2 · Tanda 0 — Cimientos · Plan de implementación
 
+---
+
+## ⚠ Correcciones tras ejecutar — 2026-08-06
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, y se anota aquí para no
+> borrar lo aprendido. Ejecutado el 2026-08-06 en las ocho tareas.
+
+### Los cuatro puntos a verificar, resueltos midiendo
+
+| # | Respuesta | Evidencia |
+|---|---|---|
+| **1** | **`create or replace` conserva el `revoke`: sí.** | Medido en local con una función sonda: antes del replace `anon = f`, después `anon = f`. **Y el contraejemplo también:** `drop` + `create` la devuelve a `anon = t`. Por eso la migración de D-19 no lleva un `drop` delante — no era una precaución teórica |
+| **2** | **Ninguna función de `public` es ejecutable por `anon`.** | Las cinco RPC con `anon = f`, `auth = t`, y nada más en la lista. El conteo de la aserción nueva da cero, y pasó ya en la primera corrida |
+| **3** | **`gen types --local` funciona con el stack recortado.** | Medido parando el contenedor `postgres-meta` y volviendo a generar: la CLI anuncia `Connecting to db 5432` y sale por conexión directa. **El paso va en `db.yml` sin devolverle ningún servicio.** Simulado además el `diff -u` completo: limpio |
+| **4** | **Tailwind 4 + shadcn 4 + Next.js 16 se llevan bien.** No se baja a 3.4. | Build limpio, y el `<Button>` hereda el rojo UPC sin tocarle nada: `--primary` resuelve a `#e00614`, y a `#f90617` dentro de `.dark`. La fricción no fue de compatibilidad sino de **formato de tokens** → D-30 |
+
+### Lo que el plan decía y no era cierto
+
+1. **`19_function_hardening.sql` ya tenía `plan(3)`, no `plan(2)`.** Sube a `plan(4)`. El plan contó mal:
+   el archivo tenía tres aserciones —dos de `search_path` y una de funciones de trigger—, no dos.
+
+2. **Fallaron las cuatro pruebas de `28_duration_slot.sql`, no dos.** El plan predecía que la tercera y la
+   cuarta pasarían ya. Ninguna de las dos razones era la esperada, y la segunda es la interesante:
+   - La **cuarta** falla porque `min_duration_minutes` valía **15**, así que 20 minutos *sí* entraba en
+     rango y la reserva se creaba. El plan razonó como si el mínimo ya fuera 30.
+   - La **tercera** falla **en cascada por culpa de la segunda**: como 45 minutos hoy se acepta, esa
+     llamada crea una reserva real y consume el cupo diario del producto, así que la de 30 minutos recibe
+     `Ya tienes una reserva de este producto para ese dia`. **Las aserciones de un archivo pgTAP comparten
+     una sola transacción**, así que una prueba que hoy «pasa de más» contamina a la siguiente. Al aplicar
+     D-19 las cuatro pasan, sin tocar la prueba.
+
+3. **`29_available_slots.sql`, tal como lo trae el plan, no puede funcionar.** Inserta el día inhabilitado
+   **después** de `set local role authenticated`, y un alumno no inhabilita días: RLS lo rechaza con
+   `new row violates row-level security policy for table "disabled_days"`. Corregido sacando el `insert`
+   fuera del rol. **Las cuatro aserciones anteriores ya habían pasado**, así que el fallo era de la prueba
+   y no de la función. Que haga falta salir del rol para montar el escenario es, de paso, la prueba de que
+   la política está puesta.
+
+4. **El total no es 134 aserciones sino 135.** El plan olvidó contar la aserción de cobertura que añade la
+   propia Task 1.
+
+5. **Matiz de la Task 2 Step 2:** el plan espera ver el error seis veces. Se ve **una**: psql aborta la
+   transacción en el primer `function ... does not exist` y el resto no llega a ejecutarse.
+
+6. **`--src-dir=false` no es un flag válido** de `create-next-app`. El correcto es **`--no-src-dir`**.
+
+7. **`create-next-app` genera su propio `CLAUDE.md`,** y el plan solo excluía de la copia `public/`,
+   `README.md` y `.gitignore`. Con `Copy-Item -Force` **habría pisado las reglas de trabajo del proyecto**,
+   sin error y sin aviso. Excluido. Su `AGENTS.md` **sí se conserva**: son las reglas oficiales de Next.js
+   16, que abren avisando «*This is NOT the Next.js you know*» y remiten a los docs de la versión
+   instalada. Se enlaza desde `CLAUDE.md` con `@AGENTS.md`.
+
+8. **`typecheck` no puede ser solo `tsc --noEmit`.** Next.js 16 **tipa las rutas**: `LayoutProps<"/">` es
+   un tipo *generado* a partir del árbol de `app/`, vive en `.next/`, y `.next/` está en `.gitignore`. En
+   un runner limpio el paso habría fallado con `Cannot find name 'LayoutProps'`. El script pasa a ser
+   `next typegen && tsc --noEmit`, verificado borrando `.next` entero.
+
+9. **El lint necesitaba ignores propios**, y el plan no lo previó. `eslint .` recorría `dist/` —el bundle
+   minificado de Vite, que **seguía en el disco** porque nunca estuvo versionado y por eso el `git rm` de
+   la Task 3 no lo tocó—, `.remember/` y `supabase/.temp/`: 1.463 de los 1.672 problemas. Importa más de
+   lo que parece, porque desde esta tanda **el lint bloquea**: un ignore que falte es un PR que no entra.
+
+10. **`vitest` no venía instalado.** El script `test` del plan lo invoca y `create-next-app` no lo trae, así
+    que el paso del CI habría fallado por «command not found». Instalado como `devDependency` — el diseño
+    §13 ya lo prevé como arnés de la tanda 2.
+
+11. **`tailwind.config.ts` no podía quedarse en el árbol.** Rompía el typecheck contra Tailwind 4
+    (`darkMode: ["class"]` no encaja en `DarkModeStrategy`). Sale del árbol y su `theme.extend` se traduce
+    a `@theme` en el CSS, que es lo que la Task 5 pedía. Se recupera con
+    `git show legacy/vite-final:tailwind.config.ts`.
+
+12. **`shadcn` 4 tiene otra API y `init` es interactivo.** No existe `--base-color`; ahora es
+    `--base <base>` *(base, radix, aria)* y `--preset <nombre>` de ocho temas, sin opción «custom» por CLI.
+    Se eligió **radix**, que es sobre lo que estaba construido el shadcn del Vite.
+
+13. **`shadcn init` pisa los tokens, y en silencio.** Añade su propia paleta en `oklch` **al final** de
+    `globals.css`, así que gana por cascada: `--primary` pasó de rojo UPC a `oklch(0.205 0 0)`, gris casi
+    negro, y `--radius` de `0.75rem` a `0.625rem`. Sin error, sin warning, con el build en verde. También
+    enganchó la fuente **Geist** como `--font-sans` en `layout.tsx` —contra D-23—, se instaló a sí mismo
+    como **dependencia de producción**, y dejó tokens `--chart-1..5` apuntando a variables inexistentes.
+    Todo reconciliado. **Un token pisado por cascada no se ve leyendo el archivo por arriba: hay que
+    leerlo entero o mirar el CSS emitido, porque quien gana es el último.**
+
+### Decisión nueva
+
+**D-30 · Los tokens de diseño se escriben en formato de color completo** —`hsl(356 95% 45%)`—, no en el
+HSL crudo del Vite —`356 95% 45%`—, y el `@theme` los referencia con `var(--x)` en vez de envolverlos con
+`hsl(var(--x))`. **Los valores no cambian: uno a uno son los mismos.** El motivo es que shadcn 4 escribe
+así, los dos formatos no conviven en un mismo `@theme`, y mantener el viejo obligaría a limpiar la
+inyección de la CLI en cada `shadcn add` de las tandas 2 y 3.
+
+### Lo que salió bien y conviene no perder
+
+- **El grep previo a la Task 1 Step 4 no encontró nada.** Ninguna prueba de la Fase 1 usa una duración que
+  D-19 invalide: las llamadas pasan 120, 60 y 300 minutos, y las tres son múltiplos de 30. El riesgo nº 1
+  de la autorrevisión no se materializó, pero la comprobación costó un minuto.
+- **El conteo de franjas dio 25 a la primera**, sin tocar el número de la aserción.
+- **La excepción D-8 de los cuatro `.xlsx` sobrevivió** a la fusión del `.gitignore`, verificada con
+  `git check-ignore`. Era el riesgo nº 2.
+- **La batería pgTAP no se enteró de que se borró el Vite:** 135 en verde antes y después.
+
+### Cómo se cerró: sin CI, y anotado
+
+**La tanda entró en `develop` sin una sola corrida de CI** *(D-31)*. Lo impidió una caída mayor de GitHub
+Actions que duró todo el 2026-08-06, no nada del trabajo. **La firma, medida dos días seguidos:** al
+empujar el commit, `vercel`, `netlify` y `claude` crean su check-suite y `github-actions` no crea ninguna.
+Cuando tres apps reaccionan al mismo commit y una no, el problema es de la cuarta.
+
+**Lo que entró sin corrida es esto entero:** las dos migraciones de D-19 y D-20, las 11 aserciones pgTAP
+nuevas, el borrado del árbol Vite y el andamio de Next.js 16 completo.
+
+**Lo que lo sustituye:** ambos workflows simulados sobre un clon limpio, paso a paso, todos en `exit=0`.
+**Lo que lo cubre:** el primer PR de la tanda 1 los corre sobre un `develop` que ya incluye este código.
+**Si esa corrida sale roja, lo primero que se sospecha es esta tanda, no el cambio nuevo.** Ahí se cierra
+también **Q-15**, el `.gitattributes` con `eol=lf` que no se añadió aquí justamente por no renormalizar
+archivos en un PR que nadie iba a poder validar.
+
+---
+
 **Goal:** dejar el repositorio listo para construir pantallas, y **sin una sola pantalla construida**. Al
 final de esta tanda el stack respira —Next.js arranca, el CI pasa, los tipos salen del esquema— y no hay
 ninguna ruta de negocio. Es deliberado: todo lo que sale mal aquí sale mal barato.

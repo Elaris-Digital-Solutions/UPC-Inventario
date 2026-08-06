@@ -22,7 +22,7 @@ y qué comando la verifica.
 
 | Plan | Tanda | Estado |
 |---|---|---|
-| [`FASE_2_TANDA_0.md`](./FASE_2_TANDA_0.md) | Cimientos: borrar el Vite, Next.js, tokens, tipos, y las dos últimas migraciones | 📝 escrito el 2026-08-06 · 4 correcciones al diseño · sin ejecutar |
+| [`FASE_2_TANDA_0.md`](./FASE_2_TANDA_0.md) | Cimientos: borrar el Vite, Next.js, tokens, tipos, y las dos últimas migraciones | ✅ ejecutado el 2026-08-06 · 4 correcciones al diseño + **13 al plan** · 4 puntos a verificar resueltos |
 
 ## Cómo leerlos
 
@@ -38,8 +38,16 @@ estar el motivo.
 
 ## Al escribir el plan de una tanda nueva
 
-1. Sale del diseño (`FASE_1_DISENO.md`), no de la imaginación.
-2. Cada tarea: prueba que falla → verla fallar → SQL mínimo → verla pasar → commit.
+1. Sale del diseño (`FASE_1_DISENO.md` o `FASE_2_DISENO.md`), no de la imaginación.
+2. Cada tarea: prueba que falla → verla fallar → cambio mínimo → verla pasar → commit.
 3. Lo que no se sepa con certeza se marca como **punto a verificar**, con los dos desenlaces posibles y
    qué se hace en cada uno. No se resuelve suponiendo.
 4. Al terminar, se añade la cabecera de correcciones. Sin ella el plan miente por omisión.
+
+> **Lo que añadió la tanda 0 de la Fase 2 a esta lista.** Cuando un paso invoca una herramienta que
+> *genera* código —`create-next-app`, `shadcn init`—, el plan tiene que decir **qué se comprueba después
+> de que escriba**, no solo qué comando se corre. Esa tanda acumuló trece correcciones y las tres peores
+> son de ese tipo: un generador que pisa `CLAUDE.md`, otro que pisa la paleta por cascada, y un script de
+> `package.json` que funciona en la máquina donde se acaba de generar y fallaría en un runner limpio.
+> **Ninguna daba error.** El SQL de la Fase 1 no tenía esta clase de riesgo, porque nadie escribía
+> migraciones por ti.

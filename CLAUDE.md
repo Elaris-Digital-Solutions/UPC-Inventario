@@ -11,6 +11,13 @@ reconstruyendo primero la base de datos.
 > reescriben tras ejecutar:** lo que la ejecución desmiente va en una cabecera de correcciones, para no
 > borrar lo aprendido.
 
+@AGENTS.md
+
+> `AGENTS.md` lo generó `create-next-app` y son las reglas oficiales de **Next.js 16**, que abre avisando
+> «*This is NOT the Next.js you know*» y remite a los docs de la versión instalada en
+> `node_modules/next/dist/docs/`. Se conserva porque este proyecto ya pagó ese aviso a mano: el archivo de
+> proxy se llama `proxy.ts` y no `middleware.ts` desde la 16, y se descubrió midiendo.
+
 ## Cómo se trabaja
 
 **Claude no escribe en el remoto.** Nada de `git push`, PRs, merges, ramas remotas ni protecciones de rama.
@@ -56,9 +63,10 @@ que sostiene un commit, borrarla lo pierde. Tags vivos: `legacy/vite-final` y `l
 
 ## Estado
 
-**Fases 0 y 1 cerradas.** La base de datos está terminada y probada: 19 migraciones, 124 aserciones pgTAP
-en 20 archivos, las 13 tablas con RLS y políticas. Diseño en `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado
-en cuatro tandas con un PR cada una, más un arreglo posterior.
+**Fases 0 y 1 cerradas, y la base de datos está terminada del todo.** La Fase 1 dejó 19 migraciones y 124
+aserciones pgTAP; la **tanda 0 de la Fase 2** añadió las dos últimas migraciones del proyecto: **21
+migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. Diseño en
+`MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
 | Tanda | Contenido | Estado |
 |---|---|---|
@@ -87,12 +95,38 @@ nadie e insertaría cero filas **sin dar error**.
 ## Fase 2 en marcha
 
 **Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
-cada una *(D-27)*: **T0** cimientos —borrar Vite, Next.js, tokens, tipos, y las dos últimas migraciones—,
-**T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-29; cerrados
-Q-7, Q-11 y Q-12; abierto Q-14.
+cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento.
+Decisiones D-19 a D-31; cerrados Q-7, Q-11 y Q-12; abiertos Q-14 y Q-15.
 
-**Plan de la T0 listo y sin ejecutar: `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.** Ocho tareas y cuatro
-puntos a verificar. **Ninguna pantalla de negocio**: al cerrar, el stack respira y no hay una sola ruta.
+**T0 cerrada el 2026-08-06.** Ocho commits numerados, 0.1 a 0.8. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
+Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
+CI adaptado. Las dos últimas migraciones del proyecto *(D-19, D-20)*: **21 migraciones y 135 aserciones
+pgTAP**. **Desde aquí ninguna tanda vuelve a tocar SQL.** Correcciones en
+`MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`. **Siguiente: T1, la sesión** — `@supabase/ssr`, `proxy.ts`,
+magic link y Microsoft, y sembrar el primer admin. Cierra P0-3.
+
+**La T0 entró sin CI** *(D-31)*: una caída mayor de GitHub Actions impidió correrlo el 2026-08-06, y los
+dos workflows se simularon enteros sobre un clon limpio en su lugar. **Consecuencia para la T1: su primer
+PR es también la primera corrida real de la T0.** Si sale roja, lo primero que se sospecha es la T0 y no
+el cambio nuevo. Ahí se cierra **Q-15**, el `.gitattributes` con `eol=lf`.
+
+**Estado del árbol tras la T0:** `app/` con el andamio y **ninguna pantalla de negocio** —`/` es un
+marcador de posición, la landing es la tarea 2.5—, `components/ui/` con `button` y `card`, `lib/utils.ts`
+y `lib/database.types.ts` *(generado, nunca a mano)*. El **lint bloquea** el CI desde esta tanda; la
+auditoría de dependencias no, hasta la T4, aunque el árbol nuevo reporta **0 vulnerabilidades**.
+
+**Tres trampas que la T0 midió, y ninguna daba error.** Cuando un paso invoca una herramienta que
+*genera* código, hay que comprobar qué escribió:
+
+1. **`shadcn init` pisa los tokens por cascada.** Inyecta su paleta en `oklch` **al final** de
+   `globals.css` y gana el último: `--primary` pasó de rojo UPC a gris casi negro con el build en verde.
+   De ahí **D-30** —los tokens se escriben en formato de color completo, `hsl(356 95% 45%)`—. También
+   enganchó la fuente Geist contra D-23 y se instaló como dependencia de producción.
+2. **`create-next-app` genera su propio `CLAUDE.md`.** Copiar con `-Force` habría borrado este archivo.
+   Su `AGENTS.md` sí se conserva: son las reglas de Next.js 16 y están enlazadas arriba.
+3. **`typecheck` es `next typegen && tsc --noEmit`, no `tsc` a secas.** Next 16 tipa las rutas,
+   `LayoutProps` se genera desde `app/` y vive en `.next/`, que está en `.gitignore`. Con `tsc` solo, el
+   CI falla en un runner limpio aunque en local pase.
 
 **Lo único que hay que no estropear: la autorización ya vive en la base.** Ningún control del cliente es
 un control. El proxy redirige, el layout es comodidad, el componente oculta, y **quien decide es RLS**. Si
