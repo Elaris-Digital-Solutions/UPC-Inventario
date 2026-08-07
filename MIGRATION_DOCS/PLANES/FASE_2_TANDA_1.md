@@ -1,5 +1,49 @@
 # Fase 2 · Tanda 1 — La sesión · Plan de implementación
 
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
+> tarea y no al final, para no perderlo.
+
+### Task 1 · El `.gitattributes` no hacía lo que el plan creía que hacía
+
+1. **`git add --renormalize .` cambió CERO archivos.** El Step 2 pedía «anotar cuántos archivos toca»
+   dando por hecho que renormalizar produce ruido, y por eso la tarea iba sola y primera. **No hay ruido
+   que aislar: todo el repositorio ya estaba en LF.** Lo confirma lo que la tanda 0 había medido —el blob
+   versionado coincidía byte a byte con lo que genera la CLI— y esta tarea lo extiende a los 89 archivos:
+   ninguno cambia de contenido. El aislamiento del commit deja de ser una precaución y pasa a ser
+   ordenado, pero la razón para tomarla era correcta con la información de entonces.
+
+2. **Y por eso el trabajo real era otro, que el plan no menciona: refrescar el árbol de trabajo.** El
+   `.gitattributes` arregla lo que se materializa en un checkout **futuro**; los archivos que ya están en
+   el disco siguen con CRLF hasta que algo los reescriba. Medido: tras crear el archivo y renormalizar,
+   `lib/database.types.ts`, `package.json`, `db.yml`, `config.toml`, `CLAUDE.md` y `globals.css` seguían
+   todos en CRLF. **El diff falso de Q-15 seguía ahí con el `.gitattributes` ya escrito.**
+
+3. **Dos formas de refrescar que NO funcionan, y las dos parecen que sí:**
+   - **`.gitattributes` sin añadir al índice no aplica a un checkout.** Git lee los atributos del árbol
+     que está desplegando, no del disco. Con el archivo escrito pero sin `git add`, `check-attr` ya
+     contesta `eol: lf` —porque eso sí mira el disco— y un checkout sigue escribiendo CRLF. **Las dos
+     respuestas son ciertas y contradictorias**, que es lo que hace que cueste verlo.
+   - **`git checkout-index -a -f` no reescribe los archivos que ya existen**, ni con `-f`. Devuelve `0` y
+     no toca nada. Verificado: los seis archivos seguían en CRLF después de correrlo.
+   → Lo que sí funciona es borrar y recuperar: `rm <archivo>` y `git checkout -- <archivo>` devuelve el
+   archivo en LF. Comprobado sobre `package.json` y sobre `lib/database.types.ts`.
+
+4. **El refresco completo tiene que ir DESPUÉS del commit**, y esto es un orden que se puede estropear sin
+   darse cuenta. La receta habitual es `git reset --hard`, y con `.gitattributes` solo en el índice **eso
+   lo borra**: `reset --hard` deja índice y disco igual que `HEAD`, y el archivo todavía no está en `HEAD`.
+   Se commitea primero, se refresca después.
+
+> **Lo que esta tarea enseña, y no es sobre finales de línea:** `check-attr` decía que el atributo estaba
+> puesto, `checkout-index` terminaba en `0`, y el problema seguía intacto. **Dos herramientas contestando
+> «bien» a preguntas que no eran la pregunta.** La única comprobación que servía era mirar el byte:
+> ¿tiene este archivo un `\r` dentro?
+
+---
+
 > Escrito el 2026-08-06, **antes de ejecutar nada**. Sale de
 > [`FASE_2_DISENO.md`](../FASE_2_DISENO.md) §7, §8 y §12, no de la imaginación.
 > Al terminar, la cabecera de correcciones va **arriba de este párrafo**, fechada.
