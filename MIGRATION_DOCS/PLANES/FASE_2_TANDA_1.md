@@ -2,10 +2,10 @@
 
 ---
 
-## 📍 Dónde se paró — 2026-08-07, 20:24
+## 📍 Dónde se paró — 2026-08-07, segunda pausa
 
 > **Bloque temporal.** Se borra al cerrar la tanda, igual que se hizo con la sección 0 de
-> `ESTADO_Y_PLAN.md`.
+> `ESTADO_Y_PLAN.md`. **Reescrito entero en la segunda pausa:** lo que decía antes está superado.
 
 | Tarea | Estado |
 |---|---|
@@ -15,33 +15,73 @@
 | **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
 | **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
 | **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
-| **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fabrica no servia** *(corrección 23)* |
+| **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fábrica no servía** *(corrección 23)* |
 | **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
-| **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, verificado en los dos sentidos |
-| **Task 9** · sembrar el primer admin | ⬅ **SIGUIENTE**. La ejecuta Alejandro |
-| Task 10 | pendiente |
+| **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, y el formulario medido de punta a punta *(corrección 42)* |
+| **Task 9** · sembrar el primer admin | ⬅ **SIGUIENTE**. Toca producción y **la ejecuta Alejandro**. Bloqueada por las plantillas del dashboard |
+| **Task 10** · cierre | pendiente. Es la que puede adelantarse: no depende de la 9 salvo su último paso |
 
-**Estado de git:** rama `feature/fase-2-tanda-1`, **8 commits** (1.1 a 1.8), árbol limpio, **sin publicar
-—no hay rama remota ni PR—**. `develop` está en `8a3731e`.
+### Estado exacto al pausar
 
-**Estado de la base:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
-archivos** · `auth.users` en producción con **cero filas**.
+**Git:** rama `feature/fase-2-tanda-1`, HEAD en **`ae3b5d7`**, **árbol limpio**. Nueve commits por encima de
+`develop` (`8a3731e`): el de anotación `6337b7e` más los ocho de la tanda, **1.1 a 1.8**. **Nada publicado:
+no hay rama remota ni PR.** En el remoto solo viven `main` y `develop` *(D-29 restaurado: la
+`docs/plan-fase-2-tanda-1` que había sobrado del PR #20 se borró en esta sesión)*.
 
-**Lo que NO hay que rehacer:** la migración 22 ya está en el remoto, el enganche ya está activo en el
-dashboard y ya se comprobó con una petición real, y Q-15 ya se verificó regenerando los tipos.
+**Base de producción:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
+archivos** · `auth.users` con **cero filas** · el enganche `before_user_created` **activo y verificado con
+una petición real**.
 
-**Pendiente de Alejandro, y bloquea la Task 9:** en el dashboard del proyecto real hay que cambiar **las
-dos plantillas de correo** —*Magic Link* y *Confirm signup*— para que apunten a
-`{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink` y `…&type=signup`. El
-`config.toml` solo configura el stack local *(corrección 23)*.
+**⚠ Base LOCAL contaminada, y hay que limpiarla antes de la batería.** Las sondas de las Tasks 6, 7 y 8
+crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` por el flujo real, y el trigger les
+puso fila en `alumnos`: **hay 7 usuarios y 6 alumnos donde el seed deja 4**. `14_rls_alumnos.sql` afirma un
+conteo fijo, así que **fallará hasta que se corra `npx supabase db reset`** *(corrección 10)*.
 
-**Y hace falta un `.env.local` que no se versiona** *(corrección 31)*. Sin él, `npm run dev` habla con el
-proyecto **real**. Se crea con `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` y la clave publicable que
-imprime `npx supabase start`. Lo ignora la regla `*.local` del `.gitignore`; el `.env.example` lo explica.
+### Lo que NO hay que rehacer
 
-**Trampa que espera en la Task 7:** los usuarios que siembra `seed.sql` llevan las columnas de token en
-`NULL` y **GoTrue devuelve `500` con cualquiera de ellos**. No sirven para probar el flujo de sesión en
-local; hay que crear usuarios nuevos por el flujo real *(corrección 8)*.
+- La **migración 22** ya está en el remoto y el enganche ya está activo en el dashboard, comprobado con una
+  petición real que devuelve `403`.
+- **Q-15** ya se cerró regenerando los tipos.
+- Las **dos plantillas de correo locales** ya están escritas en `supabase/templates/` y enganchadas en
+  `config.toml`, y el enlace resultante ya se verificó en Mailpit.
+- **Todo el código de la tanda está escrito y medido**: los tres clientes, el proxy, `/login`, el canje,
+  `/auth/error`, `/auth/signout`, el reparto y `/completar-perfil`.
+
+### Pendiente de Alejandro, y bloquea la Task 9
+
+**Las dos plantillas de correo del dashboard** del proyecto real, en *Authentication → Emails → Templates*.
+El `config.toml` solo configura el stack local *(corrección 23)*:
+
+- **Magic Link** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">`
+- **Confirm signup** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup">`
+
+Hacen falta **las dos**: GoTrue usa la segunda para quien entra por primera vez, que es exactamente el caso
+de la Task 9. Y conviene revisar que el *Site URL* de *URL Configuration* apunte a donde corra la aplicación,
+porque es lo que rellena `{{ .SiteURL }}`.
+
+### Cómo se levanta el entorno
+
+1. **Docker Desktop arrancado**, y `npx supabase start`. **Nunca `db reset` para aplicar `config.toml`:**
+   hace falta `stop` y `start` *(corrección 7)*.
+2. **`.env.local` tiene que existir y NO se versiona** *(corrección 31)*. Sin él, `npm run dev` habla con el
+   proyecto **real**, manda correos por su SMTP y le crea cuentas. Contenido:
+   `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` y la `PUBLISHABLE_KEY` que imprime `supabase start`.
+   El `.env.example` lo explica. **Comprobar que existe antes de tocar nada.**
+3. **Probar siempre por `http://127.0.0.1:3000`, nunca por `localhost:3000`.** El navegador los trata como
+   sitios distintos para las cookies y el `site_url` local es `127.0.0.1` *(corrección 27)*.
+4. Mailpit, para leer los correos: `http://127.0.0.1:54324`.
+
+### Trampas vigentes
+
+- Los usuarios de `seed.sql` llevan las columnas de token en `NULL` y **GoTrue devuelve `500` con
+  cualquiera de ellos** *(corrección 8)*. Para probar sesión hay que crear usuarios por el flujo real; los
+  dos `sonda.*` que ya existen sirven, y desaparecen con `db reset`.
+- `[auth.rate_limit] email_sent = 2` por hora en el `config.toml` local. Con muchas pruebas seguidas, el
+  envío empieza a rechazarse.
+- **Ninguna herramienta de este proyecto ha avisado de un fallo de conexión.** Los cuatro más caros de la
+  tanda —el enganche desactivado, el dev apuntando a producción, el cambio de host y la plantilla de
+  fábrica— pasaron con `typecheck`, `lint` y `build` en verde. **Lo único que los encontró fue pedir el
+  flujo entero y mirar el resultado.**
 
 ---
 
