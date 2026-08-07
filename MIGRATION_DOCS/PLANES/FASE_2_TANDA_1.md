@@ -14,10 +14,11 @@
 | **Task 2** · `.env` y `.env.example` | ✅ cerrada |
 | **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
 | **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
-| **Task 5** · `proxy.ts` en la raíz | ⬅ **SIGUIENTE**. Empieza por el Step 0: medir el JWKS |
-| Tasks 6 a 10 | pendientes |
+| **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
+| **Task 6** · `/login` con magic link | ⬅ **SIGUIENTE**. Empieza por el Step 0: mirar el correo en Mailpit |
+| Tasks 7 a 10 | pendientes |
 
-**Estado de git:** rama `feature/fase-2-tanda-1`, **4 commits** (1.1 a 1.4), árbol limpio, **sin publicar
+**Estado de git:** rama `feature/fase-2-tanda-1`, **5 commits** (1.1 a 1.5), árbol limpio, **sin publicar
 —no hay rama remota ni PR—**. `develop` está en `8a3731e`.
 
 **Estado de la base:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
@@ -182,6 +183,60 @@ apagado.
 **Verificado al cerrar la tarea, y las dos preguntas que ninguna herramienta contesta:** no hay **ninguna**
 constante de módulo con un cliente de servidor dentro, y `getSession(` no aparece en todo el árbol salvo en
 los comentarios que explican por qué no se usa. `typecheck`, `lint` y `build`, los tres en verde.
+
+### Task 5 · El plan no decía quién es privado, y una cabecera que no sobrevive
+
+17. **Punto a verificar 3, resuelto por el lado bueno: el JWKS sigue en ES256.** Remedido el 2026-08-07
+    contra `https://zqfkzgdyeqxzgzpxgadi.supabase.co/auth/v1/.well-known/jwks.json`: una sola clave, `kty:
+    EC`, `crv: P-256`, `alg: ES256`, `kid` `b65ec4a5-7e4d-4801-923d-bd4abe7dd148`. `getClaims()` verifica
+    la firma en local con WebCrypto y el proxy **no** paga una ida y vuelta por petición. No hay coste que
+    registrar y el código se escribe como estaba diseñado.
+
+18. **El plan no dice cómo decide el proxy qué ruta es privada, y son dos diseños con fallos opuestos.**
+    El Step 4 da por hecho que existe «una ruta privada» sin definir el criterio. **Se decidió lista
+    blanca:** se declara lo público —`/`, `/login`, `/auth`— y **todo lo demás pide sesión**. Falla cerrada,
+    que es la misma forma de la corrección 9: una pantalla nueva nace protegida sin que nadie tenga que
+    acordarse de añadirla. Con lista negra, la pantalla que alguien olvide añadir nace abierta.
+    → Medido: `/catalogo`, `/admin/inventario` y `/completar-perfil` redirigen **sin estar declaradas en
+    ningún sitio**. Esa es exactamente la propiedad que se compró.
+
+19. **Al redirigir hay que copiar las cookies a mano, y el plan no lo menciona.** `NextResponse.redirect()`
+    nace **vacío**: no hereda nada de la respuesta que construyó `updateSession`. Importa incluso cuando no
+    hay sesión, que es justo cuando el proxy redirige: si el refresco falló, Supabase escribe un `Set-Cookie`
+    que **borra** la cookie muerta, y perder ese borrado deja al navegador reintentando con una cookie que
+    ya no sirve. Se copian las cookies y **también el `Cache-Control`**, por el mismo motivo de la
+    corrección 14.
+
+20. **Punto a verificar 4, resuelto: el matcher se queda como está.** El proxy corre sobre `/auth/confirm`
+    y no interfiere —contesta `404` porque la ruta aún no existe, sin redirigir—. Con la lista blanca,
+    `/auth` es público, así que ahí el proxy **solo refresca**, que es precisamente lo que el canje
+    necesita. No hay que excluir `/auth/` del matcher.
+
+21. **Y un hallazgo que contradice a la corrección 14 en la mitad de los casos: Next.js pisa el
+    `Cache-Control` del proxy en las respuestas que renderiza una página.** Medido en `dev` sobre las seis
+    rutas: las tres **redirecciones** salen con `private, no-store`, pero `/` y `/login` salen con
+    `no-cache, must-revalidate`, que lo pone Next. **La cabecera sobrevive donde el proxy responde y se
+    pierde donde responde una página.** Hoy no hay riesgo —en esas rutas no hay sesión ni `Set-Cookie`—,
+    pero la corrección 14 existe para el caso contrario.
+    → **Pendiente de medir, y no se da por sabido:** repetirlo en la Task 7 con **sesión real**, y con
+    `next build` en vez de `dev`, porque las cabeceras de desarrollo no son las de producción. Si se
+    confirma, la mitigación tiene que mudarse de sitio.
+
+22. **Lo que el proxy deliberadamente NO hace, anotado para que no parezca un olvido:** no guarda la ruta
+    que se pidió. Quien abre un enlace profundo a `/catalogo/...` sin sesión aterriza en `/login` y después
+    va a donde diga `destino.ts`, no de vuelta. Es una carencia de comodidad, no de seguridad, y añadir un
+    parámetro `next=` sin validarlo es una redirección abierta. Se decide en la Task 8, con el reparto
+    delante.
+
+**Verificado al cerrar la tarea:** `typecheck` y `lint` en verde, y las seis sondas HTTP contra el servidor
+de desarrollo dando el resultado esperado **en los dos sentidos** —lo público pasa, lo no declarado
+rebota—. El `404` de `/login` **es** el resultado correcto de este paso: significa que el proxy decidió
+dejarlo pasar y todavía no hay pantalla que servir.
+
+**De paso, un detalle de reproducibilidad que no bloquea nada:** `supabase` no está en las dependencias del
+`package.json`, así que `npx` se descarga la CLI cada vez que no la encuentra en caché — y hoy trajo la
+**2.112.0**, no la 2.111.0 que fija este plan. La versión de la CLI del proyecto no está fijada en ningún
+sitio del repositorio.
 
 ---
 
