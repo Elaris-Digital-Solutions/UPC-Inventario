@@ -23,6 +23,7 @@ y qué comando la verifica.
 | Plan | Tanda | Estado |
 |---|---|---|
 | [`FASE_2_TANDA_0.md`](./FASE_2_TANDA_0.md) | Cimientos: borrar el Vite, Next.js, tokens, tipos, y las dos últimas migraciones | ✅ ejecutado el 2026-08-06 · 4 correcciones al diseño + **13 al plan** · 4 puntos a verificar resueltos |
+| [`FASE_2_TANDA_1.md`](./FASE_2_TANDA_1.md) | La sesión: `@supabase/ssr`, `proxy.ts`, magic link, completar perfil, sembrar el admin, y la puerta del dominio *(D-32)* | 📝 escrito el 2026-08-06 · **6 correcciones al diseño** · 6 puntos a verificar · **sin ejecutar** |
 
 ## Cómo leerlos
 
