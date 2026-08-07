@@ -96,7 +96,14 @@ nadie e insertaría cero filas **sin dar error**.
 
 **Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
 cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento.
-Decisiones D-19 a D-31; cerrados Q-7, Q-11 y Q-12; abiertos Q-14 y Q-15.
+Decisiones D-19 a D-32; cerrados Q-7, Q-11 y Q-12; abiertos Q-14, Q-15 y Q-16.
+
+**Plan de la T1 escrito el 2026-08-06: `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.** Once tareas y seis
+correcciones al diseño. **Dos cambios de alcance decididos al escribirlo:** **Microsoft sale** —el acceso
+al tenant de Entra ID de la UPC es poco probable, y queda como **Q-16**—, y **D-32 cierra la puerta del
+dominio un paso antes**, con un enganche *Before User Created* que rechaza el registro si el correo no es
+`@upc.edu.pe`. **Eso es la migración 22, y contradice a propósito el «ninguna tanda vuelve a tocar SQL»
+de la T0:** la frase se corrige fechada al cerrar la tanda, no se borra.
 
 **T0 cerrada el 2026-08-06.** Ocho commits numerados, 0.1 a 0.8. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
 Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
