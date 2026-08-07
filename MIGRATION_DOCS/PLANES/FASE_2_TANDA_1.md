@@ -15,10 +15,11 @@
 | **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
 | **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
 | **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
-| **Task 6** · `/login` con magic link | ⬅ **SIGUIENTE**. Empieza por el Step 0: mirar el correo en Mailpit |
-| Tasks 7 a 10 | pendientes |
+| **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fabrica no servia** *(corrección 23)* |
+| **Task 7** · canje, error y salida | ⬅ **SIGUIENTE** |
+| Tasks 8 a 10 | pendientes |
 
-**Estado de git:** rama `feature/fase-2-tanda-1`, **5 commits** (1.1 a 1.5), árbol limpio, **sin publicar
+**Estado de git:** rama `feature/fase-2-tanda-1`, **6 commits** (1.1 a 1.6), árbol limpio, **sin publicar
 —no hay rama remota ni PR—**. `develop` está en `8a3731e`.
 
 **Estado de la base:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
@@ -26,6 +27,11 @@ archivos** · `auth.users` en producción con **cero filas**.
 
 **Lo que NO hay que rehacer:** la migración 22 ya está en el remoto, el enganche ya está activo en el
 dashboard y ya se comprobó con una petición real, y Q-15 ya se verificó regenerando los tipos.
+
+**Pendiente de Alejandro, y bloquea la Task 9:** en el dashboard del proyecto real hay que cambiar **las
+dos plantillas de correo** —*Magic Link* y *Confirm signup*— para que apunten a
+`{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink` y `…&type=signup`. El
+`config.toml` solo configura el stack local *(corrección 23)*.
 
 **Trampa que espera en la Task 7:** los usuarios que siembra `seed.sql` llevan las columnas de token en
 `NULL` y **GoTrue devuelve `500` con cualquiera de ellos**. No sirven para probar el flujo de sesión en
@@ -237,6 +243,78 @@ dejarlo pasar y todavía no hay pantalla que servir.
 `package.json`, así que `npx` se descarga la CLI cada vez que no la encuentra en caché — y hoy trajo la
 **2.112.0**, no la 2.111.0 que fija este plan. La versión de la CLI del proyecto no está fijada en ningún
 sitio del repositorio.
+
+### Task 6 · La plantilla de correo de fábrica manda a Supabase, no a la aplicación
+
+23. **Punto a verificar 5, resuelto por el segundo desenlace, y era el que rompía el plan.** Medido en
+    Mailpit **antes** de escribir la pantalla, que es exactamente para lo que el Step 0 existe: el enlace
+    salía a
+    `http://127.0.0.1:54321/auth/v1/verify?token=…&type=magiclink&redirect_to=http://127.0.0.1:3000`.
+    Es decir, **al endpoint de Supabase, no a la aplicación**. Por ese camino quien verifica es GoTrue y
+    devuelve la sesión colgada del fragmento de la URL, y **lo que va después del `#` el servidor no lo ve
+    nunca**: no hay cookie de servidor, y ni el proxy de la Task 5 ni los layouts de la Task 8 tendrían
+    nada que leer. El canje con `verifyOtp` que diseña la Task 7 **no era alcanzable** con la plantilla de
+    fábrica.
+    → Se añaden dos plantillas propias en `supabase/templates/` y sus bloques en `config.toml`. Medido
+    después: el enlace ahora es `http://127.0.0.1:3000/auth/confirm?token_hash=…&type=magiclink`.
+    → **Y hacen falta las DOS, no una.** Con el usuario ya existente GoTrue usa `magic_link`; en el primer
+    acceso, si el proyecto tiene `enable_confirmations` activado —que es plausible en producción, y en
+    local está en `false`—, usa `confirmation`. Cambiar solo una deja el flujo roto **justo para quien
+    entra por primera vez**, que es el caso que menos se prueba.
+    → **Al plan le falta un paso, y es el mismo hueco de la corrección 12:** el `config.toml` solo
+    configura el stack local. En el proyecto real las dos plantillas se cambian **a mano en el dashboard**,
+    y sin eso la Task 9 no puede funcionar. Se ejecuta por Alejandro, por ser una escritura en producción.
+
+24. **`emailRedirectTo` sale del Step 1, y el flujo queda más estrecho.** Como la plantilla fija el destino
+    con `{{ .SiteURL }}`, no hace falta que el cliente proponga a dónde ir. **Ningún valor controlable por
+    quien pide el enlace decide a dónde lleva el enlace**, que es una superficie menos y encaja con la
+    corrección 22: nada de parámetros de redirección sin validar.
+
+25. **El Step 3 se resuelve por sustracción: el formulario NO filtra el dominio.** El plan permitía avisar
+    antes de enviar. Se decidió no hacerlo, y el motivo no es la simplicidad: **con el filtro puesto en el
+    formulario, los correos de fuera dejan de llegar al servidor y el enganche nunca se ejercita desde la
+    pantalla.** Si alguien lo apagara desde el dashboard —que es un formulario, y es el riesgo que la
+    propia tabla de riesgos anota—, nadie se enteraría. Sin filtro, cada intento de fuera prueba la puerta
+    de verdad y el mensaje que se ve sale del servidor, que es la única fuente de verdad.
+
+26. **`EmailOtpType` está abierto, así que el compilador no va a validar nada en la Task 7.** Leído en los
+    tipos instalados: `export type EmailOtpType = 'signup' | 'invite' | 'magiclink' | … | (string & {})`.
+    Ese `(string & {})` del final conserva el autocompletado **pero admite cualquier cadena**, así que
+    `searchParams.get('type') as EmailOtpType` compila con lo que sea. **La validación del `type` tiene que
+    ser en tiempo de ejecución**, y el `typecheck` en verde no dice nada sobre ella.
+
+27. **`localhost` y `127.0.0.1` son sitios distintos para las cookies, y el `site_url` local es
+    `127.0.0.1`.** Quien abra la aplicación en `localhost:3000` y luego el enlace del correo, que va a
+    `127.0.0.1:3000`, deja la cookie de sesión en el otro origen y vuelve a ver la pantalla de invitado.
+    No es un fallo del código y no hay nada que arreglar: **para probar en local, todo por `127.0.0.1:3000`.**
+
+28. **`shadcn add` no repite la trampa de `shadcn init`.** La tanda 0 midió que `init` pisaba los tokens de
+    `globals.css` por cascada. Se midió `add input` con hashes antes y después: creó **solo**
+    `components/ui/input.tsx`, sin tocar `globals.css` ni `package.json`. La precaución de la tanda 0 sigue
+    valiendo para `init`; para `add` está medida y es innecesaria.
+
+29. **Un subagente justificó una decisión con un hecho falso, y el `lint` no lo iba a ver.** Al escribir la
+    pantalla duplicó a mano las clases del `variant="link"` del botón —`text-primary underline-offset-4
+    hover:underline`— afirmando que ese variant no daba el aspecto buscado. **Existe, en
+    `components/ui/button.tsx:21`, y sus clases son exactamente esas.** Corregido a `variant="link"`.
+    → Es la cuarta vez en esta tanda que algo contesta con confianza a una pregunta que no era la que se
+    hacía, y la primera en que quien contesta es un generador de código y no una herramienta de git. **Lo
+    que sirvió fue lo mismo de siempre: ir a mirar el archivo.** El informe del subagente se revisa igual
+    que se revisa su código.
+
+30. **Y una trampa que dejó de serlo: ya hay usuarios utilizables en local.** La corrección 8 avisaba de
+    que los de `seed.sql` dan `500` porque llevan las columnas de token en `NULL`. Las sondas de esta tarea
+    crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` **por el flujo real**, así que
+    sirven para probar la sesión en la Task 7. El precio es el de siempre *(corrección 10)*: la base local
+    quedó contaminada —7 usuarios y 6 alumnos, contra los 4 del seed— y hace falta `db reset` antes de la
+    batería pgTAP.
+
+**Verificado al cerrar la tarea, contra el efecto y no contra la pantalla:** una petición con un correo de
+fuera devuelve **403** con el mensaje literal de D-32, y `auth.users` se queda en **7 filas antes y 7
+después** —cero cuentas creadas—. Que ese mensaje llegue a `error.message` **también se midió**, leyendo la
+librería instalada y no suponiéndolo: GoTrue devuelve el campo `msg` y la pantalla muestra `error.message`,
+que son nombres distintos; `auth-js/dist/module/lib/fetch.js:8` prueba `msg` **primero**, así que se unen.
+`typecheck` y `lint` en verde, y `/` y `/login` responden `200`.
 
 ---
 

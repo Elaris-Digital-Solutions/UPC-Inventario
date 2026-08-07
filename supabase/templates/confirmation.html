@@ -1,0 +1,18 @@
+<h2>Confirmá tu correo</h2>
+
+<p>Hola:</p>
+
+<p>
+  Alguien usó esta dirección para entrar por primera vez en el sistema de
+  reservas de la UPC. Confirmá que sos vos con el enlace de abajo. Es de un
+  solo uso y caduca en una hora.
+</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup">Confirmar y entrar</a>
+</p>
+
+<p>
+  Si no fuiste vos, podés ignorar este correo: la cuenta no se activa sin abrir
+  este enlace.
+</p>

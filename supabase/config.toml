@@ -251,6 +251,30 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# La plantilla de fabrica usa {{ .ConfirmationURL }}, que apunta al endpoint
+# /auth/v1/verify de Supabase: verifica alla y rebota con la sesion colgada del
+# fragmento de la URL. Lo que va despues del '#' el servidor NO lo ve nunca, asi
+# que por ese camino no hay cookie de sesion en el servidor y ni el proxy ni los
+# layouts tienen nada que leer. Estas dos plantillas mandan el enlace a nuestra
+# propia ruta /auth/confirm con el token_hash, que es lo que verifyOtp necesita
+# para dejar la sesion en una cookie. Medido en Mailpit, no supuesto.
+#
+# Las DOS hacen falta: con el usuario ya existente GoTrue usa magic_link, y en
+# el primer acceso -si el proyecto tiene enable_confirmations activado, como
+# puede pasar en produccion- usa confirmation. Cambiar solo una deja el flujo
+# roto justo para quien entra por primera vez, que es el caso que menos se
+# prueba.
+#
+# El mismo cambio hay que repetirlo a mano en el dashboard del proyecto real:
+# esto solo configura el stack local.
+[auth.email.template.magic_link]
+subject = "Tu enlace para entrar en UPC-Inventario"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Confirma tu correo en UPC-Inventario"
+content_path = "./supabase/templates/confirmation.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
