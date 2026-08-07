@@ -2,6 +2,36 @@
 
 ---
 
+## 📍 Dónde se paró — 2026-08-07, 20:24
+
+> **Bloque temporal.** Se borra al cerrar la tanda, igual que se hizo con la sección 0 de
+> `ESTADO_Y_PLAN.md`.
+
+| Tarea | Estado |
+|---|---|
+| **Task 0** · dashboard y accesos | ✅ hecha. Clave publicable copiada, URL de redirección añadida, enganche activado. **Tenant de Entra ID: denegado** *(Q-16)* |
+| **Task 1** · `.gitattributes` *(Q-15)* | ✅ cerrada y verificada |
+| **Task 2** · `.env` y `.env.example` | ✅ cerrada |
+| **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
+| **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
+| **Task 5** · `proxy.ts` en la raíz | ⬅ **SIGUIENTE**. Empieza por el Step 0: medir el JWKS |
+| Tasks 6 a 10 | pendientes |
+
+**Estado de git:** rama `feature/fase-2-tanda-1`, **4 commits** (1.1 a 1.4), árbol limpio, **sin publicar
+—no hay rama remota ni PR—**. `develop` está en `8a3731e`.
+
+**Estado de la base:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
+archivos** · `auth.users` en producción con **cero filas**.
+
+**Lo que NO hay que rehacer:** la migración 22 ya está en el remoto, el enganche ya está activo en el
+dashboard y ya se comprobó con una petición real, y Q-15 ya se verificó regenerando los tipos.
+
+**Trampa que espera en la Task 7:** los usuarios que siembra `seed.sql` llevan las columnas de token en
+`NULL` y **GoTrue devuelve `500` con cualquiera de ellos**. No sirven para probar el flujo de sesión en
+local; hay que crear usuarios nuevos por el flujo real *(corrección 8)*.
+
+---
+
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
 > **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
