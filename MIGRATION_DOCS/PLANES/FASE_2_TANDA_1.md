@@ -16,10 +16,12 @@
 | **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
 | **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
 | **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fabrica no servia** *(corrección 23)* |
-| **Task 7** · canje, error y salida | ⬅ **SIGUIENTE** |
-| Tasks 8 a 10 | pendientes |
+| **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
+| **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, verificado en los dos sentidos |
+| **Task 9** · sembrar el primer admin | ⬅ **SIGUIENTE**. La ejecuta Alejandro |
+| Task 10 | pendiente |
 
-**Estado de git:** rama `feature/fase-2-tanda-1`, **6 commits** (1.1 a 1.6), árbol limpio, **sin publicar
+**Estado de git:** rama `feature/fase-2-tanda-1`, **8 commits** (1.1 a 1.8), árbol limpio, **sin publicar
 —no hay rama remota ni PR—**. `develop` está en `8a3731e`.
 
 **Estado de la base:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
@@ -32,6 +34,10 @@ dashboard y ya se comprobó con una petición real, y Q-15 ya se verificó regen
 dos plantillas de correo** —*Magic Link* y *Confirm signup*— para que apunten a
 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink` y `…&type=signup`. El
 `config.toml` solo configura el stack local *(corrección 23)*.
+
+**Y hace falta un `.env.local` que no se versiona** *(corrección 31)*. Sin él, `npm run dev` habla con el
+proyecto **real**. Se crea con `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` y la clave publicable que
+imprime `npx supabase start`. Lo ignora la regla `*.local` del `.gitignore`; el `.env.example` lo explica.
 
 **Trampa que espera en la Task 7:** los usuarios que siembra `seed.sql` llevan las columnas de token en
 `NULL` y **GoTrue devuelve `500` con cualquiera de ellos**. No sirven para probar el flujo de sesión en
@@ -315,6 +321,136 @@ después** —cero cuentas creadas—. Que ese mensaje llegue a `error.message` 
 librería instalada y no suponiéndolo: GoTrue devuelve el campo `msg` y la pantalla muestra `error.message`,
 que son nombres distintos; `auth-js/dist/module/lib/fetch.js:8` prueba `msg` **primero**, así que se unen.
 `typecheck` y `lint` en verde, y `/` y `/login` responden `200`.
+
+### Task 7 · El desarrollo hablaba con producción, y el canje cambiaba de host
+
+31. **`npm run dev` apuntaba al proyecto REAL, y ninguna tarea lo previó.** La Task 2 migró los nombres de
+    las variables a `NEXT_PUBLIC_`, pero dejó dentro la URL de producción, y **no existe ningún archivo que
+    apunte el desarrollo al stack local**. Se descubrió porque el canje del magic link fallaba con
+    `motivo=enlace`: el enlace se había pedido contra el stack local y `verifyOtp` iba a validarlo a
+    producción, donde ese token no existe.
+    → **Lo que no llegó a pasar, y es lo que importa:** todas las pruebas de esta tanda fueron por API
+    directa contra `127.0.0.1:54321`. **Si se hubiera probado la pantalla de login en el navegador, habría
+    salido un correo de verdad por el SMTP de producción —el del límite bajo que la tabla de riesgos ya
+    marcaba— y habría quedado una cuenta real en su `auth.users`,** que se quiere en cero filas hasta la
+    Task 9.
+    → Se arregla con un `.env.local`, que Next.js carga **después** del `.env` y gana. No se versiona: lo
+    tapa la regla `*.local` del `.gitignore`, comprobado con `git add --dry-run` y no con `check-ignore`
+    *(la lección de la corrección 6)*. El `.env.example` documenta cómo crearlo.
+
+32. **Ni `new URL(request.url).origin` ni `request.nextUrl` conservan el host de la petición.** Medido dos
+    veces: una petición a `127.0.0.1:3000/auth/confirm` devolvía `Location: http://localhost:3000/`. Como
+    el navegador guarda las cookies **por host**, la sesión se escribía en un host y el usuario aterrizaba
+    en el otro sin ella. Es la corrección 27 otra vez, pero provocada por el código y no por quien prueba.
+    → **El primer arreglo no funcionó, y se registra como intento fallido y no se borra:** cambiar
+    `new URL(request.url)` por `request.nextUrl` parecía lo correcto —es lo que usa el proxy de la Task 5—
+    y al remedirlo **seguía emitiendo `localhost`**.
+    → Lo que sí funciona es **no nombrar el host**: un `Location` relativo, que el navegador resuelve contra
+    donde ya está. Vale para los tres caminos de error y para el de éxito, y de paso el destino se arma
+    desde cero, así que el `token_hash` no sobrevive al salto.
+
+33. **La primera prueba de punta a punta pasó sin tocar el fallo, y la razón es de método.** El guion no
+    seguía las redirecciones: leía el `Location` y volvía a pedir a `127.0.0.1` **a mano**. Así, la cookie
+    siempre caía en el host correcto y el desajuste no se veía. **Una prueba que no recorre el camino del
+    navegador no prueba el camino del navegador.** Se añadieron dos comprobaciones: que el `Location` **no
+    nombre un host**, y **seguir el salto** y contar cuántas cookies sobreviven.
+
+34. **La corrección 21 se resuelve, y era un artefacto de `dev`.** Quedaba pendiente medir el
+    `Cache-Control` con sesión real y en build de producción. Hecho: en `next dev`, una página renderizada
+    devuelve `no-cache, must-revalidate` y pisa la cabecera del proxy —incluso con sesión viva—, pero
+    **con `next build` y `next start` las cuatro rutas devuelven `private, no-store`**, las estáticas `/` y
+    `/login` incluidas. **La mitigación de la corrección 14 funciona donde tiene que funcionar y no hay nada
+    que rediseñar.**
+    → Importaba comprobarlo porque el build revela que `/` y `/login` se **prerenderizan como estáticas**, y
+    una respuesta estática es justo la que un CDN quiere guardar; si el proxy refresca el token en esa misma
+    petición, la respuesta llevaría el cuerpo cacheable y el `Set-Cookie` de alguien dentro.
+    → **Y la lección de método vale más que el resultado:** la observación de `dev` era cierta y la
+    conclusión que invitaba a sacar era falsa. Medir en el entorno equivocado habría costado un rediseño
+    para arreglar algo que no está roto.
+
+35. **El stack local también firma con ES256, así que el coste del proxy sí se pudo medir.** Next.js 16
+    cronometra el proxy por separado en cada línea del registro. Con sesión viva: **20–24 ms**; sin sesión:
+    11–16 ms. Esos ~10 ms de diferencia son la verificación de firma con WebCrypto, **no una ida y vuelta
+    de red**. La corrección 17 queda confirmada en la práctica y no solo por el algoritmo.
+
+36. **El servidor no distingue entre un enlace inválido, uno caducado y uno ya usado**, y es a propósito:
+    los tres devuelven `403` con `error_code: otp_expired` y el texto `Email link is invalid or has
+    expired`. Confirmar cuál de los tres es le diría a un desconocido si un token existió.
+    → Por eso el texto en español de `/auth/error` dice «puede que ya lo hayas usado o que haya pasado el
+    plazo»: **dice exactamente lo que el servidor sabe, ni más ni menos.** Y por eso aquí se traduce y en
+    `/login` no: el de `/login` es nuestro, sale del enganche; este es de Supabase y viene en inglés.
+
+**Verificado al cerrar la tarea, con el flujo entero y no por partes** —canje, salto, ruta privada, salida,
+y los tres caminos de error—: el canje deja **1 cookie** y devuelve `Location: /` **relativo**; **la cookie
+sobrevive al salto** y la landing carga con ella; una ruta privada con sesión **ya no rebota**; salir
+devuelve **303** y deja **0 cookies**; y después de salir la ruta privada **vuelve a rebotar** a `/login`.
+`GET /auth/signout` devuelve **405**, que es la prueba de que no exporta `GET`. Los tres errores caen donde
+deben: repetir un enlace ya usado da `motivo=enlace`, un `type` fuera de la lista blanca da `motivo=tipo`
+—la validación de ejecución de la corrección 26, funcionando— y una petición sin `token_hash` da
+`motivo=incompleto`. `typecheck`, `lint` y `build`, los tres en verde.
+
+### Task 8 · Un layout de grupo no se tipa como los demás, y el plan pedía probar una ruta inexistente
+
+37. **`LayoutProps<...>` no sirve para el layout de un grupo entre paréntesis.** `app/layout.tsx` usa
+    `LayoutProps<"/">` y parecía el patrón a copiar, pero `LayoutProps<"/completar-perfil">` no compila.
+    Medido en `.next/types/routes.d.ts`, que es donde Next.js deja lo que genera:
+    **`type LayoutRoutes = "/"`**. Next solo genera ese tipo para los layouts que **ocupan un segmento de
+    URL**; un grupo no aporta segmento, así que `(perfil)/layout.tsx` **cubre** `/completar-perfil` pero no
+    **es** esa ruta, y no aparece en la lista.
+    → Los dos layouts de grupo se tipan a mano con `{ children: React.ReactNode }`, y el motivo va escrito
+    en los dos archivos. **No es una limitación que se pueda deducir leyendo `app/layout.tsx`:** ahí el
+    tipo generado funciona, y eso es justo lo que invita a copiarlo.
+
+38. **El plan pedía comprobar que `/catalogo` rebota, y `/catalogo` no existe.** El Step 5 da por hecha una
+    ruta que es de la tanda 2, mientras la restricción global dice «ninguna pantalla de negocio». Sin
+    ninguna página debajo, `app/(alumno)/layout.tsx` es **código muerto que no se puede verificar**, y un
+    layout de sesión sin verificar es exactamente lo que esta tanda no se puede permitir.
+    → **Desvío decidido y anotado:** se añade `app/(alumno)/catalogo/page.tsx` como **marcador de
+    posición**, igual que `app/page.tsx` lo es desde la tanda 0. No muestra catálogo ni disponibilidad
+    *(D-21)*; existe para que el layout cubra algo real. El archivo lo dice en su cabecera para que nadie
+    lo confunda con la pantalla de la tanda 2.
+    → `/admin/inventario` y `/mostrador` **no** se crean: ahí un `404` tras la redirección es el resultado
+    correcto, igual que lo fue el de `/login` en la Task 5.
+
+39. **La Server Action se tragaba un fallo, y es el modo de fallo que la Fase 1 documentó.** El `UPDATE` se
+    escribió sin mirar su resultado. **Falta de privilegio lanza `42501`, pero falta de política deja el
+    `UPDATE` en cero filas sin dar un solo error** —regla 3 de la Fase 1—, así que quien guardara sin que
+    la política se lo permitiera volvería al mismo formulario, porque `destino()` seguiría viendo el perfil
+    incompleto, **sin una sola pista de por qué**.
+    → Cerrado añadiendo `.select('id')` al `UPDATE` y comprobando que devuelve alguna fila. Si no, se va a
+    `/auth/error?motivo=perfil`, un motivo **separado** del de los enlaces para que ese fallo no se
+    confunda con un enlace caducado. **Se comprueba el efecto, no la excepción**, que es la misma regla que
+    gobierna las pruebas pgTAP.
+
+40. **El rol se llama `operator`, no `operador`.** Leído del enum generado: `staff_role: "admin" |
+    "operator"`. El diseño lo nombra en español en la prosa y eso invita a escribirlo mal en el código,
+    donde no habría dado error de tipos —una comparación con una cadena que nunca casa **compila**— sino un
+    operador mandado a la rama de alumnos para siempre.
+
+41. **Y una comprobación que sí salió como el plan esperaba:** la corrección 2 funciona. Pedir
+    `/completar-perfil` con el perfil incompleto responde **200** y no entra en bucle, que es la única
+    forma de saber que sacar esa ruta del grupo `(alumno)` era la solución correcta y no un rodeo.
+
+**Verificado al cerrar la tarea, con nueve sondas HTTP y en los dos sentidos:** con el perfil incompleto, el
+canje cae en `/completar-perfil`, esa ruta responde `200` **sin bucle**, `/catalogo` rebota a
+`/completar-perfil` y `/` sigue accesible. Completando los tres campos, `/catalogo` pasa a `200`; volviendo
+a vaciarlos, **vuelve a rebotar**. Sin sesión, las dos rutas privadas van a `/login`. `typecheck` y `lint`,
+en verde.
+
+42. **Y el envío del formulario también se midió, después de darlo por no medible.** Se escribió primero
+    que invocar una Server Action por HTTP exigía reproducir el identificador que Next genera en cada
+    build, y que la prueba mediría más el andamiaje que el código. **Era una excusa razonable y era
+    falsa.** El formulario que Next renderiza funciona **sin JavaScript** —`<form action=""
+    encType="multipart/form-data" method="POST">` con un `<input type="hidden"
+    name="$ACTION_ID_…">`—, así que basta leer ese identificador del propio HTML y mandar un POST
+    multipart. No hay que reproducir nada: se lee.
+    → Medido de punta a punta: el envío devuelve **`303 → /catalogo`**, la base queda con `nombre`,
+    `apellido` y `carrera_id` escritos, y `/catalogo` pasa a responder `200`. **La Server Action, el
+    `UPDATE` y el reparto, los tres en la misma corrida.**
+    → **La lección es sobre el criterio, no sobre Next:** «esto no se puede probar sin navegador» fue una
+    conclusión escrita **antes** de mirar el HTML. Mirarlo costó una petición. Es el mismo error de forma
+    que persiguió toda la tanda —contestar sin comprobar—, cometido esta vez al decidir qué **no** valía la
+    pena comprobar.
 
 ---
 
