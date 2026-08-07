@@ -42,6 +42,26 @@
 > «bien» a preguntas que no eran la pregunta.** La única comprobación que servía era mirar el byte:
 > ¿tiene este archivo un `\r` dentro?
 
+**Resultado final de la tarea, medido y no supuesto:** cero archivos de texto con `\r` en el disco, los
+ocho binarios intactos —`git status` limpio—, y el paso que motivó Q-15 comprobado de verdad con el stack
+local: `supabase gen types --local` contra `lib/database.types.ts` da `diff` limpio **en Windows**. De
+paso, la CLI vuelve a anunciar `Connecting to db 5432`, que confirma otra vez lo que midió la tanda 0.
+
+### Task 2 · El `.env`, y una tercera herramienta contestando a otra pregunta
+
+5. **La clave publicable ya estaba en el `.env`, bajo un nombre que mentía.** `VITE_SUPABASE_ANON_KEY`
+   guardaba una `sb_publishable_…`, no una `anon` en formato JWT. El Step 1 daba por hecho que había que
+   traerla del dashboard; lo que hacía falta era **renombrarla**. El valor no cambia. Que el nombre de una
+   variable describa mal lo que guarda es barato hasta el día en que alguien la rota mirando el nombre.
+
+6. **`git check-ignore -v` contesta que sí a un archivo que NO está ignorado.** Con `!.env.example` en el
+   `.gitignore`, imprime la línea de la **negación** y sale con código `0`, que es el mismo código con el
+   que anuncia que un archivo sí está ignorado. La comprobación del Step 2 estaba escrita sobre ese código
+   de salida y **daba el resultado contrario al real**.
+   → Lo que sí responde la pregunta es `git add --dry-run <archivo>`: dice `add '.env.example'` para el que
+   se puede versionar y **rechaza** el `.env` con `The following paths are ignored`. Es la tercera vez en
+   dos tareas que la herramienta obvia contesta con confianza a una pregunta que no era la que se hacía.
+
 ---
 
 > Escrito el 2026-08-06, **antes de ejecutar nada**. Sale de
