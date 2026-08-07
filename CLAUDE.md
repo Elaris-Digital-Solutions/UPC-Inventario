@@ -65,7 +65,9 @@ que sostiene un commit, borrarla lo pierde. Tags vivos: `legacy/vite-final` y `l
 
 **Fases 0 y 1 cerradas, y la base de datos está terminada del todo.** La Fase 1 dejó 19 migraciones y 124
 aserciones pgTAP; la **tanda 0 de la Fase 2** añadió las dos últimas migraciones del proyecto: **21
-migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. Diseño en
+migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. ⚠ **Corregido el
+2026-08-07:** la tanda 1 añadió **una migración más, la 22** *(D-32, el enganche de dominio)*, así que hoy
+son **22 migraciones y 142 aserciones en 23 archivos**. Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
 | Tanda | Contenido | Estado |
@@ -108,7 +110,8 @@ de la T0:** la frase se corrige fechada al cerrar la tanda, no se borra.
 **T0 cerrada el 2026-08-06.** Ocho commits numerados, 0.1 a 0.8. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
 Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
 CI adaptado. Las dos últimas migraciones del proyecto *(D-19, D-20)*: **21 migraciones y 135 aserciones
-pgTAP**. **Desde aquí ninguna tanda vuelve a tocar SQL.** Correcciones en
+pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde el 2026-08-07:** D-32 añadió
+la migración 22, con la decisión tomada y el costo dicho por delante. Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`. **Siguiente: T1, la sesión** — `@supabase/ssr`, `proxy.ts`,
 magic link y Microsoft, y sembrar el primer admin. Cierra P0-3.
 

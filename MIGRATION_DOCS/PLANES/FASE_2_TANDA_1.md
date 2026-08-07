@@ -62,6 +62,53 @@ paso, la CLI vuelve a anunciar `Connecting to db 5432`, que confirma otra vez lo
    se puede versionar y **rechaza** el `.env` con `The following paths are ignored`. Es la tercera vez en
    dos tareas que la herramienta obvia contesta con confianza a una pregunta que no era la que se hacía.
 
+### Task 3 · El enganche estuvo desactivado y todo salía en verde
+
+7. **`supabase db reset` NO aplica el `config.toml` a los contenedores, y este es el hallazgo grave de la
+   tanda.** El Step 5 decía «activarlo en local con el bloque del `config.toml` y `supabase db reset`».
+   Se hizo, y **el enganche no existía**: `docker exec supabase_auth_… env | grep hook` no devolvía ni una
+   variable. `db reset` reinicia contenedores, pero su entorno se genera en `supabase start`.
+   → Hace falta **`supabase stop` y `supabase start`**. Después, las tres variables aparecen.
+   → **Lo que hace que esto asuste es cómo se veía mientras tanto:** la migración aplicada, las 142
+   aserciones pgTAP en verde, la función existiendo y contestando bien cuando se la llama a mano… y la
+   puerta abierta de par en par. **Las pruebas unitarias de una función de enganche no prueban que el
+   enganche esté enganchado.** Solo lo prueba pedir un registro de verdad y ver el 403.
+
+8. **La primera prueba de rechazo fue inválida, y por poco pasa por buena.** Se probó con
+   `alguien@gmail.com`, que **existe en `seed.sql`**. GoTrue devolvió `HTTP 500 Database error finding
+   user` y era tentador leerlo como «rechaza». No rechazaba nada: reventaba antes. El registro del
+   contenedor lo dijo entero —`Scan error on column index 3, name "confirmation_token": converting NULL to
+   string is unsupported`—, y esa línea también deja un **pendiente que muerde en la Task 7**: las filas de
+   `auth.users` que siembra `seed.sql` llevan las columnas de token en `NULL`, así que **GoTrue da 500 con
+   cualquiera de ellas**. Los usuarios sembrados no sirven para probar el flujo real de sesión en local.
+   → La sonda tiene que usar un correo que no exista. Con uno nuevo: **403 con el mensaje exacto**, tanto
+   para `gmail.com` como para `notupc.edu.pe`, y **cero cuentas creadas**. El `@upc.edu.pe` entra con 200 y
+   sale con su fila en `alumnos` puesta por el trigger: las dos capas, verificadas por separado.
+
+9. **Siete aserciones, no cuatro**, y la séptima salió de escribirlas. Se añaden el `http_code` y dos casos
+   que el plan no tenía: el sufijo `@upc.edu.pe.evil.com` y **un evento sin correo**. Esta última obligó a
+   decidir la forma de la función: escrita como pedía el instinto —«si NO casa, rechaza»— un correo `NULL`
+   da `not (NULL like …)`, que es `NULL`, el `IF` no entra y **la función deja pasar a todo el mundo sin un
+   solo error**. Escrita al derecho, falla cerrada. Es el mismo modo de fallo que persiguió la Fase 1,
+   encontrado esta vez antes de que existiera.
+
+10. **Probar por HTTP contra el stack local contamina las fixtures, y una aserción lo cazó.**
+    `14_rls_alumnos.sql` falló con «el admin ve a todos los alumnos: have 5, want 4»: el `@upc.edu.pe` de
+    la sonda se había convertido en un alumno real por el trigger. **Las pruebas pgTAP hacen `rollback` de
+    lo suyo, pero no de lo que otro escribió fuera.** `db reset` antes de correr la batería después de
+    cualquier sonda. La aserción de conteo fijo, que parece frágil, es justo lo que lo detectó.
+
+11. **En local no se puede observar lo que dice la corrección 3.** `config.toml` trae
+    `enable_confirmations = false`, así que un magic link crea la cuenta **ya confirmada** y
+    `email_confirmed_at` nunca se ve en `NULL`. La corrección sigue valiendo para el proyecto remoto, que
+    es donde corre la Task 9; **se verifica ahí y no aquí**. De paso: el stack local **no es un ensayo fiel
+    del flujo de confirmación**.
+
+12. **Al plan le falta un paso, y sin él D-32 no protege nada en producción.** La Task 0 Step 3 manda
+    activar el enganche en el dashboard, pero **la función tiene que existir antes en el proyecto remoto**,
+    y ninguna tarea hace `supabase db push`. Sin ese empujón, el dashboard apuntaría a una función que no
+    está. Se añade como paso de la Task 3, ejecutado por Alejandro por ser una escritura en producción.
+
 ---
 
 > Escrito el 2026-08-06, **antes de ejecutar nada**. Sale de

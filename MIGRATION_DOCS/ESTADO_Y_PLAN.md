@@ -25,7 +25,10 @@ permisivo solo movería el problema, porque PostgREST sigue expuesto.
 
 **Estado general:** ⚠️ No apto para producción, pero **la base de datos ya lo es y está terminada**. La
 Fase 1 cerró el 2026-08-05, y la **tanda 0 de la Fase 2** añadió el 2026-08-06 las dos últimas migraciones
-del proyecto: **21 migraciones y 135 aserciones pgTAP**. Desde ahí, ninguna tanda vuelve a tocar SQL.
+del proyecto: **21 migraciones y 135 aserciones pgTAP**. ~~Desde ahí, ninguna tanda vuelve a tocar SQL.~~
+⚠ **Corregido el 2026-08-07:** la tanda 1 añadió la **migración 22** *(D-32)*, así que hoy son **22
+migraciones y 142 aserciones**. La frase era una intención, no un hecho, y se cumplió hasta que una
+decisión con costo declarado la desmintió. Se deja tachada en vez de borrada.
 **Un** defecto crítico abierto: **P0-3** (tokens de sesión propios firmados con la cadena literal
 `'signature'`), que se cierra en la tanda 1 al pasar a Supabase Auth. P0-1 y P0-4 se cerraron en la Fase 0; **P0-2 y P0-5 en la tanda 1**; **P1-6, P1-7 y P1-9 en
 la tanda 2**; P1-10 en la tanda 1. Ninguno llegó a explotarse porque no hay usuarios ni datos personales.
@@ -67,7 +70,7 @@ seguridad, todos intencionales**.
 | Tamaño | ~~13.402 líneas TS/TSX~~ → el andamio y dos componentes. **Ninguna pantalla de negocio todavía** |
 | Build | ✅ `next build` limpio |
 | Typecheck | ✅ **`strict: true`.** Y el script es `next typegen && tsc --noEmit`: Next 16 tipa las rutas y `LayoutProps` se genera desde `app/` |
-| Tests | pgTAP: **135 aserciones**. Vitest instalado y sin pruebas todavía *(D-14: las reglas se prueban en el motor)* |
+| Tests | pgTAP: **142 aserciones en 23 archivos** *(135 hasta la tanda 0; 7 más con D-32)*. Vitest instalado y sin pruebas todavía *(D-14: las reglas se prueban en el motor)* |
 | CI/CD | ✅ `ci.yml` con el **lint bloqueante** desde esta tanda, y `db.yml` con pgTAP y el chequeo de tipos |
 | Vulnerabilidades | ✅ **0**, sobre 399 paquetes. Eran 15 con el árbol de Vite *(Q-10)* |
 | Git | Solo `main` y `develop` en el remoto *(D-29)*. Tags `legacy/vite-final` → `f39d2e9` y `legacy/refactor-marzo` → `c3f5c1f` |
