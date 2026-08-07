@@ -109,6 +109,50 @@ paso, la CLI vuelve a anunciar `Connecting to db 5432`, que confirma otra vez lo
     y ninguna tarea hace `supabase db push`. Sin ese empujón, el dashboard apuntaría a una función que no
     está. Se añade como paso de la Task 3, ejecutado por Alejandro por ser una escritura en producción.
 
+**Verificado en el proyecto real al cerrar la tarea**, y no dando por hecho que el dashboard quedó bien
+—que es el error que esta misma tarea acababa de enseñar—: 22 migraciones con `local` y `remote`
+idénticos; la función en `private`, `prosecdef = false`, `search_path=""`, ejecutable por
+`supabase_auth_admin` y por nadie más; y **una petición de registro real contra el Auth de producción
+devuelve `403` con el mensaje exacto**. `auth.users` sigue en **cero filas**: la sonda usó un dominio
+reservado, que no puede recibir correo, precisamente para no dejar rastro si el enganche hubiera estado
+apagado.
+
+### Task 4 · La versión instalada trae un aviso de seguridad que el diseño no tenía
+
+13. **Punto a verificar 1, resuelto por el lado bueno:** `@supabase/ssr` 0.12.4 conserva
+    `cookies: { getAll, setAll }`. El código de §7.1 del diseño entra tal cual. *(Matiz: en 0.12.4 `setAll`
+    es opcional en el tipo. No cambia nada aquí, pero significa que omitirlo compila.)*
+
+14. **Y leyendo esos mismos tipos aparecen dos avisos que no están en el diseño.** El primero refuerza lo
+    que ya sabíamos —llamar a `getClaims()` **temprano**, antes de generar la respuesta, porque un refresco
+    que termina después de que la respuesta salió pierde la sesión nueva—. **El segundo es nuevo y es de
+    seguridad:** los refrescos de token escriben `Set-Cookie`, y si la aplicación queda detrás de un CDN o
+    proxy inverso, **una respuesta cacheada con la cookie de sesión de alguien dentro se le sirve a otra
+    persona**. No es hipotético para este proyecto: Vercel y Netlify ya reaccionan a cada commit del
+    repositorio. Se cierra con `Cache-Control: private, no-store` en el proxy, y va **en el archivo**, no
+    solo en este documento. **La lección de método:** leer los tipos de la versión instalada no era solo
+    para confirmar una firma; traía una regla de diseño que ninguna documentación de las consultadas al
+    escribir el plan mencionaba.
+
+15. **El `Cache-Control` tiene que ir DESPUÉS de `getClaims()`, y el motivo no se ve leyendo la línea.**
+    `setAll` **reconstruye** la respuesta —`response = NextResponse.next({ request })`— y `setAll` lo
+    invoca `getClaims()` cuando toca refrescar. Puesta la cabecera antes, se perdería **exactamente en las
+    peticiones que escriben `Set-Cookie`**, que son las únicas donde protege de algo. Escrito en el orden
+    correcto y comprobado leyendo los números de línea: reasignación en la 39, `getClaims()` en la 53,
+    cabecera en la 66.
+
+16. **El plan pedía un tipo de retorno imposible.** La Task 4 Step 3 decía
+    `updateSession(request): Promise<NextResponse>` y a la vez que devolviera `{ response, claims }` para
+    que el proxy de la raíz decidiera. Son dos cosas incompatibles y ganó la segunda: el retorno es un
+    `UpdateSessionResult { response, claims }`. **Y el tipo de `claims` no se importa de
+    `@supabase/auth-js`**, que llega solo de forma transitiva y no está declarado en `package.json`; se
+    deriva del propio `createServerClient<Database>`. Atarse a un paquete que el `package.json` no declara
+    es una dependencia invisible que se rompe en la actualización que nadie relaciona con esto.
+
+**Verificado al cerrar la tarea, y las dos preguntas que ninguna herramienta contesta:** no hay **ninguna**
+constante de módulo con un cliente de servidor dentro, y `getSession(` no aparece en todo el árbol salvo en
+los comentarios que explican por qué no se usa. `typecheck`, `lint` y `build`, los tres en verde.
+
 ---
 
 > Escrito el 2026-08-06, **antes de ejecutar nada**. Sale de
