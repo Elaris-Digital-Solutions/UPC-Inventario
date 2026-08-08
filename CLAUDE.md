@@ -118,14 +118,16 @@ pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde
 la migración 22, con la decisión tomada y el costo dicho por delante. Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.
 
-**T1 con todas las tareas completas el 2026-08-07; falta el PR y su CI.** Está escrito y medido todo el código de la
+**T1 CERRADA y mergeada el 2026-08-08.** PR #21, merge en `895e1625`, **cuatro corridas de CI y las cuatro
+verdes**. Está escrito y medido todo el código de la
 sesión: `.gitattributes` *(cierra Q-15)*, el `.env` en `NEXT_PUBLIC_` con la clave publicable, la
 **migración 22** del enganche de dominio ya en el remoto *(D-32)*, los tres clientes de `@supabase/ssr`,
 `proxy.ts` con **lista blanca** —se declara lo público y todo lo demás pide sesión—, `/login` con magic
 link, el canje en `/auth/confirm`, `/auth/error`, `/auth/signout`, el reparto por perfil y
 `/completar-perfil`. **Cierra P0-3.** El **primer administrador ya está sembrado** en el proyecto real, y el
 flujo se probó entero en un navegador de verdad: entrar, completar el perfil y caer en `/admin/inventario`.
-Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.
+Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`. **Siguiente: T2, el
+alumno** — landing, catálogo, el calendario, reserva y panel.
 
 **Cinco fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
 el enganche de dominio **desactivado en los contenedores** —`db reset` no aplica el `config.toml`, hacen
