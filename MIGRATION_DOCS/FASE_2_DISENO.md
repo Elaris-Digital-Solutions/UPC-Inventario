@@ -5,7 +5,8 @@
 > [`ESPECIFICACION_FUNCIONAL.md`](./ESPECIFICACION_FUNCIONAL.md); el esquema sobre el que se construye, en
 > [`FASE_1_DISENO.md`](./FASE_1_DISENO.md).
 >
-> Se implementa en **cinco tandas, una por perfil**, cada una con su PR y sus pruebas *(D-27)*.
+> Se implementa en ~~**cinco tandas**~~ **seis** *(D-34, 2026-08-08: la T2 se partió)*, cada una con su PR
+> y sus pruebas *(D-27)*. El reparto vigente está en §12, con su corrección.
 
 ---
 
@@ -573,7 +574,7 @@ ofrecen.
 
 ---
 
-## 12. Las cinco tandas *(D-27)*
+## 12. Las ~~cinco~~ **seis** tandas *(D-27, y D-34 desde el 2026-08-08)*
 
 En la Fase 1, cada tanda dejaba una propiedad verificable del motor. Aquí el equivalente es **un perfil que
 puede hacer su trabajo entero**, porque es justo lo que un E2E puede afirmar. Y encaja con que la
@@ -604,6 +605,16 @@ trabajo puramente de aplicación, y hace que los tipos que genera T0 salgan ya d
 **Riesgo anotado: T2 es la tanda grande.** El calendario solo puede llevarse media tanda. Si al escribir su
 plan pasa de unas quince tareas, se parte en dos —«catálogo y detalle» y «reserva y panel»— y son seis PR
 en vez de cinco. Se decide **escribiendo el plan**, no a mitad de ejecutarlo.
+
+> ⚠ **Ocurrió. Corregido el 2026-08-08** *(D-34)*: el desglose dio **16** tareas y **la T2 se partió en
+> dos**, así que la Fase 2 tiene **seis tandas** y no cinco. **T2A** vitrina y catálogo · **T2B** reserva y
+> panel. Plan en [`PLANES/FASE_2_TANDA_2A.md`](./PLANES/FASE_2_TANDA_2A.md).
+>
+> **Lo que el riesgo anotado no vio, y es lo que acabó decidiendo:** el umbral estaba puesto en el tamaño,
+> y el corte bueno no era por tamaño sino por **naturaleza**. La 2A **no escribe una sola fila en la base**
+> y la 2B toca las reglas de negocio. Una tanda que solo lee no puede corromper un dato, y eso cambia qué
+> hay que verificar — hasta el punto de que la 2A puede probarse contra el proyecto real sin riesgo. **El
+> umbral acertó el cuándo y se quedó corto en el porqué**, que es la parte reutilizable para la T3.
 
 ---
 
@@ -641,7 +652,7 @@ Tres arneses, y cada uno responde una pregunta distinta:
 | **`getClaims()` deja de ser local si el proyecto cambia a firma simétrica** | Medido y anotado: hoy es ES256. Si el proxy se pone lento, mirar el JWKS antes que el código |
 | **Un cliente de servidor a nivel de módulo filtra sesiones entre usuarios** | `lib/supabase/server.ts` exporta una **función**, nunca una constante *(D-24)*. Es el fallo más grave que esta fase puede introducir sin tocar una política |
 | **La rejilla del calendario y `create_reservation` se separan** | `available_slots` delega en `available_units`, que ya comparte fórmula con `blocked_range`. Una sola definición del rango, en un solo sitio |
-| **T2 se desborda** | Se parte en dos al escribir su plan, no a mitad de ejecutarlo *(§12)* |
+| **T2 se desborda** | ✅ **Se desbordó, y se partió al escribir su plan, no a mitad de ejecutarlo** *(D-34, 2026-08-08)*. 16 tareas. Ver la corrección de §12: el criterio bueno resultó ser «cuál escribe en la base», no «cuál es más grande» |
 | **El buffer puede desalinear la cola del bloqueo igual que la duración** | **Q-14**, abierto a propósito *(§15)* |
 | **`gen types --local` puede no funcionar con los servicios recortados de `db.yml`** | Punto a verificar de T0, con los dos desenlaces escritos *(§7.4)* |
 | Supabase hiberna por inactividad | Reintentar; la primera llamada lo despierta |
