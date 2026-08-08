@@ -91,6 +91,72 @@ otra vez estáticas**.
 > 0**, así que abrir un navegador ahora mediría una pantalla que la Task 3 va a reemplazar entera. La
 > comprobación visual se hace en la Task 3, con la pantalla de verdad delante.
 
+### Task 3 · La landing dejó de ser estática, y el seed apunta a fotos que no existen
+
+8. **`/` es DINÁMICA, y la corrección 4 de la Task 2 se queda a medias.** Medido con `.next` borrado: el
+   `build` la marca **`ƒ /`**. Y la causa **no** es leer sesión —esta página no llama a `getClaims()`—
+   sino que `productosVitrina()` usa `createClient()`, que hace `await cookies()` para construirse aunque
+   la consulta salga como anónima. **Next.js trata `cookies()` como Dynamic API sin mirar si el valor se
+   usa: pedirla ya saca la ruta del prerender.**
+   → **Lo que esto le quita a la Task 2, dicho sin rodeos:** el argumento que justificó repartir la
+   cabecera en dos era conservar `/` estática, y **ese argumento se cayó una tarea después**. El reparto se
+   queda, pero sostenido por los otros dos motivos, que siguen en pie y son independientes: **(a)** una
+   cabecera en el layout raíz se *sumaría* a la del grupo `(alumno)` en vez de sustituirla, y **(b)**
+   `/login` y `/_not-found` **sí siguen estáticas** y una lectura de sesión arriba las habría sacado.
+   → **Y se acepta que `/` sea dinámica en vez de pelearlo, por dos razones que van en el mismo sentido.**
+   Una: una vitrina prerenderizada en el `build` mostraría un catálogo **congelado**, y los productos que
+   el admin dé de alta en la tanda 3 no aparecerían hasta el siguiente despliegue. Dos: **elimina de raíz
+   el riesgo de la corrección 14 de la tanda 1** — una respuesta estática es justo la que un CDN quiere
+   guardar, y el proxy puede escribir `Set-Cookie` en esa misma petición. **La medición que parecía una
+   pérdida cierra un riesgo que estaba anotado desde la tanda anterior.**
+
+9. **`.returns<FilaProducto[]>()` se escribió, se midió y se quitó.** El primer borrador forzaba el tipo del
+   embed por miedo a una inferencia ambigua —`product_images` aparece con el mismo nombre de FK dos veces
+   en los tipos generados, hacia `products` y hacia `product_availability`—. Se probó sin él: **la
+   inferencia resuelve bien**, `typecheck` en verde.
+   → El motivo de quitarlo vale más que la línea ahorrada: **`.returns<>()` es un `as` con otro nombre.**
+   *Sustituye* el tipo inferido en vez de comprobarlo, así que el día que alguien cambie el `select` y no
+   toque la declaración, **el tipo seguiría afirmando la forma vieja y compilaría igual**. Es exactamente
+   el modo de fallo contra el que se escribió **D-26**: «un tipo desactualizado no rompe la compilación,
+   miente en silencio».
+   → Tal como queda, el tipo se usa solo como parámetro de `imagenPrincipal()`, así que TypeScript lo
+   **contrasta** con lo que la consulta devuelve de verdad. **El mismo tipo escrito, pero verificado en
+   lugar de impuesto.**
+
+10. **Punto a verificar 4, resuelto — y hubo que resolverlo con el dato REAL, porque el del seed no
+    existe.** El optimizador de Next devuelve **`200 image/jpeg`, 17.447 bytes** para una imagen real de
+    producción, y **`400`** para un host no declarado: `remotePatterns` funciona y **es** la frontera, no un
+    adorno.
+    → **Pero la misma sonda contra la URL del `seed.sql` devuelve `404`.** El seed siembra
+    `https://res.cloudinary.com/demo/image/upload/seed/cam-001.jpg`, y el cloud `demo` de Cloudinary **no
+    tiene** esa imagen: la URL es **ficticia**, con la forma correcta y sin contenido detrás.
+    → **Consecuencia práctica, y es una trampa preparada:** al abrir la landing en local **las fotos del
+    catálogo salen rotas**, y la lectura obvia —«`remotePatterns` no funciona»— es **la contraria de la
+    verdad**. La configuración funciona; lo que no existe es el archivo. Quien lo vea sin este párrafo va a
+    tocar `next.config.ts` para arreglar algo que no está roto.
+    → **Es la segunda vez en esta tanda que el seed engaña sobre los datos reales**, después de `featured`.
+    Y las dos veces en direcciones opuestas: `featured` hace que **local se vea mejor** que producción, las
+    URLs hacen que **local se vea peor**. **Decidido no tocar `seed.sql`:** su trabajo es dar filas
+    deterministas a las pruebas pgTAP, y apuntarlo a imágenes de verdad le metería una dependencia de red
+    donde hoy no la hay. **El punto a verificar ya quedó resuelto contra el dato real, que es donde
+    importaba.**
+
+11. **La redacción llegó en voseo rioplatense**, con «Entrá con tu correo institucional y accedé». Los
+    usuarios son alumnos de la UPC, en Lima: **tuteo**. Corregido a «Entra» y «accede». Y el cierre decía
+    «¿Lista tu próxima reserva?», que **le presupone el género a quien lee**; cambiado a «Empieza tu
+    próxima reserva», que no marca ninguno.
+
+**Verificado al cerrar la tarea:** `typecheck`, `lint` y `build`, los tres en verde. `/` responde **200**
+con **un solo `<header>`, un solo `<footer>` y cero `auth/signout`**. El optimizador de imágenes sirve una
+foto real de Cloudinary y rechaza un host sin declarar.
+
+> ⚠ **Lo que NO está verificado, y se dice en vez de darlo por hecho: la pantalla no se ha abierto en un
+> navegador.** No hay herramienta de navegador en la sesión que la construyó. **Queda pendiente de
+> Alejandro**, y no es un trámite: es el paso que encontró los cinco fallos de la tanda 1. Lo que sí se
+> hizo es la parte que una sonda puede cubrir **mandando lo que manda el navegador** —cabecera `Origin`
+> incluida, que es la lección de D-33—, y por eso el optimizador de imágenes se probó por su propia URL en
+> vez de darlo por bueno al ver el `<img>` en el HTML.
+
 ---
 
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que
