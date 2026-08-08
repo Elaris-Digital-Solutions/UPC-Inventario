@@ -99,10 +99,24 @@ comprobación previa **no** es que la fila exista sino que `email_confirmed_at` 
 
 ## Fase 2 en marcha
 
-**Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
-cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento.
-Decisiones D-19 a D-32; cerrados Q-7, Q-11, Q-12 y **Q-15**; abierto Q-14; **Q-16 respondido y aplazado**
-—no dan acceso al tenant de Entra ID, así que Microsoft queda fuera—.
+**Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** ~~Cinco tandas~~ **seis desde el
+2026-08-08** *(D-34)*, un PR cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2A** el alumno que
+mira, **T2B** el alumno que reserva, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-34;
+cerrados Q-7, Q-11, Q-12 y **Q-15**; abierto Q-14; **Q-16 respondido y aplazado** —no dan acceso al tenant
+de Entra ID, así que Microsoft queda fuera—.
+
+**La T2 se partió al escribir su plan** *(D-34)*, que es donde el diseño decía que se decidiría: el
+desglose dio **16 tareas**. **Pero el corte no fue por tamaño: la T2A no escribe una sola fila en la base**
+—landing, FAQ, catálogo, detalle— y la T2B toca las reglas de negocio —calendario, reserva, sanción, panel,
+cancelación, encuesta—. Una tanda que solo lee no puede corromper un dato, y por eso puede probarse contra
+el proyecto real sin riesgo. Plan en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_2A.md`.
+
+**Y un hallazgo de esa lectura que vale para toda la fase: el `seed.sql` local no es una muestra de los
+datos reales.** `products.featured` vale `true` en 2 de sus 4 productos y **`false` en los 34 de
+producción**, así que una vitrina filtrada por esa columna se ve llena en local y **vacía en el sitio real**
+—con `typecheck`, `lint`, `build` y hasta el recorrido en navegador en verde, porque el recorrido se hace
+contra local—. El seed es una fixture de valores *convenientes*, no *representativos*. **Leer el esquema
+dice qué columnas existen; solo consultar dice qué hay dentro.**
 
 **Plan de la T1 escrito el 2026-08-06: `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.** Once tareas y seis
 correcciones al diseño. **Dos cambios de alcance decididos al escribirlo:** **Microsoft sale** —el acceso
