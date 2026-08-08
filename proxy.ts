@@ -13,7 +13,16 @@ import { updateSession } from '@/lib/supabase/proxy'
 // Lista blanca a proposito: lo que no este declarado publico pide sesion,
 // para que una pantalla nueva nazca protegida sin que nadie tenga que
 // acordarse de anadirla aqui. Falla cerrada.
-const RUTAS_PUBLICAS = ['/', '/login', '/auth']
+//
+// Y este es el precio de esa propiedad, cobrado por primera vez en la tanda
+// 2A: '/faq' figura como publica en el diseno desde que se escribio, pero sin
+// esta linea rebotaba a /login como cualquier otra. NO es un defecto. Es que
+// abrir una ruta al publico tiene que ser un acto deliberado, que se ve en el
+// diff y que alguien revisa. Con lista negra, la pantalla que nadie se acuerde
+// de anadir nace ABIERTA y no se entera nadie.
+//
+// Regla: cada pantalla publica nueva es una edicion de esta constante.
+const RUTAS_PUBLICAS = ['/', '/login', '/auth', '/faq']
 
 export async function proxy(request: NextRequest) {
   const { response, claims } = await updateSession(request)

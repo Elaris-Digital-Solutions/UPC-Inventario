@@ -1,5 +1,98 @@
 # Fase 2 · Tanda 2A — Vitrina y catálogo · Plan de implementación
 
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
+> tarea y no al final, para no perderlo.
+
+### Task 1 · El plan pedía una versión que el proyecto ya tenía fijada
+
+1. **El plan dice `npx shadcn@latest` y eso habría traído una versión distinta de la del proyecto.**
+   `shadcn` está **declarado en `devDependencies`** —`^4.16.2`, instalado 4.16.2—, así que `@latest` se
+   habría descargado otra por encima y el generador que escribe el código no habría sido el que el
+   `package.json` fija. Se usó `npx shadcn` a secas, que resuelve el local.
+   → **Es el reverso exacto de lo que anotó la tanda 1** al final de su Task 5: allí `npx supabase` trajo
+   la 2.112.0 en vez de la 2.111.0 «porque la CLI no está fijada en ningún sitio del repositorio». Aquí
+   **sí** lo está, y el plan lo ignoró. La regla que sirve para las dos: **antes de invocar una herramienta
+   que genera código, mirar si el proyecto ya dice cuál.**
+
+2. **`shadcn add` tiene `--dry-run`, y es mejor instrumento que los hashes.** El plan medía el efecto
+   *después*; `--dry-run` lo **predice antes**, y dijo exactamente lo que pasó: «Files (4) +4 new», sin una
+   sola modificación. Los hashes no se retiran —una predicción no es un hecho— pero pasan a confirmar en
+   vez de a descubrir. **Se usaron los dos, y el orden correcto es ese.**
+
+3. **Punto a verificar 2, resuelto por el lado bueno y con margen.** `app/globals.css` y `package.json`
+   salieron con **el hash idéntico** —`9f5a30c0…` y `e7ea3a31…` antes y después—, así que `add` no pisa
+   nada y **no añadió ni una dependencia**. La corrección 28 de la tanda 1 se extiende: valía para
+   `globals.css`, vale también para `package.json`.
+   → **Y se comprobó lo que el punto a verificar no preguntaba, que era la mitad que importaba:** de dónde
+   importan los cuatro componentes. Salen de `radix-ui`, `lucide-react` y `class-variance-authority`, **los
+   tres declarados**. Si hubieran importado de `@radix-ui/react-select` —que llega solo de forma
+   transitiva— habría compilado igual y sería una **dependencia invisible**, que es literalmente la
+   corrección 16 de la tanda 1. **Cero dependencias nuevas no es lo mismo que cero dependencias sin
+   declarar**, y solo la segunda pregunta protege de algo.
+
+**Verificado al cerrar la tarea:** `typecheck`, `lint` y `build`, los tres en verde. El `build` deja **ocho
+rutas** —`/` y `/login` estáticas, las otras seis dinámicas—, **idéntico a como lo dejó la tanda 1**. Ese
+número es la línea base contra la que se mide el punto a verificar 5 en la Task 2.
+
+### Task 2 · Mover un archivo dejó al `typecheck` mintiendo, y solo en local
+
+4. **Punto a verificar 5, resuelto midiendo y por el lado que se temía.** Se escribió la cabecera leyendo
+   `getClaims()`, se enganchó en `app/layout.tsx` y se comparó `next build` contra la línea base de la
+   Task 1: **las ocho rutas pasaron de `○` a `ƒ`** y desapareció la línea `○ (Static)` del pie del informe.
+   Cualquier lectura de cookies en el layout raíz vuelve dinámico todo lo que cuelga de él, y de él cuelga
+   todo. Se aplicó el desenlace previsto y **`/`, `/login` y `/_not-found` volvieron a `○`**.
+   → **Lo que hace que esto valga la medición y no el razonamiento:** el código que lo provoca no está en
+   la landing. Está en un componente de la cabecera, tres archivos más allá, y no menciona a `/` por
+   ninguna parte. Leyendo `app/(publico)/page.tsx` no hay forma de saber si es estática.
+
+5. **El plan decía dónde vive la cabecera CON sesión y no dónde vive la otra, y ahí estaba el problema.**
+   «La cabecera con sesión vive en el grupo `(alumno)`» deja implícito que la pública va en el layout raíz
+   — y ahí **se suma** a la del alumno en vez de sustituirla: dos cabeceras en `/catalogo`. Un layout de
+   grupo envuelve al raíz, no lo reemplaza.
+   → **Desvío decidido y anotado: nace `app/(publico)/`**, con su layout y la landing dentro; la FAQ se le
+   suma en la Task 4. `app/page.tsx` se movió con `git mv` para conservar el historial, y la URL no cambia
+   porque un grupo entre paréntesis no aporta segmento. **El layout raíz se queda sin cabecera**, con el
+   motivo escrito dentro.
+
+6. **Mover esa página dejó el `typecheck` fallando, y habría fallado SOLO en local.** Tras el `git mv`,
+   `npm run typecheck` reventó con
+   `.next/dev/types/validator.ts(89,39): error TS2307: Cannot find module '../../../app/page.js'`.
+   **`next typegen` añade las rutas nuevas pero no retira las viejas:** el validador seguía comprobando un
+   archivo que ya no existe. Se cierra borrando `.next` — comprobado: falla con la caché, pasa sin ella.
+   → **Y es el ESPEJO exacto de la trampa que midió la tanda 0.** Allí, `tsc --noEmit` a secas pasaba en
+   local —donde `.next/` estaba poblado— y **habría roto el CI** en un runner limpio. Aquí, con el script
+   ya corregido, la caché rancia rompe **en local** y el CI habría salido verde, porque clona sin `.next/`.
+   **La misma carpeta ignorada produce los dos falsos, en direcciones opuestas.**
+   → La regla que sale, y que no estaba en ningún plan: **al mover, renombrar o borrar algo dentro de
+   `app/`, se borra `.next/` antes de creerse el `typecheck`** — el verde y el rojo por igual.
+
+7. **`CabeceraSesion` NO lee la sesión, contra lo que sugiere su nombre.** Cuando se pinta, el layout de
+   `(alumno)` ya llamó a `getClaims()` y ya redirigió a quien no tuviera. Volver a leerla sería una segunda
+   consulta para una pregunta ya respondida, y **la segunda copia se desincronizaría de la primera** — es
+   el mismo argumento por el que `lib/auth/destino.ts` es la lectura única que reparte. El motivo va
+   escrito en el archivo, porque el nombre invita a lo contrario.
+
+**Verificado al cerrar la tarea, con sondas en los dos sentidos:** `/` y `/login` responden **200**,
+`/faq` responde **404** —y ese 404 **es** el resultado correcto de este paso: significa que el proxy la
+dejó pasar y que todavía no hay pantalla, igual que el `404` de `/login` en la Task 5 de la tanda 1—, y
+`/catalogo`, `/mi-panel` y `/admin/inventario` **rebotan con 307 a `/login`**, las dos últimas **sin
+existir siquiera**: la lista blanca sigue cerrando lo que nadie declaró. En el HTML de `/` hay **un solo
+`<header>` y un solo `<footer>`**, y **cero** apariciones de `auth/signout`, que es lo que probaría que se
+coló la cabecera equivocada. `typecheck`, `lint` y `build` en verde, con **`/`, `/login` y `/_not-found`
+otra vez estáticas**.
+
+> **Desvío de método, dicho por delante:** esta tarea se verificó por HTTP y **no** en un navegador. Lo que
+> cambia es el reparto de cabeceras y los códigos del proxy, que es exactamente lo que una sonda sí ve —no
+> hay formulario ni hidratación de por medio—. **La landing todavía es el marcador de posición de la tanda
+> 0**, así que abrir un navegador ahora mediría una pantalla que la Task 3 va a reemplazar entera. La
+> comprobación visual se hace en la Task 3, con la pantalla de verdad delante.
+
+---
+
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que
 > dejó medido `PLANES/FASE_2_TANDA_1.md`, no de la imaginación. Al terminar, la cabecera de correcciones va
 > **arriba de este párrafo**, fechada. Los planes de este proyecto NO se reescriben tras ejecutar.

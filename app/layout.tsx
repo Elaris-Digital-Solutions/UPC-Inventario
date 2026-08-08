@@ -39,6 +39,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={cn("h-full", montserrat.variable, playfair.variable)}
     >
+      {/* Sin cabecera aca, y es una decision medida, no un olvido. Una
+          cabecera que lee sesion en el layout RAIZ vuelve dinamicas TODAS las
+          rutas: medido el 2026-08-08 comparando `next build` antes y despues
+          -las ocho pasaron de dos estaticas a cero-. La vitrina publica no
+          necesita saber quien mira, asi que la cabecera la pintan los layouts
+          de grupo: la publica en (publico), la de sesion en (alumno). */}
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
