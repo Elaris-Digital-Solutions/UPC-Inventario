@@ -2,6 +2,67 @@
 
 ---
 
+## 📍 Dónde se paró — pausa del 2026-08-08, 14:08
+
+> **Bloque temporal.** Se borra al cerrar la tanda; lo que sea reutilizable se convierte en receta, como se
+> hizo con el bloque equivalente de la tanda 1.
+
+**Cuatro de siete tareas cerradas.** Rama `feature/fase-2-tanda-2a`, **cinco commits, NADA empujado**, árbol
+limpio. `develop` está en `e03523c`.
+
+| Commit | Tarea |
+|---|---|
+| `e60e128` | 2A.1 · componentes de interfaz y el host de las imágenes |
+| `b76085d` | 2A.2 · cabecera, pie y la FAQ como ruta pública |
+| `2ff7538` | 2A.3 · la landing como vitrina pública |
+| `309d634` | 2A.3-bis · la tarjeta, arreglada con un navegador delante |
+| `14aaf35` | 2A.4 · FAQ pública, 404 propio y salida desde `/login` |
+
+**Falta: Task 5 (catálogo), Task 6 (detalle) y Task 7 (verificación y cierre).**
+
+### Lo que hay que levantar antes de seguir
+
+1. **Docker Desktop arrancado**, luego `npx supabase start` desde la raíz del repositorio.
+2. **`.env.local` tiene que existir** y apuntar a `http://127.0.0.1:54321`. **No se versiona**, así que
+   sobrevive a los checkouts pero no a un clon nuevo. **Comprobarlo antes de tocar nada** *(corrección 31
+   de la tanda 1)*.
+3. `npm run dev`, y probar **siempre por `http://127.0.0.1:3000`**, nunca por `localhost:3000`.
+4. **Borrar `.next/` si se mueve, renombra o borra algo dentro de `app/`** *(corrección 6)*.
+
+### El navegador ya está disponible, y costó habilitarlo
+
+El plugin **`chrome-devtools-mcp@claude-plugins-official`** está habilitado en
+`.claude/settings.local.json`, junto al de Supabase. **Ese archivo NO se versiona** —lo ignora una regla
+global de git—, así que en otra máquina hay que volver a habilitarlo. Se activa sin reiniciar la sesión con
+`/reload-plugins` y luego `/mcp`. Hay también un plugin de Playwright conectado.
+
+**Y esto no es un detalle de comodidad:** tres de los cinco hallazgos de esta tanda **solo aparecieron con
+un navegador delante**, y ninguno lo habría visto `typecheck`, `lint`, `build` ni una sonda HTTP.
+
+### Lo que quedó medido y sirve para las tareas que faltan
+
+- **El embed `products` → `product_images` FUNCIONA.** Medido contra PostgREST local:
+  `.select("id, name, ..., product_images(secure_url, is_main, sort_order)")` devuelve el array anidado, y
+  el filtro `product_images.is_main=eq.true` con `!inner` responde 200. **La Task 5 ya no tiene que medir
+  esto** — lo que sigue sin medir es el otro embed, el de `product_availability`, que es el punto a
+  verificar 1 y para el que hay una **predicción escrita: no va a funcionar**.
+- **Datos reales de producción**, para los criterios de aceptación: 34 productos, 18 con stock en San
+  Miguel y 16 en Monterrico, **cada producto en una sola sede**; 10 categorías; una imagen por producto;
+  `max_duration_hours` = 4 en los 34.
+- **Datos del stack local:** 4 productos, **2 con `featured = true`** —contra 0 de 34 en producción—, y
+  **2 imágenes de Cloudinary que dan 404** porque el cloud `demo` no las tiene. **En local las fotos del
+  catálogo salen rotas y eso es lo esperado**, no un fallo de `remotePatterns`.
+
+### Dos cosas pendientes que no bloquean, pero se dicen
+
+- **A 390 px de ancho no está verificado.** Chrome no redimensiona por debajo de **485** en Windows con la
+  herramienta usada. A 485 no hay desborde horizontal. Para un móvil real queda pendiente, y **Playwright
+  sí controla el viewport de verdad**, así que es la vía si se quiere cerrar.
+- **Queda por medir con sesión real** *(corrección 15)*: que una ruta inventada dé el 404 propio y no otra
+  cosa cuando sí hay cookie. Va en la Task 7.
+
+---
+
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
 > **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
