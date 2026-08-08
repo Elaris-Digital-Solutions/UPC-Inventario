@@ -183,6 +183,51 @@ hidratación**; `/Campus.png` y `/campus-san-miguel.webp` cargan con **200**; y 
 cuatro tarjetas se pintan una sola vez. El círculo con la «N» que aparece abajo a la izquierda es el
 indicador de **Next DevTools** —el chunk `next-devtools` sale en la lista de red—, no código del proyecto.
 
+### Task 4 · La lista blanca se lleva por delante el 404, y /login estaba encerrado
+
+14. **La FAQ va en `app/(publico)/faq/`, no en `app/faq/`.** Consecuencia directa de la corrección 5: el
+    grupo `(publico)` es quien pinta la cabecera y el pie, y un archivo fuera de él nacería sin ninguno de
+    los dos. La URL no cambia — un grupo entre paréntesis no aporta segmento.
+
+15. **El 404 propio NO se alcanza desde la raíz sin sesión, y es la lista blanca cobrando otra vez.** El
+    Step 3 pedía «una ruta inventada, que tiene que dar el 404 nuevo». Medido en un navegador:
+    `/ruta-inventada` **rebota a `/login`**. El proxy corre **antes** que el router, así que no sabe si la
+    ruta existe: solo sabe que nadie la declaró pública.
+    → **Y el matiz importa, porque «el 404 es inalcanzable» sería falso.** Medido las cuatro
+    combinaciones: `/faq/subruta-falsa` → **404**, `/login/algo` → **404**, `/ruta-inventada` →
+    **redirección**, `/catalogo/xxx` → **redirección**. **El 404 se alcanza dentro de las ramas públicas
+    declaradas, y no fuera de ellas.**
+    → **Se acepta y no se arregla.** La única forma de que una URL inventada llegara al 404 es que el
+    proxy dejara pasar lo no declarado, que es exactamente la propiedad que la corrección 18 de la tanda 1
+    compró a propósito. **Cambiar una garantía de que nada nace abierto por un mensaje de error más bonito
+    es el trueque que este proyecto rechaza.** Con sesión el 404 aparece siempre; sin ella, quien inventa
+    una URL ve la pantalla de acceso, que tampoco es una mentira.
+    → **Queda por medir en la Task 7:** que con sesión real una ruta inventada dé el 404 y no otra cosa.
+
+16. **`/login` no tenía UN SOLO enlace, y quien llegaba ahí quedaba encerrado.** Se vio abriendo la
+    pantalla, no leyéndola: el proxy rebota `/catalogo` a `/login`, y desde ahí no había logo, ni inicio,
+    ni nada — solo el botón atrás del navegador. Medido después con `document.querySelectorAll('a')`:
+    **cero enlaces**.
+    → Nace `app/(auth)/layout.tsx` y `Cabecera` gana una variante **`minima`**, con solo el logo. La
+    completa no servía: su botón «Entrar» lleva a la página en la que ya estás.
+    → **Lo destapó esta tanda sin haberlo causado.** El defecto venía de la tanda 1; lo hizo visible dar
+    cabecera a unas pantallas y no a otras. Comprobado que `/auth/error` sí tenía salida —un enlace a
+    `/login`—, así que con esto la cadena se cierra entera.
+    → Verificado: `/login` pasa a **dos** enlaces —logo a `/` y el pie a `/faq`—, **una** cabecera, **un**
+    pie, **sin** botón «Entrar» redundante, y el formulario intacto.
+
+17. **Dos arreglos de redacción sobre lo que escribió el generador.** (a) «quedas bloqueado 15 días»:
+    el participio **concuerda en género con quien lee**, y no se sabe cuál es. Cambiado a «pierdes el
+    acceso durante 15 días», que no marca ninguno. (b) El cierre decía «¿No encontraste lo que buscabas?»
+    y debajo un botón para entrar: **si no encontró la respuesta, entrar no se la da**. La pregunta pasa a
+    ser la que ese botón sí resuelve.
+
+**Verificado al cerrar la tarea, en un navegador:** `/faq` responde **sin sesión** y se lee entera; el 404
+propio se pinta con su cabecera y su pie —que él mismo importa, porque no cuelga de ningún grupo—; y
+`/login` ya tiene salida. `typecheck`, `lint` y `build` en verde. El `build` deja **nueve rutas**, una más
+que la tanda 1, y **`/faq` sale estática** (`○`), igual que `/login` y `/_not-found`: **la cabecera mínima
+no lee cookies, así que no saca nada del prerender**.
+
 ---
 
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que

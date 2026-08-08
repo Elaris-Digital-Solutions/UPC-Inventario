@@ -17,7 +17,16 @@ import { Button } from "@/components/ui/button";
 // Y ninguna de las dos DECIDE nada. Quien no deberia llegar al catalogo lo
 // tiene cerrado por el proxy y por RLS. Ensenar o esconder un enlace es
 // comodidad; si borrarlo abriera un agujero, el agujero estaba en la base.
-export function Cabecera() {
+// `minima` deja solo el logo, y existe por un problema concreto que se vio
+// abriendo la pantalla: /login no tenia UN SOLO enlace, asi que quien llegaba
+// ahi rebotado desde una ruta privada quedaba encerrado -sin mas salida que el
+// boton atras del navegador-. La cabecera completa tampoco servia ahi: su
+// boton "Entrar" lleva a la pagina en la que ya estas.
+type CabeceraProps = {
+  variante?: "completa" | "minima";
+};
+
+export function Cabecera({ variante = "completa" }: CabeceraProps) {
   return (
     <header className="border-border/60 bg-background/95 sticky top-0 z-50 border-b backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-4">
@@ -25,14 +34,16 @@ export function Cabecera() {
           UPC-Inventario
         </Link>
 
-        <nav className="flex items-center gap-1">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/faq">Preguntas</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/login">Entrar</Link>
-          </Button>
-        </nav>
+        {variante === "completa" && (
+          <nav className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/faq">Preguntas</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/login">Entrar</Link>
+            </Button>
+          </nav>
+        )}
       </div>
     </header>
   );
