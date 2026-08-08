@@ -65,7 +65,9 @@ que sostiene un commit, borrarla lo pierde. Tags vivos: `legacy/vite-final` y `l
 
 **Fases 0 y 1 cerradas, y la base de datos está terminada del todo.** La Fase 1 dejó 19 migraciones y 124
 aserciones pgTAP; la **tanda 0 de la Fase 2** añadió las dos últimas migraciones del proyecto: **21
-migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. Diseño en
+migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. ⚠ **Corregido el
+2026-08-07:** la tanda 1 añadió **una migración más, la 22** *(D-32, el enganche de dominio)*, así que hoy
+son **22 migraciones y 142 aserciones en 23 archivos**. Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
 | Tanda | Contenido | Estado |
@@ -88,15 +90,19 @@ llegó con su fila. Los tres avisos originales del linter desaparecieron.
   autorización por dentro.
 - **22 avisos de rendimiento**, todos prematuros: la base nunca ha servido una consulta. Ver Q-13.
 
-**Sembrar el primer admin es tarea de la Fase 2, no de ahora.** `auth.users` está vacío porque nada usa
+~~**Sembrar el primer admin es tarea de la Fase 2, no de ahora.** `auth.users` está vacío porque nada usa
 Supabase Auth todavía; se conecta en la tarea 2.4. Antes de eso, el `insert ... select` no encontraría a
-nadie e insertaría cero filas **sin dar error**.
+nadie e insertaría cero filas **sin dar error**.~~ ⚠ **Al día 2026-08-07:** la tarea 2.4 ya está hecha —la
+tanda 1 conectó Supabase Auth—, así que la siembra ya es posible. Sigue pendiente de ejecutarse, y la
+comprobación previa **no** es que la fila exista sino que `email_confirmed_at` no sea `NULL`: la fila de
+`auth.users` nace al **pedir** el magic link, no al abrirlo.
 
 ## Fase 2 en marcha
 
 **Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** Cinco tandas, una por perfil, un PR
 cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2** alumno, **T3** personal, **T4** endurecimiento.
-Decisiones D-19 a D-32; cerrados Q-7, Q-11 y Q-12; abiertos Q-14, Q-15 y Q-16.
+Decisiones D-19 a D-32; cerrados Q-7, Q-11, Q-12 y **Q-15**; abierto Q-14; **Q-16 respondido y aplazado**
+—no dan acceso al tenant de Entra ID, así que Microsoft queda fuera—.
 
 **Plan de la T1 escrito el 2026-08-06: `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.** Once tareas y seis
 correcciones al diseño. **Dos cambios de alcance decididos al escribirlo:** **Microsoft sale** —el acceso
@@ -108,9 +114,33 @@ de la T0:** la frase se corrige fechada al cerrar la tanda, no se borra.
 **T0 cerrada el 2026-08-06.** Ocho commits numerados, 0.1 a 0.8. El árbol Vite fuera —121 archivos, 18.633 líneas— y el de
 Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
 CI adaptado. Las dos últimas migraciones del proyecto *(D-19, D-20)*: **21 migraciones y 135 aserciones
-pgTAP**. **Desde aquí ninguna tanda vuelve a tocar SQL.** Correcciones en
-`MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`. **Siguiente: T1, la sesión** — `@supabase/ssr`, `proxy.ts`,
-magic link y Microsoft, y sembrar el primer admin. Cierra P0-3.
+pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde el 2026-08-07:** D-32 añadió
+la migración 22, con la decisión tomada y el costo dicho por delante. Correcciones en
+`MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.
+
+**T1 con todas las tareas completas el 2026-08-07; falta el PR y su CI.** Está escrito y medido todo el código de la
+sesión: `.gitattributes` *(cierra Q-15)*, el `.env` en `NEXT_PUBLIC_` con la clave publicable, la
+**migración 22** del enganche de dominio ya en el remoto *(D-32)*, los tres clientes de `@supabase/ssr`,
+`proxy.ts` con **lista blanca** —se declara lo público y todo lo demás pide sesión—, `/login` con magic
+link, el canje en `/auth/confirm`, `/auth/error`, `/auth/signout`, el reparto por perfil y
+`/completar-perfil`. **Cierra P0-3.** El **primer administrador ya está sembrado** en el proyecto real, y el
+flujo se probó entero en un navegador de verdad: entrar, completar el perfil y caer en `/admin/inventario`.
+Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.
+
+**Cinco fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
+el enganche de dominio **desactivado en los contenedores** —`db reset` no aplica el `config.toml`, hacen
+falta `stop` y `start`—; `npm run dev` **hablando con producción** por falta de un `.env.local`, que no se
+versiona; el canje **cambiando de host** en la redirección y tirando la sesión, porque las cookies se
+guardan por host y ni `new URL(request.url).origin` ni `request.nextUrl` lo conservan; y la **plantilla de
+correo de fábrica** mandando el enlace a Supabase en vez de a la aplicación; y **los chunks de `/_next/*`
+respondiendo `403` a un navegador y `200` a `curl`** *(D-33)*, que dejó la aplicación inutilizable en un
+navegador durante ocho tareas en verde. **Son fallos de a qué se conecta el código, no de qué dice.** Lo
+único que los encontró fue pedir el flujo entero y mirar el resultado.
+
+**Y el quinto enseña algo que los otros cuatro no:** `curl` no manda cabecera `Origin` y un navegador sí,
+así que **la herramienta de prueba era más privilegiada que el usuario final**. Quince sondas HTTP en verde
+no significaban que la pantalla funcionara. Cuando se prueba por HTTP, la pregunta es qué manda el cliente
+real que la sonda no manda.
 
 **La T0 estuvo a punto de entrar sin CI** *(D-31)*, por una caída mayor de GitHub Actions que duró todo el
 2026-08-06. **Acabó teniéndolo entero:** Actions drenó su atrasado hacia las 23:26 UTC y corrió los dos

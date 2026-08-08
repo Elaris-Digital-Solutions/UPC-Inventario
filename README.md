@@ -30,7 +30,12 @@ npx supabase start
 npm run dev
 ```
 
-La aplicación queda en `http://localhost:3000` y Supabase Studio en `http://localhost:54323`.
+La aplicación queda en `http://127.0.0.1:3000` y Supabase Studio en `http://localhost:54323`.
+
+> **Por `127.0.0.1`, no por `localhost`.** El navegador los trata como sitios distintos para las cookies, y
+> el `site_url` del stack local es `127.0.0.1`: abrir la aplicación en un origen y el enlace del correo en
+> el otro deja la sesión escrita donde nadie la va a leer. Medido en la tanda 1 de la Fase 2. Los correos
+> locales se leen en Mailpit, `http://127.0.0.1:54324`.
 
 ## Base de datos
 
@@ -40,14 +45,14 @@ Las migraciones son versionadas y se aplican con la CLI. **Nada de SQL suelto.**
 npx supabase db reset
 ```
 
-Reaplica las 21 migraciones desde cero y siembra `supabase/seed.sql`. Requiere el stack **completo**:
+Reaplica las 22 migraciones desde cero y siembra `supabase/seed.sql`. Requiere el stack **completo**:
 falla si se arrancó con `-x`.
 
 ```powershell
 npx supabase test db
 ```
 
-Corre la batería pgTAP — 135 aserciones sobre las reglas de negocio, RLS y los privilegios. Es la red que
+Corre la batería pgTAP — 142 aserciones sobre las reglas de negocio, RLS y los privilegios. Es la red que
 sostiene el modelo de autorización: **quien decide quién puede leer y escribir qué es la base, no la
 aplicación.**
 

@@ -581,15 +581,25 @@ autorización viva en la base: cada tanda se puede probar contra el perfil real,
 
 | Tanda | Contenido | Tareas del plan | Qué deja |
 |---|---|---|---|
-| **T0 · Cimientos** | Borrar Vite y los documentos muertos. Next.js 16 + App Router + Tailwind con los tokens + shadcn. Los tipos generados. El CI adaptado. **La última migración: D-19 y D-20** | 2.1, 2.2, 2.3 · D-6 · Q-12 | El stack respira. Sin pantallas reales |
-| **T1 · Sesión** | `@supabase/ssr`, `proxy.ts`, magic link y Microsoft, `/completar-perfil`, cierre de sesión. Sembrar el primer admin | 2.4, 2.4-bis | **Cierra P0-3.** Se entra y se sale |
+| **T0 · Cimientos** | Borrar Vite y los documentos muertos. Next.js 16 + App Router + Tailwind con los tokens + shadcn. Los tipos generados. El CI adaptado. ~~**La última migración: D-19 y D-20**~~ → **las dos penúltimas**: la última es la 22 *(D-32)*, ver la nota de abajo | 2.1, 2.2, 2.3 · D-6 · Q-12 | El stack respira. Sin pantallas reales |
+| **T1 · Sesión** | `@supabase/ssr`, `proxy.ts`, magic link ~~y Microsoft~~ *(Q-16: no hay tenant)*, `/completar-perfil`, cierre de sesión. Sembrar el primer admin. **Y la migración 22** *(D-32)*, ver la nota | 2.4, 2.4-bis | **Cierra P0-3.** Se entra y se sale |
 | **T2 · Alumno** | Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta | 2.5, 2.6 | Un alumno reserva de punta a punta |
 | **T3 · Personal** | Mostrador (operador y admin), inventario, imágenes con firma, reservas, días, estadísticas, personal | 2.7, 2.8, 2.9 | **Cierra P0-4.** El ciclo de préstamo se cierra |
 | **T4 · Endurecimiento** | Cabeceras de seguridad, E2E de Playwright, lint y auditoría bloqueantes, Q-10, Q-13 | 2.10, 2.11 | Desplegable |
 
-**Por qué la migración de D-19 y D-20 va en T0 y no en T2**, que es donde se usa: para que **ninguna otra
-tanda toque SQL**. Es la última migración del proyecto; agrupada con los cimientos, deja T1 a T4 como
+**Por qué la migración de D-19 y D-20 va en T0 y no en T2**, que es donde se usa: para que ~~**ninguna otra
+tanda toque SQL**. Es la última migración del proyecto;~~ agrupada con los cimientos, deja T1 a T4 como
 trabajo puramente de aplicación, y hace que los tipos que genera T0 salgan ya del esquema definitivo.
+
+> ⚠ **Corregido el 2026-08-07, y la parte tachada es la que caducó.** **La T1 sí volvió a tocar SQL:**
+> **D-32** añadió la **migración 22**, el enganche *Before User Created* que rechaza el registro cuando el
+> correo no es `@upc.edu.pe`. La decisión se tomó con el costo dicho por delante —«contradice una frase
+> escrita en tres documentos»— y no por descuido, así que la frase se tacha en vez de borrarse.
+> **Lo que sigue valiendo es el motivo, no la promesa:** agrupar el SQL con los cimientos hace que los tipos
+> generados salgan del esquema definitivo, y eso se cumplió —la 22 no cambia ninguna tabla, solo añade una
+> función en `private`—. **Lo que la promesa enseñó es de método:** una intención escrita en presente se lee
+> después como un hecho, y son los documentos los que hay que fechar, no las intenciones las que hay que
+> evitar.
 
 **Riesgo anotado: T2 es la tanda grande.** El calendario solo puede llevarse media tanda. Si al escribir su
 plan pasa de unas quince tareas, se parte en dos —«catálogo y detalle» y «reserva y panel»— y son seis PR

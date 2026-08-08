@@ -1,5 +1,604 @@
 # Fase 2 · Tanda 1 — La sesión · Plan de implementación
 
+---
+
+## 📍 Dónde se paró — 2026-08-07, segunda pausa
+
+> **Bloque temporal.** Se borra al cerrar la tanda, igual que se hizo con la sección 0 de
+> `ESTADO_Y_PLAN.md`. **Reescrito entero en la segunda pausa:** lo que decía antes está superado.
+
+| Tarea | Estado |
+|---|---|
+| **Task 0** · dashboard y accesos | ✅ hecha. Clave publicable copiada, URL de redirección añadida, enganche activado. **Tenant de Entra ID: denegado** *(Q-16)* |
+| **Task 1** · `.gitattributes` *(Q-15)* | ✅ cerrada y verificada |
+| **Task 2** · `.env` y `.env.example` | ✅ cerrada |
+| **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
+| **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
+| **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
+| **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fábrica no servía** *(corrección 23)* |
+| **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
+| **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, y el formulario medido de punta a punta *(corrección 42)* |
+| **Task 9** · sembrar el primer admin | ✅ **hecha el 2026-08-07 en producción.** Admin sembrado y verificado por su efecto. Destapó **D-33**: la aplicación no funcionaba en un navegador *(correcciones 46 a 48)* |
+| **Task 10** · cierre | ✅ **hecha el 2026-08-07, y se adelantó a la 9** porque la 9 estaba bloqueada esperando a una persona. Batería y comprobaciones en verde, los **cuatro** documentos corregidos, correcciones 43 a 45. **Le falta solo su último paso** —el commit de cierre y el PR—, que va detrás de la 9 para no registrar un resultado antes de medirlo |
+
+### Estado exacto al pausar
+
+**Git:** rama `feature/fase-2-tanda-1`, HEAD en **`ae3b5d7`**, **árbol limpio**. Nueve commits por encima de
+`develop` (`8a3731e`): el de anotación `6337b7e` más los ocho de la tanda, **1.1 a 1.8**. **Nada publicado:
+no hay rama remota ni PR.** En el remoto solo viven `main` y `develop` *(D-29 restaurado: la
+`docs/plan-fase-2-tanda-1` que había sobrado del PR #20 se borró en esta sesión)*.
+
+**Base de producción:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
+archivos** · `auth.users` con **cero filas** · el enganche `before_user_created` **activo y verificado con
+una petición real**.
+
+~~**⚠ Base LOCAL contaminada, y hay que limpiarla antes de la batería.** Las sondas de las Tasks 6, 7 y 8
+crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` por el flujo real, y el trigger les
+puso fila en `alumnos`: **hay 7 usuarios y 6 alumnos donde el seed deja 4**. `14_rls_alumnos.sql` afirma un
+conteo fijo, así que **fallará hasta que se corra `npx supabase db reset`**~~ *(corrección 10)*.
+✅ **Limpiada el 2026-08-07** al empezar la Task 10: `db reset` reaplicó las 22 migraciones y la batería dio
+**142 aserciones en 23 archivos, todas en verde**, `14_rls_alumnos.sql` incluido. **La advertencia se
+conserva porque vuelve a aplicar** en cuanto alguien pruebe otra vez el flujo por HTTP contra el stack
+local, que es lo que hará la T2 entera.
+
+### Lo que NO hay que rehacer
+
+- La **migración 22** ya está en el remoto y el enganche ya está activo en el dashboard, comprobado con una
+  petición real que devuelve `403`.
+- **Q-15** ya se cerró regenerando los tipos.
+- Las **dos plantillas de correo locales** ya están escritas en `supabase/templates/` y enganchadas en
+  `config.toml`, y el enlace resultante ya se verificó en Mailpit.
+- **Todo el código de la tanda está escrito y medido**: los tres clientes, el proxy, `/login`, el canje,
+  `/auth/error`, `/auth/signout`, el reparto y `/completar-perfil`.
+
+### Pendiente de Alejandro, y bloquea la Task 9
+
+**Las dos plantillas de correo del dashboard** del proyecto real, en *Authentication → Emails → Templates*.
+El `config.toml` solo configura el stack local *(corrección 23)*:
+
+- **Magic Link** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">`
+- **Confirm signup** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup">`
+
+Hacen falta **las dos**: GoTrue usa la segunda para quien entra por primera vez, que es exactamente el caso
+de la Task 9. Y conviene revisar que el *Site URL* de *URL Configuration* apunte a donde corra la aplicación,
+porque es lo que rellena `{{ .SiteURL }}`.
+
+### Cómo se levanta el entorno
+
+1. **Docker Desktop arrancado**, y `npx supabase start`. **Nunca `db reset` para aplicar `config.toml`:**
+   hace falta `stop` y `start` *(corrección 7)*.
+2. **`.env.local` tiene que existir y NO se versiona** *(corrección 31)*. Sin él, `npm run dev` habla con el
+   proyecto **real**, manda correos por su SMTP y le crea cuentas. Contenido:
+   `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` y la `PUBLISHABLE_KEY` que imprime `supabase start`.
+   El `.env.example` lo explica. **Comprobar que existe antes de tocar nada.**
+3. **Probar siempre por `http://127.0.0.1:3000`, nunca por `localhost:3000`.** El navegador los trata como
+   sitios distintos para las cookies y el `site_url` local es `127.0.0.1` *(corrección 27)*.
+4. Mailpit, para leer los correos: `http://127.0.0.1:54324`.
+
+### Trampas vigentes
+
+- Los usuarios de `seed.sql` llevan las columnas de token en `NULL` y **GoTrue devuelve `500` con
+  cualquiera de ellos** *(corrección 8)*. Para probar sesión hay que crear usuarios por el flujo real; los
+  dos `sonda.*` que ya existen sirven, y desaparecen con `db reset`.
+- `[auth.rate_limit] email_sent = 2` por hora en el `config.toml` local. Con muchas pruebas seguidas, el
+  envío empieza a rechazarse.
+- **Ninguna herramienta de este proyecto ha avisado de un fallo de conexión.** Los cuatro más caros de la
+  tanda —el enganche desactivado, el dev apuntando a producción, el cambio de host y la plantilla de
+  fábrica— pasaron con `typecheck`, `lint` y `build` en verde. **Lo único que los encontró fue pedir el
+  flujo entero y mirar el resultado.**
+
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
+> tarea y no al final, para no perderlo.
+
+### Task 1 · El `.gitattributes` no hacía lo que el plan creía que hacía
+
+1. **`git add --renormalize .` cambió CERO archivos.** El Step 2 pedía «anotar cuántos archivos toca»
+   dando por hecho que renormalizar produce ruido, y por eso la tarea iba sola y primera. **No hay ruido
+   que aislar: todo el repositorio ya estaba en LF.** Lo confirma lo que la tanda 0 había medido —el blob
+   versionado coincidía byte a byte con lo que genera la CLI— y esta tarea lo extiende a los 89 archivos:
+   ninguno cambia de contenido. El aislamiento del commit deja de ser una precaución y pasa a ser
+   ordenado, pero la razón para tomarla era correcta con la información de entonces.
+
+2. **Y por eso el trabajo real era otro, que el plan no menciona: refrescar el árbol de trabajo.** El
+   `.gitattributes` arregla lo que se materializa en un checkout **futuro**; los archivos que ya están en
+   el disco siguen con CRLF hasta que algo los reescriba. Medido: tras crear el archivo y renormalizar,
+   `lib/database.types.ts`, `package.json`, `db.yml`, `config.toml`, `CLAUDE.md` y `globals.css` seguían
+   todos en CRLF. **El diff falso de Q-15 seguía ahí con el `.gitattributes` ya escrito.**
+
+3. **Dos formas de refrescar que NO funcionan, y las dos parecen que sí:**
+   - **`.gitattributes` sin añadir al índice no aplica a un checkout.** Git lee los atributos del árbol
+     que está desplegando, no del disco. Con el archivo escrito pero sin `git add`, `check-attr` ya
+     contesta `eol: lf` —porque eso sí mira el disco— y un checkout sigue escribiendo CRLF. **Las dos
+     respuestas son ciertas y contradictorias**, que es lo que hace que cueste verlo.
+   - **`git checkout-index -a -f` no reescribe los archivos que ya existen**, ni con `-f`. Devuelve `0` y
+     no toca nada. Verificado: los seis archivos seguían en CRLF después de correrlo.
+   → Lo que sí funciona es borrar y recuperar: `rm <archivo>` y `git checkout -- <archivo>` devuelve el
+   archivo en LF. Comprobado sobre `package.json` y sobre `lib/database.types.ts`.
+
+4. **El refresco completo tiene que ir DESPUÉS del commit**, y esto es un orden que se puede estropear sin
+   darse cuenta. La receta habitual es `git reset --hard`, y con `.gitattributes` solo en el índice **eso
+   lo borra**: `reset --hard` deja índice y disco igual que `HEAD`, y el archivo todavía no está en `HEAD`.
+   Se commitea primero, se refresca después.
+
+> **Lo que esta tarea enseña, y no es sobre finales de línea:** `check-attr` decía que el atributo estaba
+> puesto, `checkout-index` terminaba en `0`, y el problema seguía intacto. **Dos herramientas contestando
+> «bien» a preguntas que no eran la pregunta.** La única comprobación que servía era mirar el byte:
+> ¿tiene este archivo un `\r` dentro?
+
+**Resultado final de la tarea, medido y no supuesto:** cero archivos de texto con `\r` en el disco, los
+ocho binarios intactos —`git status` limpio—, y el paso que motivó Q-15 comprobado de verdad con el stack
+local: `supabase gen types --local` contra `lib/database.types.ts` da `diff` limpio **en Windows**. De
+paso, la CLI vuelve a anunciar `Connecting to db 5432`, que confirma otra vez lo que midió la tanda 0.
+
+### Task 2 · El `.env`, y una tercera herramienta contestando a otra pregunta
+
+5. **La clave publicable ya estaba en el `.env`, bajo un nombre que mentía.** `VITE_SUPABASE_ANON_KEY`
+   guardaba una `sb_publishable_…`, no una `anon` en formato JWT. El Step 1 daba por hecho que había que
+   traerla del dashboard; lo que hacía falta era **renombrarla**. El valor no cambia. Que el nombre de una
+   variable describa mal lo que guarda es barato hasta el día en que alguien la rota mirando el nombre.
+
+6. **`git check-ignore -v` contesta que sí a un archivo que NO está ignorado.** Con `!.env.example` en el
+   `.gitignore`, imprime la línea de la **negación** y sale con código `0`, que es el mismo código con el
+   que anuncia que un archivo sí está ignorado. La comprobación del Step 2 estaba escrita sobre ese código
+   de salida y **daba el resultado contrario al real**.
+   → Lo que sí responde la pregunta es `git add --dry-run <archivo>`: dice `add '.env.example'` para el que
+   se puede versionar y **rechaza** el `.env` con `The following paths are ignored`. Es la tercera vez en
+   dos tareas que la herramienta obvia contesta con confianza a una pregunta que no era la que se hacía.
+
+### Task 3 · El enganche estuvo desactivado y todo salía en verde
+
+7. **`supabase db reset` NO aplica el `config.toml` a los contenedores, y este es el hallazgo grave de la
+   tanda.** El Step 5 decía «activarlo en local con el bloque del `config.toml` y `supabase db reset`».
+   Se hizo, y **el enganche no existía**: `docker exec supabase_auth_… env | grep hook` no devolvía ni una
+   variable. `db reset` reinicia contenedores, pero su entorno se genera en `supabase start`.
+   → Hace falta **`supabase stop` y `supabase start`**. Después, las tres variables aparecen.
+   → **Lo que hace que esto asuste es cómo se veía mientras tanto:** la migración aplicada, las 142
+   aserciones pgTAP en verde, la función existiendo y contestando bien cuando se la llama a mano… y la
+   puerta abierta de par en par. **Las pruebas unitarias de una función de enganche no prueban que el
+   enganche esté enganchado.** Solo lo prueba pedir un registro de verdad y ver el 403.
+
+8. **La primera prueba de rechazo fue inválida, y por poco pasa por buena.** Se probó con
+   `alguien@gmail.com`, que **existe en `seed.sql`**. GoTrue devolvió `HTTP 500 Database error finding
+   user` y era tentador leerlo como «rechaza». No rechazaba nada: reventaba antes. El registro del
+   contenedor lo dijo entero —`Scan error on column index 3, name "confirmation_token": converting NULL to
+   string is unsupported`—, y esa línea también deja un **pendiente que muerde en la Task 7**: las filas de
+   `auth.users` que siembra `seed.sql` llevan las columnas de token en `NULL`, así que **GoTrue da 500 con
+   cualquiera de ellas**. Los usuarios sembrados no sirven para probar el flujo real de sesión en local.
+   → La sonda tiene que usar un correo que no exista. Con uno nuevo: **403 con el mensaje exacto**, tanto
+   para `gmail.com` como para `notupc.edu.pe`, y **cero cuentas creadas**. El `@upc.edu.pe` entra con 200 y
+   sale con su fila en `alumnos` puesta por el trigger: las dos capas, verificadas por separado.
+
+9. **Siete aserciones, no cuatro**, y la séptima salió de escribirlas. Se añaden el `http_code` y dos casos
+   que el plan no tenía: el sufijo `@upc.edu.pe.evil.com` y **un evento sin correo**. Esta última obligó a
+   decidir la forma de la función: escrita como pedía el instinto —«si NO casa, rechaza»— un correo `NULL`
+   da `not (NULL like …)`, que es `NULL`, el `IF` no entra y **la función deja pasar a todo el mundo sin un
+   solo error**. Escrita al derecho, falla cerrada. Es el mismo modo de fallo que persiguió la Fase 1,
+   encontrado esta vez antes de que existiera.
+
+10. **Probar por HTTP contra el stack local contamina las fixtures, y una aserción lo cazó.**
+    `14_rls_alumnos.sql` falló con «el admin ve a todos los alumnos: have 5, want 4»: el `@upc.edu.pe` de
+    la sonda se había convertido en un alumno real por el trigger. **Las pruebas pgTAP hacen `rollback` de
+    lo suyo, pero no de lo que otro escribió fuera.** `db reset` antes de correr la batería después de
+    cualquier sonda. La aserción de conteo fijo, que parece frágil, es justo lo que lo detectó.
+
+11. **En local no se puede observar lo que dice la corrección 3.** `config.toml` trae
+    `enable_confirmations = false`, así que un magic link crea la cuenta **ya confirmada** y
+    `email_confirmed_at` nunca se ve en `NULL`. La corrección sigue valiendo para el proyecto remoto, que
+    es donde corre la Task 9; **se verifica ahí y no aquí**. De paso: el stack local **no es un ensayo fiel
+    del flujo de confirmación**.
+
+12. **Al plan le falta un paso, y sin él D-32 no protege nada en producción.** La Task 0 Step 3 manda
+    activar el enganche en el dashboard, pero **la función tiene que existir antes en el proyecto remoto**,
+    y ninguna tarea hace `supabase db push`. Sin ese empujón, el dashboard apuntaría a una función que no
+    está. Se añade como paso de la Task 3, ejecutado por Alejandro por ser una escritura en producción.
+
+**Verificado en el proyecto real al cerrar la tarea**, y no dando por hecho que el dashboard quedó bien
+—que es el error que esta misma tarea acababa de enseñar—: 22 migraciones con `local` y `remote`
+idénticos; la función en `private`, `prosecdef = false`, `search_path=""`, ejecutable por
+`supabase_auth_admin` y por nadie más; y **una petición de registro real contra el Auth de producción
+devuelve `403` con el mensaje exacto**. `auth.users` sigue en **cero filas**: la sonda usó un dominio
+reservado, que no puede recibir correo, precisamente para no dejar rastro si el enganche hubiera estado
+apagado.
+
+### Task 4 · La versión instalada trae un aviso de seguridad que el diseño no tenía
+
+13. **Punto a verificar 1, resuelto por el lado bueno:** `@supabase/ssr` 0.12.4 conserva
+    `cookies: { getAll, setAll }`. El código de §7.1 del diseño entra tal cual. *(Matiz: en 0.12.4 `setAll`
+    es opcional en el tipo. No cambia nada aquí, pero significa que omitirlo compila.)*
+
+14. **Y leyendo esos mismos tipos aparecen dos avisos que no están en el diseño.** El primero refuerza lo
+    que ya sabíamos —llamar a `getClaims()` **temprano**, antes de generar la respuesta, porque un refresco
+    que termina después de que la respuesta salió pierde la sesión nueva—. **El segundo es nuevo y es de
+    seguridad:** los refrescos de token escriben `Set-Cookie`, y si la aplicación queda detrás de un CDN o
+    proxy inverso, **una respuesta cacheada con la cookie de sesión de alguien dentro se le sirve a otra
+    persona**. No es hipotético para este proyecto: Vercel y Netlify ya reaccionan a cada commit del
+    repositorio. Se cierra con `Cache-Control: private, no-store` en el proxy, y va **en el archivo**, no
+    solo en este documento. **La lección de método:** leer los tipos de la versión instalada no era solo
+    para confirmar una firma; traía una regla de diseño que ninguna documentación de las consultadas al
+    escribir el plan mencionaba.
+
+15. **El `Cache-Control` tiene que ir DESPUÉS de `getClaims()`, y el motivo no se ve leyendo la línea.**
+    `setAll` **reconstruye** la respuesta —`response = NextResponse.next({ request })`— y `setAll` lo
+    invoca `getClaims()` cuando toca refrescar. Puesta la cabecera antes, se perdería **exactamente en las
+    peticiones que escriben `Set-Cookie`**, que son las únicas donde protege de algo. Escrito en el orden
+    correcto y comprobado leyendo los números de línea: reasignación en la 39, `getClaims()` en la 53,
+    cabecera en la 66.
+
+16. **El plan pedía un tipo de retorno imposible.** La Task 4 Step 3 decía
+    `updateSession(request): Promise<NextResponse>` y a la vez que devolviera `{ response, claims }` para
+    que el proxy de la raíz decidiera. Son dos cosas incompatibles y ganó la segunda: el retorno es un
+    `UpdateSessionResult { response, claims }`. **Y el tipo de `claims` no se importa de
+    `@supabase/auth-js`**, que llega solo de forma transitiva y no está declarado en `package.json`; se
+    deriva del propio `createServerClient<Database>`. Atarse a un paquete que el `package.json` no declara
+    es una dependencia invisible que se rompe en la actualización que nadie relaciona con esto.
+
+**Verificado al cerrar la tarea, y las dos preguntas que ninguna herramienta contesta:** no hay **ninguna**
+constante de módulo con un cliente de servidor dentro, y `getSession(` no aparece en todo el árbol salvo en
+los comentarios que explican por qué no se usa. `typecheck`, `lint` y `build`, los tres en verde.
+
+### Task 5 · El plan no decía quién es privado, y una cabecera que no sobrevive
+
+17. **Punto a verificar 3, resuelto por el lado bueno: el JWKS sigue en ES256.** Remedido el 2026-08-07
+    contra `https://zqfkzgdyeqxzgzpxgadi.supabase.co/auth/v1/.well-known/jwks.json`: una sola clave, `kty:
+    EC`, `crv: P-256`, `alg: ES256`, `kid` `b65ec4a5-7e4d-4801-923d-bd4abe7dd148`. `getClaims()` verifica
+    la firma en local con WebCrypto y el proxy **no** paga una ida y vuelta por petición. No hay coste que
+    registrar y el código se escribe como estaba diseñado.
+
+18. **El plan no dice cómo decide el proxy qué ruta es privada, y son dos diseños con fallos opuestos.**
+    El Step 4 da por hecho que existe «una ruta privada» sin definir el criterio. **Se decidió lista
+    blanca:** se declara lo público —`/`, `/login`, `/auth`— y **todo lo demás pide sesión**. Falla cerrada,
+    que es la misma forma de la corrección 9: una pantalla nueva nace protegida sin que nadie tenga que
+    acordarse de añadirla. Con lista negra, la pantalla que alguien olvide añadir nace abierta.
+    → Medido: `/catalogo`, `/admin/inventario` y `/completar-perfil` redirigen **sin estar declaradas en
+    ningún sitio**. Esa es exactamente la propiedad que se compró.
+
+19. **Al redirigir hay que copiar las cookies a mano, y el plan no lo menciona.** `NextResponse.redirect()`
+    nace **vacío**: no hereda nada de la respuesta que construyó `updateSession`. Importa incluso cuando no
+    hay sesión, que es justo cuando el proxy redirige: si el refresco falló, Supabase escribe un `Set-Cookie`
+    que **borra** la cookie muerta, y perder ese borrado deja al navegador reintentando con una cookie que
+    ya no sirve. Se copian las cookies y **también el `Cache-Control`**, por el mismo motivo de la
+    corrección 14.
+
+20. **Punto a verificar 4, resuelto: el matcher se queda como está.** El proxy corre sobre `/auth/confirm`
+    y no interfiere —contesta `404` porque la ruta aún no existe, sin redirigir—. Con la lista blanca,
+    `/auth` es público, así que ahí el proxy **solo refresca**, que es precisamente lo que el canje
+    necesita. No hay que excluir `/auth/` del matcher.
+
+21. **Y un hallazgo que contradice a la corrección 14 en la mitad de los casos: Next.js pisa el
+    `Cache-Control` del proxy en las respuestas que renderiza una página.** Medido en `dev` sobre las seis
+    rutas: las tres **redirecciones** salen con `private, no-store`, pero `/` y `/login` salen con
+    `no-cache, must-revalidate`, que lo pone Next. **La cabecera sobrevive donde el proxy responde y se
+    pierde donde responde una página.** Hoy no hay riesgo —en esas rutas no hay sesión ni `Set-Cookie`—,
+    pero la corrección 14 existe para el caso contrario.
+    → **Pendiente de medir, y no se da por sabido:** repetirlo en la Task 7 con **sesión real**, y con
+    `next build` en vez de `dev`, porque las cabeceras de desarrollo no son las de producción. Si se
+    confirma, la mitigación tiene que mudarse de sitio.
+
+22. **Lo que el proxy deliberadamente NO hace, anotado para que no parezca un olvido:** no guarda la ruta
+    que se pidió. Quien abre un enlace profundo a `/catalogo/...` sin sesión aterriza en `/login` y después
+    va a donde diga `destino.ts`, no de vuelta. Es una carencia de comodidad, no de seguridad, y añadir un
+    parámetro `next=` sin validarlo es una redirección abierta. Se decide en la Task 8, con el reparto
+    delante.
+
+**Verificado al cerrar la tarea:** `typecheck` y `lint` en verde, y las seis sondas HTTP contra el servidor
+de desarrollo dando el resultado esperado **en los dos sentidos** —lo público pasa, lo no declarado
+rebota—. El `404` de `/login` **es** el resultado correcto de este paso: significa que el proxy decidió
+dejarlo pasar y todavía no hay pantalla que servir.
+
+**De paso, un detalle de reproducibilidad que no bloquea nada:** `supabase` no está en las dependencias del
+`package.json`, así que `npx` se descarga la CLI cada vez que no la encuentra en caché — y hoy trajo la
+**2.112.0**, no la 2.111.0 que fija este plan. La versión de la CLI del proyecto no está fijada en ningún
+sitio del repositorio.
+
+### Task 6 · La plantilla de correo de fábrica manda a Supabase, no a la aplicación
+
+23. **Punto a verificar 5, resuelto por el segundo desenlace, y era el que rompía el plan.** Medido en
+    Mailpit **antes** de escribir la pantalla, que es exactamente para lo que el Step 0 existe: el enlace
+    salía a
+    `http://127.0.0.1:54321/auth/v1/verify?token=…&type=magiclink&redirect_to=http://127.0.0.1:3000`.
+    Es decir, **al endpoint de Supabase, no a la aplicación**. Por ese camino quien verifica es GoTrue y
+    devuelve la sesión colgada del fragmento de la URL, y **lo que va después del `#` el servidor no lo ve
+    nunca**: no hay cookie de servidor, y ni el proxy de la Task 5 ni los layouts de la Task 8 tendrían
+    nada que leer. El canje con `verifyOtp` que diseña la Task 7 **no era alcanzable** con la plantilla de
+    fábrica.
+    → Se añaden dos plantillas propias en `supabase/templates/` y sus bloques en `config.toml`. Medido
+    después: el enlace ahora es `http://127.0.0.1:3000/auth/confirm?token_hash=…&type=magiclink`.
+    → **Y hacen falta las DOS, no una.** Con el usuario ya existente GoTrue usa `magic_link`; en el primer
+    acceso, si el proyecto tiene `enable_confirmations` activado —que es plausible en producción, y en
+    local está en `false`—, usa `confirmation`. Cambiar solo una deja el flujo roto **justo para quien
+    entra por primera vez**, que es el caso que menos se prueba.
+    → **Al plan le falta un paso, y es el mismo hueco de la corrección 12:** el `config.toml` solo
+    configura el stack local. En el proyecto real las dos plantillas se cambian **a mano en el dashboard**,
+    y sin eso la Task 9 no puede funcionar. Se ejecuta por Alejandro, por ser una escritura en producción.
+
+24. **`emailRedirectTo` sale del Step 1, y el flujo queda más estrecho.** Como la plantilla fija el destino
+    con `{{ .SiteURL }}`, no hace falta que el cliente proponga a dónde ir. **Ningún valor controlable por
+    quien pide el enlace decide a dónde lleva el enlace**, que es una superficie menos y encaja con la
+    corrección 22: nada de parámetros de redirección sin validar.
+
+25. **El Step 3 se resuelve por sustracción: el formulario NO filtra el dominio.** El plan permitía avisar
+    antes de enviar. Se decidió no hacerlo, y el motivo no es la simplicidad: **con el filtro puesto en el
+    formulario, los correos de fuera dejan de llegar al servidor y el enganche nunca se ejercita desde la
+    pantalla.** Si alguien lo apagara desde el dashboard —que es un formulario, y es el riesgo que la
+    propia tabla de riesgos anota—, nadie se enteraría. Sin filtro, cada intento de fuera prueba la puerta
+    de verdad y el mensaje que se ve sale del servidor, que es la única fuente de verdad.
+
+26. **`EmailOtpType` está abierto, así que el compilador no va a validar nada en la Task 7.** Leído en los
+    tipos instalados: `export type EmailOtpType = 'signup' | 'invite' | 'magiclink' | … | (string & {})`.
+    Ese `(string & {})` del final conserva el autocompletado **pero admite cualquier cadena**, así que
+    `searchParams.get('type') as EmailOtpType` compila con lo que sea. **La validación del `type` tiene que
+    ser en tiempo de ejecución**, y el `typecheck` en verde no dice nada sobre ella.
+
+27. **`localhost` y `127.0.0.1` son sitios distintos para las cookies, y el `site_url` local es
+    `127.0.0.1`.** Quien abra la aplicación en `localhost:3000` y luego el enlace del correo, que va a
+    `127.0.0.1:3000`, deja la cookie de sesión en el otro origen y vuelve a ver la pantalla de invitado.
+    No es un fallo del código y no hay nada que arreglar: **para probar en local, todo por `127.0.0.1:3000`.**
+
+28. **`shadcn add` no repite la trampa de `shadcn init`.** La tanda 0 midió que `init` pisaba los tokens de
+    `globals.css` por cascada. Se midió `add input` con hashes antes y después: creó **solo**
+    `components/ui/input.tsx`, sin tocar `globals.css` ni `package.json`. La precaución de la tanda 0 sigue
+    valiendo para `init`; para `add` está medida y es innecesaria.
+
+29. **Un subagente justificó una decisión con un hecho falso, y el `lint` no lo iba a ver.** Al escribir la
+    pantalla duplicó a mano las clases del `variant="link"` del botón —`text-primary underline-offset-4
+    hover:underline`— afirmando que ese variant no daba el aspecto buscado. **Existe, en
+    `components/ui/button.tsx:21`, y sus clases son exactamente esas.** Corregido a `variant="link"`.
+    → Es la cuarta vez en esta tanda que algo contesta con confianza a una pregunta que no era la que se
+    hacía, y la primera en que quien contesta es un generador de código y no una herramienta de git. **Lo
+    que sirvió fue lo mismo de siempre: ir a mirar el archivo.** El informe del subagente se revisa igual
+    que se revisa su código.
+
+30. **Y una trampa que dejó de serlo: ya hay usuarios utilizables en local.** La corrección 8 avisaba de
+    que los de `seed.sql` dan `500` porque llevan las columnas de token en `NULL`. Las sondas de esta tarea
+    crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` **por el flujo real**, así que
+    sirven para probar la sesión en la Task 7. El precio es el de siempre *(corrección 10)*: la base local
+    quedó contaminada —7 usuarios y 6 alumnos, contra los 4 del seed— y hace falta `db reset` antes de la
+    batería pgTAP.
+
+**Verificado al cerrar la tarea, contra el efecto y no contra la pantalla:** una petición con un correo de
+fuera devuelve **403** con el mensaje literal de D-32, y `auth.users` se queda en **7 filas antes y 7
+después** —cero cuentas creadas—. Que ese mensaje llegue a `error.message` **también se midió**, leyendo la
+librería instalada y no suponiéndolo: GoTrue devuelve el campo `msg` y la pantalla muestra `error.message`,
+que son nombres distintos; `auth-js/dist/module/lib/fetch.js:8` prueba `msg` **primero**, así que se unen.
+`typecheck` y `lint` en verde, y `/` y `/login` responden `200`.
+
+### Task 7 · El desarrollo hablaba con producción, y el canje cambiaba de host
+
+31. **`npm run dev` apuntaba al proyecto REAL, y ninguna tarea lo previó.** La Task 2 migró los nombres de
+    las variables a `NEXT_PUBLIC_`, pero dejó dentro la URL de producción, y **no existe ningún archivo que
+    apunte el desarrollo al stack local**. Se descubrió porque el canje del magic link fallaba con
+    `motivo=enlace`: el enlace se había pedido contra el stack local y `verifyOtp` iba a validarlo a
+    producción, donde ese token no existe.
+    → **Lo que no llegó a pasar, y es lo que importa:** todas las pruebas de esta tanda fueron por API
+    directa contra `127.0.0.1:54321`. **Si se hubiera probado la pantalla de login en el navegador, habría
+    salido un correo de verdad por el SMTP de producción —el del límite bajo que la tabla de riesgos ya
+    marcaba— y habría quedado una cuenta real en su `auth.users`,** que se quiere en cero filas hasta la
+    Task 9.
+    → Se arregla con un `.env.local`, que Next.js carga **después** del `.env` y gana. No se versiona: lo
+    tapa la regla `*.local` del `.gitignore`, comprobado con `git add --dry-run` y no con `check-ignore`
+    *(la lección de la corrección 6)*. El `.env.example` documenta cómo crearlo.
+
+32. **Ni `new URL(request.url).origin` ni `request.nextUrl` conservan el host de la petición.** Medido dos
+    veces: una petición a `127.0.0.1:3000/auth/confirm` devolvía `Location: http://localhost:3000/`. Como
+    el navegador guarda las cookies **por host**, la sesión se escribía en un host y el usuario aterrizaba
+    en el otro sin ella. Es la corrección 27 otra vez, pero provocada por el código y no por quien prueba.
+    → **El primer arreglo no funcionó, y se registra como intento fallido y no se borra:** cambiar
+    `new URL(request.url)` por `request.nextUrl` parecía lo correcto —es lo que usa el proxy de la Task 5—
+    y al remedirlo **seguía emitiendo `localhost`**.
+    → Lo que sí funciona es **no nombrar el host**: un `Location` relativo, que el navegador resuelve contra
+    donde ya está. Vale para los tres caminos de error y para el de éxito, y de paso el destino se arma
+    desde cero, así que el `token_hash` no sobrevive al salto.
+
+33. **La primera prueba de punta a punta pasó sin tocar el fallo, y la razón es de método.** El guion no
+    seguía las redirecciones: leía el `Location` y volvía a pedir a `127.0.0.1` **a mano**. Así, la cookie
+    siempre caía en el host correcto y el desajuste no se veía. **Una prueba que no recorre el camino del
+    navegador no prueba el camino del navegador.** Se añadieron dos comprobaciones: que el `Location` **no
+    nombre un host**, y **seguir el salto** y contar cuántas cookies sobreviven.
+
+34. **La corrección 21 se resuelve, y era un artefacto de `dev`.** Quedaba pendiente medir el
+    `Cache-Control` con sesión real y en build de producción. Hecho: en `next dev`, una página renderizada
+    devuelve `no-cache, must-revalidate` y pisa la cabecera del proxy —incluso con sesión viva—, pero
+    **con `next build` y `next start` las cuatro rutas devuelven `private, no-store`**, las estáticas `/` y
+    `/login` incluidas. **La mitigación de la corrección 14 funciona donde tiene que funcionar y no hay nada
+    que rediseñar.**
+    → Importaba comprobarlo porque el build revela que `/` y `/login` se **prerenderizan como estáticas**, y
+    una respuesta estática es justo la que un CDN quiere guardar; si el proxy refresca el token en esa misma
+    petición, la respuesta llevaría el cuerpo cacheable y el `Set-Cookie` de alguien dentro.
+    → **Y la lección de método vale más que el resultado:** la observación de `dev` era cierta y la
+    conclusión que invitaba a sacar era falsa. Medir en el entorno equivocado habría costado un rediseño
+    para arreglar algo que no está roto.
+
+35. **El stack local también firma con ES256, así que el coste del proxy sí se pudo medir.** Next.js 16
+    cronometra el proxy por separado en cada línea del registro. Con sesión viva: **20–24 ms**; sin sesión:
+    11–16 ms. Esos ~10 ms de diferencia son la verificación de firma con WebCrypto, **no una ida y vuelta
+    de red**. La corrección 17 queda confirmada en la práctica y no solo por el algoritmo.
+
+36. **El servidor no distingue entre un enlace inválido, uno caducado y uno ya usado**, y es a propósito:
+    los tres devuelven `403` con `error_code: otp_expired` y el texto `Email link is invalid or has
+    expired`. Confirmar cuál de los tres es le diría a un desconocido si un token existió.
+    → Por eso el texto en español de `/auth/error` dice «puede que ya lo hayas usado o que haya pasado el
+    plazo»: **dice exactamente lo que el servidor sabe, ni más ni menos.** Y por eso aquí se traduce y en
+    `/login` no: el de `/login` es nuestro, sale del enganche; este es de Supabase y viene en inglés.
+
+**Verificado al cerrar la tarea, con el flujo entero y no por partes** —canje, salto, ruta privada, salida,
+y los tres caminos de error—: el canje deja **1 cookie** y devuelve `Location: /` **relativo**; **la cookie
+sobrevive al salto** y la landing carga con ella; una ruta privada con sesión **ya no rebota**; salir
+devuelve **303** y deja **0 cookies**; y después de salir la ruta privada **vuelve a rebotar** a `/login`.
+`GET /auth/signout` devuelve **405**, que es la prueba de que no exporta `GET`. Los tres errores caen donde
+deben: repetir un enlace ya usado da `motivo=enlace`, un `type` fuera de la lista blanca da `motivo=tipo`
+—la validación de ejecución de la corrección 26, funcionando— y una petición sin `token_hash` da
+`motivo=incompleto`. `typecheck`, `lint` y `build`, los tres en verde.
+
+### Task 8 · Un layout de grupo no se tipa como los demás, y el plan pedía probar una ruta inexistente
+
+37. **`LayoutProps<...>` no sirve para el layout de un grupo entre paréntesis.** `app/layout.tsx` usa
+    `LayoutProps<"/">` y parecía el patrón a copiar, pero `LayoutProps<"/completar-perfil">` no compila.
+    Medido en `.next/types/routes.d.ts`, que es donde Next.js deja lo que genera:
+    **`type LayoutRoutes = "/"`**. Next solo genera ese tipo para los layouts que **ocupan un segmento de
+    URL**; un grupo no aporta segmento, así que `(perfil)/layout.tsx` **cubre** `/completar-perfil` pero no
+    **es** esa ruta, y no aparece en la lista.
+    → Los dos layouts de grupo se tipan a mano con `{ children: React.ReactNode }`, y el motivo va escrito
+    en los dos archivos. **No es una limitación que se pueda deducir leyendo `app/layout.tsx`:** ahí el
+    tipo generado funciona, y eso es justo lo que invita a copiarlo.
+
+38. **El plan pedía comprobar que `/catalogo` rebota, y `/catalogo` no existe.** El Step 5 da por hecha una
+    ruta que es de la tanda 2, mientras la restricción global dice «ninguna pantalla de negocio». Sin
+    ninguna página debajo, `app/(alumno)/layout.tsx` es **código muerto que no se puede verificar**, y un
+    layout de sesión sin verificar es exactamente lo que esta tanda no se puede permitir.
+    → **Desvío decidido y anotado:** se añade `app/(alumno)/catalogo/page.tsx` como **marcador de
+    posición**, igual que `app/page.tsx` lo es desde la tanda 0. No muestra catálogo ni disponibilidad
+    *(D-21)*; existe para que el layout cubra algo real. El archivo lo dice en su cabecera para que nadie
+    lo confunda con la pantalla de la tanda 2.
+    → `/admin/inventario` y `/mostrador` **no** se crean: ahí un `404` tras la redirección es el resultado
+    correcto, igual que lo fue el de `/login` en la Task 5.
+
+39. **La Server Action se tragaba un fallo, y es el modo de fallo que la Fase 1 documentó.** El `UPDATE` se
+    escribió sin mirar su resultado. **Falta de privilegio lanza `42501`, pero falta de política deja el
+    `UPDATE` en cero filas sin dar un solo error** —regla 3 de la Fase 1—, así que quien guardara sin que
+    la política se lo permitiera volvería al mismo formulario, porque `destino()` seguiría viendo el perfil
+    incompleto, **sin una sola pista de por qué**.
+    → Cerrado añadiendo `.select('id')` al `UPDATE` y comprobando que devuelve alguna fila. Si no, se va a
+    `/auth/error?motivo=perfil`, un motivo **separado** del de los enlaces para que ese fallo no se
+    confunda con un enlace caducado. **Se comprueba el efecto, no la excepción**, que es la misma regla que
+    gobierna las pruebas pgTAP.
+
+40. **El rol se llama `operator`, no `operador`.** Leído del enum generado: `staff_role: "admin" |
+    "operator"`. El diseño lo nombra en español en la prosa y eso invita a escribirlo mal en el código,
+    donde no habría dado error de tipos —una comparación con una cadena que nunca casa **compila**— sino un
+    operador mandado a la rama de alumnos para siempre.
+
+41. **Y una comprobación que sí salió como el plan esperaba:** la corrección 2 funciona. Pedir
+    `/completar-perfil` con el perfil incompleto responde **200** y no entra en bucle, que es la única
+    forma de saber que sacar esa ruta del grupo `(alumno)` era la solución correcta y no un rodeo.
+
+**Verificado al cerrar la tarea, con nueve sondas HTTP y en los dos sentidos:** con el perfil incompleto, el
+canje cae en `/completar-perfil`, esa ruta responde `200` **sin bucle**, `/catalogo` rebota a
+`/completar-perfil` y `/` sigue accesible. Completando los tres campos, `/catalogo` pasa a `200`; volviendo
+a vaciarlos, **vuelve a rebotar**. Sin sesión, las dos rutas privadas van a `/login`. `typecheck` y `lint`,
+en verde.
+
+42. **Y el envío del formulario también se midió, después de darlo por no medible.** Se escribió primero
+    que invocar una Server Action por HTTP exigía reproducir el identificador que Next genera en cada
+    build, y que la prueba mediría más el andamiaje que el código. **Era una excusa razonable y era
+    falsa.** El formulario que Next renderiza funciona **sin JavaScript** —`<form action=""
+    encType="multipart/form-data" method="POST">` con un `<input type="hidden"
+    name="$ACTION_ID_…">`—, así que basta leer ese identificador del propio HTML y mandar un POST
+    multipart. No hay que reproducir nada: se lee.
+    → Medido de punta a punta: el envío devuelve **`303 → /catalogo`**, la base queda con `nombre`,
+    `apellido` y `carrera_id` escritos, y `/catalogo` pasa a responder `200`. **La Server Action, el
+    `UPDATE` y el reparto, los tres en la misma corrida.**
+    → **La lección es sobre el criterio, no sobre Next:** «esto no se puede probar sin navegador» fue una
+    conclusión escrita **antes** de mirar el HTML. Mirarlo costó una petición. Es el mismo error de forma
+    que persiguió toda la tanda —contestar sin comprobar—, cometido esta vez al decidir qué **no** valía la
+    pena comprobar.
+
+### Task 10 · El cierre encontró un cuarto documento, y un verde que no prueba nada
+
+43. **El Step 2 dice tres sitios y son cuatro: falta el `README.md`.** Afirma «las 21 migraciones» y «135
+    aserciones» justo en las instrucciones de arranque, que es donde más se leen, y ninguna de las dos
+    frases estaba en la lista del plan. Se encontró buscando el número por todo el árbol en vez de abriendo
+    los tres archivos que el plan nombra. **Una lista escrita de memoria se comprueba con una búsqueda**, y
+    es barato: el paso que la generó tardó menos que leer esta corrección.
+    → **Y se corrige distinto que en los otros tres, a propósito.** Allí el número se cambia a secas, sin
+    tachar. La regla de la casa —corregir fechado y sin borrar— protege el **registro de decisiones**, donde
+    lo aprendido vive en el error; el `README` es documentación de uso, y quien llega a levantar el proyecto
+    no necesita enterarse de que alguna vez fueron 21. **Tacharlo ahí sería ruido con forma de rigor.**
+    → De paso, el `README` mandaba a `http://localhost:3000`, que es **exactamente el origen que la
+    corrección 27 desaconseja**: el documento de bienvenida enseñaba el error que la tanda acababa de pagar.
+    Corregido a `127.0.0.1`, con el motivo escrito al lado y el enlace a Mailpit.
+
+44. **`npm run test` está en verde y no prueba nada, y conviene decirlo en voz alta.** El script es
+    `vitest run --passWithNoTests` y **no hay un solo archivo de prueba en el árbol**: la salida literal es
+    `No test files found, exiting with code 0`. **No es un defecto** —D-14 decidió que las reglas se prueban
+    en el motor, y ahí están las 142 aserciones— pero el Step 1 lo cuenta como uno de los cinco verdes, y
+    **un verde vacuo se lee igual que uno ganado**. Lo que este paso comprueba de verdad son cuatro cosas,
+    no cinco. La cobertura del lado de la aplicación llega con Playwright en la T4.
+
+45. **Y el bloque de esta misma sección se insertó en el sitio equivocado**, delante de la corrección 42 en
+    vez de detrás, partiendo en dos la sección de la Task 8. **La causa no fue del subagente que lo escribió
+    sino de quien le dio la instrucción:** el párrafo «Verificado al cerrar la tarea» de la Task 8 **no era
+    el final del archivo**, porque la corrección 42 se había añadido después de él, y la lectura previa se
+    cortó justo ahí. Se dio por final lo que solo era el borde de lo leído. Corregido moviendo el bloque.
+    **Es la misma forma de error que la corrección 43**, en la misma tarea y con quince minutos de
+    diferencia: dar por completa una vista parcial.
+
+**Verificado al cerrar la tarea:** `npx supabase db reset` y después la batería, que es el orden que exige
+la corrección 10 — **142 aserciones en 23 archivos, todas en verde**, con `14_rls_alumnos.sql` incluido, que
+es el que fallaba con la base contaminada. `typecheck`, `lint`, `test` y `build`, los cuatro en verde, con
+la salvedad de la corrección 44 sobre el tercero. El `build` deja **ocho rutas**: `/` y `/login` estáticas,
+y `/auth/confirm`, `/auth/error`, `/auth/signout`, `/catalogo`, `/completar-perfil` y `/_not-found`
+dinámicas, más el proxy.
+
+### Task 9 · Se ejecutó DESPUÉS de la 10, y encontró dos cosas que el plan no tenía
+
+> **El orden real fue 10 y luego 9**, porque la 9 estaba bloqueada esperando a que Alejandro cambiara las
+> plantillas del dashboard. Se anota aquí en el orden en que están numeradas, no en el que se ejecutaron.
+
+46. **Los chunks de JavaScript devolvían `403` a un navegador y `200` a `curl`, y eso tuvo la tanda parada
+    una hora.** Al abrir `/login` en un navegador de verdad —por primera vez en toda la tanda—, el
+    formulario **no hacía absolutamente nada**: ni mensaje de éxito, ni error, ni petición. La causa está
+    tres pasos antes de lo que parecía: `/_next/static/chunks/*` respondía `403`, así que React **no
+    hidrataba**, el `onSubmit` no llegaba a existir, y el navegador hacía un envío nativo —`GET /login?`—
+    que no sale hacia ningún servidor.
+    → **Next 16 bloquea los recursos de desarrollo a orígenes que no sean el hostname de arranque**, que es
+    `localhost`. Leído en la documentación de la versión instalada,
+    `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/allowedDevOrigins.md`,
+    y no de memoria. Se cierra con `allowedDevOrigins: ["127.0.0.1"]` en `next.config.ts`, que **solo** tiene
+    efecto en `next dev`. Queda como **D-33**, no solo como corrección: es una restricción permanente con
+    dos reglas del proyecto en tensión detrás —probar por `127.0.0.1` por las cookies *(corrección 27)*
+    contra servir los recursos solo a `localhost`— y reaparece en cada máquina nueva.
+    → **Y aquí está lo que hace que esto sea el fallo más instructivo de la tanda:** el `403` aparece
+    **solo ante un navegador**. Medido variando una sola cabecera contra el mismo recurso:
+    `Origin: http://127.0.0.1:3000` → `403`, `Origin: http://localhost:3000` → `200`, sin cabecera → `200`.
+    **`curl` no manda `Origin`; un navegador sí.** Durante ocho tareas la herramienta de prueba fue **más
+    privilegiada que el usuario final**, así que quince sondas HTTP en verde no significaban que la
+    aplicación funcionase. Es el hermano mayor de la corrección 33 —«una prueba que no recorre el camino del
+    navegador no prueba el camino del navegador»—, y esta vez el camino no era una redirección sino una
+    cabecera que la sonda no sabía que existía.
+    → **El método que lo encontró, anotado porque es reutilizable:** los registros de Auth no mostraban
+    ninguna petición, y **antes de concluir nada de esa ausencia se validó el instrumento** — una sonda
+    propia con un correo de fuera, que el enganche rechaza con `403`, apareció en los registros al instante.
+    Solo entonces «no hay peticiones» pasó a significar algo. Ausencia de evidencia no es evidencia de
+    ausencia mientras no se demuestre que el detector detecta.
+
+47. **El formulario falla mudo, y por eso el diagnóstico costó lo que costó.** El campo del correo no tenía
+    atributo `name`. No lo usa el camino normal —React lee el valor del estado—, pero **decide cómo falla**:
+    sin manejador y sin `name`, el envío nativo recarga `/login` idéntico y vacía el campo. Con `name`,
+    habría quedado `?email=…` en la URL, que es un rastro visible en diez segundos. Añadido *(D-33)*.
+    → **La regla que sale de aquí no es sobre formularios:** un atributo que el camino feliz no usa puede
+    ser justo el que decide si el camino roto es diagnosticable. Es el mismo criterio que hizo añadir
+    `.select('id')` al `UPDATE` de la corrección 39 — no cambia lo que hace, cambia lo que se puede saber.
+
+48. **El `INSERT 0 1` que pide el Step 4 no existe en el editor del dashboard.** El plan manda comprobar la
+    siembra leyendo ese mensaje, y **el editor SQL de Supabase no lo muestra nunca**: contesta
+    `Success. No rows returned` tanto si insertó una fila como si insertó cero. Es la salida de `psql`,
+    escrita contra una herramienta que no era la que se iba a usar.
+    → **Y el caso que el Step 4 existía para detectar es exactamente el que ese mensaje no distingue.** Se
+    resolvió consultando la tabla: una fila, `role = admin`, `activo = true`. La siembra había funcionado y
+    el mensaje era mudo, no negativo.
+    → La forma de que el propio `insert` conteste es `returning user_id, role`: insertar una fila muestra
+    una fila, insertar cero muestra cero. **Se comprueba el efecto, no el mensaje** — regla 3 de la Fase 1,
+    reaparecida en una interfaz web.
+    → **De paso, una comprobación que sí importaba y salió bien:** `activo` es `not null default true`, así
+    que el `insert` del plan la deja en `true`. Verificado **antes** de sembrar, contra la migración: si
+    hubiera quedado en `NULL`, `destino()` filtra por `activo = true` y habría mandado al admin recién
+    sembrado a `/catalogo` sin un solo error.
+
+**Verificado al cerrar la tarea, en producción y con el flujo entero:** el enganche de D-32 dejó pasar el
+correo `@upc.edu.pe`; el enlace llegó a `{{ .SiteURL }}/auth/confirm` con **`type=signup`** —la plantilla de
+*Confirm signup*, que es la que hacía falta para quien entra por primera vez, tal como se había avisado—; el
+canje funcionó; el reparto cayó en `/completar-perfil`; **la Server Action guardó el perfil**;
+`email_confirmed_at` traía fecha *(la puerta de la corrección 3, comprobada donde importaba)*; la siembra
+dejó la fila `admin` con `activo = true`; y un magic link **nuevo** cae en `/admin/inventario` con `404`,
+que es el resultado correcto. `typecheck`, `lint` y `build`, los tres en verde tras los dos cambios de
+código.
+
+---
+
 > Escrito el 2026-08-06, **antes de ejecutar nada**. Sale de
 > [`FASE_2_DISENO.md`](../FASE_2_DISENO.md) §7, §8 y §12, no de la imaginación.
 > Al terminar, la cabecera de correcciones va **arriba de este párrafo**, fechada.

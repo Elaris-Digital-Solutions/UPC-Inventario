@@ -7,6 +7,12 @@
 // Esta pagina existe para que `/` responda y se vea que Next.js, Tailwind y los
 // tokens arrancan. La sonda que verificaba los tokens uno a uno vivio aqui
 // mientras se median, y se retiro al confirmarlos en el CSS compilado.
+//
+// El unico anadido de la tanda 1 es el enlace a /login.
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+
 export default function Home() {
   return (
     <main className="container flex flex-1 flex-col justify-center py-16">
@@ -18,6 +24,9 @@ export default function Home() {
         Los cimientos estan puestos y todavia no hay ninguna pantalla. El estado
         del proyecto vive en <code>MIGRATION_DOCS/ESTADO_Y_PLAN.md</code>.
       </p>
+      <Button asChild className="mt-6 w-fit">
+        <Link href="/login">Entrar</Link>
+      </Button>
     </main>
   );
 }
