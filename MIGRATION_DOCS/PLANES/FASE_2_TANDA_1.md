@@ -18,7 +18,7 @@
 | **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fábrica no servía** *(corrección 23)* |
 | **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
 | **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, y el formulario medido de punta a punta *(corrección 42)* |
-| **Task 9** · sembrar el primer admin | ⬅ **LO ÚNICO QUE QUEDA**. Toca producción y **la ejecuta Alejandro**. Sigue bloqueada por las dos plantillas del dashboard |
+| **Task 9** · sembrar el primer admin | ✅ **hecha el 2026-08-07 en producción.** Admin sembrado y verificado por su efecto. Destapó **D-33**: la aplicación no funcionaba en un navegador *(correcciones 46 a 48)* |
 | **Task 10** · cierre | ✅ **hecha el 2026-08-07, y se adelantó a la 9** porque la 9 estaba bloqueada esperando a una persona. Batería y comprobaciones en verde, los **cuatro** documentos corregidos, correcciones 43 a 45. **Le falta solo su último paso** —el commit de cierre y el PR—, que va detrás de la 9 para no registrar un resultado antes de medirlo |
 
 ### Estado exacto al pausar
@@ -532,6 +532,70 @@ es el que fallaba con la base contaminada. `typecheck`, `lint`, `test` y `build`
 la salvedad de la corrección 44 sobre el tercero. El `build` deja **ocho rutas**: `/` y `/login` estáticas,
 y `/auth/confirm`, `/auth/error`, `/auth/signout`, `/catalogo`, `/completar-perfil` y `/_not-found`
 dinámicas, más el proxy.
+
+### Task 9 · Se ejecutó DESPUÉS de la 10, y encontró dos cosas que el plan no tenía
+
+> **El orden real fue 10 y luego 9**, porque la 9 estaba bloqueada esperando a que Alejandro cambiara las
+> plantillas del dashboard. Se anota aquí en el orden en que están numeradas, no en el que se ejecutaron.
+
+46. **Los chunks de JavaScript devolvían `403` a un navegador y `200` a `curl`, y eso tuvo la tanda parada
+    una hora.** Al abrir `/login` en un navegador de verdad —por primera vez en toda la tanda—, el
+    formulario **no hacía absolutamente nada**: ni mensaje de éxito, ni error, ni petición. La causa está
+    tres pasos antes de lo que parecía: `/_next/static/chunks/*` respondía `403`, así que React **no
+    hidrataba**, el `onSubmit` no llegaba a existir, y el navegador hacía un envío nativo —`GET /login?`—
+    que no sale hacia ningún servidor.
+    → **Next 16 bloquea los recursos de desarrollo a orígenes que no sean el hostname de arranque**, que es
+    `localhost`. Leído en la documentación de la versión instalada,
+    `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/allowedDevOrigins.md`,
+    y no de memoria. Se cierra con `allowedDevOrigins: ["127.0.0.1"]` en `next.config.ts`, que **solo** tiene
+    efecto en `next dev`. Queda como **D-33**, no solo como corrección: es una restricción permanente con
+    dos reglas del proyecto en tensión detrás —probar por `127.0.0.1` por las cookies *(corrección 27)*
+    contra servir los recursos solo a `localhost`— y reaparece en cada máquina nueva.
+    → **Y aquí está lo que hace que esto sea el fallo más instructivo de la tanda:** el `403` aparece
+    **solo ante un navegador**. Medido variando una sola cabecera contra el mismo recurso:
+    `Origin: http://127.0.0.1:3000` → `403`, `Origin: http://localhost:3000` → `200`, sin cabecera → `200`.
+    **`curl` no manda `Origin`; un navegador sí.** Durante ocho tareas la herramienta de prueba fue **más
+    privilegiada que el usuario final**, así que quince sondas HTTP en verde no significaban que la
+    aplicación funcionase. Es el hermano mayor de la corrección 33 —«una prueba que no recorre el camino del
+    navegador no prueba el camino del navegador»—, y esta vez el camino no era una redirección sino una
+    cabecera que la sonda no sabía que existía.
+    → **El método que lo encontró, anotado porque es reutilizable:** los registros de Auth no mostraban
+    ninguna petición, y **antes de concluir nada de esa ausencia se validó el instrumento** — una sonda
+    propia con un correo de fuera, que el enganche rechaza con `403`, apareció en los registros al instante.
+    Solo entonces «no hay peticiones» pasó a significar algo. Ausencia de evidencia no es evidencia de
+    ausencia mientras no se demuestre que el detector detecta.
+
+47. **El formulario falla mudo, y por eso el diagnóstico costó lo que costó.** El campo del correo no tenía
+    atributo `name`. No lo usa el camino normal —React lee el valor del estado—, pero **decide cómo falla**:
+    sin manejador y sin `name`, el envío nativo recarga `/login` idéntico y vacía el campo. Con `name`,
+    habría quedado `?email=…` en la URL, que es un rastro visible en diez segundos. Añadido *(D-33)*.
+    → **La regla que sale de aquí no es sobre formularios:** un atributo que el camino feliz no usa puede
+    ser justo el que decide si el camino roto es diagnosticable. Es el mismo criterio que hizo añadir
+    `.select('id')` al `UPDATE` de la corrección 39 — no cambia lo que hace, cambia lo que se puede saber.
+
+48. **El `INSERT 0 1` que pide el Step 4 no existe en el editor del dashboard.** El plan manda comprobar la
+    siembra leyendo ese mensaje, y **el editor SQL de Supabase no lo muestra nunca**: contesta
+    `Success. No rows returned` tanto si insertó una fila como si insertó cero. Es la salida de `psql`,
+    escrita contra una herramienta que no era la que se iba a usar.
+    → **Y el caso que el Step 4 existía para detectar es exactamente el que ese mensaje no distingue.** Se
+    resolvió consultando la tabla: una fila, `role = admin`, `activo = true`. La siembra había funcionado y
+    el mensaje era mudo, no negativo.
+    → La forma de que el propio `insert` conteste es `returning user_id, role`: insertar una fila muestra
+    una fila, insertar cero muestra cero. **Se comprueba el efecto, no el mensaje** — regla 3 de la Fase 1,
+    reaparecida en una interfaz web.
+    → **De paso, una comprobación que sí importaba y salió bien:** `activo` es `not null default true`, así
+    que el `insert` del plan la deja en `true`. Verificado **antes** de sembrar, contra la migración: si
+    hubiera quedado en `NULL`, `destino()` filtra por `activo = true` y habría mandado al admin recién
+    sembrado a `/catalogo` sin un solo error.
+
+**Verificado al cerrar la tarea, en producción y con el flujo entero:** el enganche de D-32 dejó pasar el
+correo `@upc.edu.pe`; el enlace llegó a `{{ .SiteURL }}/auth/confirm` con **`type=signup`** —la plantilla de
+*Confirm signup*, que es la que hacía falta para quien entra por primera vez, tal como se había avisado—; el
+canje funcionó; el reparto cayó en `/completar-perfil`; **la Server Action guardó el perfil**;
+`email_confirmed_at` traía fecha *(la puerta de la corrección 3, comprobada donde importaba)*; la siembra
+dejó la fila `admin` con `activo = true`; y un magic link **nuevo** cae en `/admin/inventario` con `404`,
+que es el resultado correcto. `typecheck`, `lint` y `build`, los tres en verde tras los dos cambios de
+código.
 
 ---
 

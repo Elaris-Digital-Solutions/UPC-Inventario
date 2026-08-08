@@ -104,6 +104,14 @@ export default function LoginPage() {
                 </label>
                 <Input
                   id="email"
+                  // `name` no lo usa el camino normal -React lee el valor del
+                  // estado-, pero decide COMO falla esto cuando no hay
+                  // JavaScript: sin manejador, el navegador hace un envio
+                  // nativo, y sin `name` ese envio no lleva nada, asi que
+                  // recarga /login identico y el fallo es mudo. Con `name`
+                  // queda `?email=...` en la URL, que es un rastro. Costo una
+                  // hora de diagnostico el 2026-08-07 (D-33).
+                  name="email"
                   type="email"
                   required
                   autoComplete="email"

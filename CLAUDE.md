@@ -118,22 +118,29 @@ pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde
 la migración 22, con la decisión tomada y el costo dicho por delante. Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.
 
-**T1 en curso el 2026-08-07: hechas las tareas 1 a 8 de once.** Está escrito y medido todo el código de la
+**T1 con todas las tareas completas el 2026-08-07; falta el PR y su CI.** Está escrito y medido todo el código de la
 sesión: `.gitattributes` *(cierra Q-15)*, el `.env` en `NEXT_PUBLIC_` con la clave publicable, la
 **migración 22** del enganche de dominio ya en el remoto *(D-32)*, los tres clientes de `@supabase/ssr`,
 `proxy.ts` con **lista blanca** —se declara lo público y todo lo demás pide sesión—, `/login` con magic
 link, el canje en `/auth/confirm`, `/auth/error`, `/auth/signout`, el reparto por perfil y
-`/completar-perfil`. **Cierra P0-3.** Queda **sembrar el primer admin**, que toca producción y lo ejecuta
-Alejandro. Las **42 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.
+`/completar-perfil`. **Cierra P0-3.** El **primer administrador ya está sembrado** en el proyecto real, y el
+flujo se probó entero en un navegador de verdad: entrar, completar el perfil y caer en `/admin/inventario`.
+Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`.
 
-**Cuatro fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
+**Cinco fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
 el enganche de dominio **desactivado en los contenedores** —`db reset` no aplica el `config.toml`, hacen
 falta `stop` y `start`—; `npm run dev` **hablando con producción** por falta de un `.env.local`, que no se
 versiona; el canje **cambiando de host** en la redirección y tirando la sesión, porque las cookies se
 guardan por host y ni `new URL(request.url).origin` ni `request.nextUrl` lo conservan; y la **plantilla de
-correo de fábrica** mandando el enlace a Supabase en vez de a la aplicación. **Son fallos de a qué se
-conecta el código, no de qué dice.** Lo único que los encontró fue pedir el flujo entero y mirar el
-resultado.
+correo de fábrica** mandando el enlace a Supabase en vez de a la aplicación; y **los chunks de `/_next/*`
+respondiendo `403` a un navegador y `200` a `curl`** *(D-33)*, que dejó la aplicación inutilizable en un
+navegador durante ocho tareas en verde. **Son fallos de a qué se conecta el código, no de qué dice.** Lo
+único que los encontró fue pedir el flujo entero y mirar el resultado.
+
+**Y el quinto enseña algo que los otros cuatro no:** `curl` no manda cabecera `Origin` y un navegador sí,
+así que **la herramienta de prueba era más privilegiada que el usuario final**. Quince sondas HTTP en verde
+no significaban que la pantalla funcionara. Cuando se prueba por HTTP, la pregunta es qué manda el cliente
+real que la sonda no manda.
 
 **La T0 estuvo a punto de entrar sin CI** *(D-31)*, por una caída mayor de GitHub Actions que duró todo el
 2026-08-06. **Acabó teniéndolo entero:** Actions drenó su atrasado hacia las 23:26 UTC y corrió los dos
