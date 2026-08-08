@@ -2,66 +2,19 @@
 
 ---
 
-## 📍 Dónde se paró — 2026-08-07, segunda pausa
+## 📍 Cómo queda el entorno tras la tanda 1
 
-> **Bloque temporal.** Se borra al cerrar la tanda, igual que se hizo con la sección 0 de
-> `ESTADO_Y_PLAN.md`. **Reescrito entero en la segunda pausa:** lo que decía antes está superado.
+> **Este bloque nació temporal —«dónde se paró»— y decía que se borraba al cerrar la tanda.** Se conserva
+> convertido, con una decisión tomada el 2026-08-08: lo que describía el estado de la pausa ya está en la
+> bitácora y en las correcciones, y se fue; **lo que describe cómo se levanta el entorno y con qué hay que
+> tener cuidado se queda**, porque la T2 lo necesita el primer día y costó encontrarlo. Borrarlo entero
+> habría cumplido la letra del plan tirando la parte reutilizable.
 
-| Tarea | Estado |
-|---|---|
-| **Task 0** · dashboard y accesos | ✅ hecha. Clave publicable copiada, URL de redirección añadida, enganche activado. **Tenant de Entra ID: denegado** *(Q-16)* |
-| **Task 1** · `.gitattributes` *(Q-15)* | ✅ cerrada y verificada |
-| **Task 2** · `.env` y `.env.example` | ✅ cerrada |
-| **Task 3** · migración 22, el enganche *(D-32)* | ✅ cerrada, empujada al remoto y **verificada en producción**: 403 real |
-| **Task 4** · los tres clientes de `@supabase/ssr` | ✅ cerrada |
-| **Task 5** · `proxy.ts` en la raíz | ✅ cerrada. JWKS remedido: **sigue en ES256** |
-| **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fábrica no servía** *(corrección 23)* |
-| **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
-| **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, y el formulario medido de punta a punta *(corrección 42)* |
-| **Task 9** · sembrar el primer admin | ✅ **hecha el 2026-08-07 en producción.** Admin sembrado y verificado por su efecto. Destapó **D-33**: la aplicación no funcionaba en un navegador *(correcciones 46 a 48)* |
-| **Task 10** · cierre | ✅ **hecha el 2026-08-07, y se adelantó a la 9** porque la 9 estaba bloqueada esperando a una persona. Batería y comprobaciones en verde, los **cuatro** documentos corregidos, correcciones 43 a 45. **Le falta solo su último paso** —el commit de cierre y el PR—, que va detrás de la 9 para no registrar un resultado antes de medirlo |
-
-### Estado exacto al pausar
-
-**Git:** rama `feature/fase-2-tanda-1`, HEAD en **`ae3b5d7`**, **árbol limpio**. Nueve commits por encima de
-`develop` (`8a3731e`): el de anotación `6337b7e` más los ocho de la tanda, **1.1 a 1.8**. **Nada publicado:
-no hay rama remota ni PR.** En el remoto solo viven `main` y `develop` *(D-29 restaurado: la
-`docs/plan-fase-2-tanda-1` que había sobrado del PR #20 se borró en esta sesión)*.
-
-**Base de producción:** 22 migraciones con `local` y `remote` idénticos · **142 aserciones pgTAP en 23
-archivos** · `auth.users` con **cero filas** · el enganche `before_user_created` **activo y verificado con
-una petición real**.
-
-~~**⚠ Base LOCAL contaminada, y hay que limpiarla antes de la batería.** Las sondas de las Tasks 6, 7 y 8
-crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` por el flujo real, y el trigger les
-puso fila en `alumnos`: **hay 7 usuarios y 6 alumnos donde el seed deja 4**. `14_rls_alumnos.sql` afirma un
-conteo fijo, así que **fallará hasta que se corra `npx supabase db reset`**~~ *(corrección 10)*.
-✅ **Limpiada el 2026-08-07** al empezar la Task 10: `db reset` reaplicó las 22 migraciones y la batería dio
-**142 aserciones en 23 archivos, todas en verde**, `14_rls_alumnos.sql` incluido. **La advertencia se
-conserva porque vuelve a aplicar** en cuanto alguien pruebe otra vez el flujo por HTTP contra el stack
-local, que es lo que hará la T2 entera.
-
-### Lo que NO hay que rehacer
-
-- La **migración 22** ya está en el remoto y el enganche ya está activo en el dashboard, comprobado con una
-  petición real que devuelve `403`.
-- **Q-15** ya se cerró regenerando los tipos.
-- Las **dos plantillas de correo locales** ya están escritas en `supabase/templates/` y enganchadas en
-  `config.toml`, y el enlace resultante ya se verificó en Mailpit.
-- **Todo el código de la tanda está escrito y medido**: los tres clientes, el proxy, `/login`, el canje,
-  `/auth/error`, `/auth/signout`, el reparto y `/completar-perfil`.
-
-### Pendiente de Alejandro, y bloquea la Task 9
-
-**Las dos plantillas de correo del dashboard** del proyecto real, en *Authentication → Emails → Templates*.
-El `config.toml` solo configura el stack local *(corrección 23)*:
-
-- **Magic Link** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">`
-- **Confirm signup** → `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup">`
-
-Hacen falta **las dos**: GoTrue usa la segunda para quien entra por primera vez, que es exactamente el caso
-de la Task 9. Y conviene revisar que el *Site URL* de *URL Configuration* apunte a donde corra la aplicación,
-porque es lo que rellena `{{ .SiteURL }}`.
+**Lo que dejó la tanda, en una línea:** `/login` con magic link, el canje en `/auth/confirm`, `/auth/error`,
+`/auth/signout`, el reparto por perfil en `lib/auth/destino.ts`, `/completar-perfil` con su Server Action,
+los tres clientes de `@supabase/ssr`, `proxy.ts` con lista blanca, la **migración 22** *(D-32)* y
+`allowedDevOrigins` *(D-33)*. **P0-3 y Q-15 cerrados.** El primer administrador está sembrado en el
+proyecto real.
 
 ### Cómo se levanta el entorno
 
@@ -73,19 +26,32 @@ porque es lo que rellena `{{ .SiteURL }}`.
    El `.env.example` lo explica. **Comprobar que existe antes de tocar nada.**
 3. **Probar siempre por `http://127.0.0.1:3000`, nunca por `localhost:3000`.** El navegador los trata como
    sitios distintos para las cookies y el `site_url` local es `127.0.0.1` *(corrección 27)*.
-4. Mailpit, para leer los correos: `http://127.0.0.1:54324`.
+4. **Y por eso `next.config.ts` declara `allowedDevOrigins: ["127.0.0.1"]`** *(D-33, corrección 46)*. Sin
+   esa línea, Next 16 devuelve **403** a los recursos de `/_next/*` pedidos desde ese origen, React no
+   hidrata y **los formularios dejan de funcionar sin un solo error**. Si algún día alguien la borra por
+   parecer superflua, el síntoma será una pantalla que no reacciona.
+5. Mailpit, para leer los correos: `http://127.0.0.1:54324`.
+6. **Al terminar de probar contra producción, devolver el `.env.local`.** Apartarlo es el procedimiento para
+   hablar con el proyecto real; olvidarse de devolverlo deja el desarrollo apuntando ahí.
 
 ### Trampas vigentes
 
 - Los usuarios de `seed.sql` llevan las columnas de token en `NULL` y **GoTrue devuelve `500` con
-  cualquiera de ellos** *(corrección 8)*. Para probar sesión hay que crear usuarios por el flujo real; los
-  dos `sonda.*` que ya existen sirven, y desaparecen con `db reset`.
-- `[auth.rate_limit] email_sent = 2` por hora en el `config.toml` local. Con muchas pruebas seguidas, el
-  envío empieza a rechazarse.
-- **Ninguna herramienta de este proyecto ha avisado de un fallo de conexión.** Los cuatro más caros de la
-  tanda —el enganche desactivado, el dev apuntando a producción, el cambio de host y la plantilla de
-  fábrica— pasaron con `typecheck`, `lint` y `build` en verde. **Lo único que los encontró fue pedir el
-  flujo entero y mirar el resultado.**
+  cualquiera de ellos** *(corrección 8)*. Para probar sesión hay que crear usuarios por el flujo real, y los
+  que se creen desaparecen con `db reset`.
+- **Probar el flujo por HTTP contra el stack local contamina las fixtures** *(corrección 10)*. El trigger
+  convierte en alumno a cada `@upc.edu.pe` que entre, y `14_rls_alumnos.sql` afirma un conteo fijo: **`db
+  reset` antes de la batería pgTAP**, siempre que se haya sondeado. La T2 va a sondear mucho.
+- `[auth.rate_limit] email_sent = 2` por hora en el `config.toml` local, y el SMTP por defecto del proyecto
+  real también tiene un límite bajo. Con varias pruebas seguidas, el envío empieza a rechazarse.
+- **Ninguna herramienta de este proyecto ha avisado nunca de un fallo de conexión.** Los **cinco** más caros
+  de la tanda —el enganche desactivado en los contenedores, el dev apuntando a producción, el cambio de host
+  en la redirección, la plantilla de correo de fábrica y el `403` de D-33— pasaron con `typecheck`, `lint` y
+  `build` en verde. **Lo único que los encontró fue pedir el flujo entero y mirar el resultado.**
+- **Y la trampa que D-33 destapó vale para toda la fase:** una sonda con `curl` **no manda cabecera
+  `Origin`** y un navegador sí, así que puede recibir `200` donde el usuario real recibe `403`. Quince
+  sondas HTTP en verde no probaban que la pantalla funcionara. **Al probar por HTTP, preguntarse qué manda
+  el cliente real que la sonda no manda** — y, cuando la pantalla importe, abrirla en un navegador.
 
 ---
 
