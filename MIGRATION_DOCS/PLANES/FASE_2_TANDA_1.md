@@ -18,8 +18,8 @@
 | **Task 6** · `/login` con magic link | ✅ cerrada. **La plantilla de correo de fábrica no servía** *(corrección 23)* |
 | **Task 7** · canje, error y salida | ✅ cerrada. Flujo completo medido: entrar, sesión, salir |
 | **Task 8** · reparto y `/completar-perfil` | ✅ cerrada. Sin bucle, y el formulario medido de punta a punta *(corrección 42)* |
-| **Task 9** · sembrar el primer admin | ⬅ **SIGUIENTE**. Toca producción y **la ejecuta Alejandro**. Bloqueada por las plantillas del dashboard |
-| **Task 10** · cierre | pendiente. Es la que puede adelantarse: no depende de la 9 salvo su último paso |
+| **Task 9** · sembrar el primer admin | ⬅ **LO ÚNICO QUE QUEDA**. Toca producción y **la ejecuta Alejandro**. Sigue bloqueada por las dos plantillas del dashboard |
+| **Task 10** · cierre | ✅ **hecha el 2026-08-07, y se adelantó a la 9** porque la 9 estaba bloqueada esperando a una persona. Batería y comprobaciones en verde, los **cuatro** documentos corregidos, correcciones 43 a 45. **Le falta solo su último paso** —el commit de cierre y el PR—, que va detrás de la 9 para no registrar un resultado antes de medirlo |
 
 ### Estado exacto al pausar
 
@@ -32,10 +32,14 @@ no hay rama remota ni PR.** En el remoto solo viven `main` y `develop` *(D-29 re
 archivos** · `auth.users` con **cero filas** · el enganche `before_user_created` **activo y verificado con
 una petición real**.
 
-**⚠ Base LOCAL contaminada, y hay que limpiarla antes de la batería.** Las sondas de las Tasks 6, 7 y 8
+~~**⚠ Base LOCAL contaminada, y hay que limpiarla antes de la batería.** Las sondas de las Tasks 6, 7 y 8
 crearon `sonda.magiclink@upc.edu.pe` y `sonda.plantilla@upc.edu.pe` por el flujo real, y el trigger les
 puso fila en `alumnos`: **hay 7 usuarios y 6 alumnos donde el seed deja 4**. `14_rls_alumnos.sql` afirma un
-conteo fijo, así que **fallará hasta que se corra `npx supabase db reset`** *(corrección 10)*.
+conteo fijo, así que **fallará hasta que se corra `npx supabase db reset`**~~ *(corrección 10)*.
+✅ **Limpiada el 2026-08-07** al empezar la Task 10: `db reset` reaplicó las 22 migraciones y la batería dio
+**142 aserciones en 23 archivos, todas en verde**, `14_rls_alumnos.sql` incluido. **La advertencia se
+conserva porque vuelve a aplicar** en cuanto alguien pruebe otra vez el flujo por HTTP contra el stack
+local, que es lo que hará la T2 entera.
 
 ### Lo que NO hay que rehacer
 
@@ -491,6 +495,43 @@ en verde.
     conclusión escrita **antes** de mirar el HTML. Mirarlo costó una petición. Es el mismo error de forma
     que persiguió toda la tanda —contestar sin comprobar—, cometido esta vez al decidir qué **no** valía la
     pena comprobar.
+
+### Task 10 · El cierre encontró un cuarto documento, y un verde que no prueba nada
+
+43. **El Step 2 dice tres sitios y son cuatro: falta el `README.md`.** Afirma «las 21 migraciones» y «135
+    aserciones» justo en las instrucciones de arranque, que es donde más se leen, y ninguna de las dos
+    frases estaba en la lista del plan. Se encontró buscando el número por todo el árbol en vez de abriendo
+    los tres archivos que el plan nombra. **Una lista escrita de memoria se comprueba con una búsqueda**, y
+    es barato: el paso que la generó tardó menos que leer esta corrección.
+    → **Y se corrige distinto que en los otros tres, a propósito.** Allí el número se cambia a secas, sin
+    tachar. La regla de la casa —corregir fechado y sin borrar— protege el **registro de decisiones**, donde
+    lo aprendido vive en el error; el `README` es documentación de uso, y quien llega a levantar el proyecto
+    no necesita enterarse de que alguna vez fueron 21. **Tacharlo ahí sería ruido con forma de rigor.**
+    → De paso, el `README` mandaba a `http://localhost:3000`, que es **exactamente el origen que la
+    corrección 27 desaconseja**: el documento de bienvenida enseñaba el error que la tanda acababa de pagar.
+    Corregido a `127.0.0.1`, con el motivo escrito al lado y el enlace a Mailpit.
+
+44. **`npm run test` está en verde y no prueba nada, y conviene decirlo en voz alta.** El script es
+    `vitest run --passWithNoTests` y **no hay un solo archivo de prueba en el árbol**: la salida literal es
+    `No test files found, exiting with code 0`. **No es un defecto** —D-14 decidió que las reglas se prueban
+    en el motor, y ahí están las 142 aserciones— pero el Step 1 lo cuenta como uno de los cinco verdes, y
+    **un verde vacuo se lee igual que uno ganado**. Lo que este paso comprueba de verdad son cuatro cosas,
+    no cinco. La cobertura del lado de la aplicación llega con Playwright en la T4.
+
+45. **Y el bloque de esta misma sección se insertó en el sitio equivocado**, delante de la corrección 42 en
+    vez de detrás, partiendo en dos la sección de la Task 8. **La causa no fue del subagente que lo escribió
+    sino de quien le dio la instrucción:** el párrafo «Verificado al cerrar la tarea» de la Task 8 **no era
+    el final del archivo**, porque la corrección 42 se había añadido después de él, y la lectura previa se
+    cortó justo ahí. Se dio por final lo que solo era el borde de lo leído. Corregido moviendo el bloque.
+    **Es la misma forma de error que la corrección 43**, en la misma tarea y con quince minutos de
+    diferencia: dar por completa una vista parcial.
+
+**Verificado al cerrar la tarea:** `npx supabase db reset` y después la batería, que es el orden que exige
+la corrección 10 — **142 aserciones en 23 archivos, todas en verde**, con `14_rls_alumnos.sql` incluido, que
+es el que fallaba con la base contaminada. `typecheck`, `lint`, `test` y `build`, los cuatro en verde, con
+la salvedad de la corrección 44 sobre el tercero. El `build` deja **ocho rutas**: `/` y `/login` estáticas,
+y `/auth/confirm`, `/auth/error`, `/auth/signout`, `/catalogo`, `/completar-perfil` y `/_not-found`
+dinámicas, más el proxy.
 
 ---
 
