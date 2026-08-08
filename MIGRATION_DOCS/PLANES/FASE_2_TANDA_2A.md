@@ -150,12 +150,38 @@ otra vez estáticas**.
 con **un solo `<header>`, un solo `<footer>` y cero `auth/signout`**. El optimizador de imágenes sirve una
 foto real de Cloudinary y rechaza un host sin declarar.
 
-> ⚠ **Lo que NO está verificado, y se dice en vez de darlo por hecho: la pantalla no se ha abierto en un
-> navegador.** No hay herramienta de navegador en la sesión que la construyó. **Queda pendiente de
-> Alejandro**, y no es un trámite: es el paso que encontró los cinco fallos de la tanda 1. Lo que sí se
-> hizo es la parte que una sonda puede cubrir **mandando lo que manda el navegador** —cabecera `Origin`
-> incluida, que es la lección de D-33—, y por eso el optimizador de imágenes se probó por su propia URL en
-> vez de darlo por bueno al ver el `<img>` en el HTML.
+> ⚠ **Escrito al cerrar la tarea y superado media hora después:** «la pantalla no se ha abierto en un
+> navegador, no hay herramienta de navegador en esta sesión». Se habilitó el plugin de Chrome DevTools
+> —`enabledPlugins` en `.claude/settings.local.json`, recargado con `/reload-plugins` y `/mcp`, **sin
+> reiniciar la sesión**— y la comprobación se hizo. Lo que encontró está abajo. **El párrafo se conserva
+> porque describe la decisión correcta con las herramientas de aquel momento:** decir qué no está
+> verificado vale más que un cierre limpio de mentira.
+
+### Task 3-bis · Lo que solo se vio con un navegador delante
+
+12. **El badge de categoría le robaba el ancho al título y desalineaba la fila entera.** Compartían fila
+    con `flex justify-between`, así que los nombres largos se partían: «Tripode Manfrotto MT055» salía en
+    **tres** líneas y «Camara Sony A7 III» en dos, y cada tarjeta terminaba a una altura distinta.
+    → El badge pasa a ir **sobre la imagen**, en absoluto, donde no compite con nada; y el título gana
+    `line-clamp-2`. **Medido después, no mirado:** las cuatro tarjetas en **282 px exactos**, y los títulos
+    de tres a una línea salvo el Trípode, que se queda en dos.
+    → **Nada de esto era visible por HTTP.** El HTML era correcto en los dos casos; lo que cambia es dónde
+    cae el texto una vez aplicado el CSS, y eso solo lo sabe un motor de render.
+
+13. **El área de imagen gana `bg-muted`, y el motivo es el dato roto.** Sin fondo, las tarjetas cuyo
+    Cloudinary da 404 quedaban en **blanco** y las que caen al `placeholder.svg` en **gris**: cuatro
+    tarjetas con dos aspectos distintos por un motivo que nadie puede deducir mirándolas. Con el fondo, el
+    hueco es el mismo venga de donde venga.
+    → **`next/image` no cae al placeholder cuando la carga falla**, solo cuando `imagenUrl` es `null`.
+    Cambiarlo exigiría un `onError`, y eso convierte la tarjeta en Client Component. **No se hace:** en
+    producción las 34 imágenes existen —comprobado—, y el caso solo se da en local por la corrección 10.
+
+**Verificado en un navegador de verdad, por `127.0.0.1:3000`:** los chunks de `/_next/*` responden **200**
+—**D-33 sigue cerrado, y esta vez medido con el cliente que sí manda `Origin`**—; la consola trae
+**exactamente dos errores**, los dos `404` de las imágenes ficticias del seed, y **ni uno de React ni de
+hidratación**; `/Campus.png` y `/campus-san-miguel.webp` cargan con **200**; y la cabecera, el pie y las
+cuatro tarjetas se pintan una sola vez. El círculo con la «N» que aparece abajo a la izquierda es el
+indicador de **Next DevTools** —el chunk `next-devtools` sale en la lista de red—, no código del proyecto.
 
 ---
 

@@ -27,7 +27,7 @@ export function TarjetaProducto({ producto, href }: TarjetaProductoProps) {
   // para que la imagen llegue al borde superior de la tarjeta.
   const contenido = (
     <Card className={cn("h-full gap-3 pt-0", href && "transition-shadow hover:shadow-md")}>
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="bg-muted relative aspect-[4/3] overflow-hidden">
         <Image
           // El seed local trae un producto sin ninguna imagen -el embed
           // devuelve product_images: []- aunque los 34 de produccion si
@@ -39,16 +39,23 @@ export function TarjetaProducto({ producto, href }: TarjetaProductoProps) {
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
           className="object-cover"
         />
+        {/* La categoria va SOBRE la imagen y no al lado del titulo. Medido en
+            un navegador: compartiendo fila, el badge le robaba ancho al titulo
+            y lo partia en dos y tres lineas -"Tripode Manfrotto MT055" salia en
+            tres-, con lo que cada tarjeta quedaba de un alto distinto. Aqui no
+            compite con nada. */}
+        {producto.category !== null && (
+          <Badge variant="secondary" className="absolute top-2 left-2 shadow-sm">
+            {producto.category}
+          </Badge>
+        )}
       </div>
       <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle>{producto.name}</CardTitle>
-          {producto.category !== null && (
-            <Badge variant="secondary" className="shrink-0">
-              {producto.category}
-            </Badge>
-          )}
-        </div>
+        {/* line-clamp-2 en el titulo: los nombres reales son largos -"Camara
+            Sony A7 III", y en produccion hay tablets con nombre y modelo- y sin
+            tope una tarjeta con nombre de cuatro lineas desalinea la fila
+            entera. */}
+        <CardTitle className="line-clamp-2 leading-snug">{producto.name}</CardTitle>
         {producto.description !== null && (
           <CardDescription className="line-clamp-2">{producto.description}</CardDescription>
         )}
