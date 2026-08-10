@@ -584,7 +584,7 @@ autorización viva en la base: cada tanda se puede probar contra el perfil real,
 |---|---|---|---|
 | **T0 · Cimientos** | Borrar Vite y los documentos muertos. Next.js 16 + App Router + Tailwind con los tokens + shadcn. Los tipos generados. El CI adaptado. ~~**La última migración: D-19 y D-20**~~ → **las dos penúltimas**: la última es la 22 *(D-32)*, ver la nota de abajo | 2.1, 2.2, 2.3 · D-6 · Q-12 | El stack respira. Sin pantallas reales |
 | **T1 · Sesión** | `@supabase/ssr`, `proxy.ts`, magic link ~~y Microsoft~~ *(Q-16: no hay tenant)*, `/completar-perfil`, cierre de sesión. Sembrar el primer admin. **Y la migración 22** *(D-32)*, ver la nota | 2.4, 2.4-bis | **Cierra P0-3.** Se entra y se sale |
-| **T2 · Alumno** | Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta | 2.5, 2.6 | Un alumno reserva de punta a punta |
+| **T2 · Alumno** | ~~Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta~~ → partida *(D-34)* en **T2A** —landing, FAQ, catálogo, detalle; **cerrada el 2026-08-10**— y **T2B** —el calendario, reserva, sanción, panel, cancelación, encuesta; pendiente— | 2.5, 2.6 | Un alumno reserva de punta a punta |
 | **T3 · Personal** | Mostrador (operador y admin), inventario, imágenes con firma, reservas, días, estadísticas, personal | 2.7, 2.8, 2.9 | **Cierra P0-4.** El ciclo de préstamo se cierra |
 | **T4 · Endurecimiento** | Cabeceras de seguridad, E2E de Playwright, lint y auditoría bloqueantes, Q-10, Q-13 | 2.10, 2.11 | Desplegable |
 
@@ -652,7 +652,7 @@ Tres arneses, y cada uno responde una pregunta distinta:
 | **`getClaims()` deja de ser local si el proyecto cambia a firma simétrica** | Medido y anotado: hoy es ES256. Si el proxy se pone lento, mirar el JWKS antes que el código |
 | **Un cliente de servidor a nivel de módulo filtra sesiones entre usuarios** | `lib/supabase/server.ts` exporta una **función**, nunca una constante *(D-24)*. Es el fallo más grave que esta fase puede introducir sin tocar una política |
 | **La rejilla del calendario y `create_reservation` se separan** | `available_slots` delega en `available_units`, que ya comparte fórmula con `blocked_range`. Una sola definición del rango, en un solo sitio |
-| **T2 se desborda** | ✅ **Se desbordó, y se partió al escribir su plan, no a mitad de ejecutarlo** *(D-34, 2026-08-08)*. 16 tareas. Ver la corrección de §12: el criterio bueno resultó ser «cuál escribe en la base», no «cuál es más grande» |
+| **T2 se desborda** | ✅ **Se desbordó, y se partió al escribir su plan, no a mitad de ejecutarlo** *(D-34, 2026-08-08)*. 16 tareas. Ver la corrección de §12: el criterio bueno resultó ser «cuál escribe en la base», no «cuál es más grande». **La 2A cerró el 2026-08-10**, y el corte se confirmó bueno en la ejecución: la tanda no escribió una sola fila ni tocó SQL, y la base siguió en 22 migraciones y 142 aserciones |
 | **El buffer puede desalinear la cola del bloqueo igual que la duración** | **Q-14**, abierto a propósito *(§15)* |
 | **`gen types --local` puede no funcionar con los servicios recortados de `db.yml`** | Punto a verificar de T0, con los dos desenlaces escritos *(§7.4)* |
 | Supabase hiberna por inactividad | Reintentar; la primera llamada lo despierta |

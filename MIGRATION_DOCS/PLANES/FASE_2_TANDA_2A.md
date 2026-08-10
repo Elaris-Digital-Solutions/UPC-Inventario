@@ -1,5 +1,552 @@
 # Fase 2 · Tanda 2A — Vitrina y catálogo · Plan de implementación
 
+---
+
+## ✅ Tanda 2A CERRADA — 2026-08-10
+
+Las **siete tareas** quedaron cerradas: **nueve commits locales** en `feature/fase-2-tanda-2a`, nada
+empujado al remoto.
+
+**La receta del `update` manual a `auth.users` YA NO HACE FALTA.** El seed se arregló de raíz —ver
+**corrección 34**—, así que quien lea esto para la 2B **no tiene que ejecutar ningún `update` manual**
+tras un `db reset`.
+
+**Lo que sigue siendo receta útil para la 2B:**
+
+- Docker Desktop arrancado y luego `npx supabase start` desde la raíz del repositorio. Que aparezcan seis
+  servicios en «Stopped» —storage, imgproxy, edge_runtime, analytics, vector, pooler— es correcto.
+- `.env.local` presente, apuntando a `http://127.0.0.1:54321`.
+- Probar **siempre** por `http://127.0.0.1:3000`, nunca por `localhost:3000`.
+- Borrar `.next/` al mover, renombrar o borrar algo dentro de `app/`.
+- Se entra con `alumno.a@upc.edu.pe` (Ana, perfil completo, cae directo en `/catalogo`), sacando el magic
+  link de Mailpit por `http://127.0.0.1:54324/api/v1/messages`.
+
+**Quedó pendiente y no bloquea:** no está verificado a 390 px de ancho. Chrome no baja de 485 px en
+Windows con esta herramienta; Playwright sí controla el viewport de verdad.
+
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
+> tarea y no al final, para no perderlo.
+
+### Task 1 · El plan pedía una versión que el proyecto ya tenía fijada
+
+1. **El plan dice `npx shadcn@latest` y eso habría traído una versión distinta de la del proyecto.**
+   `shadcn` está **declarado en `devDependencies`** —`^4.16.2`, instalado 4.16.2—, así que `@latest` se
+   habría descargado otra por encima y el generador que escribe el código no habría sido el que el
+   `package.json` fija. Se usó `npx shadcn` a secas, que resuelve el local.
+   → **Es el reverso exacto de lo que anotó la tanda 1** al final de su Task 5: allí `npx supabase` trajo
+   la 2.112.0 en vez de la 2.111.0 «porque la CLI no está fijada en ningún sitio del repositorio». Aquí
+   **sí** lo está, y el plan lo ignoró. La regla que sirve para las dos: **antes de invocar una herramienta
+   que genera código, mirar si el proyecto ya dice cuál.**
+
+2. **`shadcn add` tiene `--dry-run`, y es mejor instrumento que los hashes.** El plan medía el efecto
+   *después*; `--dry-run` lo **predice antes**, y dijo exactamente lo que pasó: «Files (4) +4 new», sin una
+   sola modificación. Los hashes no se retiran —una predicción no es un hecho— pero pasan a confirmar en
+   vez de a descubrir. **Se usaron los dos, y el orden correcto es ese.**
+
+3. **Punto a verificar 2, resuelto por el lado bueno y con margen.** `app/globals.css` y `package.json`
+   salieron con **el hash idéntico** —`9f5a30c0…` y `e7ea3a31…` antes y después—, así que `add` no pisa
+   nada y **no añadió ni una dependencia**. La corrección 28 de la tanda 1 se extiende: valía para
+   `globals.css`, vale también para `package.json`.
+   → **Y se comprobó lo que el punto a verificar no preguntaba, que era la mitad que importaba:** de dónde
+   importan los cuatro componentes. Salen de `radix-ui`, `lucide-react` y `class-variance-authority`, **los
+   tres declarados**. Si hubieran importado de `@radix-ui/react-select` —que llega solo de forma
+   transitiva— habría compilado igual y sería una **dependencia invisible**, que es literalmente la
+   corrección 16 de la tanda 1. **Cero dependencias nuevas no es lo mismo que cero dependencias sin
+   declarar**, y solo la segunda pregunta protege de algo.
+
+**Verificado al cerrar la tarea:** `typecheck`, `lint` y `build`, los tres en verde. El `build` deja **ocho
+rutas** —`/` y `/login` estáticas, las otras seis dinámicas—, **idéntico a como lo dejó la tanda 1**. Ese
+número es la línea base contra la que se mide el punto a verificar 5 en la Task 2.
+
+### Task 2 · Mover un archivo dejó al `typecheck` mintiendo, y solo en local
+
+4. **Punto a verificar 5, resuelto midiendo y por el lado que se temía.** Se escribió la cabecera leyendo
+   `getClaims()`, se enganchó en `app/layout.tsx` y se comparó `next build` contra la línea base de la
+   Task 1: **las ocho rutas pasaron de `○` a `ƒ`** y desapareció la línea `○ (Static)` del pie del informe.
+   Cualquier lectura de cookies en el layout raíz vuelve dinámico todo lo que cuelga de él, y de él cuelga
+   todo. Se aplicó el desenlace previsto y **`/`, `/login` y `/_not-found` volvieron a `○`**.
+   → **Lo que hace que esto valga la medición y no el razonamiento:** el código que lo provoca no está en
+   la landing. Está en un componente de la cabecera, tres archivos más allá, y no menciona a `/` por
+   ninguna parte. Leyendo `app/(publico)/page.tsx` no hay forma de saber si es estática.
+
+5. **El plan decía dónde vive la cabecera CON sesión y no dónde vive la otra, y ahí estaba el problema.**
+   «La cabecera con sesión vive en el grupo `(alumno)`» deja implícito que la pública va en el layout raíz
+   — y ahí **se suma** a la del alumno en vez de sustituirla: dos cabeceras en `/catalogo`. Un layout de
+   grupo envuelve al raíz, no lo reemplaza.
+   → **Desvío decidido y anotado: nace `app/(publico)/`**, con su layout y la landing dentro; la FAQ se le
+   suma en la Task 4. `app/page.tsx` se movió con `git mv` para conservar el historial, y la URL no cambia
+   porque un grupo entre paréntesis no aporta segmento. **El layout raíz se queda sin cabecera**, con el
+   motivo escrito dentro.
+
+6. **Mover esa página dejó el `typecheck` fallando, y habría fallado SOLO en local.** Tras el `git mv`,
+   `npm run typecheck` reventó con
+   `.next/dev/types/validator.ts(89,39): error TS2307: Cannot find module '../../../app/page.js'`.
+   **`next typegen` añade las rutas nuevas pero no retira las viejas:** el validador seguía comprobando un
+   archivo que ya no existe. Se cierra borrando `.next` — comprobado: falla con la caché, pasa sin ella.
+   → **Y es el ESPEJO exacto de la trampa que midió la tanda 0.** Allí, `tsc --noEmit` a secas pasaba en
+   local —donde `.next/` estaba poblado— y **habría roto el CI** en un runner limpio. Aquí, con el script
+   ya corregido, la caché rancia rompe **en local** y el CI habría salido verde, porque clona sin `.next/`.
+   **La misma carpeta ignorada produce los dos falsos, en direcciones opuestas.**
+   → La regla que sale, y que no estaba en ningún plan: **al mover, renombrar o borrar algo dentro de
+   `app/`, se borra `.next/` antes de creerse el `typecheck`** — el verde y el rojo por igual.
+
+7. **`CabeceraSesion` NO lee la sesión, contra lo que sugiere su nombre.** Cuando se pinta, el layout de
+   `(alumno)` ya llamó a `getClaims()` y ya redirigió a quien no tuviera. Volver a leerla sería una segunda
+   consulta para una pregunta ya respondida, y **la segunda copia se desincronizaría de la primera** — es
+   el mismo argumento por el que `lib/auth/destino.ts` es la lectura única que reparte. El motivo va
+   escrito en el archivo, porque el nombre invita a lo contrario.
+
+**Verificado al cerrar la tarea, con sondas en los dos sentidos:** `/` y `/login` responden **200**,
+`/faq` responde **404** —y ese 404 **es** el resultado correcto de este paso: significa que el proxy la
+dejó pasar y que todavía no hay pantalla, igual que el `404` de `/login` en la Task 5 de la tanda 1—, y
+`/catalogo`, `/mi-panel` y `/admin/inventario` **rebotan con 307 a `/login`**, las dos últimas **sin
+existir siquiera**: la lista blanca sigue cerrando lo que nadie declaró. En el HTML de `/` hay **un solo
+`<header>` y un solo `<footer>`**, y **cero** apariciones de `auth/signout`, que es lo que probaría que se
+coló la cabecera equivocada. `typecheck`, `lint` y `build` en verde, con **`/`, `/login` y `/_not-found`
+otra vez estáticas**.
+
+> **Desvío de método, dicho por delante:** esta tarea se verificó por HTTP y **no** en un navegador. Lo que
+> cambia es el reparto de cabeceras y los códigos del proxy, que es exactamente lo que una sonda sí ve —no
+> hay formulario ni hidratación de por medio—. **La landing todavía es el marcador de posición de la tanda
+> 0**, así que abrir un navegador ahora mediría una pantalla que la Task 3 va a reemplazar entera. La
+> comprobación visual se hace en la Task 3, con la pantalla de verdad delante.
+
+### Task 3 · La landing dejó de ser estática, y el seed apunta a fotos que no existen
+
+8. **`/` es DINÁMICA, y la corrección 4 de la Task 2 se queda a medias.** Medido con `.next` borrado: el
+   `build` la marca **`ƒ /`**. Y la causa **no** es leer sesión —esta página no llama a `getClaims()`—
+   sino que `productosVitrina()` usa `createClient()`, que hace `await cookies()` para construirse aunque
+   la consulta salga como anónima. **Next.js trata `cookies()` como Dynamic API sin mirar si el valor se
+   usa: pedirla ya saca la ruta del prerender.**
+   → **Lo que esto le quita a la Task 2, dicho sin rodeos:** el argumento que justificó repartir la
+   cabecera en dos era conservar `/` estática, y **ese argumento se cayó una tarea después**. El reparto se
+   queda, pero sostenido por los otros dos motivos, que siguen en pie y son independientes: **(a)** una
+   cabecera en el layout raíz se *sumaría* a la del grupo `(alumno)` en vez de sustituirla, y **(b)**
+   `/login` y `/_not-found` **sí siguen estáticas** y una lectura de sesión arriba las habría sacado.
+   → **Y se acepta que `/` sea dinámica en vez de pelearlo, por dos razones que van en el mismo sentido.**
+   Una: una vitrina prerenderizada en el `build` mostraría un catálogo **congelado**, y los productos que
+   el admin dé de alta en la tanda 3 no aparecerían hasta el siguiente despliegue. Dos: **elimina de raíz
+   el riesgo de la corrección 14 de la tanda 1** — una respuesta estática es justo la que un CDN quiere
+   guardar, y el proxy puede escribir `Set-Cookie` en esa misma petición. **La medición que parecía una
+   pérdida cierra un riesgo que estaba anotado desde la tanda anterior.**
+
+9. **`.returns<FilaProducto[]>()` se escribió, se midió y se quitó.** El primer borrador forzaba el tipo del
+   embed por miedo a una inferencia ambigua —`product_images` aparece con el mismo nombre de FK dos veces
+   en los tipos generados, hacia `products` y hacia `product_availability`—. Se probó sin él: **la
+   inferencia resuelve bien**, `typecheck` en verde.
+   → El motivo de quitarlo vale más que la línea ahorrada: **`.returns<>()` es un `as` con otro nombre.**
+   *Sustituye* el tipo inferido en vez de comprobarlo, así que el día que alguien cambie el `select` y no
+   toque la declaración, **el tipo seguiría afirmando la forma vieja y compilaría igual**. Es exactamente
+   el modo de fallo contra el que se escribió **D-26**: «un tipo desactualizado no rompe la compilación,
+   miente en silencio».
+   → Tal como queda, el tipo se usa solo como parámetro de `imagenPrincipal()`, así que TypeScript lo
+   **contrasta** con lo que la consulta devuelve de verdad. **El mismo tipo escrito, pero verificado en
+   lugar de impuesto.**
+
+10. **Punto a verificar 4, resuelto — y hubo que resolverlo con el dato REAL, porque el del seed no
+    existe.** El optimizador de Next devuelve **`200 image/jpeg`, 17.447 bytes** para una imagen real de
+    producción, y **`400`** para un host no declarado: `remotePatterns` funciona y **es** la frontera, no un
+    adorno.
+    → **Pero la misma sonda contra la URL del `seed.sql` devuelve `404`.** El seed siembra
+    `https://res.cloudinary.com/demo/image/upload/seed/cam-001.jpg`, y el cloud `demo` de Cloudinary **no
+    tiene** esa imagen: la URL es **ficticia**, con la forma correcta y sin contenido detrás.
+    → **Consecuencia práctica, y es una trampa preparada:** al abrir la landing en local **las fotos del
+    catálogo salen rotas**, y la lectura obvia —«`remotePatterns` no funciona»— es **la contraria de la
+    verdad**. La configuración funciona; lo que no existe es el archivo. Quien lo vea sin este párrafo va a
+    tocar `next.config.ts` para arreglar algo que no está roto.
+    → **Es la segunda vez en esta tanda que el seed engaña sobre los datos reales**, después de `featured`.
+    Y las dos veces en direcciones opuestas: `featured` hace que **local se vea mejor** que producción, las
+    URLs hacen que **local se vea peor**. **Decidido no tocar `seed.sql`:** su trabajo es dar filas
+    deterministas a las pruebas pgTAP, y apuntarlo a imágenes de verdad le metería una dependencia de red
+    donde hoy no la hay. **El punto a verificar ya quedó resuelto contra el dato real, que es donde
+    importaba.**
+
+11. **La redacción llegó en voseo rioplatense**, con «Entrá con tu correo institucional y accedé». Los
+    usuarios son alumnos de la UPC, en Lima: **tuteo**. Corregido a «Entra» y «accede». Y el cierre decía
+    «¿Lista tu próxima reserva?», que **le presupone el género a quien lee**; cambiado a «Empieza tu
+    próxima reserva», que no marca ninguno.
+
+**Verificado al cerrar la tarea:** `typecheck`, `lint` y `build`, los tres en verde. `/` responde **200**
+con **un solo `<header>`, un solo `<footer>` y cero `auth/signout`**. El optimizador de imágenes sirve una
+foto real de Cloudinary y rechaza un host sin declarar.
+
+> ⚠ **Escrito al cerrar la tarea y superado media hora después:** «la pantalla no se ha abierto en un
+> navegador, no hay herramienta de navegador en esta sesión». Se habilitó el plugin de Chrome DevTools
+> —`enabledPlugins` en `.claude/settings.local.json`, recargado con `/reload-plugins` y `/mcp`, **sin
+> reiniciar la sesión**— y la comprobación se hizo. Lo que encontró está abajo. **El párrafo se conserva
+> porque describe la decisión correcta con las herramientas de aquel momento:** decir qué no está
+> verificado vale más que un cierre limpio de mentira.
+
+### Task 3-bis · Lo que solo se vio con un navegador delante
+
+12. **El badge de categoría le robaba el ancho al título y desalineaba la fila entera.** Compartían fila
+    con `flex justify-between`, así que los nombres largos se partían: «Tripode Manfrotto MT055» salía en
+    **tres** líneas y «Camara Sony A7 III» en dos, y cada tarjeta terminaba a una altura distinta.
+    → El badge pasa a ir **sobre la imagen**, en absoluto, donde no compite con nada; y el título gana
+    `line-clamp-2`. **Medido después, no mirado:** las cuatro tarjetas en **282 px exactos**, y los títulos
+    de tres a una línea salvo el Trípode, que se queda en dos.
+    → **Nada de esto era visible por HTTP.** El HTML era correcto en los dos casos; lo que cambia es dónde
+    cae el texto una vez aplicado el CSS, y eso solo lo sabe un motor de render.
+
+13. **El área de imagen gana `bg-muted`, y el motivo es el dato roto.** Sin fondo, las tarjetas cuyo
+    Cloudinary da 404 quedaban en **blanco** y las que caen al `placeholder.svg` en **gris**: cuatro
+    tarjetas con dos aspectos distintos por un motivo que nadie puede deducir mirándolas. Con el fondo, el
+    hueco es el mismo venga de donde venga.
+    → **`next/image` no cae al placeholder cuando la carga falla**, solo cuando `imagenUrl` es `null`.
+    Cambiarlo exigiría un `onError`, y eso convierte la tarjeta en Client Component. **No se hace:** en
+    producción las 34 imágenes existen —comprobado—, y el caso solo se da en local por la corrección 10.
+
+**Verificado en un navegador de verdad, por `127.0.0.1:3000`:** los chunks de `/_next/*` responden **200**
+—**D-33 sigue cerrado, y esta vez medido con el cliente que sí manda `Origin`**—; la consola trae
+**exactamente dos errores**, los dos `404` de las imágenes ficticias del seed, y **ni uno de React ni de
+hidratación**; `/Campus.png` y `/campus-san-miguel.webp` cargan con **200**; y la cabecera, el pie y las
+cuatro tarjetas se pintan una sola vez. El círculo con la «N» que aparece abajo a la izquierda es el
+indicador de **Next DevTools** —el chunk `next-devtools` sale en la lista de red—, no código del proyecto.
+
+### Task 4 · La lista blanca se lleva por delante el 404, y /login estaba encerrado
+
+14. **La FAQ va en `app/(publico)/faq/`, no en `app/faq/`.** Consecuencia directa de la corrección 5: el
+    grupo `(publico)` es quien pinta la cabecera y el pie, y un archivo fuera de él nacería sin ninguno de
+    los dos. La URL no cambia — un grupo entre paréntesis no aporta segmento.
+
+15. **El 404 propio NO se alcanza desde la raíz sin sesión, y es la lista blanca cobrando otra vez.** El
+    Step 3 pedía «una ruta inventada, que tiene que dar el 404 nuevo». Medido en un navegador:
+    `/ruta-inventada` **rebota a `/login`**. El proxy corre **antes** que el router, así que no sabe si la
+    ruta existe: solo sabe que nadie la declaró pública.
+    → **Y el matiz importa, porque «el 404 es inalcanzable» sería falso.** Medido las cuatro
+    combinaciones: `/faq/subruta-falsa` → **404**, `/login/algo` → **404**, `/ruta-inventada` →
+    **redirección**, `/catalogo/xxx` → **redirección**. **El 404 se alcanza dentro de las ramas públicas
+    declaradas, y no fuera de ellas.**
+    → **Se acepta y no se arregla.** La única forma de que una URL inventada llegara al 404 es que el
+    proxy dejara pasar lo no declarado, que es exactamente la propiedad que la corrección 18 de la tanda 1
+    compró a propósito. **Cambiar una garantía de que nada nace abierto por un mensaje de error más bonito
+    es el trueque que este proyecto rechaza.** Con sesión el 404 aparece siempre; sin ella, quien inventa
+    una URL ve la pantalla de acceso, que tampoco es una mentira.
+    → **Queda por medir en la Task 7:** que con sesión real una ruta inventada dé el 404 y no otra cosa.
+
+16. **`/login` no tenía UN SOLO enlace, y quien llegaba ahí quedaba encerrado.** Se vio abriendo la
+    pantalla, no leyéndola: el proxy rebota `/catalogo` a `/login`, y desde ahí no había logo, ni inicio,
+    ni nada — solo el botón atrás del navegador. Medido después con `document.querySelectorAll('a')`:
+    **cero enlaces**.
+    → Nace `app/(auth)/layout.tsx` y `Cabecera` gana una variante **`minima`**, con solo el logo. La
+    completa no servía: su botón «Entrar» lleva a la página en la que ya estás.
+    → **Lo destapó esta tanda sin haberlo causado.** El defecto venía de la tanda 1; lo hizo visible dar
+    cabecera a unas pantallas y no a otras. Comprobado que `/auth/error` sí tenía salida —un enlace a
+    `/login`—, así que con esto la cadena se cierra entera.
+    → Verificado: `/login` pasa a **dos** enlaces —logo a `/` y el pie a `/faq`—, **una** cabecera, **un**
+    pie, **sin** botón «Entrar» redundante, y el formulario intacto.
+
+17. **Dos arreglos de redacción sobre lo que escribió el generador.** (a) «quedas bloqueado 15 días»:
+    el participio **concuerda en género con quien lee**, y no se sabe cuál es. Cambiado a «pierdes el
+    acceso durante 15 días», que no marca ninguno. (b) El cierre decía «¿No encontraste lo que buscabas?»
+    y debajo un botón para entrar: **si no encontró la respuesta, entrar no se la da**. La pregunta pasa a
+    ser la que ese botón sí resuelve.
+
+**Verificado al cerrar la tarea, en un navegador:** `/faq` responde **sin sesión** y se lee entera; el 404
+propio se pinta con su cabecera y su pie —que él mismo importa, porque no cuelga de ningún grupo—; y
+`/login` ya tiene salida. `typecheck`, `lint` y `build` en verde. El `build` deja **nueve rutas**, una más
+que la tanda 1, y **`/faq` sale estática** (`○`), igual que `/login` y `/_not-found`: **la cabecera mínima
+no lee cookies, así que no saca nada del prerender**.
+
+### Task 5 · La predicción acertó, y sobró; y el seed impide entrar en local
+
+18. **Punto a verificar 1, resuelto midiendo, y la predicción se cumplió — con un número de más.** El embed
+    `products` → `product_availability` **no funciona**: PostgREST devuelve `PGRST200`, «Could not find a
+    relationship». Hasta ahí, lo previsto.
+    → **Y lo que el plan no predijo: tampoco funciona la dirección INVERSA.** `product_availability` →
+    `products` da el mismo `PGRST200`. El plan solo se preguntó por un sentido, y el razonamiento que usó
+    —PostgREST infiere relaciones desde claves foráneas **reales**— resulta ser más fuerte de lo que su
+    autor creyó: una vista agregada no expone FK **en ninguna dirección**. Que la vista sí declare
+    `campuses` no lo contradice: esa columna llega heredada de `inventory_units_campus_id_fkey`.
+    → **Consecuencia:** el catálogo son **dos consultas**, como decía el desenlace previsto. No se creó
+    ninguna vista para conseguir el embed: eso habría sido SQL, y esta tanda no toca SQL.
+    → **Cómo se midió sin confundir dos fallos distintos**, que es la parte reutilizable: se dispararon
+    **tres** sondas, no una. El embed (`400 PGRST200`), un control de `products` a secas (`200`, con filas)
+    y la vista directa como anónimo (`401`, código **`42501`**). Sin la tercera, «400 en el embed» se podría
+    haber leído como falta de privilegio y llevar a tocar políticas que están bien. **Un fallo de parseo y
+    uno de permiso se parecen desde fuera y traen códigos distintos.**
+
+19. **La columna de `campuses` se llama `activo`, no `is_active`.** No se dedujo: lo dijo un error de SQL
+    al consultarla. Las columnas reales son `id`, `name`, `address`, `activo`.
+
+20. **El `seed.sql` engaña por TERCERA vez en esta tanda, y esta vez en una dirección nueva.** Las dos
+    anteriores eran de *valor* —`featured` y las URLs de Cloudinary—. Esta es **estructural**: en el stack
+    local **un producto está en las dos sedes** (la Laptop aparece en Monterrico y en San Miguel: 2 + 3
+    sobre 4 productos), mientras que en producción **ningún** producto está en dos —medido hoy: 0—.
+    → **Para el criterio de aceptación:** en local la pantalla debe traer **3 en Monterrico y 2 en San
+    Miguel**, nunca 4. En producción, **18 y 16**, nunca 34.
+    → **Y el seed resulta ser más exigente que producción en este punto**, lo cual por una vez juega a
+    favor: ejercita un caso —el mismo producto en dos sedes— que los datos reales no tienen. Si la consulta
+    se hubiera escrito suponiendo «un producto, una sede», el seed lo habría destapado.
+
+21. **Con el `seed.sql` tal cual, NADIE puede entrar en local: GoTrue devuelve 500.** Al pedir el magic
+    link para `alumno.a@upc.edu.pe`, Mailpit se quedaba sin correo y el log del contenedor de auth decía
+    `error finding user: Scan error on column "confirmation_token": converting NULL to string is
+    unsupported`, con `POST /otp → 500`.
+    → **La causa:** el seed inserta en `auth.users` con `INSERT` directo, y ahí las columnas de token
+    quedan en `NULL`. GoTrue las lee como `string` y revienta. Un usuario creado por la API lleva `''`, no
+    `NULL`. Afectadas **4 columnas en los 5 usuarios**: `confirmation_token`, `recovery_token`,
+    `email_change_token_new` y `email_change`.
+    → **Por qué no lo vio la tanda 1:** su prueba de login entró con una cuenta **creada por la API**, no
+    con una del seed. El defecto llevaba ahí desde entonces, sin que ninguna tanda lo tocara.
+    → **Arreglado en caliente** (`update auth.users set ... = coalesce(..., '')`), **sin tocar
+    `seed.sql`**. Es una escritura al esquema `auth` del stack local para poder probar, no una escritura
+    de la aplicación: **la T2A sigue sin escribir una sola fila de negocio.**
+    → ⚠ **`db reset` lo revierte**, y la Task 7 empieza con un `db reset`. **Queda como decisión abierta
+    para el cierre:** o se arregla el seed, o cada sesión que necesite entrar en local repite el `update`.
+    La 2B entra en local constantemente, así que esto la afecta a ella más que a esta tanda.
+
+22. **No se puede escribir «disponibles», y la palabra parecía inocente.** `in_stock` significa que la sede
+    tiene unidades **activas** de ese producto, **no** que haya una libre ahora —eso depende de que nadie
+    la tenga reservada en esa franja, un dato que esta consulta ni pide—. «18 equipos disponibles» sería la
+    mentira que D-21 descarta para la vitrina, repetida en el catálogo con otro nombre. La pantalla dice
+    **«3 equipos en Monterrico»**.
+
+23. **La búsqueda normaliza diacríticos, y el motivo salió de los datos reales.** Los nombres están
+    guardados **sin tilde** —«Camara Sony A7 III», «Microfono Rode NTG4», «Tripode Manfrotto MT055»— y un
+    alumno escribe «cámara». Sin normalizar, **la búsqueda más natural no encuentra nada** aunque el
+    término esté literalmente en el nombre. Verificado en el navegador: escribir «micrófono» con tilde
+    devuelve «Microfono Rode NTG4».
+
+24. **El subagente que escribió los archivos coló DOS hechos falsos, y su informe no los mencionó.**
+    (a) Fechó el trabajo como «tarea 2A.7» en dos archivos, cuando es la **2A.5**. (b) Escribió que la
+    medición del `PGRST200` se hizo «contra el proyecto real», cuando se hizo **contra el stack local**.
+    (c) Y justificó el `| null` de `product_id` diciendo que «un LEFT JOIN puede producir NULL en
+    cualquiera de ellas» — **falso para esa columna**: la vista la saca de `p.id`, el lado **izquierdo**
+    de sus dos LEFT JOIN, así que nunca viene vacía. Sale nullable porque **Postgres no propaga el
+    `NOT NULL` de la tabla base a las columnas de una vista**. En esa misma vista sí hay una que puede ser
+    null de verdad, `campus_id`, cuando un producto no tiene unidades.
+    → **Las tres corregidas a mano.** Es la advertencia de la tanda 1 cobrando otra vez: **el informe de un
+    subagente no es la verificación**, y lo que hay que revisar no es solo si el código compila sino si lo
+    que AFIRMAN sus comentarios es cierto. Un comentario falso compila igual de bien que uno cierto.
+
+25. **Cerrado el pendiente que la corrección 15 dejó para la Task 7.** Con **sesión real**, `/ruta-inventada`
+    da el **404 propio** —«Esta página no existe», con su cabecera y su pie— y **no** rebota a `/login`.
+    Confirma lo que aquella corrección predijo: el 404 se alcanza cuando hay sesión, y sin ella el proxy
+    contesta antes.
+
+26. **El snapshot del árbol de accesibilidad se queda rancio tras una navegación de cliente**, y por poco
+    da un falso negativo. Al pulsar «San Miguel», el snapshot seguía mostrando «3 equipos en Monterrico» y
+    la URL sin query param: parecía que las pestañas no funcionaban. `evaluate_script` sobre el DOM vivo
+    devolvió lo correcto —`?sede=…002`, «2 equipos en San Miguel», 2 tarjetas—. **Regla: tras una
+    navegación client-side, confirmar contra el DOM antes de creerse el snapshot.**
+
+27. **`components/ui/select.tsx` quedó SIN USAR, y es superficie muerta según el criterio del propio
+    plan.** La Task 1 lo instaló previendo un desplegable de sedes; al escribir la pantalla se eligieron
+    **dos pestañas enlazadas** —se renderizan en el servidor, funcionan sin JavaScript, enseñan las dos
+    sedes de un vistazo y dejan la URL enlazable y compartible, que es lo que el Step 1 pedía del query
+    param—. Con dos sedes, un desplegable esconde la mitad de las opciones tras un clic.
+    → La Task 1 escribió que «un componente sin pantalla que lo use es superficie muerta que hay que
+    mantener», y ese criterio ahora aplica a `select`. **No se borra aquí:** se anota y **se decide en la
+    Task 7**, que es el cierre. Borrarlo a mitad de tanda sería una tarea decidiendo por otra.
+
+**Verificado al cerrar la tarea, en un navegador de verdad y con sesión real de alumno:** `/catalogo`
+**sin** sesión sigue rebotando a `/login`; con sesión trae **3 equipos en Monterrico** (la sede por
+defecto, primera alfabéticamente) y **2 en San Miguel** al pulsar la pestaña, **nunca 4** — BR-14 aplicado
+en la consulta. Los chips de categoría cambian con la sede —«Computo/Fotografia» en una, «Audio/Computo»
+en la otra—, porque se derivan de lo que hay en la sede y no del catálogo entero. Un `?sede=` inválido cae
+a la sede por defecto con su `aria-current`, sin 404 ni pantalla rota. La consola trae **exactamente dos
+errores**, los dos `404` de las imágenes ficticias del seed, y **ni uno de React ni de hidratación**. La
+landing sigue con **una cabecera, un pie, cero `auth/signout`** y sin enlaces al catálogo, **aun teniendo
+sesión**. `typecheck`, `lint` y `build` en verde, con **nueve rutas**, las mismas que dejó la Task 4.
+
+### Task 6 · Hay dos caminos al 404, y el propio 404 salía duplicado
+
+28. **Un id inexistente y un id MALFORMADO llegan por caminos distintos, y solo uno es silencioso.** Medido
+    contra PostgREST: un UUID válido que no existe devuelve **`[]` con HTTP 200**; un id que no tiene forma
+    de UUID —`/catalogo/cualquier-cosa`— devuelve el error **`22P02`** («invalid input syntax for type
+    uuid») con **HTTP 400**, porque el `eq.` ni siquiera castea.
+    → **El Step 4 del plan solo mandaba probar «un UUID inventado», que es justo el caso que funciona
+    solo.** Si la consulta tratara todo error como fallo del sistema, cada URL mal tecleada se registraría
+    con `console.error` como si fuera un problema de RLS o de red.
+    → **Resuelto distinguiendo el código:** `22P02` devuelve `null` **callado** —es una URL inventada, no
+    una avería— y cualquier otro error sí grita en el log. Las dos rutas acaban en el mismo `notFound()`
+    hacia fuera, y se separan solo hacia dentro. **Llenar el log de ruido esconde los fallos de verdad.**
+
+29. **El 404 salía con DOS cabeceras y DOS pies dentro del catálogo, y es la corrección 5 reapareciendo por
+    otra puerta.** Medido en un navegador, y la distinción es fina:
+
+    | URL | Qué ocurre | Antes |
+    |---|---|---|
+    | `/faq/subruta-falsa` | **ninguna** ruta casa | 1 cabecera, 1 pie |
+    | `/catalogo/cualquier-cosa` | **sí** casa con `[id]`, y la página llama a `notFound()` | **2 cabeceras, 2 pies** |
+
+    → **La causa:** cuando ninguna ruta casa, Next resuelve `app/not-found.tsx` **sin montar el layout de
+    ningún grupo**, y ese archivo pinta su propia `Cabecera` y su propio `Pie` a mano —porque el layout
+    raíz no los tiene—. Pero `/catalogo/[id]` **existe**: el layout de `(alumno)` ya se montó y ya pintó
+    `CabeceraSesion` y `Pie`, y solo **después** la página llamó a `notFound()`. El 404 de la raíz se
+    renderiza **dentro** de ese layout y suma los suyos a los que ya había.
+    → **Arreglado con `app/(alumno)/not-found.tsx`**, que **no** pinta cabecera ni pie porque el layout del
+    grupo ya las puso. Verificado: los dos caminos al 404 —id malformado y UUID inexistente— dan ahora
+    **1 y 1**, y `/faq/subruta-falsa` sigue en **1 y 1** con sus enlaces originales.
+    → **Y ese 404 sí enlaza a `/catalogo`, al revés que el global.** El global lo evita a propósito
+    *(corrección de la Task 4)* porque quien cae ahí puede no tener sesión y rebotaría a `/login`. Bajo
+    `(alumno)` la sesión ya está comprobada, así que el enlace lleva a donde dice que lleva.
+    → **La tarea 2A.4 no pudo verlo, y eso lo explica todo:** cuando escribió el 404, **ninguna pantalla
+    llamaba a `notFound()`**, así que el segundo caso no existía. El defecto **nace con esta tarea**, no
+    estaba latente. Y la corrección 15 midió aquel 404 por su **código de respuesta**, no por su contenido:
+    un 404 correcto puede estar pintado dos veces.
+
+30. **El `seed.sql` ejercita D-1 y producción NO.** El Laptop local tiene `max_duration_hours = 8`,
+    mientras que en producción **los 34 valen 4**. Así que si alguien escribiera «4 horas» a mano en la
+    pantalla, **producción no lo delataría jamás** y el stack local sí. Verificado en el navegador: el
+    detalle del Laptop dice «hasta **8** horas seguidas» y el de la Cámara «hasta 4».
+    → Es la tercera vez en esta tanda que el seed resulta ser **más exigente** que los datos reales, y va
+    en el mismo sentido que la corrección 20. **El seed no es representativo, pero sus rarezas no son todas
+    ruido: algunas son los únicos casos de prueba que existen.**
+
+31. **La tira de miniaturas es una rama que hoy NO se puede verificar con datos reales, y se dice en vez de
+    darla por buena.** Ningún producto tiene más de una imagen **ni en local ni en producción** —34
+    imágenes para 34 productos, todas `is_main`; en local, dos productos con una y dos con ninguna—. El
+    código que pinta las secundarias está escrito y compila, pero **ningún dato lo ejecuta**. Se conserva
+    porque es barato y porque el admin podrá subir más en la tanda 3; queda anotado que **no está probado
+    contra nada**.
+    → Lo que sí se verificó es el caso real y el borde de abajo: **una** imagen (Cámara, Laptop) y
+    **ninguna** (Micrófono, Trípode), que cae al `placeholder.svg` sin dejar una tira vacía.
+
+32. **El enlace «Volver al catálogo» pierde la sede.** Si entras al detalle desde San Miguel y vuelves,
+    aparece Monterrico, que es la sede por defecto. No es un fallo de BR-14 —la consulta filtra bien— sino
+    de navegación: el `href` de la tarjeta es `/catalogo/${id}` sin arrastrar el `?sede=`. **Se deja
+    anotado y sin arreglar en esta tarea:** propagarlo obliga a pasar la sede por la tarjeta, por los
+    filtros y por el detalle, y el botón «atrás» del navegador ya resuelve el camino habitual. **Decisión
+    para la Task 7 o para la 2B**, con el costo dicho por delante.
+
+33. **Tercer hecho falso de un subagente en esta tanda, y van cuatro.** Su informe justificó no comentar el
+    caso «producto sin imágenes» diciendo que «no está entre los datos medidos hoy». **Falso en local:** el
+    Micrófono y el Trípode no tienen ninguna. Era cierto solo de producción, y lo dijo como si fuera cierto
+    de todo. El código que escribió **sí** cubre el caso —cae al `placeholder.svg`—, así que el defecto
+    estaba en la afirmación, no en la implementación.
+    → **La forma del error se repite: el subagente generaliza «no lo he medido» a «no existe».** Es la
+    misma familia que la corrección 24. **Lo que hay que revisar de un subagente no es solo si su código
+    funciona, sino si lo que AFIRMA es cierto**, y las dos cosas se comprueban por separado.
+
+**Verificado al cerrar la tarea, en un navegador y con sesión real:** entrar desde una tarjeta del catálogo
+abre el detalle correcto; el Laptop dice **8 horas** y Monterrico y San Miguel con **1 unidad** cada una;
+la Cámara dice **4 horas** y **3 unidades** en Monterrico, con el plural y el singular bien; el botón
+**«Reservar (muy pronto)» sale deshabilitado**; el Micrófono, sin imágenes, cae al `placeholder.svg`; un id
+malformado y un UUID inexistente dan **los dos** el 404 propio con **una** cabecera y **un** pie; y la
+consola queda **sin un solo error** —el detalle del Micrófono no pide ninguna imagen de Cloudinary—.
+`typecheck`, `lint` y `build` en verde, con **diez rutas**: la nueva es `ƒ /catalogo/[id]`.
+
+### Task 7 · Las tres decisiones abiertas, y una trampa nueva de `.next/`
+
+34. **El `seed.sql` se arregló de raíz, y la medición explicó por qué eran cuatro columnas y no ocho.**
+    - Decisión tomada al abrir la Task 7. Se añadieron `confirmation_token`, `recovery_token`,
+      `email_change_token_new` y `email_change` con `''` al `insert into auth.users` del seed.
+    - Medido contra `information_schema.columns`: esas cuatro son EXACTAMENTE las únicas columnas de texto
+      de `auth.users` **sin default**. Las otras cuatro de token —`phone_change`, `phone_change_token`,
+      `email_change_token_current`, `reauthentication_token`— llevan `default ''`, así que un `INSERT` que
+      no las nombra ya las rellena solo.
+    - Eso explica lo que la corrección 21 dejó como lista sin motivo: no era una lista arbitraria, era una
+      frontera. Y explica por qué la tanda 1 no lo vio: un usuario creado por la API de GoTrue nace con
+      `''` en las ocho.
+    - Verificado por su efecto, no por su sintaxis: `POST /auth/v1/otp` pasó de **500 a 200**, y Mailpit de
+      **0 correos a 1**. El instrumento se validó vaciando Mailpit a cero antes de pedir el enlace.
+    - Tras `db reset`, las 20 celdas (5 usuarios x 4 columnas) salen no-nulas sin ninguna intervención
+      manual.
+    - **La receta desaparece del proyecto.** La 2B ya no tropieza con esto.
+    - El riesgo real era otro y se comprobó: tocar el seed podía romper `14_rls_alumnos.sql`, que afirma un
+      conteo fijo. No lo rompió — la batería sigue en **142 aserciones en 23 archivos**.
+
+35. **`components/ui/select.tsx` borrado.**
+    - Se aplica el criterio que escribió la propia Task 1: «un componente sin pantalla que lo use es
+      superficie muerta que hay que mantener». Confirmado antes de borrar que no lo importaba nadie: las
+      únicas menciones en todo el repositorio estaban en este mismo plan.
+    - La 2B necesita `calendar`, `dialog`, `textarea` y `radio-group`, no `select`. Si hiciera falta,
+      `npx shadcn add select` lo devuelve.
+    - El `build` sigue dejando **diez rutas**, las mismas que registró la Task 6 antes del borrado: quitarlo
+      no movió nada. **No se midió el `build` justo antes de borrar**, así que la comparación es contra lo
+      anotado, no contra una foto tomada para la ocasión.
+
+36. **«Volver al catálogo» se aplaza a la 2B, con el motivo escrito.**
+    - La corrección 32 lo dejó para decidir aquí. Se decide **aplazarlo**, y no por costo: son dos
+      ediciones pequeñas (`components/catalogo/filtros.tsx` construye el `href` de la tarjeta, y
+      `app/(alumno)/catalogo/[id]/page.tsx` el enlace de vuelta).
+    - El motivo es que en la 2B nace `/catalogo/[id]/reservar`, **otro** salto que también tendrá que
+      arrastrar la sede, y ahí la sede deja de ser cosmética: una reserva es contra una unidad de UNA sede.
+      Resolverlo hoy como detalle de navegación es resolverlo dos veces, y la segunda vez con otra
+      semántica.
+
+37. **Borrar `.next/` hace que la PRIMERA carga en el navegador reporte códigos de error falsos. Es la
+    tercera cara de una trampa ya conocida.**
+    - Medido: tras borrar `.next/`, la primera carga de `/` mostró **dos errores 504 Gateway Timeout** en
+      la consola, donde la corrección 10 había medido **404**.
+    - Cuatro sondas descartaron la red: la URL ficticia del seed da **404** directa a Cloudinary; un
+      control que sí existe (`sample.jpg` del cloud `demo`) da **200**; el optimizador de Next contra una
+      imagen real da **200 `image/jpeg`**; y contra un host sin declarar da **400**. `remotePatterns`
+      funciona y sigue siendo la frontera.
+    - El optimizador devolvió **404** a `curl` en todo momento. Recargando la página **en caliente**, el
+      navegador también pasó a **404**. El 504 era la compilación en frío de Turbopack agotando el tiempo
+      del optimizador.
+    - **Lo que añade a la corrección 6:** ya se sabía que `.next/` produce falsos en el `typecheck` en las
+      dos direcciones. Ahora se sabe que también los produce **en el navegador**, y que la primera carga
+      tras borrarlo no sirve para juzgar códigos de error.
+
+38. **El 404 global dice «Entrar» aunque haya sesión, y no se arregla.**
+    - Hallazgo nuevo de esta tarea. Con sesión real, `/ruta-inventada` da el 404 propio y no rebota —eso
+      confirma la corrección 25— pero su cabecera es la **pública**, con el botón «Entrar», para alguien
+      que ya entró.
+    - La causa es la misma que explicó la corrección 29: `app/not-found.tsx` no cuelga de ningún grupo,
+      así que monta `Cabecera` y `Pie` a mano, y la variante que monta es la pública.
+    - **Se anota y no se toca, con el costo por delante:** que ese 404 supiera si hay sesión exige leer
+      cookies, y eso sacaría `/_not-found` del prerender estático —hoy es una de las tres rutas `○`—.
+      Cambiar una ruta estática por un botón más coherente no compensa.
+    - **Y repite una forma de error ya vista:** la corrección 25 midió ese 404 por su comportamiento —que
+      no rebota— y no por su contenido, igual que la corrección 15 lo midió por su código de respuesta.
+      Las dos veces quedó algo sin mirar en la misma pantalla.
+
+39. **`fill` con cadena vacía no limpia el filtro, y parecía un defecto de la aplicación.**
+    - Al vaciar la búsqueda con la herramienta, el DOM mostraba el campo en `""` pero la pantalla seguía
+      enseñando **una** tarjeta en vez de dos. Leído tal cual, sería un filtro que no se limpia.
+    - No lo es: `fill` con cadena vacía no dispara el `onChange` de React, así que el estado interno del
+      componente conservaba el término mientras el DOM ya mostraba el campo vacío. Recargando la página
+      con la búsqueda vacía salen **las dos** tarjetas.
+    - **Es la familia de la corrección 26 por otra puerta:** allí el snapshot se quedaba rancio respecto
+      del DOM; aquí el DOM se queda rancio respecto del **estado de React**. La regla se amplía: ni el
+      snapshot ni el DOM son la última palabra sobre lo que un Client Component cree.
+    - Además, los `uid` del snapshot **caducan tras un re-render de cliente**: un `click` sobre un `uid` de
+      antes del filtrado falla con «did not become interactive».
+
+40. **El Step 5 pedía anotar §12 y §14 del diseño, y ya estaban anotadas.**
+    - La corrección fechada de `FASE_2_DISENO.md` §12 y §14 sobre D-34 se escribió el **2026-08-08**, al
+      escribir este plan, no al cerrarlo. El Step 5 la pedía otra vez.
+    - Lo que sí faltaba en §12 es que su tabla de tandas sigue con **cinco filas** y la T2 sin partir, con
+      la corrección explicándolo debajo.
+    - **La lección es de método:** un paso de cierre escrito antes de ejecutar puede pedir trabajo que la
+      ejecución ya hizo. Comprobar el estado real antes de escribir cuesta menos que anotar dos veces lo
+      mismo.
+
+41. **`npm run test` no ejecuta nada todavía, y pasa igual.**
+    - El script es `vitest run --passWithNoTests` y no hay ni un archivo de prueba: sale «No test files
+      found, exiting with code 0».
+    - Está bien que pase —Vitest llega en la 2B con la rejilla como lógica pura— pero **un verde de `test`
+      en esta tanda no afirma nada**, y conviene que quede dicho para que nadie lo lea como cobertura.
+
+**Verificado al cerrar la tarea:** `npx supabase db reset` aplicó las **22 migraciones**, y
+`npx supabase test db` dio **142 aserciones en 23 archivos**: esta tanda no tocó SQL de esquema. El
+recorrido entero se hizo en un navegador de verdad, por `127.0.0.1:3000` y con sesión real: landing sin
+sesión con **1 cabecera, 1 pie, 0 `auth/signout`, 4 productos y cero enlaces al catálogo**; `/faq` sin
+sesión; entrar por el **formulario** de `/login` —el botón pasó a «Enviando…» y la URL no ganó `?email=`,
+así que React hidrató—; el magic link llegó a Mailpit con asunto propio y apuntando a
+`127.0.0.1:3000/auth/confirm`; el canje cayó **directo en `/catalogo`** sin pasar por `/completar-perfil`;
+**3 equipos en Monterrico** y **2 en San Miguel** al pulsar la pestaña, nunca 4; buscar «micrófono» **con
+tilde** encontró «Microfono Rode NTG4»; el detalle del Laptop dijo **«hasta 8 horas seguidas»** con 1
+unidad por sede y el botón **«Reservar (muy pronto)» deshabilitado**; un id malformado y un UUID
+inexistente dieron los dos el 404 propio con **1 cabecera y 1 pie**; salir llevó a `/` y **`/catalogo`
+volvió a rebotar a `/login`**. Los **25 chunks** de `/_next/*` respondieron **200**: D-33 sigue cerrado,
+medido con el cliente que sí manda `Origin`. La consola del recorrido completo: **un solo error, dos
+veces**, los `404` de las dos imágenes ficticias del seed. **Ni uno de React ni de hidratación.**
+`typecheck`, `lint`, `test` y `build` en verde. El `build` deja **diez rutas**: siete dinámicas (`/`,
+`/auth/confirm`, `/auth/error`, `/auth/signout`, `/catalogo`, `/catalogo/[id]`, `/completar-perfil`) y tres
+estáticas (`/_not-found`, `/faq`, `/login`). Son las mismas diez que dejó la Task 6, y **ocho** las que dejó
+la tanda 1.
+
+---
+
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que
 > dejó medido `PLANES/FASE_2_TANDA_1.md`, no de la imaginación. Al terminar, la cabecera de correcciones va
 > **arriba de este párrafo**, fechada. Los planes de este proyecto NO se reescriben tras ejecutar.

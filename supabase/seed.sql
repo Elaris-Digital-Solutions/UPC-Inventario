@@ -79,16 +79,30 @@ insert into public.disabled_days (id, date, reason) values
 --   a0000000-...000a  admin
 --   a0000000-...000b  operador
 --   a0000000-...000f  externo, correo que no es de la UPC
+--
+-- Las CUATRO columnas de token en '' no son adorno: sin ellas NADIE puede
+-- entrar en el stack local. GoTrue las lee como `string` de Go, no como
+-- puntero, asi que un NULL le revienta el escaneo de la fila -"converting
+-- NULL to string is unsupported"- y POST /otp responde 500 sin mandar el
+-- magic link. La aplicacion parece rota y el defecto esta aca.
+--
+-- Por que son exactamente estas cuatro, medido contra information_schema:
+-- son las unicas columnas de texto de auth.users SIN default. Las otras
+-- cuatro de token -phone_change, phone_change_token,
+-- email_change_token_current, reauthentication_token- llevan `default ''`,
+-- asi que un INSERT que no las nombra ya las rellena solo. Un usuario creado
+-- por la API de GoTrue nace con '' en las ocho; uno insertado a mano, no.
 insert into auth.users
   (instance_id, id, aud, role, email, encrypted_password,
    email_confirmed_at, created_at, updated_at,
-   raw_app_meta_data, raw_user_meta_data, is_super_admin)
+   raw_app_meta_data, raw_user_meta_data, is_super_admin,
+   confirmation_token, recovery_token, email_change_token_new, email_change)
 values
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'alumno.a@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'alumno.b@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'admin@upc.edu.pe',    'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'operador@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000f', 'authenticated', 'authenticated', 'alguien@gmail.com',   'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'alumno.a@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'alumno.b@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'admin@upc.edu.pe',    'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'operador@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000f', 'authenticated', 'authenticated', 'alguien@gmail.com',   'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', '');
 
 
 -- El primer miembro del personal se siembra a mano porque no hay admin que lo

@@ -140,8 +140,31 @@ sesión: `.gitattributes` *(cierra Q-15)*, el `.env` en `NEXT_PUBLIC_` con la cl
 link, el canje en `/auth/confirm`, `/auth/error`, `/auth/signout`, el reparto por perfil y
 `/completar-perfil`. **Cierra P0-3.** El **primer administrador ya está sembrado** en el proyecto real, y el
 flujo se probó entero en un navegador de verdad: entrar, completar el perfil y caer en `/admin/inventario`.
-Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`. **Siguiente: T2, el
-alumno** — landing, catálogo, el calendario, reserva y panel.
+Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`. ~~**Siguiente: T2, el
+alumno** — landing, catálogo, el calendario, reserva y panel.~~ ⚠ **Corregido el 2026-08-10:** la T2 se
+partió en T2A y T2B *(D-34)*; la T2A ya cerró, ver el párrafo siguiente. **Siguiente: la T2B**, cuyo plan
+se escribe ahora.
+
+**T2A CERRADA el 2026-08-10.** Las 7 tareas cerradas, séptima incluida, nueve commits locales en
+`feature/fase-2-tanda-2a`, nada empujado todavía. **41 correcciones** al plan en
+`MIGRATION_DOCS/PLANES/FASE_2_TANDA_2A.md`. El alumno ya puede ver qué hay —landing, FAQ, catálogo con
+sede y detalle—, todo lectura pura: sin escribir una fila y sin tocar SQL. Base intacta en 22 migraciones y
+142 aserciones. **Falta empujarla y abrir el PR.**
+
+**El `seed.sql` impedía entrar en local, y ya no.** Faltaban cuatro columnas de token en el `insert into
+auth.users` —`confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`—, y se
+arregló de raíz añadiéndolas con `''`. Son exactamente las columnas de texto de `auth.users` sin default;
+las otras cuatro de token llevan `default ''`. **La receta del `update` manual ya no existe en el
+proyecto.**
+
+**`.next/` produce falsos en TRES direcciones, no dos.** Ya se sabía que hacía mentir al `typecheck` en
+verde y en rojo según qué máquina lo corriera. Ahora se sabe que también miente en el navegador: borrarlo
+hizo que la primera carga reportara **504** donde en caliente son **404**, por la compilación en frío de
+Turbopack agotando el optimizador de imágenes.
+
+**Lo que hay que verificar de un subagente no es solo si su código funciona, sino si lo que AFIRMA es
+cierto.** En esta tanda colaron cuatro hechos falsos en comentarios, con el código funcionando en los
+cuatro casos.
 
 **Cinco fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
 el enganche de dominio **desactivado en los contenedores** —`db reset` no aplica el `config.toml`, hacen

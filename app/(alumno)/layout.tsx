@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { CabeceraSesion } from "@/components/cabecera-sesion";
+import { Pie } from "@/components/pie";
 import { createClient } from "@/lib/supabase/server";
 
 // Este si puede redirigir a /completar-perfil, a diferencia del layout de
@@ -36,5 +38,14 @@ export default async function AlumnoLayout({
     redirect("/completar-perfil");
   }
 
-  return children;
+  // CabeceraSesion y no Cabecera: aqui ya hay sesion comprobada arriba, asi
+  // que la cabecera ensena Salir sin volver a preguntarlo. Ver el comentario
+  // de components/cabecera-sesion.tsx.
+  return (
+    <>
+      <CabeceraSesion />
+      {children}
+      <Pie />
+    </>
+  );
 }

@@ -19,6 +19,31 @@ const nextConfig: NextConfig = {
   //
   // Solo tiene efecto en `next dev`.
   allowedDevOrigins: ["127.0.0.1"],
+
+  // Las fotos del catalogo viven en Cloudinary: product_images.secure_url
+  // guarda URLs de res.cloudinary.com, y es el UNICO host -medido el
+  // 2026-08-08 contra el proyecto real, sobre las 34 imagenes-.
+  //
+  // next/image BLOQUEA cualquier host remoto que no este declarado aca. Y el
+  // fallo es del mismo genero que los cinco de la tanda 1: no lo ve
+  // `typecheck`, no lo ve `lint` y no lo ve `build`, porque no es un error de
+  // lo que el codigo dice sino de a que se conecta. Aparece cuando el
+  // navegador pide la imagen, o mas exacto: cuando el optimizador de imagenes
+  // de Next -que corre en el servidor y va a buscarla el mismo- se niega a
+  // pedirla.
+  //
+  // pathname '/**' y no una ruta concreta: el `folder` de Cloudinary es
+  // configurable por entorno y acotarlo aca romperia el dia que alguien lo
+  // cambie, sin ganar nada -el host ya es la frontera que importa-.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
