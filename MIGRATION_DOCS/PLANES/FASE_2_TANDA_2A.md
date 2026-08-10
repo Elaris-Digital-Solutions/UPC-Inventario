@@ -2,13 +2,13 @@
 
 ---
 
-## 📍 Dónde se paró — pausa del 2026-08-08, 14:08
+## 📍 Dónde se paró — pausa del 2026-08-10, 14:23
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo que sea reutilizable se convierte en receta, como se
 > hizo con el bloque equivalente de la tanda 1.
 
-**Cuatro de siete tareas cerradas.** Rama `feature/fase-2-tanda-2a`, **cinco commits, NADA empujado**, árbol
-limpio. `develop` está en `e03523c`.
+**SEIS de siete tareas cerradas.** Rama `feature/fase-2-tanda-2a`, **ocho commits, NADA empujado**, árbol
+limpio. `develop` sigue en `e03523c`.
 
 | Commit | Tarea |
 |---|---|
@@ -17,17 +17,53 @@ limpio. `develop` está en `e03523c`.
 | `2ff7538` | 2A.3 · la landing como vitrina pública |
 | `309d634` | 2A.3-bis · la tarjeta, arreglada con un navegador delante |
 | `14aaf35` | 2A.4 · FAQ pública, 404 propio y salida desde `/login` |
+| `7f598d6` | registro de la pausa anterior |
+| `57ab928` | 2A.5 · catálogo con sede, filtros y BR-14 |
+| `d3d82fb` | 2A.6 · detalle de producto |
 
-**Falta: Task 5 (catálogo), Task 6 (detalle) y Task 7 (verificación y cierre).**
+**Falta SOLO la Task 7: verificación de punta a punta y cierre.**
+
+### ⚠ Lo primero al volver, y es nuevo: el seed impide entrar en local
+
+**Con `seed.sql` tal cual, NADIE puede entrar en el stack local.** GoTrue devuelve **500** al pedir el
+magic link y el correo no llega nunca a Mailpit. Está explicado entero en la **corrección 21**.
+
+**El arreglo, que hay que repetir después de cada `db reset`:**
+
+```
+docker exec supabase_db_UPC-Inventario psql -U postgres -d postgres -c "update auth.users set confirmation_token = coalesce(confirmation_token, ''), recovery_token = coalesce(recovery_token, ''), email_change_token_new = coalesce(email_change_token_new, ''), email_change = coalesce(email_change, '') where confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null;"
+```
+
+**Y esto choca de frente con el Step 1 de la Task 7, que empieza con `npx supabase db reset`.** El orden
+correcto es: `db reset` → `supabase test db` → **volver a aplicar este `update`** → recién entonces el
+recorrido en navegador. Si se hace al revés, el login falla y parecerá un defecto de la aplicación.
+
+**Decisión abierta para el cierre:** o se arregla `seed.sql` de raíz, o esto queda como receta permanente.
+La 2B entra en local constantemente, así que le pesa más a ella que a esta tanda.
 
 ### Lo que hay que levantar antes de seguir
 
-1. **Docker Desktop arrancado**, luego `npx supabase start` desde la raíz del repositorio.
+1. **Docker Desktop arrancado**, luego `npx supabase start` desde la raíz del repositorio. Que aparezcan
+   seis servicios como «Stopped» —storage, imgproxy, edge_runtime, analytics, vector, pooler— **es lo
+   correcto**: `config.toml` los deshabilita a propósito.
 2. **`.env.local` tiene que existir** y apuntar a `http://127.0.0.1:54321`. **No se versiona**, así que
    sobrevive a los checkouts pero no a un clon nuevo. **Comprobarlo antes de tocar nada** *(corrección 31
    de la tanda 1)*.
-3. `npm run dev`, y probar **siempre por `http://127.0.0.1:3000`**, nunca por `localhost:3000`.
-4. **Borrar `.next/` si se mueve, renombra o borra algo dentro de `app/`** *(corrección 6)*.
+3. El `update` de `auth.users` de aquí arriba, si se hizo `db reset`.
+4. `npm run dev`, y probar **siempre por `http://127.0.0.1:3000`**, nunca por `localhost:3000`.
+5. **Borrar `.next/` si se mueve, renombra o borra algo dentro de `app/`** *(corrección 6)*.
+
+### La cuenta con la que se entra, y cómo
+
+`alumno.a@upc.edu.pe` (Ana) **tiene el perfil completo**, así que cae directo en `/catalogo` sin pasar por
+`/completar-perfil`. El magic link se recoge de Mailpit por API, sin abrir su interfaz:
+
+```
+curl -s "http://127.0.0.1:54324/api/v1/messages?limit=1"
+```
+
+y luego `http://127.0.0.1:54324/api/v1/message/<ID>`, de donde se saca el enlace a
+`127.0.0.1:3000/auth/confirm?token_hash=...`. **Es de un solo uso.**
 
 ### El navegador ya está disponible, y costó habilitarlo
 
@@ -36,30 +72,46 @@ El plugin **`chrome-devtools-mcp@claude-plugins-official`** está habilitado en
 global de git—, así que en otra máquina hay que volver a habilitarlo. Se activa sin reiniciar la sesión con
 `/reload-plugins` y luego `/mcp`. Hay también un plugin de Playwright conectado.
 
-**Y esto no es un detalle de comodidad:** tres de los cinco hallazgos de esta tanda **solo aparecieron con
-un navegador delante**, y ninguno lo habría visto `typecheck`, `lint`, `build` ni una sonda HTTP.
+**Y esto no es un detalle de comodidad:** **cinco** de los hallazgos de esta tanda **solo aparecieron con
+un navegador delante**, y ninguno lo habría visto `typecheck`, `lint`, `build` ni una sonda HTTP. El
+último, el 404 duplicado de la corrección 29, apareció con las tres herramientas en verde.
 
-### Lo que quedó medido y sirve para las tareas que faltan
+> **Trampa de la herramienta, medida en la Task 5:** el **snapshot** del árbol de accesibilidad se queda
+> **rancio** tras una navegación de cliente y llegó a mostrar la pantalla anterior. **Confirmar siempre
+> contra el DOM vivo con `evaluate_script`** antes de creerse un snapshot. Ver la corrección 26.
 
-- **El embed `products` → `product_images` FUNCIONA.** Medido contra PostgREST local:
-  `.select("id, name, ..., product_images(secure_url, is_main, sort_order)")` devuelve el array anidado, y
-  el filtro `product_images.is_main=eq.true` con `!inner` responde 200. **La Task 5 ya no tiene que medir
-  esto** — lo que sigue sin medir es el otro embed, el de `product_availability`, que es el punto a
-  verificar 1 y para el que hay una **predicción escrita: no va a funcionar**.
-- **Datos reales de producción**, para los criterios de aceptación: 34 productos, 18 con stock en San
-  Miguel y 16 en Monterrico, **cada producto en una sola sede**; 10 categorías; una imagen por producto;
-  `max_duration_hours` = 4 en los 34.
-- **Datos del stack local:** 4 productos, **2 con `featured = true`** —contra 0 de 34 en producción—, y
-  **2 imágenes de Cloudinary que dan 404** porque el cloud `demo` no las tiene. **En local las fotos del
-  catálogo salen rotas y eso es lo esperado**, no un fallo de `remotePatterns`.
+### Lo que quedó medido y sirve para lo que falta
 
-### Dos cosas pendientes que no bloquean, pero se dicen
+- **El embed `products` → `product_images` FUNCIONA**, y el de **`product_availability` NO**, en
+  **ninguna** de las dos direcciones *(corrección 18)*. El catálogo y el detalle usan **dos consultas**.
+  **Ya está medido: no hay que repetirlo.**
+- **Datos reales de producción** *(reconfirmados el 2026-08-10)*: 34 productos, **18 con stock en San
+  Miguel y 16 en Monterrico**, **cero productos en dos sedes**, 10 categorías, una imagen por producto,
+  `max_duration_hours` = 4 en los 34, **ninguna sede inactiva**.
+- **Datos del stack local, que NO se parecen:** 4 productos, **3 en Monterrico y 2 en San Miguel** —el
+  Laptop está en **las dos**, cosa que en producción no pasa—, el Laptop con `max_duration_hours = **8**`,
+  dos productos **sin ninguna imagen** y dos con una que da **404** porque el cloud `demo` de Cloudinary no
+  la tiene. **En local las fotos del catálogo salen rotas y eso es lo esperado.**
+- **Un id malformado y un UUID inexistente fallan distinto** *(corrección 28)*: `22P02`/400 el primero,
+  `[]`/200 el segundo.
+
+### Lo que ya NO hace falta hacer en la Task 7
+
+- **Cerrado el pendiente de la corrección 15** *(ver corrección 25)*: con sesión real, `/ruta-inventada` da
+  el 404 propio y no rebota. Ya no hay que medirlo.
+
+### Tres decisiones abiertas para el cierre, ninguna bloquea
+
+1. **`seed.sql` y el login** — arreglarlo de raíz o dejarlo como receta *(corrección 21)*.
+2. **`components/ui/select.tsx` quedó sin usar** al elegir pestañas en vez de desplegable. Es superficie
+   muerta según el criterio que la propia Task 1 escribió *(corrección 27)*.
+3. **«Volver al catálogo» pierde la sede elegida** *(corrección 32)*.
+
+### Pendiente que viene de antes y sigue igual
 
 - **A 390 px de ancho no está verificado.** Chrome no redimensiona por debajo de **485** en Windows con la
-  herramienta usada. A 485 no hay desborde horizontal. Para un móvil real queda pendiente, y **Playwright
-  sí controla el viewport de verdad**, así que es la vía si se quiere cerrar.
-- **Queda por medir con sesión real** *(corrección 15)*: que una ruta inventada dé el 404 propio y no otra
-  cosa cuando sí hay cookie. Va en la Task 7.
+  herramienta usada. A 485 no hay desborde horizontal. **Playwright sí controla el viewport de verdad**,
+  así que es la vía si se quiere cerrar.
 
 ---
 
