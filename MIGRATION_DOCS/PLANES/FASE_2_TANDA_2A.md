@@ -289,6 +289,108 @@ propio se pinta con su cabecera y su pie —que él mismo importa, porque no cue
 que la tanda 1, y **`/faq` sale estática** (`○`), igual que `/login` y `/_not-found`: **la cabecera mínima
 no lee cookies, así que no saca nada del prerender**.
 
+### Task 5 · La predicción acertó, y sobró; y el seed impide entrar en local
+
+18. **Punto a verificar 1, resuelto midiendo, y la predicción se cumplió — con un número de más.** El embed
+    `products` → `product_availability` **no funciona**: PostgREST devuelve `PGRST200`, «Could not find a
+    relationship». Hasta ahí, lo previsto.
+    → **Y lo que el plan no predijo: tampoco funciona la dirección INVERSA.** `product_availability` →
+    `products` da el mismo `PGRST200`. El plan solo se preguntó por un sentido, y el razonamiento que usó
+    —PostgREST infiere relaciones desde claves foráneas **reales**— resulta ser más fuerte de lo que su
+    autor creyó: una vista agregada no expone FK **en ninguna dirección**. Que la vista sí declare
+    `campuses` no lo contradice: esa columna llega heredada de `inventory_units_campus_id_fkey`.
+    → **Consecuencia:** el catálogo son **dos consultas**, como decía el desenlace previsto. No se creó
+    ninguna vista para conseguir el embed: eso habría sido SQL, y esta tanda no toca SQL.
+    → **Cómo se midió sin confundir dos fallos distintos**, que es la parte reutilizable: se dispararon
+    **tres** sondas, no una. El embed (`400 PGRST200`), un control de `products` a secas (`200`, con filas)
+    y la vista directa como anónimo (`401`, código **`42501`**). Sin la tercera, «400 en el embed» se podría
+    haber leído como falta de privilegio y llevar a tocar políticas que están bien. **Un fallo de parseo y
+    uno de permiso se parecen desde fuera y traen códigos distintos.**
+
+19. **La columna de `campuses` se llama `activo`, no `is_active`.** No se dedujo: lo dijo un error de SQL
+    al consultarla. Las columnas reales son `id`, `name`, `address`, `activo`.
+
+20. **El `seed.sql` engaña por TERCERA vez en esta tanda, y esta vez en una dirección nueva.** Las dos
+    anteriores eran de *valor* —`featured` y las URLs de Cloudinary—. Esta es **estructural**: en el stack
+    local **un producto está en las dos sedes** (la Laptop aparece en Monterrico y en San Miguel: 2 + 3
+    sobre 4 productos), mientras que en producción **ningún** producto está en dos —medido hoy: 0—.
+    → **Para el criterio de aceptación:** en local la pantalla debe traer **3 en Monterrico y 2 en San
+    Miguel**, nunca 4. En producción, **18 y 16**, nunca 34.
+    → **Y el seed resulta ser más exigente que producción en este punto**, lo cual por una vez juega a
+    favor: ejercita un caso —el mismo producto en dos sedes— que los datos reales no tienen. Si la consulta
+    se hubiera escrito suponiendo «un producto, una sede», el seed lo habría destapado.
+
+21. **Con el `seed.sql` tal cual, NADIE puede entrar en local: GoTrue devuelve 500.** Al pedir el magic
+    link para `alumno.a@upc.edu.pe`, Mailpit se quedaba sin correo y el log del contenedor de auth decía
+    `error finding user: Scan error on column "confirmation_token": converting NULL to string is
+    unsupported`, con `POST /otp → 500`.
+    → **La causa:** el seed inserta en `auth.users` con `INSERT` directo, y ahí las columnas de token
+    quedan en `NULL`. GoTrue las lee como `string` y revienta. Un usuario creado por la API lleva `''`, no
+    `NULL`. Afectadas **4 columnas en los 5 usuarios**: `confirmation_token`, `recovery_token`,
+    `email_change_token_new` y `email_change`.
+    → **Por qué no lo vio la tanda 1:** su prueba de login entró con una cuenta **creada por la API**, no
+    con una del seed. El defecto llevaba ahí desde entonces, sin que ninguna tanda lo tocara.
+    → **Arreglado en caliente** (`update auth.users set ... = coalesce(..., '')`), **sin tocar
+    `seed.sql`**. Es una escritura al esquema `auth` del stack local para poder probar, no una escritura
+    de la aplicación: **la T2A sigue sin escribir una sola fila de negocio.**
+    → ⚠ **`db reset` lo revierte**, y la Task 7 empieza con un `db reset`. **Queda como decisión abierta
+    para el cierre:** o se arregla el seed, o cada sesión que necesite entrar en local repite el `update`.
+    La 2B entra en local constantemente, así que esto la afecta a ella más que a esta tanda.
+
+22. **No se puede escribir «disponibles», y la palabra parecía inocente.** `in_stock` significa que la sede
+    tiene unidades **activas** de ese producto, **no** que haya una libre ahora —eso depende de que nadie
+    la tenga reservada en esa franja, un dato que esta consulta ni pide—. «18 equipos disponibles» sería la
+    mentira que D-21 descarta para la vitrina, repetida en el catálogo con otro nombre. La pantalla dice
+    **«3 equipos en Monterrico»**.
+
+23. **La búsqueda normaliza diacríticos, y el motivo salió de los datos reales.** Los nombres están
+    guardados **sin tilde** —«Camara Sony A7 III», «Microfono Rode NTG4», «Tripode Manfrotto MT055»— y un
+    alumno escribe «cámara». Sin normalizar, **la búsqueda más natural no encuentra nada** aunque el
+    término esté literalmente en el nombre. Verificado en el navegador: escribir «micrófono» con tilde
+    devuelve «Microfono Rode NTG4».
+
+24. **El subagente que escribió los archivos coló DOS hechos falsos, y su informe no los mencionó.**
+    (a) Fechó el trabajo como «tarea 2A.7» en dos archivos, cuando es la **2A.5**. (b) Escribió que la
+    medición del `PGRST200` se hizo «contra el proyecto real», cuando se hizo **contra el stack local**.
+    (c) Y justificó el `| null` de `product_id` diciendo que «un LEFT JOIN puede producir NULL en
+    cualquiera de ellas» — **falso para esa columna**: la vista la saca de `p.id`, el lado **izquierdo**
+    de sus dos LEFT JOIN, así que nunca viene vacía. Sale nullable porque **Postgres no propaga el
+    `NOT NULL` de la tabla base a las columnas de una vista**. En esa misma vista sí hay una que puede ser
+    null de verdad, `campus_id`, cuando un producto no tiene unidades.
+    → **Las tres corregidas a mano.** Es la advertencia de la tanda 1 cobrando otra vez: **el informe de un
+    subagente no es la verificación**, y lo que hay que revisar no es solo si el código compila sino si lo
+    que AFIRMAN sus comentarios es cierto. Un comentario falso compila igual de bien que uno cierto.
+
+25. **Cerrado el pendiente que la corrección 15 dejó para la Task 7.** Con **sesión real**, `/ruta-inventada`
+    da el **404 propio** —«Esta página no existe», con su cabecera y su pie— y **no** rebota a `/login`.
+    Confirma lo que aquella corrección predijo: el 404 se alcanza cuando hay sesión, y sin ella el proxy
+    contesta antes.
+
+26. **El snapshot del árbol de accesibilidad se queda rancio tras una navegación de cliente**, y por poco
+    da un falso negativo. Al pulsar «San Miguel», el snapshot seguía mostrando «3 equipos en Monterrico» y
+    la URL sin query param: parecía que las pestañas no funcionaban. `evaluate_script` sobre el DOM vivo
+    devolvió lo correcto —`?sede=…002`, «2 equipos en San Miguel», 2 tarjetas—. **Regla: tras una
+    navegación client-side, confirmar contra el DOM antes de creerse el snapshot.**
+
+27. **`components/ui/select.tsx` quedó SIN USAR, y es superficie muerta según el criterio del propio
+    plan.** La Task 1 lo instaló previendo un desplegable de sedes; al escribir la pantalla se eligieron
+    **dos pestañas enlazadas** —se renderizan en el servidor, funcionan sin JavaScript, enseñan las dos
+    sedes de un vistazo y dejan la URL enlazable y compartible, que es lo que el Step 1 pedía del query
+    param—. Con dos sedes, un desplegable esconde la mitad de las opciones tras un clic.
+    → La Task 1 escribió que «un componente sin pantalla que lo use es superficie muerta que hay que
+    mantener», y ese criterio ahora aplica a `select`. **No se borra aquí:** se anota y **se decide en la
+    Task 7**, que es el cierre. Borrarlo a mitad de tanda sería una tarea decidiendo por otra.
+
+**Verificado al cerrar la tarea, en un navegador de verdad y con sesión real de alumno:** `/catalogo`
+**sin** sesión sigue rebotando a `/login`; con sesión trae **3 equipos en Monterrico** (la sede por
+defecto, primera alfabéticamente) y **2 en San Miguel** al pulsar la pestaña, **nunca 4** — BR-14 aplicado
+en la consulta. Los chips de categoría cambian con la sede —«Computo/Fotografia» en una, «Audio/Computo»
+en la otra—, porque se derivan de lo que hay en la sede y no del catálogo entero. Un `?sede=` inválido cae
+a la sede por defecto con su `aria-current`, sin 404 ni pantalla rota. La consola trae **exactamente dos
+errores**, los dos `404` de las imágenes ficticias del seed, y **ni uno de React ni de hidratación**. La
+landing sigue con **una cabecera, un pie, cero `auth/signout`** y sin enlaces al catálogo, **aun teniendo
+sesión**. `typecheck`, `lint` y `build` en verde, con **nueve rutas**, las mismas que dejó la Task 4.
+
 ---
 
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que
