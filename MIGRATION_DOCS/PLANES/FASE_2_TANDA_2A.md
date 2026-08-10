@@ -391,6 +391,84 @@ errores**, los dos `404` de las imágenes ficticias del seed, y **ni uno de Reac
 landing sigue con **una cabecera, un pie, cero `auth/signout`** y sin enlaces al catálogo, **aun teniendo
 sesión**. `typecheck`, `lint` y `build` en verde, con **nueve rutas**, las mismas que dejó la Task 4.
 
+### Task 6 · Hay dos caminos al 404, y el propio 404 salía duplicado
+
+28. **Un id inexistente y un id MALFORMADO llegan por caminos distintos, y solo uno es silencioso.** Medido
+    contra PostgREST: un UUID válido que no existe devuelve **`[]` con HTTP 200**; un id que no tiene forma
+    de UUID —`/catalogo/cualquier-cosa`— devuelve el error **`22P02`** («invalid input syntax for type
+    uuid») con **HTTP 400**, porque el `eq.` ni siquiera castea.
+    → **El Step 4 del plan solo mandaba probar «un UUID inventado», que es justo el caso que funciona
+    solo.** Si la consulta tratara todo error como fallo del sistema, cada URL mal tecleada se registraría
+    con `console.error` como si fuera un problema de RLS o de red.
+    → **Resuelto distinguiendo el código:** `22P02` devuelve `null` **callado** —es una URL inventada, no
+    una avería— y cualquier otro error sí grita en el log. Las dos rutas acaban en el mismo `notFound()`
+    hacia fuera, y se separan solo hacia dentro. **Llenar el log de ruido esconde los fallos de verdad.**
+
+29. **El 404 salía con DOS cabeceras y DOS pies dentro del catálogo, y es la corrección 5 reapareciendo por
+    otra puerta.** Medido en un navegador, y la distinción es fina:
+
+    | URL | Qué ocurre | Antes |
+    |---|---|---|
+    | `/faq/subruta-falsa` | **ninguna** ruta casa | 1 cabecera, 1 pie |
+    | `/catalogo/cualquier-cosa` | **sí** casa con `[id]`, y la página llama a `notFound()` | **2 cabeceras, 2 pies** |
+
+    → **La causa:** cuando ninguna ruta casa, Next resuelve `app/not-found.tsx` **sin montar el layout de
+    ningún grupo**, y ese archivo pinta su propia `Cabecera` y su propio `Pie` a mano —porque el layout
+    raíz no los tiene—. Pero `/catalogo/[id]` **existe**: el layout de `(alumno)` ya se montó y ya pintó
+    `CabeceraSesion` y `Pie`, y solo **después** la página llamó a `notFound()`. El 404 de la raíz se
+    renderiza **dentro** de ese layout y suma los suyos a los que ya había.
+    → **Arreglado con `app/(alumno)/not-found.tsx`**, que **no** pinta cabecera ni pie porque el layout del
+    grupo ya las puso. Verificado: los dos caminos al 404 —id malformado y UUID inexistente— dan ahora
+    **1 y 1**, y `/faq/subruta-falsa` sigue en **1 y 1** con sus enlaces originales.
+    → **Y ese 404 sí enlaza a `/catalogo`, al revés que el global.** El global lo evita a propósito
+    *(corrección de la Task 4)* porque quien cae ahí puede no tener sesión y rebotaría a `/login`. Bajo
+    `(alumno)` la sesión ya está comprobada, así que el enlace lleva a donde dice que lleva.
+    → **La tarea 2A.4 no pudo verlo, y eso lo explica todo:** cuando escribió el 404, **ninguna pantalla
+    llamaba a `notFound()`**, así que el segundo caso no existía. El defecto **nace con esta tarea**, no
+    estaba latente. Y la corrección 15 midió aquel 404 por su **código de respuesta**, no por su contenido:
+    un 404 correcto puede estar pintado dos veces.
+
+30. **El `seed.sql` ejercita D-1 y producción NO.** El Laptop local tiene `max_duration_hours = 8`,
+    mientras que en producción **los 34 valen 4**. Así que si alguien escribiera «4 horas» a mano en la
+    pantalla, **producción no lo delataría jamás** y el stack local sí. Verificado en el navegador: el
+    detalle del Laptop dice «hasta **8** horas seguidas» y el de la Cámara «hasta 4».
+    → Es la tercera vez en esta tanda que el seed resulta ser **más exigente** que los datos reales, y va
+    en el mismo sentido que la corrección 20. **El seed no es representativo, pero sus rarezas no son todas
+    ruido: algunas son los únicos casos de prueba que existen.**
+
+31. **La tira de miniaturas es una rama que hoy NO se puede verificar con datos reales, y se dice en vez de
+    darla por buena.** Ningún producto tiene más de una imagen **ni en local ni en producción** —34
+    imágenes para 34 productos, todas `is_main`; en local, dos productos con una y dos con ninguna—. El
+    código que pinta las secundarias está escrito y compila, pero **ningún dato lo ejecuta**. Se conserva
+    porque es barato y porque el admin podrá subir más en la tanda 3; queda anotado que **no está probado
+    contra nada**.
+    → Lo que sí se verificó es el caso real y el borde de abajo: **una** imagen (Cámara, Laptop) y
+    **ninguna** (Micrófono, Trípode), que cae al `placeholder.svg` sin dejar una tira vacía.
+
+32. **El enlace «Volver al catálogo» pierde la sede.** Si entras al detalle desde San Miguel y vuelves,
+    aparece Monterrico, que es la sede por defecto. No es un fallo de BR-14 —la consulta filtra bien— sino
+    de navegación: el `href` de la tarjeta es `/catalogo/${id}` sin arrastrar el `?sede=`. **Se deja
+    anotado y sin arreglar en esta tarea:** propagarlo obliga a pasar la sede por la tarjeta, por los
+    filtros y por el detalle, y el botón «atrás» del navegador ya resuelve el camino habitual. **Decisión
+    para la Task 7 o para la 2B**, con el costo dicho por delante.
+
+33. **Tercer hecho falso de un subagente en esta tanda, y van cuatro.** Su informe justificó no comentar el
+    caso «producto sin imágenes» diciendo que «no está entre los datos medidos hoy». **Falso en local:** el
+    Micrófono y el Trípode no tienen ninguna. Era cierto solo de producción, y lo dijo como si fuera cierto
+    de todo. El código que escribió **sí** cubre el caso —cae al `placeholder.svg`—, así que el defecto
+    estaba en la afirmación, no en la implementación.
+    → **La forma del error se repite: el subagente generaliza «no lo he medido» a «no existe».** Es la
+    misma familia que la corrección 24. **Lo que hay que revisar de un subagente no es solo si su código
+    funciona, sino si lo que AFIRMA es cierto**, y las dos cosas se comprueban por separado.
+
+**Verificado al cerrar la tarea, en un navegador y con sesión real:** entrar desde una tarjeta del catálogo
+abre el detalle correcto; el Laptop dice **8 horas** y Monterrico y San Miguel con **1 unidad** cada una;
+la Cámara dice **4 horas** y **3 unidades** en Monterrico, con el plural y el singular bien; el botón
+**«Reservar (muy pronto)» sale deshabilitado**; el Micrófono, sin imágenes, cae al `placeholder.svg`; un id
+malformado y un UUID inexistente dan **los dos** el 404 propio con **una** cabecera y **un** pie; y la
+consola queda **sin un solo error** —el detalle del Micrófono no pide ninguna imagen de Cloudinary—.
+`typecheck`, `lint` y `build` en verde, con **diez rutas**: la nueva es `ƒ /catalogo/[id]`.
+
 ---
 
 > Escrito el 2026-08-08, **antes de ejecutar nada**. Sale de `FASE_2_DISENO.md` §5, §9 y §10, y de lo que

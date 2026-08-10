@@ -215,3 +215,128 @@ export async function productosConStock(campusId: string): Promise<ProductoVitri
     imagenUrl: imagenPrincipal(producto.product_images),
   }));
 }
+
+// La ficha completa de un producto, para /catalogo/[id]. A diferencia de
+// ProductoVitrina (una imagen) esta trae el array entero -la galeria de la
+// pantalla de detalle enseña mas de una si existe- y max_duration_hours, que
+// la tarjeta de la vitrina no necesita.
+export type DetalleProducto = {
+  id: string;
+  name: string;
+  category: string | null;
+  description: string | null;
+  maxDurationHours: number;
+  imagenes: string[];
+};
+
+export type StockSede = {
+  campusId: string;
+  campusName: string;
+  unidades: number;
+};
+
+// Un `id` que no tiene forma de UUID y un UUID valido que no existe llegan
+// por DOS caminos distintos, medido por HTTP contra PostgREST el 2026-08-10:
+// el primero devuelve el error `22P02` ("invalid input syntax for type
+// uuid") con HTTP 400 -PostgREST ni intenta la consulta, el `eq.` no
+// castea-; el segundo devuelve `[]` con HTTP 200, porque la consulta corre y
+// no encuentra fila. Si esta funcion solo mirara "vino vacio o hubo error",
+// una URL como /catalogo/cualquier-cosa -que nunca tiene forma de UUID-
+// caeria en la rama de error y se registraria como un fallo del sistema con
+// console.error, cuando es simplemente una URL inventada. Distinguir el
+// codigo es lo que deja que ese caso llegue callado a notFound() y que un
+// fallo de verdad -RLS, red, la columna que desaparecio- siga gritando en
+// los logs.
+export async function detalleProducto(id: string): Promise<DetalleProducto | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('products')
+    .select(
+      'id, name, category, description, max_duration_hours, product_images(secure_url, is_main, sort_order)',
+    )
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === '22P02') {
+      return null;
+    }
+
+    console.error('detalleProducto: fallo la consulta a products', error.message);
+    return null;
+  }
+
+  if (data === null) {
+    return null;
+  }
+
+  // Mismo orden que imagenPrincipal() de arriba pero para el array entero y
+  // no para una sola: primero la marcada is_main, luego por sort_order. Aqui
+  // no hace falta una funcion aparte porque el resultado es el array
+  // completo, no "la mejor imagen".
+  const imagenesOrdenadas = [...data.product_images].sort((a, b) => {
+    if (a.is_main !== b.is_main) {
+      return a.is_main ? -1 : 1;
+    }
+    return a.sort_order - b.sort_order;
+  });
+
+  return {
+    id: data.id,
+    name: data.name,
+    category: data.category,
+    description: data.description,
+    // Se LEE de la fila y no se escribe "4 h" a mano en la pantalla, aunque
+    // hoy valga 4 en los 34 productos de produccion (D-1: la duracion maxima
+    // es una decision por producto, no una constante del sistema). Leerla es
+    // lo que hace que el dia que un producto cambie de duracion no haya que
+    // tocar la pantalla de detalle.
+    maxDurationHours: data.max_duration_hours,
+    imagenes: imagenesOrdenadas.map((imagen) => imagen.secure_url),
+  };
+}
+
+// Se consulta `product_availability` y NO `inventory_units` (correccion 3
+// del plan de la T2A). Lo que esta pantalla enseña es cuantas unidades hay
+// por sede, y eso ya lo da la vista agregada. Leer `inventory_units`
+// directamente le entregaria al alumno el `unit_code` y el `asset_code` de
+// cada unidad fisica del inventario -la politica de RLS se lo permite a
+// `authenticated`, pero una pantalla que no necesita ese detalle no tiene
+// por que pedirlo.
+export async function disponibilidadPorSede(productId: string): Promise<StockSede[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('product_availability')
+    .select('campus_id, campus_name, active_units')
+    .eq('product_id', productId)
+    .eq('in_stock', true);
+
+  if (error) {
+    console.error(
+      'disponibilidadPorSede: fallo la consulta a product_availability',
+      error.message,
+    );
+    return [];
+  }
+
+  // Las tres columnas de la vista salen `| null` en los tipos generados
+  // (Postgres no propaga el NOT NULL de las tablas base a una vista), pero
+  // aqui `campus_id` puede venir null de VERDAD: un producto sin ninguna
+  // unidad en ninguna sede sale de `product_availability` con una fila cuyo
+  // `campus_id` es nulo. El filtro se queda solo con las filas donde las
+  // tres vienen pobladas, y ese producto sale con la lista vacia -sin volver
+  // a distinguirlo mas arriba- porque es exactamente lo que la pantalla
+  // tiene que enseñar en ese caso.
+  return data
+    .filter(
+      (fila): fila is { campus_id: string; campus_name: string; active_units: number } =>
+        fila.campus_id !== null && fila.campus_name !== null && fila.active_units !== null,
+    )
+    .map((fila) => ({
+      campusId: fila.campus_id,
+      campusName: fila.campus_name,
+      unidades: fila.active_units,
+    }));
+}
