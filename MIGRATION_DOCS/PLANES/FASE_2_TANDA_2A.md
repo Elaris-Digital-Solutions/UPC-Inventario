@@ -2,116 +2,27 @@
 
 ---
 
-## 📍 Dónde se paró — pausa del 2026-08-10, 14:23
+## ✅ Tanda 2A CERRADA — 2026-08-10
 
-> **Bloque temporal.** Se borra al cerrar la tanda; lo que sea reutilizable se convierte en receta, como se
-> hizo con el bloque equivalente de la tanda 1.
+Las **siete tareas** quedaron cerradas: **nueve commits locales** en `feature/fase-2-tanda-2a`, nada
+empujado al remoto.
 
-**SEIS de siete tareas cerradas.** Rama `feature/fase-2-tanda-2a`, **ocho commits, NADA empujado**, árbol
-limpio. `develop` sigue en `e03523c`.
+**La receta del `update` manual a `auth.users` YA NO HACE FALTA.** El seed se arregló de raíz —ver
+**corrección 34**—, así que quien lea esto para la 2B **no tiene que ejecutar ningún `update` manual**
+tras un `db reset`.
 
-| Commit | Tarea |
-|---|---|
-| `e60e128` | 2A.1 · componentes de interfaz y el host de las imágenes |
-| `b76085d` | 2A.2 · cabecera, pie y la FAQ como ruta pública |
-| `2ff7538` | 2A.3 · la landing como vitrina pública |
-| `309d634` | 2A.3-bis · la tarjeta, arreglada con un navegador delante |
-| `14aaf35` | 2A.4 · FAQ pública, 404 propio y salida desde `/login` |
-| `7f598d6` | registro de la pausa anterior |
-| `57ab928` | 2A.5 · catálogo con sede, filtros y BR-14 |
-| `d3d82fb` | 2A.6 · detalle de producto |
+**Lo que sigue siendo receta útil para la 2B:**
 
-**Falta SOLO la Task 7: verificación de punta a punta y cierre.**
+- Docker Desktop arrancado y luego `npx supabase start` desde la raíz del repositorio. Que aparezcan seis
+  servicios en «Stopped» —storage, imgproxy, edge_runtime, analytics, vector, pooler— es correcto.
+- `.env.local` presente, apuntando a `http://127.0.0.1:54321`.
+- Probar **siempre** por `http://127.0.0.1:3000`, nunca por `localhost:3000`.
+- Borrar `.next/` al mover, renombrar o borrar algo dentro de `app/`.
+- Se entra con `alumno.a@upc.edu.pe` (Ana, perfil completo, cae directo en `/catalogo`), sacando el magic
+  link de Mailpit por `http://127.0.0.1:54324/api/v1/messages`.
 
-### ⚠ Lo primero al volver, y es nuevo: el seed impide entrar en local
-
-**Con `seed.sql` tal cual, NADIE puede entrar en el stack local.** GoTrue devuelve **500** al pedir el
-magic link y el correo no llega nunca a Mailpit. Está explicado entero en la **corrección 21**.
-
-**El arreglo, que hay que repetir después de cada `db reset`:**
-
-```
-docker exec supabase_db_UPC-Inventario psql -U postgres -d postgres -c "update auth.users set confirmation_token = coalesce(confirmation_token, ''), recovery_token = coalesce(recovery_token, ''), email_change_token_new = coalesce(email_change_token_new, ''), email_change = coalesce(email_change, '') where confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null;"
-```
-
-**Y esto choca de frente con el Step 1 de la Task 7, que empieza con `npx supabase db reset`.** El orden
-correcto es: `db reset` → `supabase test db` → **volver a aplicar este `update`** → recién entonces el
-recorrido en navegador. Si se hace al revés, el login falla y parecerá un defecto de la aplicación.
-
-**Decisión abierta para el cierre:** o se arregla `seed.sql` de raíz, o esto queda como receta permanente.
-La 2B entra en local constantemente, así que le pesa más a ella que a esta tanda.
-
-### Lo que hay que levantar antes de seguir
-
-1. **Docker Desktop arrancado**, luego `npx supabase start` desde la raíz del repositorio. Que aparezcan
-   seis servicios como «Stopped» —storage, imgproxy, edge_runtime, analytics, vector, pooler— **es lo
-   correcto**: `config.toml` los deshabilita a propósito.
-2. **`.env.local` tiene que existir** y apuntar a `http://127.0.0.1:54321`. **No se versiona**, así que
-   sobrevive a los checkouts pero no a un clon nuevo. **Comprobarlo antes de tocar nada** *(corrección 31
-   de la tanda 1)*.
-3. El `update` de `auth.users` de aquí arriba, si se hizo `db reset`.
-4. `npm run dev`, y probar **siempre por `http://127.0.0.1:3000`**, nunca por `localhost:3000`.
-5. **Borrar `.next/` si se mueve, renombra o borra algo dentro de `app/`** *(corrección 6)*.
-
-### La cuenta con la que se entra, y cómo
-
-`alumno.a@upc.edu.pe` (Ana) **tiene el perfil completo**, así que cae directo en `/catalogo` sin pasar por
-`/completar-perfil`. El magic link se recoge de Mailpit por API, sin abrir su interfaz:
-
-```
-curl -s "http://127.0.0.1:54324/api/v1/messages?limit=1"
-```
-
-y luego `http://127.0.0.1:54324/api/v1/message/<ID>`, de donde se saca el enlace a
-`127.0.0.1:3000/auth/confirm?token_hash=...`. **Es de un solo uso.**
-
-### El navegador ya está disponible, y costó habilitarlo
-
-El plugin **`chrome-devtools-mcp@claude-plugins-official`** está habilitado en
-`.claude/settings.local.json`, junto al de Supabase. **Ese archivo NO se versiona** —lo ignora una regla
-global de git—, así que en otra máquina hay que volver a habilitarlo. Se activa sin reiniciar la sesión con
-`/reload-plugins` y luego `/mcp`. Hay también un plugin de Playwright conectado.
-
-**Y esto no es un detalle de comodidad:** **cinco** de los hallazgos de esta tanda **solo aparecieron con
-un navegador delante**, y ninguno lo habría visto `typecheck`, `lint`, `build` ni una sonda HTTP. El
-último, el 404 duplicado de la corrección 29, apareció con las tres herramientas en verde.
-
-> **Trampa de la herramienta, medida en la Task 5:** el **snapshot** del árbol de accesibilidad se queda
-> **rancio** tras una navegación de cliente y llegó a mostrar la pantalla anterior. **Confirmar siempre
-> contra el DOM vivo con `evaluate_script`** antes de creerse un snapshot. Ver la corrección 26.
-
-### Lo que quedó medido y sirve para lo que falta
-
-- **El embed `products` → `product_images` FUNCIONA**, y el de **`product_availability` NO**, en
-  **ninguna** de las dos direcciones *(corrección 18)*. El catálogo y el detalle usan **dos consultas**.
-  **Ya está medido: no hay que repetirlo.**
-- **Datos reales de producción** *(reconfirmados el 2026-08-10)*: 34 productos, **18 con stock en San
-  Miguel y 16 en Monterrico**, **cero productos en dos sedes**, 10 categorías, una imagen por producto,
-  `max_duration_hours` = 4 en los 34, **ninguna sede inactiva**.
-- **Datos del stack local, que NO se parecen:** 4 productos, **3 en Monterrico y 2 en San Miguel** —el
-  Laptop está en **las dos**, cosa que en producción no pasa—, el Laptop con `max_duration_hours = **8**`,
-  dos productos **sin ninguna imagen** y dos con una que da **404** porque el cloud `demo` de Cloudinary no
-  la tiene. **En local las fotos del catálogo salen rotas y eso es lo esperado.**
-- **Un id malformado y un UUID inexistente fallan distinto** *(corrección 28)*: `22P02`/400 el primero,
-  `[]`/200 el segundo.
-
-### Lo que ya NO hace falta hacer en la Task 7
-
-- **Cerrado el pendiente de la corrección 15** *(ver corrección 25)*: con sesión real, `/ruta-inventada` da
-  el 404 propio y no rebota. Ya no hay que medirlo.
-
-### Tres decisiones abiertas para el cierre, ninguna bloquea
-
-1. **`seed.sql` y el login** — arreglarlo de raíz o dejarlo como receta *(corrección 21)*.
-2. **`components/ui/select.tsx` quedó sin usar** al elegir pestañas en vez de desplegable. Es superficie
-   muerta según el criterio que la propia Task 1 escribió *(corrección 27)*.
-3. **«Volver al catálogo» pierde la sede elegida** *(corrección 32)*.
-
-### Pendiente que viene de antes y sigue igual
-
-- **A 390 px de ancho no está verificado.** Chrome no redimensiona por debajo de **485** en Windows con la
-  herramienta usada. A 485 no hay desborde horizontal. **Playwright sí controla el viewport de verdad**,
-  así que es la vía si se quiere cerrar.
+**Quedó pendiente y no bloquea:** no está verificado a 390 px de ancho. Chrome no baja de 485 px en
+Windows con esta herramienta; Playwright sí controla el viewport de verdad.
 
 ---
 
@@ -520,6 +431,119 @@ la Cámara dice **4 horas** y **3 unidades** en Monterrico, con el plural y el s
 malformado y un UUID inexistente dan **los dos** el 404 propio con **una** cabecera y **un** pie; y la
 consola queda **sin un solo error** —el detalle del Micrófono no pide ninguna imagen de Cloudinary—.
 `typecheck`, `lint` y `build` en verde, con **diez rutas**: la nueva es `ƒ /catalogo/[id]`.
+
+### Task 7 · Las tres decisiones abiertas, y una trampa nueva de `.next/`
+
+34. **El `seed.sql` se arregló de raíz, y la medición explicó por qué eran cuatro columnas y no ocho.**
+    - Decisión tomada al abrir la Task 7. Se añadieron `confirmation_token`, `recovery_token`,
+      `email_change_token_new` y `email_change` con `''` al `insert into auth.users` del seed.
+    - Medido contra `information_schema.columns`: esas cuatro son EXACTAMENTE las únicas columnas de texto
+      de `auth.users` **sin default**. Las otras cuatro de token —`phone_change`, `phone_change_token`,
+      `email_change_token_current`, `reauthentication_token`— llevan `default ''`, así que un `INSERT` que
+      no las nombra ya las rellena solo.
+    - Eso explica lo que la corrección 21 dejó como lista sin motivo: no era una lista arbitraria, era una
+      frontera. Y explica por qué la tanda 1 no lo vio: un usuario creado por la API de GoTrue nace con
+      `''` en las ocho.
+    - Verificado por su efecto, no por su sintaxis: `POST /auth/v1/otp` pasó de **500 a 200**, y Mailpit de
+      **0 correos a 1**. El instrumento se validó vaciando Mailpit a cero antes de pedir el enlace.
+    - Tras `db reset`, las 20 celdas (5 usuarios x 4 columnas) salen no-nulas sin ninguna intervención
+      manual.
+    - **La receta desaparece del proyecto.** La 2B ya no tropieza con esto.
+    - El riesgo real era otro y se comprobó: tocar el seed podía romper `14_rls_alumnos.sql`, que afirma un
+      conteo fijo. No lo rompió — la batería sigue en **142 aserciones en 23 archivos**.
+
+35. **`components/ui/select.tsx` borrado.**
+    - Se aplica el criterio que escribió la propia Task 1: «un componente sin pantalla que lo use es
+      superficie muerta que hay que mantener». Confirmado antes de borrar que no lo importaba nadie: las
+      únicas menciones en todo el repositorio estaban en este mismo plan.
+    - La 2B necesita `calendar`, `dialog`, `textarea` y `radio-group`, no `select`. Si hiciera falta,
+      `npx shadcn add select` lo devuelve.
+    - El `build` sigue dejando **diez rutas**, las mismas que registró la Task 6 antes del borrado: quitarlo
+      no movió nada. **No se midió el `build` justo antes de borrar**, así que la comparación es contra lo
+      anotado, no contra una foto tomada para la ocasión.
+
+36. **«Volver al catálogo» se aplaza a la 2B, con el motivo escrito.**
+    - La corrección 32 lo dejó para decidir aquí. Se decide **aplazarlo**, y no por costo: son dos
+      ediciones pequeñas (`components/catalogo/filtros.tsx` construye el `href` de la tarjeta, y
+      `app/(alumno)/catalogo/[id]/page.tsx` el enlace de vuelta).
+    - El motivo es que en la 2B nace `/catalogo/[id]/reservar`, **otro** salto que también tendrá que
+      arrastrar la sede, y ahí la sede deja de ser cosmética: una reserva es contra una unidad de UNA sede.
+      Resolverlo hoy como detalle de navegación es resolverlo dos veces, y la segunda vez con otra
+      semántica.
+
+37. **Borrar `.next/` hace que la PRIMERA carga en el navegador reporte códigos de error falsos. Es la
+    tercera cara de una trampa ya conocida.**
+    - Medido: tras borrar `.next/`, la primera carga de `/` mostró **dos errores 504 Gateway Timeout** en
+      la consola, donde la corrección 10 había medido **404**.
+    - Cuatro sondas descartaron la red: la URL ficticia del seed da **404** directa a Cloudinary; un
+      control que sí existe (`sample.jpg` del cloud `demo`) da **200**; el optimizador de Next contra una
+      imagen real da **200 `image/jpeg`**; y contra un host sin declarar da **400**. `remotePatterns`
+      funciona y sigue siendo la frontera.
+    - El optimizador devolvió **404** a `curl` en todo momento. Recargando la página **en caliente**, el
+      navegador también pasó a **404**. El 504 era la compilación en frío de Turbopack agotando el tiempo
+      del optimizador.
+    - **Lo que añade a la corrección 6:** ya se sabía que `.next/` produce falsos en el `typecheck` en las
+      dos direcciones. Ahora se sabe que también los produce **en el navegador**, y que la primera carga
+      tras borrarlo no sirve para juzgar códigos de error.
+
+38. **El 404 global dice «Entrar» aunque haya sesión, y no se arregla.**
+    - Hallazgo nuevo de esta tarea. Con sesión real, `/ruta-inventada` da el 404 propio y no rebota —eso
+      confirma la corrección 25— pero su cabecera es la **pública**, con el botón «Entrar», para alguien
+      que ya entró.
+    - La causa es la misma que explicó la corrección 29: `app/not-found.tsx` no cuelga de ningún grupo,
+      así que monta `Cabecera` y `Pie` a mano, y la variante que monta es la pública.
+    - **Se anota y no se toca, con el costo por delante:** que ese 404 supiera si hay sesión exige leer
+      cookies, y eso sacaría `/_not-found` del prerender estático —hoy es una de las tres rutas `○`—.
+      Cambiar una ruta estática por un botón más coherente no compensa.
+    - **Y repite una forma de error ya vista:** la corrección 25 midió ese 404 por su comportamiento —que
+      no rebota— y no por su contenido, igual que la corrección 15 lo midió por su código de respuesta.
+      Las dos veces quedó algo sin mirar en la misma pantalla.
+
+39. **`fill` con cadena vacía no limpia el filtro, y parecía un defecto de la aplicación.**
+    - Al vaciar la búsqueda con la herramienta, el DOM mostraba el campo en `""` pero la pantalla seguía
+      enseñando **una** tarjeta en vez de dos. Leído tal cual, sería un filtro que no se limpia.
+    - No lo es: `fill` con cadena vacía no dispara el `onChange` de React, así que el estado interno del
+      componente conservaba el término mientras el DOM ya mostraba el campo vacío. Recargando la página
+      con la búsqueda vacía salen **las dos** tarjetas.
+    - **Es la familia de la corrección 26 por otra puerta:** allí el snapshot se quedaba rancio respecto
+      del DOM; aquí el DOM se queda rancio respecto del **estado de React**. La regla se amplía: ni el
+      snapshot ni el DOM son la última palabra sobre lo que un Client Component cree.
+    - Además, los `uid` del snapshot **caducan tras un re-render de cliente**: un `click` sobre un `uid` de
+      antes del filtrado falla con «did not become interactive».
+
+40. **El Step 5 pedía anotar §12 y §14 del diseño, y ya estaban anotadas.**
+    - La corrección fechada de `FASE_2_DISENO.md` §12 y §14 sobre D-34 se escribió el **2026-08-08**, al
+      escribir este plan, no al cerrarlo. El Step 5 la pedía otra vez.
+    - Lo que sí faltaba en §12 es que su tabla de tandas sigue con **cinco filas** y la T2 sin partir, con
+      la corrección explicándolo debajo.
+    - **La lección es de método:** un paso de cierre escrito antes de ejecutar puede pedir trabajo que la
+      ejecución ya hizo. Comprobar el estado real antes de escribir cuesta menos que anotar dos veces lo
+      mismo.
+
+41. **`npm run test` no ejecuta nada todavía, y pasa igual.**
+    - El script es `vitest run --passWithNoTests` y no hay ni un archivo de prueba: sale «No test files
+      found, exiting with code 0».
+    - Está bien que pase —Vitest llega en la 2B con la rejilla como lógica pura— pero **un verde de `test`
+      en esta tanda no afirma nada**, y conviene que quede dicho para que nadie lo lea como cobertura.
+
+**Verificado al cerrar la tarea:** `npx supabase db reset` aplicó las **22 migraciones**, y
+`npx supabase test db` dio **142 aserciones en 23 archivos**: esta tanda no tocó SQL de esquema. El
+recorrido entero se hizo en un navegador de verdad, por `127.0.0.1:3000` y con sesión real: landing sin
+sesión con **1 cabecera, 1 pie, 0 `auth/signout`, 4 productos y cero enlaces al catálogo**; `/faq` sin
+sesión; entrar por el **formulario** de `/login` —el botón pasó a «Enviando…» y la URL no ganó `?email=`,
+así que React hidrató—; el magic link llegó a Mailpit con asunto propio y apuntando a
+`127.0.0.1:3000/auth/confirm`; el canje cayó **directo en `/catalogo`** sin pasar por `/completar-perfil`;
+**3 equipos en Monterrico** y **2 en San Miguel** al pulsar la pestaña, nunca 4; buscar «micrófono» **con
+tilde** encontró «Microfono Rode NTG4»; el detalle del Laptop dijo **«hasta 8 horas seguidas»** con 1
+unidad por sede y el botón **«Reservar (muy pronto)» deshabilitado**; un id malformado y un UUID
+inexistente dieron los dos el 404 propio con **1 cabecera y 1 pie**; salir llevó a `/` y **`/catalogo`
+volvió a rebotar a `/login`**. Los **25 chunks** de `/_next/*` respondieron **200**: D-33 sigue cerrado,
+medido con el cliente que sí manda `Origin`. La consola del recorrido completo: **un solo error, dos
+veces**, los `404` de las dos imágenes ficticias del seed. **Ni uno de React ni de hidratación.**
+`typecheck`, `lint`, `test` y `build` en verde. El `build` deja **diez rutas**: siete dinámicas (`/`,
+`/auth/confirm`, `/auth/error`, `/auth/signout`, `/catalogo`, `/catalogo/[id]`, `/completar-perfil`) y tres
+estáticas (`/_not-found`, `/faq`, `/login`). Son las mismas diez que dejó la Task 6, y **ocho** las que dejó
+la tanda 1.
 
 ---
 
