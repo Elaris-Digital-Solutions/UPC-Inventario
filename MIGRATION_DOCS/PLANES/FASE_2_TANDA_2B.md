@@ -6,7 +6,7 @@
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**CINCO de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+**SEIS de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
 `develop` está en `e115e17` (PR #26, el plan de esta tanda).
 
 | Commit | Tarea |
@@ -15,13 +15,18 @@
 | `d1a48a0` | 2B.9 · el calendario de reserva — **once rutas en el `build`** |
 | `452e2a8` | 2B.10 · la reserva — **el alumno ya reserva de punta a punta**, correcciones 12 a 18 |
 | `f76378f` | 2B.11 · el bloqueo por sanción — **29 pruebas**, correcciones 19 a 24 |
-| *(pendiente)* | 2B.12 · `/mi-panel` — **43 pruebas, doce rutas**, correcciones 25 a 31 |
+| `c43e17b` | 2B.12 · `/mi-panel` — **43 pruebas, doce rutas**, correcciones 25 a 31 |
+| *(pendiente)* | 2B.13 · la cancelación con motivo — correcciones 32 a 40 |
 
-**Siguiente: la Task 13, la cancelación con motivo.** Ya tiene medio camino hecho: la tarjeta del panel
-**ya muestra `cancellation_reason`** *(corrección 30)*, así que el motivo que la Task 13 pida tendrá dónde
-verse. **Y sus dos pasos de medición —Steps 4 y 5— YA ESTÁN HECHOS**, abajo. No hay que repetirlos.
+**Siguiente: la Task 14, la encuesta.** Ya se sabe de ella por la corrección 4 del plan: **una por
+alumno** —`UNIQUE (alumno_id)`—, **sin `reservation_id`** y **editable** gracias a `surveys_update_own`. No
+es una encuesta de fin de préstamo, sino la encuesta final de satisfacción con el servicio, una sola vez y
+modificable.
 
-### ✅ Lo que la Task 13 ya NO tiene que medir
+### Lo medido de la cancelación, que sigue valiendo
+
+> Vivía como «Lo que la Task 13 ya NO tiene que medir»; con la tarea cerrada, las dos tablas de abajo
+> quedan como **referencia para la Task 15**.
 
 **Todo medido el 2026-08-11 contra el stack local, dentro de transacciones con `rollback`: el escenario
 quedó intacto** —comprobado después: 3 `reserved`, 1 `active`, 1 `cancelled`, 1 `completed`—.
@@ -51,6 +56,18 @@ con un subquery que se evalúa **fuera** de la función, con las claims de Ana, 
 medición.** La sonda buena pasa el UUID literal, que es justo lo que haría un cliente que lo consiguió por
 otro lado — el caso que hay que probar.
 
+→ **Actualizado al cerrar la Task 13, y con una precisión que hubo que corregir:** desde la interfaz se
+volvieron a ver **dos** de los cuatro, no tres. El **#4** con su texto propio, provocando la carrera de
+verdad, y el **#3** con su mensaje **crudo**, forzando el campo oculto. El **#2** no se disparó.
+→ **Y del #1 se verificó justo lo contrario de verse: que NO se puede alcanzar.** El botón de confirmar
+sigue deshabilitado con el motivo en blanco y también con solo espacios, así que el mensaje del #1 no llega
+nunca a pantalla desde este camino. Es el desenlace que su reparto de mensajes predice —cae al crudo
+precisamente porque es inalcanzable— y **confirmar que una barrera aguanta no es lo mismo que ver el
+rechazo que hay detrás.** La primera redacción de esta nota decía «los cuatro salvo el #2» y las dos frases
+se contradecían entre sí; lo señaló el subagente que la escribió, comparando lo que se le dictó contra el
+párrafo de verificación de la misma tarea. **Van tres veces que pedir a un subagente lo que NO verificó
+rinde, y esta es la primera en que lo que encuentra es un error de quien le dio las instrucciones.**
+
 **Step 5 · Cancelar SÍ libera la franja, y libera también el buffer.** Sobre el Laptop en Monterrico, que
 tiene **una sola unidad**, el día `2026-08-14` con franjas de 30 minutos:
 
@@ -62,6 +79,8 @@ tiene **una sola unidad**, el día `2026-08-14` con franjas de 30 minutos:
 → Las **nueve** que libera son exactamente las que el buffer de 120 minutos bloqueaba alrededor de una
 reserva de media hora *(corrección 4)*. La franja no vuelve sola: vuelve **con todo su buffer**.
 → Y la fila quedó en `cancelled` con su `cancellation_reason` puesto.
+→ **La Task 13 midió el mismo número por el camino del alumno**, no por SQL: ver el párrafo de
+verificación de la Task 13.
 
 ### El escenario montado en el stack local, al día de hoy
 
@@ -79,6 +98,9 @@ Sobrevivió a la sesión entera y sirve para las tareas que quedan:
 **Ana quedó sin sanción** —`banned_until` en `NULL`—. Para volver a montar cualquiera de los tres estados,
 un `update` sobre `alumnos` **por `auth_user_id`, nunca por `id`**. Las reservas del pasado se insertan
 **directamente como `postgres`**, porque `create_reservation` rechaza el pasado a propósito.
+
+**Y sobrevivió también a la Task 13**, con las seis filas verificadas al final: la del 14/08 sigue en
+`reserved`, sin cambiar.
 
 ### ✅ Lo que la Task 10 ya NO tuvo que medir
 
@@ -516,6 +538,148 @@ navegador **sin cookies** —redirigió a `/login`— y **sin tocar `proxy.ts`**
 la tanda 1. Consola **sin un solo error ni advertencia**. `typecheck`, `lint`, `test` (**43**) y `build` en
 verde, con **doce rutas**: la nueva es `ƒ /mi-panel` y las tres estáticas siguen siendo `/_not-found`,
 `/faq` y `/login`.
+
+### Task 13 · La cancelación, y una decisión de producto que el plan no había visto
+
+32. ⚠ **`cancel_reservation` acepta cancelar una reserva cuya franja YA TERMINÓ, y eso obligó a una
+    decisión que el plan no contemplaba.** El Step 1 del plan solo decía «el botón solo existe en
+    `reserved`». Medido contra el stack local dentro de una transacción con `rollback`: la reserva vencida
+    de Ana del 09/08, todavía en `reserved`, se canceló sin queja. La RPC solo comprueba el estado, **nunca
+    la fecha**.
+    → **Lo que hace que esto importe no es la RPC sino lo que hay al lado.** LEIDO DEL SQL
+    (`supabase/migrations/20260806005731_reservation_state_machine.sql`): `cancelled` es un estado
+    **terminal**. Y LEIDO DEL SQL (`20260806013146_penalties.sql`): la sanción de 15 días la dispara el
+    trigger cuando el personal marca `not_picked_up`. Si el alumno cancela una reserva ya vencida, el
+    personal **ya no puede** marcarla, así que **cancelar tarde borra la falta**.
+    → **DECISION de Alejandro, tomada el 2026-08-11:** el botón aparece solo mientras el **fin** de la
+    reserva esté en el futuro, o sea `estado === "reserved" && grupo === "proxima"`. Reutiliza el grupo que
+    ya calcula `agrupar.ts`, así que no añade una segunda lectura del reloj —el defecto de la corrección
+    29—.
+    → **Y se dijo por delante lo que la decisión NO hace: esconder el botón no cierra ese camino.** Quien
+    llame a la RPC por su cuenta cancela igual. Cerrarlo de verdad sería SQL, y esta tanda no toca SQL.
+    Queda como **Q-17**.
+    → **Esto ya estaba a medias registrado y comprobarlo costó menos que corregirlo después** *(la lección
+    de la corrección 18)*: **M-12** de `ESPECIFICACION_FUNCIONAL.md` dice «Cancelación con antelación
+    mínima — hoy se puede cancelar un minuto antes sin consecuencia», y ese mismo documento avisa de que
+    M-9 a M-12 piden el criterio de Alejandro. **Lo nuevo no es el tema sino su alcance:** no es solo «sin
+    consecuencia», es que **evita la sanción**, y eso M-12 no lo dice.
+
+33. **El motivo de cancelación es TEXTO LIBRE, y no se eligió: estaba escrito.** LEIDO de
+    `ESPECIFICACION_FUNCIONAL.md` línea 127 —«Cancelación: diálogo con razón obligatoria; se guarda en
+    `cancellation_reason`»—, que pide diálogo y **no da ninguna lista de opciones**, al contrario del
+    motivo de USO al reservar, que sí es una lista fija de seis *(corrección 12)*. Son dos columnas
+    distintas y dos formatos distintos. **Es la corrección 12 otra vez pero al revés:** allí el plan nombró
+    algo sin decir a qué se ataba y la respuesta estaba en la especificación; aquí también estaba, y esta
+    vez se miró antes de inventar.
+
+34. ⚠ **Décimo y undécimo hechos falsos de un subagente, los dos de un GENERO NUEVO: la fuente inventada
+    sobre un hecho cierto.** (a) Un comentario afirmaba que `cancellation_reason` es `text` sin `CHECK`
+    «leído en `MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md`». **El hecho es cierto** —medido:
+    `information_schema.columns` dice `text` sin longitud máxima, y el único `CHECK` de
+    `inventory_reservations` es `chk_reservation_dates`, `end_at > start_at`—, pero esa especificación
+    **no dice el tipo de ninguna columna**. (b) Otro comentario decía que el reparto de mensajes estaba
+    «aprobado por Alejandro **para este caso concreto**». Alejandro aprobó el **criterio** en la Task 10,
+    sobre los doce rechazos de `create_reservation`; aplicarlo a estos cuatro se decidió al escribir la
+    Task 13, caso por caso.
+    → Las dos corregidas, y **cada una deja escrito en el archivo cuál era la fuente de verdad**, no solo
+    el dato.
+    → **Lo que enseña, y es distinto de los nueve anteriores:** hasta ahora los hechos falsos eran hechos
+    falsos. Estos dos son **hechos ciertos con la procedencia inventada**, y son más difíciles de ver,
+    porque comprobar el dato los confirma. **Hay que verificar el hecho Y la fuente, y son dos
+    comprobaciones distintas.** Es la corrección 16 —la cita inventada a D-26— pero sin que el dato
+    estuviera mal.
+
+35. **Un defecto que solo se vio abriendo el diálogo: «El equipo ya se entrego», sin tilde.** Es texto que
+    lee el alumno. `typecheck`, `lint`, `test` (43) y `build` estaban **en verde** con eso dentro,
+    exactamente como el «11:41 p. m..» de la corrección 20.
+    → **Y lo interesante es dónde vive:** a dos líneas de ese texto está el prefijo `'Solo se cancela una
+    reserva en estado reserved (esta en '`, que va **sin tildes a propósito** porque es el mensaje que
+    manda el motor y todo el SQL del proyecto se escribe así. **En la misma función conviven el criterio de
+    "sin tildes" y el de "con tildes", y cada uno es correcto en su línea.** Por eso el archivo ahora lo
+    dice: el que se compara va sin tildes, el que se muestra va con ellas.
+
+36. **El diálogo se cierra solo tras cancelar, sin ningún `useEffect`, y eso pasó de afirmación estructural
+    a medición.** El subagente lo escribió como una propiedad del árbol —al pasar a `cancelled`, la reserva
+    deja el grupo `proxima`, la condición que pinta el diálogo deja de cumplirse, el componente se
+    desmonta y su estado se va con él— y marcó honestamente que no lo había ejecutado. **Verificado en el
+    navegador:** la sección «Próximas» desapareció entera, la tarjeta reapareció bajo «Anteriores» con el
+    badge «Cancelada», y el diálogo se cerró sin intervención.
+
+37. **`revalidatePath` se usa por primera vez en el proyecto.** `reservar()` resolvía lo mismo con un
+    `redirect()`, pero aquí el alumno **ya está** en `/mi-panel`, así que no hay a dónde llevarlo: lo que
+    hace falta es volver a leer la lista. El patrón —dentro de la propia Server Function, después de
+    mutar— sale de los docs de la 16 instalada
+    (`node_modules/next/dist/docs/01-app/01-getting-started/07-mutating-data.md`), como manda `AGENTS.md`.
+    **Verificado en el navegador: la lista se rehízo sin recargar la página a mano.**
+
+38. ⚠ **Forzar el campo oculto NO aguanta un re-render, y eso estuvo a punto de dar un falso positivo que
+    confirmaba justo lo que se buscaba.** Para probar el rechazo por reserva ajena se cambió por consola el
+    `reservationId` del formulario al de una reserva de Bruno. Después se escribió el motivo… y **React
+    restauró el valor original**, porque el campo es controlado y cualquier cambio de estado lo vuelve a
+    pintar. Comprobado leyendo el campo: volvió al id de Ana.
+    → **Si se hubiera enviado sin mirar, la pantalla habría contestado «cancelada» y la conclusión habría
+    sido «la RPC rechaza la ajena» cuando en realidad se canceló la propia.** Una prueba de seguridad que
+    pasa por el motivo equivocado es peor que ninguna.
+    → Con el orden correcto —motivo primero, id después, enviar sin tocar nada más— la RPC contestó el
+    mensaje **crudo** `No puedes cancelar una reserva ajena`, y **no tocó ni la reserva de Bruno ni la de
+    Ana**: las seis filas del escenario quedaron idénticas. Es la prueba de los dos sentidos de la Task 10,
+    otra vez: **manipular el formulario no abre nada, porque quien decide es el motor.**
+    → **Y la defensa de React es ACCIDENTAL, no diseñada:** no se debe confiar en ella. Lo que protege es
+    la RPC.
+
+39. **Cinco veces en esta sesión el primer sospechoso correcto fue la medición, y la última de un género
+    nuevo.** Las cuatro conocidas eran sondas mal escritas. La quinta fue **temporal**:
+    `press_key("Escape")` devolvió un árbol donde el diálogo seguía abierto, y el diálogo **ya estaba
+    cerrado** —consultado el DOM: no había `[role="dialog"]` y el foco había vuelto al botón que lo abrió,
+    que es justo lo que Radix debe hacer—. El árbol venía capturado antes de que React procesara el cierre.
+    **Una sonda puede estar bien escrita y llegar tarde**, y eso se ve igual que un defecto.
+
+40. **Ni un componente de `components/ui/` nuevo, y ninguna dependencia.** El diálogo usa `Dialog` de
+    `radix-ui` 1.6.7, que ya era dependencia y que el proyecto ya importa en `button.tsx` y `badge.tsx`.
+    **No se corrió `shadcn add`** —la trampa 1 de la T0 sigue en pie— y no se creó `components/ui/dialog.tsx`
+    ni `textarea.tsx`: hay un único consumidor, y se dejó escrito que si la T3 necesita un segundo diálogo
+    *(BR-11, inhabilitar un día con reservas)* se extrae **entonces**.
+    → **Tres sospechas propias que resultaron infundadas, y las tres las cerró medir, no razonar:**
+    `font-heading` existe de verdad (`globals.css`, y ya lo usa `card.tsx`); que `Button` no use
+    `forwardRef` es cierto; y las clases de animación `data-open:`/`data-closed:` **funcionan**, porque
+    `node_modules/shadcn/dist/tailwind.css` define esas `@custom-variant` y compilan a
+    `:where([data-state=open])` —verificado en el CSS del `build`—, que es exactamente el atributo que pone
+    Radix.
+
+**Verificado al cerrar la Task 13, en un navegador de verdad y con sesión real de Ana** (entrada por magic
+link real vía Mailpit): **un solo botón «Cancelar reserva»** en toda la pantalla, y en la tarjeta correcta,
+la `reserved` del 14/08 — **no aparece** en la `active` del 11/08 *(corrección 3)*, ni en la **`reserved`
+vencida** del 09/08 *(corrección 32)*, ni en la completada ni en la cancelada. El diálogo abre con
+**título y descripción** —los dos obligatorios para que Radix no avise en consola—, el foco entra en el
+campo del motivo, y el botón de confirmar nace **deshabilitado**; **con cinco espacios en blanco sigue
+deshabilitado**, que es lo que mantiene inalcanzable el rechazo #1. **El rechazo #4 se provocó de verdad**,
+montando la carrera: con el diálogo abierto y el motivo escrito, se pasó la reserva a `active` por SQL —el
+personal entregando el equipo— y se confirmó; salió el **texto propio**, con `role="alert"`, sin salir del
+diálogo, y **no canceló nada** —la fila siguió en `active` sin motivo—. Ese fue el paso que destapó la
+tilde de la corrección 35. **La cancelación buena:** el motivo se escribió **con espacios alrededor a
+propósito** y se guardó **sin ellos** —36 caracteres de los 42 tecleados—, la sección «Próximas»
+desapareció, la tarjeta pasó a «Anteriores» como «Cancelada por: …» y el diálogo se cerró solo. **Cancelar
+liberó la franja con todo su buffer, medido desde la pantalla y no por SQL:** el 14/08 pasó de **19 libres
+y 9 ocupadas** a **28 y 0** — el mismo número que el Step 5 ya había medido, ahora por el camino del
+alumno. **`Escape` cierra el diálogo** y devuelve el foco al botón que lo abrió. **El escenario quedó
+intacto**: las seis reservas con el mismo estado del principio, y los **cinco triggers de
+`inventory_reservations` habilitados** —se comprobó, porque restaurar la reserva a `reserved` exigió
+deshabilitar `trg_enforce_reservation_transition` y olvidarse de rehabilitarlo dejaría la máquina de
+estados abierta—. Consola **sin un solo error ni advertencia** (solo los `[Fast Refresh]` del servidor de
+desarrollo). `typecheck`, `lint`, `test` (**43**, las mismas: esta tarea no añade lógica pura) y `build` en
+verde, con **doce rutas** y las tres estáticas de siempre —`/_not-found`, `/faq`, `/login`—: **una Server
+Action no añade ruta**, igual que en la Task 10.
+
+**Y el pendiente de los 390 px de la 2A deja de ser una sospecha y pasa a ser un número, medido por dos
+caminos.** Se pidió un ancho de 390 y Chrome dio **500** redimensionando la ventana y **477** emulando un
+dispositivo móvil con `deviceScaleFactor: 3` —el factor sí se aplicó, el ancho no—. **No es la herramienta:
+es el ancho mínimo de una ventana de Chrome en Windows**, que gobierna sobre el viewport emulado. A esos 477
+px el diálogo **cabe entero** —384 px, los `max-w-sm`, con la página sin desborde horizontal— y sus dos
+botones quedan visibles. **A 390 px no está medido, y por deducción cabría**: `w-[calc(100%-2rem)]` daría
+358 px, por debajo del `max-w-sm`, con 16 px de margen a cada lado. Para medirlo de verdad hace falta
+**Playwright, que desde el 2026-08-11 ya está instalado en el entorno** y arranca su propio navegador con el
+viewport exacto. Queda como lo que era, un pendiente de la 2A, pero ya con la causa identificada y la
+herramienta disponible.
 
 ---
 

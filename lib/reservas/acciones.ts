@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
@@ -160,6 +161,83 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
   return mensajeDelMotor;
 }
 
+// Traduce el mensaje CRUDO que devuelve `cancel_reservation` -Task 13 de la
+// tanda 2B- al texto que ve el alumno, aplicando el MISMO criterio que
+// mensajeDeRechazo() de arriba: texto propio SOLO para lo que un alumno puede
+// provocar navegando de verdad, mensaje CRUDO para lo inalcanzable, y lo no
+// reconocido cae al crudo, nunca a un generico.
+//
+// PRECISION SOBRE QUIEN DECIDIO QUE, porque la primera version de este
+// comentario lo atribuia mal: el CRITERIO GENERAL de las tres lineas de
+// arriba lo aprobo Alejandro el 2026-08-11, pero para la Task 10 y sus doce
+// rechazos de `create_reservation`. Su APLICACION a los cuatro rechazos de
+// ESTA funcion -que solo el #4 lleve texto propio y los otros tres vayan
+// crudos- se decidio al escribir la Task 13, razonando caso por caso cual es
+// alcanzable desde la pantalla, y no se le consulto aparte. Un criterio
+// aprobado no aprueba por si solo cada uso que se le de despues.
+//
+// La RPC rechaza en CUATRO pasos, EN ESTE ORDEN -leido de
+// supabase/migrations/20260806012057_cancel_reservation_rpc.sql-:
+//
+//   1. Motivo vacio o solo espacios (`btrim`)  -> 23514 (check_violation)
+//   2. Reserva inexistente                     -> P0002 (no_data_found)
+//   3. Reserva ajena                           -> 42501
+//   4. Estado distinto de `reserved`           -> 23514 (check_violation)
+//
+// Y el reparto es:
+//
+//   - #4 -> TEXTO PROPIO. Es el UNICO alcanzable de forma realista: el
+//     alumno tiene /mi-panel abierto, el personal le entrega el equipo -la
+//     reserva pasa a `active`- y en ese momento el alumno pulsa Cancelar. Es
+//     una carrera entre dos personas, igual que el caso 8 de
+//     mensajeDeRechazo() de arriba, y no es culpa de nadie.
+//   - #1, #2 y #3 -> CRUDO. Los tres son inalcanzables desde esta pantalla:
+//     el dialogo (components/reservas/dialogo-cancelar.tsx) deja el boton de
+//     confirmar deshabilitado mientras el motivo este vacio tras `trim()`,
+//     asi que #1 no deberia dispararse nunca desde aca; el id que viaja en
+//     el campo oculto sale de la propia consulta de misReservas()
+//     (lib/reservas/consultas.ts), asi que #2 exigiria un id inventado a
+//     mano; y esa misma consulta ya esta filtrada por RLS a las reservas DEL
+//     alumno de la sesion -misReservas() no repite ese filtro en el
+//     cliente, ver su comentario-, asi que #3 exigiria un id ajeno
+//     conseguido por otra via. Si alguno de los tres aparece en pantalla, es
+//     un DEFECTO en otro sitio, y el mensaje crudo dice que se rompio mejor
+//     que uno bonito que lo disimularia.
+//
+// OJO CON EL ORDEN: el motor evalua #1 ANTES que #2. Pedir la cancelacion de
+// una reserva INEXISTENTE y SIN MOTIVO a la vez contesta "La cancelacion
+// exige un motivo", no "Reserva inexistente" -el motivo vacio nunca deja que
+// el motor llegue a comprobar si el id existe-. Si este mensaje aparece
+// alguna vez en pantalla, NO hay que leerlo como "la reserva no existe": el
+// motor todavia no llego a mirar eso.
+//
+// Igual que en mensajeDeRechazo(), el EMPAREJAMIENTO VA POR EL TEXTO del
+// mensaje y no por el SQLSTATE: `23514` lo comparten #1 y #4, asi que
+// ramificar por codigo los habria mezclado.
+function mensajeDeRechazoCancelacion(mensajeDelMotor: string): string {
+  // 4 · estado distinto de `reserved`. Coincidencia por PREFIJO y no exacta,
+  // porque el resto del mensaje es el estado ACTUAL de la reserva
+  // -interpolado por el motor con `%`, por ejemplo `(esta en active)`- y
+  // varia segun cual sea.
+  const PREFIJO_ESTADO = 'Solo se cancela una reserva en estado reserved (esta en ';
+  if (mensajeDelMotor.startsWith(PREFIJO_ESTADO)) {
+    // CON TILDES, al contrario que PREFIJO_ESTADO de dos lineas arriba: ese
+    // es el mensaje que manda el MOTOR y va sin tildes porque asi se escribe
+    // todo el SQL del proyecto, mientras esto es texto que LEE el alumno. La
+    // primera version de esta linea decia "se entrego" sin tilde y llego a
+    // verse asi en pantalla: `typecheck`, `lint`, `test` y `build` estaban en
+    // verde con el defecto dentro, y lo encontro abrir el dialogo y leerlo.
+    // Es el mismo genero que el "11:41 p. m.." de textoDeSancion() en
+    // lib/reservas/sancion.ts.
+    return 'El equipo ya se entregó, y una reserva entregada no se cancela, se devuelve. Si necesitas devolverla antes de tiempo, contacta con el personal.';
+  }
+
+  // Los otros tres -1, 2 y 3- y cualquier mensaje que este mapa todavia no
+  // conozca se muestran tal cual llegaron del motor. Ver el comentario de
+  // arriba de esta funcion para el porque de cada uno.
+  return mensajeDelMotor;
+}
+
 // La Server Action detras del formulario de reserva
 // (components/reservas/formulario-reserva.tsx), enganchada con
 // `useActionState`: por eso la firma lleva el estado previo como primer
@@ -236,15 +314,128 @@ export async function reservar(
     return { error: mensajeDeRechazo(error.message) };
   }
 
-  // `/mi-panel` TODAVIA NO EXISTE -es la Task 12, mas adelante en esta misma
-  // tanda-, asi que hasta que se escriba, una reserva CORRECTA termina en un
-  // 404. Esta dicho por delante en el plan (MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md,
-  // Task 10, Step 5) y es el comportamiento correcto para este punto de la
-  // tanda: la reserva SI quedo grabada en la base, lo unico que falta es la
-  // pantalla que la enseñe.
+  // `/mi-panel` EXISTE desde la Task 12 de esta misma tanda -este comentario
+  // decia lo contrario y llego a estar en lo cierto durante un tramo de la
+  // tanda; se corrige aca en la Task 13 porque un comentario caducado
+  // compila igual que uno cierto y enseña lo contrario de lo que pasa-. Una
+  // reserva CORRECTA termina en el panel del alumno, con
+  // TarjetaReserva (components/reservas/tarjeta-reserva.tsx) pintando la
+  // fila recien creada.
   //
   // Fuera de cualquier try/catch: redirect() funciona lanzando una excepcion
   // interna que Next intercepta mas arriba, y un try/catch alrededor se la
   // tragaria como si fuera un error de verdad.
   redirect('/mi-panel');
+}
+
+// La Server Action detras del boton de cancelar
+// (components/reservas/dialogo-cancelar.tsx), Task 13 de la tanda 2B: misma
+// forma que reservar() de arriba, enganchada con `useActionState` -el estado
+// previo entra como primer argumento aunque no se use, y la funcion devuelve
+// el estado siguiente en vez de lanzar-.
+export async function cancelar(
+  _estadoPrevio: EstadoReserva,
+  formData: FormData,
+): Promise<EstadoReserva> {
+  const reservationId = comoTexto(formData.get('reservationId'));
+  const motivoTexto = comoTexto(formData.get('motivo'));
+
+  // `reservationId` es un campo OCULTO que el propio dialogo rellena con el
+  // id que le llego por props -nunca uno que el alumno teclee-, y `motivo`
+  // sale de un input de texto cuyo boton de confirmar queda deshabilitado
+  // mientras este vacio tras `trim()`. Un alumno navegando normal no puede
+  // dejar ninguno de los dos sin valor: si esto salta, el defecto esta en la
+  // pantalla, no en lo que el alumno hizo, igual que la comprobacion
+  // identica de reservar() mas arriba.
+  if (reservationId === null || motivoTexto === null) {
+    return {
+      error:
+        'Falta un dato para completar la cancelación. Esto es un defecto de la pantalla, no tuyo: recarga la página e inténtalo de nuevo.',
+    };
+  }
+
+  // Se manda RECORTADO -`trim()`-, igual que el motor recorta con `btrim`
+  // para decidir si el motivo cuenta como vacio (paso 1 de la RPC). Pero el
+  // porque de este trim aca no es solo imitar esa comprobacion: leyendo esa
+  // misma migracion (supabase/migrations/20260806012057_cancel_reservation_rpc.sql),
+  // el `update` final guarda `cancellation_reason = p_reason` TAL CUAL -no
+  // `btrim(p_reason)`, que solo se usa dos lineas antes, para el rechazo-.
+  // Sin este trim aca, un motivo tecleado con un espacio de mas al principio
+  // o al final se guardaria con ese espacio dentro, y quien lo lea despues
+  // en tarjeta-reserva.tsx ("Cancelada por: ...") veria el descuadre. Y para
+  // el motivo de SOLO espacios -sin texto de verdad-: el boton de confirmar
+  // en dialogo-cancelar.tsx ya lo deja deshabilitado comprobando
+  // `motivo.trim() === ""`, asi que este trim aca no es la unica barrera:
+  // es la misma regla aplicada una segunda vez del lado del servidor, por si
+  // algo llega a esta funcion sin pasar por ese boton. Sin ninguna de las
+  // dos barreras, un motivo de solo espacios pasaria la comprobacion del
+  // cliente tal cual -tiene longitud mayor que cero- y moriria recien en el
+  // motor, y el rechazo #1 de mensajeDeRechazoCancelacion() de arriba
+  // dejaria de ser inalcanzable desde esta pantalla.
+  const motivo = motivoTexto.trim();
+
+  const supabase = await createClient();
+
+  // ESTO TIENE QUE SER LA RPC, Y NUNCA UN `.update()` DIRECTO SOBRE
+  // `inventory_reservations` -ni ahora ni si alguien intenta "optimizarlo"
+  // mas adelante-. Escrito en
+  // supabase/migrations/20260806005731_reservation_state_machine.sql y
+  // MEDIDO ADEMAS contra el stack local el 2026-08-11, que es la comprobacion
+  // que de verdad cierra la duda: `pg_policies` devuelve TRES politicas para
+  // esta tabla -`reservations_select_own`, `reservations_select_staff` y
+  // `reservations_update_staff`-, o sea que la de UPDATE es UNA SOLA y exige
+  // `is_staff()`, y no hay ninguna de INSERT; y
+  // `information_schema.column_privileges` confirma que `authenticated` tiene
+  // `UPDATE` sobre exactamente dos columnas, `status` y
+  // `cancellation_reason`. Leer la migracion dice lo que se escribio;
+  // consultar el catalogo dice lo que hay hoy, despues de veintidos
+  // migraciones. El detalle importa asi: el
+  // alumno SI tiene el privilegio de columna `UPDATE (status,
+  // cancellation_reason)` -se concede al rol `authenticated`, que lo
+  // incluye-, pero la UNICA politica de UPDATE sobre esa tabla,
+  // `reservations_update_staff`, exige `private.is_staff()`. Un alumno no lo
+  // es, asi que su `.update()` no violaria ningun privilegio -no lanzaria
+  // `42501`- y en cambio afectaria CERO FILAS EN SILENCIO, sin ningun error
+  // que un try/catch pudiera atrapar: es el comportamiento normal de RLS
+  // ante un UPDATE que no matchea ninguna fila del `USING`. Quien viera solo
+  // el codigo de esta funcion, sin conocer esa combinacion privilegio +
+  // politica, podria cambiar esto a un `.update()` pensando que es
+  // equivalente y mas simple, y el boton de cancelar dejaria de funcionar
+  // sin que nada lo avisara -ni un error en pantalla, ni un log-. La RPC
+  // (`cancel_reservation`, SECURITY DEFINER) es la UNICA via del alumno para
+  // cancelar, y es tambien la unica que hace cumplir el motivo obligatorio
+  // -el trigger de la maquina de estados lo exige en las DOS puertas, RPC y
+  // UPDATE directo del personal, pero solo la RPC esta abierta para el
+  // alumno-.
+  //
+  // DOS argumentos, y el alumno NO es uno de ellos, por el mismo motivo que
+  // create_reservation en reservar() de arriba: `cancel_reservation` deduce
+  // la propiedad de la reserva comparando `p_reservation_id` contra lo que
+  // saca de `auth.uid()` por dentro, asi que este cliente nunca afirma quien
+  // es.
+  const { error } = await supabase.rpc('cancel_reservation', {
+    p_reservation_id: reservationId,
+    p_reason: motivo,
+  });
+
+  if (error) {
+    return { error: mensajeDeRechazoCancelacion(error.message) };
+  }
+
+  // `revalidatePath` y no `redirect`: a diferencia de reservar(), el alumno
+  // YA esta en /mi-panel cuando cancela -el dialogo vive dentro de esa misma
+  // pantalla, montado por TarjetaReserva- asi que no hay a donde llevarlo. Lo
+  // que hace falta es que la lista se vuelva a leer de la base para que la
+  // tarjeta cancelada deje de aparecer entre las "Proximas" y pase a
+  // "Anteriores" con su nuevo estado. `revalidatePath('/mi-panel')`,
+  // importado de `next/cache`, hace exactamente eso, y es la PRIMERA vez que
+  // este proyecto llama a esta funcion: reservar() resolvia lo mismo con un
+  // `redirect()` a una pagina que de todos modos iba a pedir los datos de
+  // cero. El patron -llamarla DENTRO de la propia Server Function, despues
+  // de mutar y antes de devolver- sale de la seccion "Revalidate data" de
+  // los docs de Next 16
+  // (node_modules/next/dist/docs/01-app/01-getting-started/07-mutating-data.md).
+  revalidatePath('/mi-panel');
+
+  return null;
 }

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogoCancelar } from "@/components/reservas/dialogo-cancelar";
 import { etiquetaDeEstado, type Grupo } from "@/lib/reservas/agrupar";
 import type { ReservaDelAlumno } from "@/lib/reservas/consultas";
 
@@ -47,13 +48,18 @@ type TarjetaReservaProps = {
   grupo: Grupo;
 };
 
-// Componente de servidor: no necesita estado ni eventos -solo pinta una
-// reserva ya resuelta por lib/reservas/consultas.ts-, asi que NO lleva
+// Componente de servidor: no necesita estado ni eventos propios -solo pinta
+// una reserva ya resuelta por lib/reservas/consultas.ts-, asi que NO lleva
 // "use client". La misma razon por la que TarjetaProducto
-// (components/catalogo/tarjeta-producto.tsx) tampoco lo lleva.
+// (components/catalogo/tarjeta-producto.tsx) tampoco lo lleva. Que ahora
+// pinte <DialogoCancelar> -que SI es Client Component, Task 13- no cambia
+// esto: un Server Component puede renderizar un Client Component sin
+// volverse cliente el mismo, que es exactamente lo que hace falta aca.
 //
-// SIN BOTON DE CANCELAR. Cancelar una reserva es la Task 13, todavia sin
-// escribir; esta tarjeta solo muestra, no actua.
+// DESDE ESTA TAREA SI TIENE BOTON DE CANCELAR -este comentario decia lo
+// contrario; se corrige aca porque un comentario caducado compila igual que
+// uno cierto y enseña lo contrario de lo que pasa-, pero NO en toda reserva:
+// ver la condicion de mas abajo, justo antes de pintar <DialogoCancelar>.
 export function TarjetaReserva({ reserva, grupo }: TarjetaReservaProps) {
   return (
     <Card>
@@ -98,6 +104,41 @@ export function TarjetaReserva({ reserva, grupo }: TarjetaReservaProps) {
             estado: lo que cambia es el texto, no el dato. */}
         {reserva.estado === "reserved" && grupo === "pasada" && (
           <p>Esta reserva venció sin que se recogiera el equipo.</p>
+        )}
+
+        {/* El boton de cancelar se PINTA -y no solo se deshabilita- bajo DOS
+            condiciones a la vez, y son DOS DECISIONES DISTINTAS que solo
+            coinciden en la misma linea de codigo:
+              1. `reserva.estado === "reserved"`. En `active` el boton
+                 DESAPARECE en vez de quedar deshabilitado, porque una
+                 reserva ya entregada no se cancela, se devuelve -y la RPC
+                 la rechazaria igual, es el rechazo #4 de
+                 mensajeDeRechazoCancelacion() en lib/reservas/acciones.ts-.
+              2. `grupo === "proxima"`. Esto excluye la reserva que sigue en
+                 `reserved` pero cuya franja YA PASO -la del parrafo de
+                 arriba, "vencio sin que se recogiera"-. El motor SI la
+                 aceptaria (medido el 2026-08-11 contra el stack local,
+                 dentro de una transaccion con rollback: `cancel_reservation`
+                 solo comprueba el estado, nunca la fecha), y aun asi no se
+                 ofrece: cancelarla borraria el unico rastro de que la
+                 franja se vencio sin devolucion, que es la marca
+                 `not_picked_up` que el personal todavia puede poner -
+                 `cancelled` es un estado TERMINAL, leido en
+                 supabase/migrations/20260806005731_reservation_state_machine.sql-,
+                 y esa marca es la que dispara la sancion, leido en
+                 supabase/migrations/20260806013146_penalties.sql. Ocultar el
+                 boton aca NO CIERRA ese camino -quien llame a la RPC por su
+                 cuenta puede cancelarla igual, el motor la deja-, solo deja
+                 de OFRECERLO desde esta pantalla. Queda pendiente como M-12
+                 de MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md -"cancelacion
+                 con antelacion minima"-, que decide algo mas amplio y
+                 todavia no esta resuelto.
+            `grupo` se usa TAL CUAL llega por props, sin recalcularlo: ver el
+            comentario de TarjetaReservaProps mas arriba, en la definicion del
+            tipo -volver a leer el reloj aca seria repetir el fallo que ese
+            comentario ya explica. */}
+        {reserva.estado === "reserved" && grupo === "proxima" && (
+          <DialogoCancelar reservationId={reserva.id} producto={reserva.producto} />
         )}
       </CardContent>
     </Card>
