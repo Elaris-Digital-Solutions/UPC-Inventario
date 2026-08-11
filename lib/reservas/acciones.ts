@@ -8,6 +8,13 @@ import { MOTIVOS, type Motivo } from '@/lib/reservas/motivos';
 
 export type EstadoReserva = { error: string } | null;
 
+// Estado PROPIO para guardarEncuesta(), y no una reutilizacion de
+// EstadoReserva: esa accion nunca redirige -sirve tanto para crear como para
+// editar, y las dos veces el alumno se queda en la misma pantalla- y necesita
+// poder decir "guardada" para que la pantalla muestre un acuse de recibo, algo
+// que EstadoReserva no representa.
+export type EstadoEncuesta = { error: string } | { guardada: true } | null;
+
 // Type guard y no un `.includes()` a secas: MOTIVOS es un array `as const`
 // -readonly, tipado a Motivo-, y su `.includes()` solo acepta un `Motivo` como
 // argumento. `motivo` sale del FormData como `string` a secas, asi que hace
@@ -27,6 +34,39 @@ function esMotivoValido(valor: string): valor is Motivo {
 // campo para el que la cadena vacia sea un valor valido.
 function comoTexto(valor: FormDataEntryValue | null): string | null {
   return typeof valor === 'string' && valor.length > 0 ? valor : null;
+}
+
+// Traduce el valor de un radio de valoracion ('1' a '5') a numero, o `null`
+// si el radio no llego marcado -mismo `null` que comoTexto() de arriba
+// devuelve para cualquier campo ausente-. Se revalida el rango 1-5 aca y no
+// solo se confia en que el formulario (components/reservas/formulario-encuesta.tsx)
+// solo pinte cinco radios: es la misma regla que esMotivoValido() aplica al
+// motivo de reservar() mas abajo -un alumno navegando normal no puede mandar
+// otra cosa, y si algo distinto llega, el defecto esta en la pantalla, no en
+// lo que el alumno hizo-.
+function comoValoracion(valor: FormDataEntryValue | null): number | null {
+  const texto = comoTexto(valor);
+  if (texto === null) {
+    return null;
+  }
+  const numero = Number(texto);
+  return Number.isInteger(numero) && numero >= 1 && numero <= 5 ? numero : null;
+}
+
+// Los tres textos libres de la encuesta se RECORTAN, y una cadena vacia tras
+// el recorte se guarda como `null`, no como `''`. "No escribio nada" y
+// "escribio solo espacios" son el MISMO HECHO para quien lea despues estos
+// campos, y la columna ya tiene una forma de decir eso -`text` nulable, sin
+// default, en `final_satisfaction_surveys`-. Guardar `''` en vez de `null`
+// inventaria una tercera categoria que ninguna pantalla de este proyecto
+// necesita distinguir de "no contesto".
+function comoTextoOpcional(valor: FormDataEntryValue | null): string | null {
+  const texto = comoTexto(valor);
+  if (texto === null) {
+    return null;
+  }
+  const recortado = texto.trim();
+  return recortado.length > 0 ? recortado : null;
 }
 
 // Traduce el mensaje CRUDO que devuelve `create_reservation` -sin tildes,
@@ -438,4 +478,205 @@ export async function cancelar(
   revalidatePath('/mi-panel');
 
   return null;
+}
+
+// La Server Action detras del formulario de encuesta
+// (components/reservas/formulario-encuesta.tsx), Task 14 de la tanda 2B:
+// misma forma que reservar() y cancelar() de arriba, enganchada con
+// `useActionState` -el estado previo entra como primer argumento aunque no se
+// use, y la funcion devuelve el estado siguiente en vez de lanzar-, pero con
+// EstadoEncuesta y no EstadoReserva: ver el comentario de ese tipo, arriba del
+// todo de este archivo.
+export async function guardarEncuesta(
+  _estadoPrevio: EstadoEncuesta,
+  formData: FormData,
+): Promise<EstadoEncuesta> {
+  const platformRating = comoValoracion(formData.get('platformRating'));
+  const serviceRating = comoValoracion(formData.get('serviceRating'));
+  const reservationProcessRating = comoValoracion(formData.get('reservationProcessRating'));
+  const supportClarityRating = comoValoracion(formData.get('supportClarityRating'));
+  const equipmentConditionRating = comoValoracion(formData.get('equipmentConditionRating'));
+  const wouldRecommendTexto = comoTexto(formData.get('wouldRecommend'));
+
+  // Las CINCO valoraciones y el "¿lo recomendarias?" son obligatorios -
+  // DECISION de Alejandro, 2026-08-11-: la base aceptaria cualquier
+  // combinacion, las seis columnas son nulables, asi que esta regla es de la
+  // APLICACION y no del motor. El argumento: se piden datos comparables entre
+  // alumnos y no se obliga a nadie a escribir prosa -por eso los tres textos
+  // libres, mas abajo, NO se comprueban aca-.
+  //
+  // Un alumno navegando normal no puede dejar ninguno de los seis sin marcar:
+  // el boton de enviar en formulario-encuesta.tsx queda deshabilitado
+  // mientras falte cualquiera. Si esto salta, el defecto esta en la pantalla,
+  // no en lo que el alumno hizo, igual que las comprobaciones identicas de
+  // reservar() y cancelar() mas arriba en este archivo.
+  if (
+    platformRating === null ||
+    serviceRating === null ||
+    reservationProcessRating === null ||
+    supportClarityRating === null ||
+    equipmentConditionRating === null ||
+    wouldRecommendTexto === null
+  ) {
+    return {
+      error:
+        'Falta una valoración o la respuesta a si recomendarías el servicio. Esto es un defecto de la pantalla, no tuyo: recarga la página e inténtalo de nuevo.',
+    };
+  }
+
+  // El unico valor que un radio "si"/"no" puede mandar es uno de esos dos
+  // textos -formulario-encuesta.tsx no pinta ningun otro-, pero se revalida
+  // igual antes de convertirlo a boolean, por la misma regla que
+  // comoValoracion() aplica al rango 1-5 de arriba.
+  if (wouldRecommendTexto !== 'si' && wouldRecommendTexto !== 'no') {
+    return {
+      error:
+        'La respuesta a si recomendarías el servicio no es válida. Esto es un defecto de la pantalla, no tuyo: recarga la página e inténtalo de nuevo.',
+    };
+  }
+
+  const bestFeature = comoTextoOpcional(formData.get('bestFeature'));
+  const improvementArea = comoTextoOpcional(formData.get('improvementArea'));
+  const comments = comoTextoOpcional(formData.get('comments'));
+
+  const supabase = await createClient();
+
+  // El `alumno_id` NO LO MANDA EL NAVEGADOR: lo resuelve esta Server Action
+  // leyendo la sesion, nunca un campo del formulario. Es la misma regla que
+  // reservar() y cancelar() aplican mas arriba dejando que la RPC deduzca la
+  // identidad con `auth.uid()` por dentro, pero aca NO HAY RPC -esta accion
+  // hace un `upsert` directo sobre la tabla, la unica escritura de esta tanda
+  // que no pasa por una-, asi que quien tiene que resolver el id es este
+  // mismo codigo, en dos pasos: primero `getClaims()` para el `sub` de la
+  // sesion, y despues `alumnos.id where auth_user_id = sub` -dos consultas, no
+  // una, porque `sub` es el uuid de `auth.users` y `alumnos.id` es OTRO uuid
+  // distinto, el de la fila propia de `alumnos`; confundir esas dos columnas
+  // ya costo un falso positivo en esta tanda, ver el comentario de
+  // sancionDelAlumno() en lib/reservas/consultas.ts-. Que el cliente nunca
+  // afirme una identidad es la regla de toda la fase, y ademas la politica lo
+  // revalidaria igual si este codigo se equivocara: la sonda 4 medida el
+  // 2026-08-11 contra el stack local -un `insert` con el `alumno_id` de OTRO
+  // alumno, usando las claims de Ana- la rechazo con "new row violates
+  // row-level security policy for table final_satisfaction_surveys".
+  const { data: claims } = await supabase.auth.getClaims();
+  const sub = claims?.claims.sub;
+
+  // Sin sesion no hay alumno de quien resolver el id. En la practica esta
+  // rama es INALCANZABLE bajo app/(alumno)/: el layout del grupo
+  // (app/(alumno)/layout.tsx) ya redirigio a /login a quien no tiene sesion
+  // antes de que esta accion pudiera invocarse -misma razon que la rama
+  // identica de sancionDelAlumno() en lib/reservas/consultas.ts-. Se comprueba
+  // igual porque el tipo de `sub` es `string | undefined` y no hay forma de
+  // afirmarle al compilador lo contrario sin un `as` que estaria mintiendo.
+  if (!sub) {
+    return {
+      error:
+        'No se pudo identificar tu sesión. Esto es un defecto de la pantalla, no tuyo: recarga la página e inténtalo de nuevo.',
+    };
+  }
+
+  const { data: alumno, error: errorAlumno } = await supabase
+    .from('alumnos')
+    .select('id')
+    .eq('auth_user_id', sub)
+    .maybeSingle();
+
+  // Tambien INALCANZABLE bajo app/(alumno)/ en el uso normal, por el mismo
+  // motivo que la rama de `!sub` de arriba: el layout del grupo ya redirigio
+  // a /auth/error a quien no tiene fila en `alumnos`. Se mantiene por el
+  // mismo criterio que ajustesReserva() propaga en vez de inventar, en
+  // lib/reservas/consultas.ts: un fallo de red o de RLS en esta consulta no
+  // deberia terminar en un `insert` con un `alumno_id` inventado o vacio.
+  if (errorAlumno || alumno === null) {
+    return {
+      error:
+        'No se pudo identificar tu perfil de alumno. Esto es un defecto de la pantalla, no tuyo: recarga la página e inténtalo de nuevo.',
+    };
+  }
+
+  // `upsert` con `onConflict: 'alumno_id'`, y no un `select` seguido de
+  // `insert` o `update`: es lo que pide la especificacion (F10,
+  // MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md, "Una respuesta por alumno
+  // (upsert con onConflict: alumno_id)"), esta MEDIDO que funciona bajo RLS
+  // -sonda 3 del set medido el 2026-08-11 contra el stack local: un
+  // `insert ... on conflict (alumno_id) do update set ...` con las claims de
+  // Ana dejo UNA SOLA fila con los valores nuevos-, y resuelve en UNA llamada el
+  // crear y el editar sin una carrera entre leer y escribir: sin esto, dos
+  // pestañas del mismo alumno guardando casi a la vez podrian leer "no existe"
+  // las dos, y la segunda `insert` chocaria con el `UNIQUE` que la primera
+  // acababa de satisfacer.
+  //
+  // NO se mandan `id`, `created_at` ni `updated_at`, aunque `authenticated`
+  // tenga privilegio de INSERT sobre esas tres columnas -medido el 2026-08-11
+  // contra el stack local, sobre `information_schema.column_privileges`-: sus
+  // defaults y su trigger `BEFORE UPDATE` ya hacen ese trabajo, y mandarlas
+  // seria este cliente decidiendo algo que la base decide mejor.
+  //
+  // Que el trigger de `updated_at` dispare TAMBIEN en la rama `do update` del
+  // upsert esta medido, pero en una sonda APARTE de la del upsert, y la razon
+  // vale para cualquier medicion futura sobre marcas de tiempo: dentro de UNA
+  // sola transaccion `now()` es constante, asi que `updated_at` y `created_at`
+  // salen IGUALES y un `updated_at > created_at` devuelve `false` aunque el
+  // trigger haya hecho su trabajo. Se comprobo en DOS transacciones separadas
+  // -el caso real, una peticion por envio- y ahi el instante si avanza. La
+  // primera lectura parecia decir que el trigger no disparaba, y otra vez el
+  // sospechoso correcto era la sonda.
+  const { error } = await supabase.from('final_satisfaction_surveys').upsert(
+    {
+      alumno_id: alumno.id,
+      platform_rating: platformRating,
+      service_rating: serviceRating,
+      reservation_process_rating: reservationProcessRating,
+      support_clarity_rating: supportClarityRating,
+      equipment_condition_rating: equipmentConditionRating,
+      would_recommend: wouldRecommendTexto === 'si',
+      best_feature: bestFeature,
+      improvement_area: improvementArea,
+      comments,
+    },
+    { onConflict: 'alumno_id' },
+  );
+
+  // SIN mensajeDeRechazo() ni ningun mapa de traducciones, al contrario que
+  // reservar() y cancelar() mas arriba en este archivo, y es una DECISION y no
+  // un olvido. Con las cinco valoraciones limitadas a radios de 1 a 5, el "¿lo
+  // recomendarias?" a solo dos opciones, el `upsert` resolviendo el
+  // `UNIQUE (alumno_id)` en vez de un `insert` que pudiera chocar con el, y el
+  // `alumno_id` puesto por este mismo codigo -nunca por el navegador-, no
+  // queda NINGUN rechazo que un alumno pueda provocar navegando. Los TRES
+  // rechazos que existen estan MEDIDOS el 2026-08-11 contra el stack local, y
+  // los tres son inalcanzables desde esta pantalla:
+  //
+  //   - `23505` (duplicate key en `alumno_id`): solo lo dispararia un `insert`
+  //     SIN `on conflict`, y este codigo siempre usa `upsert`.
+  //   - La violacion de RLS ("new row violates row-level security policy"):
+  //     solo la dispararia un `alumno_id` distinto del de la sesion, y este
+  //     codigo lo resuelve arriba desde `auth_user_id = sub`, nunca desde un
+  //     dato que el navegador mande.
+  //   - Los `CHECK` de cada valoracion (`>= 1 AND <= 5`): solo los violaria un
+  //     numero fuera de rango, y comoValoracion() ya descarta cualquier valor
+  //     que no sea un entero entre 1 y 5 antes de llegar aca.
+  //
+  // Si alguno de estos tres apareciera en pantalla, seria un DEFECTO EN OTRO
+  // SITIO -esta validacion, el formulario, o la politica-, y el mensaje crudo
+  // del motor lo dice mejor que uno bonito que lo disimularia.
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Los DOS `revalidatePath`: `/encuesta` porque esta misma pantalla necesita
+  // releer lo que se acaba de guardar para que la proxima carga la ofrezca
+  // como "editar" y no como "crear" -formulario-encuesta.tsx explica, en su
+  // propio comentario, por que esa distincion no se puede leer del prop
+  // despues de guardar-; y `/mi-panel` porque la invitacion de esa pantalla
+  // (Step 4 del plan) tiene que DESAPARECER apenas el alumno conteste: sin
+  // este segundo `revalidatePath`, /mi-panel seguiria sirviendo la version
+  // cacheada de antes de responder y la invitacion seguiria ahi.
+  revalidatePath('/encuesta');
+  revalidatePath('/mi-panel');
+
+  // Nunca `redirect()`: a diferencia de reservar(), aca no hay a donde llevar
+  // al alumno -ya esta en la unica pantalla de la encuesta-, y perder el
+  // acuse de recibo lo dejaria sin saber si se guardo.
+  return { guardada: true };
 }

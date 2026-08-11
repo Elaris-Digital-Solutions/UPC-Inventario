@@ -379,3 +379,84 @@ export async function misReservas(): Promise<ReservaDelAlumno[]> {
 
   return data.map(filaAReserva).filter((reserva): reserva is ReservaDelAlumno => reserva !== null);
 }
+
+// La forma medida de `final_satisfaction_surveys` -leida en
+// lib/database.types.ts-: NUEVE columnas de contenido, todas nulables salvo
+// `alumno_id`, que ni siquiera se pide aca porque `surveys_select_own` ya lo
+// resuelve. Camel case, igual que el resto de tipos de este archivo.
+export type EncuestaDelAlumno = {
+  platformRating: number | null;
+  serviceRating: number | null;
+  reservationProcessRating: number | null;
+  supportClarityRating: number | null;
+  equipmentConditionRating: number | null;
+  wouldRecommend: boolean | null;
+  bestFeature: string | null;
+  improvementArea: string | null;
+  comments: string | null;
+};
+
+// La encuesta del alumno de la sesion, o `null` si todavia no la contesto.
+// Task 14 de la tanda 2B.
+//
+// SIN `.eq('alumno_id', ...)` en el `select`, igual que misReservas() mas
+// arriba en este archivo y por el mismo motivo: la politica
+// `surveys_select_own` ya filtra por `alumno_id = private.current_alumno_id()`
+// DENTRO de RLS, evaluada como el alumno que consulta. Anadir aca un `.eq()`
+// redundante no reforzaria nada, solo sugeriria que el aislamiento hace falta
+// en el cliente cuando ya esta resuelto un nivel mas abajo.
+//
+// `.maybeSingle()` y no `.single()`: CERO FILAS es el estado NORMAL de quien
+// todavia no respondio, no un error, y hoy ese es el estado de TODO alumno.
+// `.single()` lanzaria una excepcion para ese caso exacto.
+//
+// Las dos mediciones que sostienen esa frase son de DIAS DISTINTOS, y conviene
+// no juntarlas bajo una sola fecha: el **stack local** se midio el 2026-08-11
+// -cero encuestas-, y **produccion** el 2026-08-10, anotada en la tabla "La
+// forma real de los datos" de MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md, que
+// tambien es donde se midio el `UNIQUE (alumno_id)` (correccion 4). Una
+// version anterior de este comentario decia que las dos se habian medido el
+// 2026-08-11; el dato es cierto en las dos, la fecha no.
+//
+// Si la consulta FALLA, esta funcion PROPAGA el error -igual que
+// ajustesReserva() y sancionDelAlumno() mas arriba en este archivo, y AL
+// CONTRARIO que misReservas()-. El motivo es el mismo que el de
+// sancionDelAlumno(): un `null` devuelto por un fallo de red se leeria
+// exactamente igual que "no ha contestado", y la pantalla ofreceria un
+// formulario VACIO a alguien que en realidad ya tiene una fila. Enviarlo
+// chocaria con el `UNIQUE (alumno_id)` -sonda 2 del set medido el 2026-08-11
+// contra el stack local, `duplicate key value violates unique constraint
+// "final_satisfaction_surveys_alumno_id_key"`- y el alumno veria un rechazo
+// que no tiene como entender, por un problema que no fue suyo.
+export async function miEncuesta(): Promise<EncuestaDelAlumno | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('final_satisfaction_surveys')
+    .select(
+      'platform_rating,service_rating,reservation_process_rating,support_clarity_rating,equipment_condition_rating,would_recommend,best_feature,improvement_area,comments',
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `miEncuesta: fallo la consulta a final_satisfaction_surveys: ${error.message}`,
+    );
+  }
+
+  if (data === null) {
+    return null;
+  }
+
+  return {
+    platformRating: data.platform_rating,
+    serviceRating: data.service_rating,
+    reservationProcessRating: data.reservation_process_rating,
+    supportClarityRating: data.support_clarity_rating,
+    equipmentConditionRating: data.equipment_condition_rating,
+    wouldRecommend: data.would_recommend,
+    bestFeature: data.best_feature,
+    improvementArea: data.improvement_area,
+    comments: data.comments,
+  };
+}

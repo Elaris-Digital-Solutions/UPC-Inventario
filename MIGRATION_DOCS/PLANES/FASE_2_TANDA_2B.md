@@ -6,7 +6,7 @@
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**SEIS de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+**SIETE de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
 `develop` está en `e115e17` (PR #26, el plan de esta tanda).
 
 | Commit | Tarea |
@@ -16,12 +16,20 @@
 | `452e2a8` | 2B.10 · la reserva — **el alumno ya reserva de punta a punta**, correcciones 12 a 18 |
 | `f76378f` | 2B.11 · el bloqueo por sanción — **29 pruebas**, correcciones 19 a 24 |
 | `c43e17b` | 2B.12 · `/mi-panel` — **43 pruebas, doce rutas**, correcciones 25 a 31 |
-| *(pendiente)* | 2B.13 · la cancelación con motivo — correcciones 32 a 40 |
+| `461dd49` | 2B.13 · la cancelación con motivo — correcciones 32 a 40 |
+| *(pendiente)* | 2B.14 · la encuesta de satisfacción — **trece rutas**, correcciones 41 a 51 |
 
-**Siguiente: la Task 14, la encuesta.** Ya se sabe de ella por la corrección 4 del plan: **una por
-alumno** —`UNIQUE (alumno_id)`—, **sin `reservation_id`** y **editable** gracias a `surveys_update_own`. No
-es una encuesta de fin de préstamo, sino la encuesta final de satisfacción con el servicio, una sola vez y
-modificable.
+**Siguiente: la Task 15, la verificación de punta a punta**, y después la 16, de cierre y documentación.
+Lo que la 15 pide, y conviene tenerlo junto: `npx supabase db reset` más `npx supabase test db` con **142
+aserciones en 23 archivos** —otro número significa que se tocó SQL sin querer—; el **recorrido entero** por
+`127.0.0.1:3000`, de entrar hasta salir; el **recorrido del alumno sancionado**, con la RPC rechazando
+aunque se fuerce la llamada; y el barrido que resume la tanda, **¿ofrece la rejilla algo que la RPC
+rechace?**, pidiendo la primera y la última franja de varias duraciones.
+
+⚠ **Ojo con el orden en la Task 15:** `db reset` **borra el escenario entero** —las seis reservas y la
+encuesta—, así que el recorrido en navegador se hace **después** de rehacerlo, no antes. Y el recorrido
+entero incluye la encuesta: para verla como «primera vez» hay que borrar su fila como `postgres`
+*(corrección 43: el alumno no tiene política de DELETE)*.
 
 ### Lo medido de la cancelación, que sigue valiendo
 
@@ -98,6 +106,15 @@ Sobrevivió a la sesión entera y sirve para las tareas que quedan:
 **Ana quedó sin sanción** —`banned_until` en `NULL`—. Para volver a montar cualquiera de los tres estados,
 un `update` sobre `alumnos` **por `auth_user_id`, nunca por `id`**. Las reservas del pasado se insertan
 **directamente como `postgres`**, porque `create_reservation` rechaza el pasado a propósito.
+
+⚠ **Añadido al cerrar la Task 14: el escenario incluye ahora la encuesta de Ana**, creada y editada **desde
+la pantalla**, no por SQL. Una sola fila, con las cinco valoraciones puestas, `would_recommend` en `true`,
+un texto en `best_feature` y los otros dos en `null`. **Para volver a ver la pantalla de «primera vez» hay
+que borrarla como `postgres`** —el alumno no tiene política de DELETE, corrección 43—:
+`delete from public.final_satisfaction_surveys;`
+
+**Y `db reset` se lleva el escenario entero**, reservas y encuesta. Rehacerlo es el primer paso de
+cualquier verificación en navegador que venga después.
 
 **Y sobrevivió también a la Task 13**, con las seis filas verificadas al final: la del 14/08 sigue en
 `reserved`, sin cambiar.
@@ -680,6 +697,133 @@ botones quedan visibles. **A 390 px no está medido, y por deducción cabría**:
 **Playwright, que desde el 2026-08-11 ya está instalado en el entorno** y arranca su propio navegador con el
 viewport exacto. Queda como lo que era, un pendiente de la 2A, pero ya con la causa identificada y la
 herramienta disponible.
+
+### Task 14 · La encuesta, y la primera escritura de la fase que no pasa por una RPC
+
+41. **El plan listaba tres archivos y fueron cinco, igual que en la Task 10** *(corrección 14)*. Decía
+    «Create `app/(alumno)/encuesta/page.tsx` · Modify `lib/reservas/acciones.ts`,
+    `app/(alumno)/mi-panel/page.tsx`». Hicieron falta además `components/reservas/formulario-encuesta.tsx` y
+    modificar `lib/reservas/consultas.ts`.
+    → **El patrón ya se repitió tres veces en esta tanda**, así que deja de ser una desviación y pasa a ser
+    una forma de leer el plan: nombra las Server Actions y las páginas, pero **no los componentes de cliente
+    que recogen los datos ni las consultas que los leen**. Una pantalla que escribe necesita las cuatro
+    capas.
+
+42. ⚠ **`alumno_id` es `NOT NULL` y SIN default, así que hay que mandarlo — y el plan decía lo contrario.**
+    Su Step 2 pedía que «`alumno_id` **no** se manda desde el cliente si se puede evitar». **No se puede
+    evitar.** Pero la solución no es que lo mande el navegador: lo resuelve la **Server Action** leyendo la
+    sesión, en dos pasos —`getClaims()` para el `sub`, y después `alumnos.id where auth_user_id = sub`,
+    porque son dos uuid distintos *(la confusión que ya costó un falso positivo en esta tanda)*—. **El
+    navegador nunca manda una identidad**, que es la regla de toda la fase.
+    → **Y si este código se equivocara, la política lo atrapa:** un `insert` con el `alumno_id` de otro
+    alumno, usando las claims de Ana, contesta `new row violates row-level security policy for table
+    "final_satisfaction_surveys"`. **Afirmar quién eres no sirve de nada**, que es justo lo que se quería
+    poder decir de la única escritura de la tanda sin RPC de por medio.
+
+43. **La encuesta no tiene política de DELETE**: `surveys_insert_own`, `surveys_select_own` y
+    `surveys_update_own`, y ninguna más. El alumno crea y edita, **nunca borra**.
+    → Consecuencia práctica para lo que queda: **para volver a ver la pantalla de «primera vez» hay que
+    borrar la fila como `postgres`**, igual que las reservas del pasado se insertan así.
+
+44. **`upsert` con `onConflict: 'alumno_id'`, y la especificación ya lo decía.** LEIDO en
+    `ESPECIFICACION_FUNCIONAL.md` línea 188: «Una respuesta por alumno (`upsert` con `onConflict:
+    alumno_id`)». Medido que funciona bajo RLS. El plan pedía «carga la existente y hace `update`», que son
+    dos viajes.
+    → **Y el upsert cierra una carrera que el plan no nombraba:** con un `select` y luego un `insert`, dos
+    pestañas del mismo alumno guardando casi a la vez podrían leer «no existe» las dos, y la segunda
+    chocaría con el `UNIQUE (alumno_id)` —medido: `duplicate key value violates unique constraint
+    "final_satisfaction_surveys_alumno_id_key"`—.
+
+45. **Esta pantalla no traduce NINGÚN mensaje del motor, y es una decisión.** Los tres rechazos que la tabla
+    puede dar están medidos —el `23505` del `UNIQUE`, la violación de RLS y los cinco `CHECK` de `1..5`— y
+    **los tres son inalcanzables** desde aquí: los radios solo ofrecen 1 a 5, el `upsert` absorbe el choque
+    del `UNIQUE`, y el `alumno_id` lo pone el servidor.
+    → Es **lo contrario** de las dos pantallas anteriores: `reservar()` tiene cuatro rechazos alcanzables y
+    `cancelar()` uno. Así que el código deja escrito **por qué la lista de traducciones está vacía**, caso
+    por caso. **Una lista vacía sin explicación se lee como un olvido**, y el siguiente que la vea añadiría
+    mensajes que nadie va a ver nunca.
+
+46. **BR-18 se cumple solo, y eso se midió antes de escribir la condición.** La especificación dice que la
+    encuesta se ofrece a quien tenga «alguna reserva **creada** después del 2026-03-20». Medido: las seis
+    reservas del escenario se crearon el **2026-08-11**, y como la base de este proyecto se reconstruyó en
+    agosto de 2026 —Fase 1, cerrada el 2026-08-05—, **ninguna reserva del sistema nuevo puede ser anterior a
+    ese corte**.
+    → Por eso la invitación se decide con **«tiene al menos una reserva»**, sin comparar fechas y **sin una
+    consulta nueva**: `/mi-panel` ya carga sus reservas para pintar las tres secciones. El comentario lo
+    dice, para que nadie crea que el corte se olvidó.
+    → El corte **sí importaba** en el sistema Vite, donde convivían reservas anteriores. Es el resto de una
+    migración de datos que ya no existe.
+
+47. ⚠ **Duodécimo y decimotercer hecho falso de un subagente, y otra vez los dos de ATRIBUCION.** (a) Un
+    comentario decía «medido el 2026-08-11 contra el stack local **y contra producción**: las dos en cero
+    encuestas». Local sí se midió ese día; **producción se midió el 2026-08-10**, en otra sesión, y está
+    anotada en la tabla «La forma real de los datos» de este mismo plan. El dato es cierto en las dos, la
+    fecha no. (b) Otro atribuyó a la sonda del `upsert` la observación de que el trigger de `updated_at`
+    dispara en la rama `do update` — y **esa sonda no podía verlo**: dentro de una sola transacción `now()`
+    es constante, así que `updated_at` y `created_at` salen **iguales** y un `>` estricto devuelve `false`.
+    Se midió aparte, en dos transacciones, y ahí sí avanza.
+    → **Tres tareas seguidas con hechos falsos de atribución y ninguno de dato.** El género se desplazó: ya
+    no inventan el hecho, inventan de dónde sale. **El remedio cuesta lo mismo: comprobar la fuente además
+    del dato.**
+
+48. **El acuse de recibo tuvo que congelar un estado, y el motivo es sutil.** Tras
+    `revalidatePath('/encuesta')`, el prop con la encuesta existente **deja de ser `null` en los dos casos**
+    —crear y editar—, porque la fila ya existe en los dos. Leerlo después de enviar no distingue «acabo de
+    crearla» de «estaba editándola», que es justo lo que el mensaje tiene que distinguir. Resuelto con un
+    `useState` perezoso leído **una sola vez al montar**. El subagente lo marcó honestamente como no
+    verificado, y **se verificó en el navegador: los dos textos salen, cada uno en su caso.**
+    → **Y eso mide algo que no se buscaba:** el formulario **no se remonta** tras el `revalidatePath`. Si se
+    remontara, se perderían tanto el estado congelado como el `useActionState`, y el acuse no se vería en
+    absoluto. Es lo contrario del diálogo de cancelar *(corrección 36)*, que sí se desmonta a propósito —
+    **el mismo `revalidatePath` desmonta un componente y conserva el otro, según si la condición que lo
+    pinta sigue cumpliéndose.**
+
+49. **Séptima y octava sonda sospechosa de la tanda, las dos mías y las dos de un género nuevo.**
+    (a) `fill_form` no llegó a marcar el radio de «¿lo recomendarías?»: **acabó abriendo el widget flotante
+    de Next.js Dev Tools**, que ocupa esa zona de la pantalla. El botón siguió deshabilitado y el primer
+    impulso fue sospechar del formulario. **Es una trampa de la herramienta de desarrollo y no existe en
+    producción.** (b) Construir un `FormData` con `document.querySelector('form[action]')` devolvió **todos
+    los campos en `null`**, porque esa página tiene **dos** formularios y el primero es el de «Salir» de la
+    cabecera; se arregla con `.closest('form')` desde un campo propio.
+    → **Y la primera dio gratis una verificación que valía la pena:** con las cinco valoraciones marcadas y
+    **sin** la recomendación, el botón **sigue deshabilitado**. O sea que el «¿lo recomendarías?» es
+    obligatorio de verdad y no solo de intención.
+
+50. **Los tres textos libres se guardan recortados, y vacíos se guardan como `null` y no como cadena
+    vacía.** Medido desde la pantalla: se escribió un texto con espacios alrededor y se guardaron **42
+    caracteres de los 48 tecleados**; y en el primer envío, con los tres campos vacíos, las tres columnas
+    quedaron en `null`. «No escribió nada» y «escribió solo espacios» son el mismo hecho, y la columna ya
+    tiene una forma de decirlo — inventar una tercera categoría con `''` obligaría a toda pantalla futura a
+    distinguir dos cosas que significan lo mismo.
+
+51. **Una redundancia de texto que se deja a propósito, y queda anotada.** Tras el primer envío conviven en
+    pantalla «Ya respondiste esta encuesta…» —del Server Component, que tras revalidar ya ve la fila— y
+    «Gracias por completar la encuesta…» —del cliente, que recuerda que no existía al abrir—. **Los dos son
+    ciertos y ninguno engaña**, pero juntos se leen redundantes.
+    → **No se retoca, y el motivo es una instrucción nueva de Alejandro del 2026-08-11: la fase estética y
+    visual la lleva un compañero suyo**, así que ajustar cómo queda algo es trabajo que se va a rehacer. Lo
+    que sí se sigue persiguiendo es que la interfaz **funcione**, que los elementos aparezcan y desaparezcan
+    cuando deben, y que **los textos sean correctos** — el género «se entrego» sin tilde de la corrección
+    35.
+
+**Verificado al cerrar la Task 14, en un navegador de verdad y con la sesión de Ana ya abierta:**
+`/mi-panel` mostraba la **invitación** —Ana tiene reservas y no tenía encuesta— y se llegó a `/encuesta`
+**pulsando su botón**, no escribiendo la URL. La pantalla nace con el botón **deshabilitado**, las cinco
+valoraciones de la especificación con su escala explicada, el «¿Recomendarías el servicio?» con **dos
+opciones y ninguna preseleccionada**, los tres textos marcados como opcionales y el aviso de que **no es
+anónima**. **Primer envío con los tres textos VACIOS a propósito:** el acuse dijo **«Gracias por completar
+la encuesta»** —el texto de primera vez— y en la base quedó **una** fila con los cinco valores exactos
+(5, 4, 5, 3, 4), `would_recommend` en `true` y **los tres textos en `null`**. **Al recargar, la pantalla
+vuelve para editar:** los seis radios llegan marcados con lo guardado, dice «Ya respondiste», el acuse
+anterior desapareció y el botón nace habilitado. **Segundo envío, editando:** se cambió una valoración a 5 y
+se escribió un texto con espacios alrededor; el acuse cambió a **«Tu encuesta se actualizó»** y en la base
+sigue habiendo **una sola fila** —el `upsert` no duplicó—, con el cambio aplicado, el texto **recortado** y
+**`updated_at` ya por delante de `created_at`**. **Y `/mi-panel` cerró el círculo:** la invitación
+**desapareció** *(Step 4 del plan)*, quedó el enlace para editarla, las tres secciones siguen en su sitio y
+**el botón de cancelar de la Task 13 sigue ahí** — esta tarea no rompió la anterior. Consola **sin un solo
+mensaje**. `typecheck`, `lint`, `test` (**43**, las mismas: no hay lógica pura nueva) y `build` en verde, con
+**TRECE rutas** —la nueva es `ƒ /encuesta`, dinámica— y las tres estáticas de siempre: `/_not-found`,
+`/faq` y `/login`.
 
 ---
 

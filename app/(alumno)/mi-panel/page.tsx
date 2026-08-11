@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TarjetaReserva } from "@/components/reservas/tarjeta-reserva";
 import { grupoDeReserva, type Grupo } from "@/lib/reservas/agrupar";
-import { misReservas, type ReservaDelAlumno } from "@/lib/reservas/consultas";
+import { miEncuesta, misReservas, type ReservaDelAlumno } from "@/lib/reservas/consultas";
 
 // Una sola pasada agrupando, en vez de tres `.filter()` -uno por seccion-
 // que cada uno volveria a llamar grupoDeReserva() para cada reserva. Con las
@@ -31,12 +31,53 @@ function agruparReservas(
 }
 
 export default async function MiPanelPage() {
-  const reservas = await misReservas();
+  // En paralelo, y no en secuencia: las dos consultas son independientes -una
+  // lee inventory_reservations, la otra final_satisfaction_surveys- y ninguna
+  // necesita el resultado de la otra para ejecutarse.
+  const [reservas, encuesta] = await Promise.all([misReservas(), miEncuesta()]);
   const { en_curso, proxima, pasada } = agruparReservas(reservas, new Date());
 
   return (
     <main className="container flex-1 py-12">
       <h1 className="font-display text-upc-red text-4xl">Mis reservas</h1>
+
+      {/* La invitacion a la encuesta (BR-18), Task 14 de la tanda 2B.
+          Aparece SOLO si el alumno no la contesto todavia Y tiene al menos
+          una reserva -`reservas` ya esta cargado arriba para pintar las
+          secciones de mas abajo, asi que su `.length` se reutiliza en vez de
+          anadir una tercera consulta solo para esta condicion-.
+
+          La especificacion (F10, MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md
+          linea 185) dice que se dispara "si el alumno tiene alguna reserva
+          CREADA DESPUES DEL 2026-03-20 y aun no la respondio". Esta pantalla
+          no compara esa fecha por ninguna parte, y no es un recorte que
+          falte: la base de este proyecto se reconstruyo en agosto de 2026 -Fase
+          1, cerrada el 2026-08-05-, asi que NINGUNA reserva del sistema nuevo
+          puede tener una fecha de creacion anterior a ese corte. La condicion
+          de fecha de BR-18 se cumple sola con solo existir la fila, y por eso
+          la invitacion se decide con "tiene al menos una reserva" y no
+          repitiendo una comparacion de fechas que nunca podria fallar. */}
+      {encuesta === null && reservas.length > 0 && (
+        <div className="border-border bg-secondary mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm">
+          <p>¿Cómo te fue con el sistema de reservas? Cuéntanoslo en la encuesta de satisfacción.</p>
+          <Button asChild size="sm">
+            <Link href="/encuesta">Responder encuesta</Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Si ya la contesto, la invitacion NO SE REPITE -Step 4 del plan-,
+          pero queda un enlace discreto para editarla: `surveys_update_own`
+          existe justamente para eso (F10), y una encuesta editable a la que
+          no se puede volver desde ninguna pantalla seria una funcion
+          muerta. */}
+      {encuesta !== null && (
+        <p className="text-muted-foreground mt-6 text-sm">
+          <Link href="/encuesta" className="underline underline-offset-2">
+            Editar mi encuesta de satisfacción
+          </Link>
+        </p>
+      )}
 
       {reservas.length === 0 ? (
         // La pantalla vacia se diseña en serio y no se improvisa: CERO
