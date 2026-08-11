@@ -6,7 +6,7 @@
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**CUATRO de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+**CINCO de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
 `develop` está en `e115e17` (PR #26, el plan de esta tanda).
 
 | Commit | Tarea |
@@ -14,16 +14,30 @@
 | `16bd440` | 2B.8 · la rejilla como lógica pura — **19 pruebas de Vitest, las primeras del proyecto** |
 | `d1a48a0` | 2B.9 · el calendario de reserva — **once rutas en el `build`** |
 | `452e2a8` | 2B.10 · la reserva — **el alumno ya reserva de punta a punta**, correcciones 12 a 18 |
-| *(pendiente)* | 2B.11 · el bloqueo por sanción — **29 pruebas de Vitest**, correcciones 19 a 24 |
+| `f76378f` | 2B.11 · el bloqueo por sanción — **29 pruebas**, correcciones 19 a 24 |
+| *(pendiente)* | 2B.12 · `/mi-panel` — **43 pruebas, doce rutas**, correcciones 25 a 31 |
 
-**Siguiente: la Task 12, `/mi-panel`.** Es la que cierra el 404 al que hoy cae una reserva correcta
-*(corrección 18)*.
+**Siguiente: la Task 13, la cancelación con motivo.** Ya tiene medio camino hecho: la tarjeta del panel
+**ya muestra `cancellation_reason`** *(corrección 30)*, así que el motivo que la Task 13 pida tendrá dónde
+verse. Su Step 5 —comprobar que cancelar **libera la franja**— se monta con el Laptop, que tiene **una sola
+unidad** en Monterrico.
 
-**El escenario del stack local sobrevivió a esta sesión** y tiene **dos** reservas de Ana: la del
-`2026-08-11` que midió el buffer, y la del `2026-08-14` creada desde el navegador en la Task 10. Las dos
-sirven para la Task 12. **Ana quedó sin sanción** —`banned_until` en `NULL`—, así que el panel se ve normal;
-para volver a montar cualquiera de los tres estados basta un `update` sobre `alumnos` **por `auth_user_id`,
-nunca por `id`**.
+### El escenario montado en el stack local, al día de hoy
+
+Sobrevivió a la sesión entera y sirve para las tareas que quedan:
+
+| Alumno | Reserva | Estado | Para qué sirve |
+|---|---|---|---|
+| Ana | 05/08 10:00 | `completed` | «Anteriores» |
+| Ana | 06/08 14:00 | `cancelled` **con motivo** | «Anteriores», y el motivo a la vista |
+| Ana | 09/08 10:00 | `reserved` **vencida** | El caso de la corrección 27 |
+| Ana | 11/08 10:00 | `active` | «En curso» |
+| Ana | 14/08 10:00 | `reserved` | «Próximas» · **la creó el navegador en la Task 10** |
+| **Bruno** | 15/08 10:00 | `reserved` | **Que Ana no la vea**: la prueba de RLS |
+
+**Ana quedó sin sanción** —`banned_until` en `NULL`—. Para volver a montar cualquiera de los tres estados,
+un `update` sobre `alumnos` **por `auth_user_id`, nunca por `id`**. Las reservas del pasado se insertan
+**directamente como `postgres`**, porque `create_reservation` rechaza el pasado a propósito.
 
 ### ✅ Lo que la Task 10 ya NO tuvo que medir
 
@@ -392,7 +406,78 @@ a `create_reservation` **directamente por SQL** contesta `Tienes una sancion vig
 2026-08-26 04:41:49.73449+00`. **Quitar la comprobación de la interfaz no abriría nada.** `typecheck`,
 `lint`, `test` (**29**) y `build` en verde, **once rutas**.
 
+
+### Task 12 · `/mi-panel`, y un estado que el plan inventó
+
+25. ⚠ **El plan lista un estado `expired` que NO EXISTE.** El Step 2 enumera «`reserved`, `active`,
+    `completed`, `cancelled`, `expired`, `not_picked_up`, `not_returned`» — siete. El enum
+    `reservation_status`, leído del catálogo de Postgres, tiene **seis**: no hay `expired`.
+    → **Y el hueco que ese estado fantasma tapaba es real**, que es lo interesante: una reserva puede
+    quedarse en `reserved` con su franja ya pasada, porque cerrarla es trabajo del personal y esa pantalla
+    llega en la T3. El plan resolvió eso nombrando un estado que la base no tiene. **La base no lo tiene y
+    la pantalla no lo inventa** — ver la corrección 27.
+    → El tipo sale de `Database['public']['Enums']['reservation_status']` y no de una unión escrita a mano,
+    para que una lista paralela no se separe del esquema sin que nada avise.
+
+26. **El enlace va en `components/cabecera-sesion.tsx`, no en `components/cabecera.tsx`** como dice el
+    plan. `cabecera.tsx` es la de las pantallas **sin** sesión —landing y FAQ— y `/mi-panel` no significa
+    nada sin sesión: allí sería un enlace que rebota a `/login`.
+
+27. **La agrupación, decidida al escribir la tarea porque el plan solo pedía «próximas, en curso,
+    pasadas»:** `active` → en curso; `reserved` con el fin en el futuro → próxima; **`reserved` con el fin
+    ya pasado → pasada**; y los cuatro estados finales → pasada sin mirar la fecha.
+    → El tercero es el que decide algo: enseñar entre las próximas una reserva que ya no se puede recoger
+    sería prometer algo que no va a pasar. **La pantalla elige dónde pintar una fila; no toca el estado ni
+    escribe nada.**
+    → **Y como el badge sigue diciendo «Reservada» —porque eso es lo que hay en la base—, dentro de
+    «Anteriores» se leía como una contradicción.** Se resolvió **explicando y no renombrando**: una línea
+    que dice que la reserva venció sin que se recogiera el equipo. El dato no se toca; lo que cambia es el
+    texto.
+
+28. **Medido antes de escribir una línea, porque la 2A ya se topó con un embed que PostgREST rechazaba:**
+    el embed anidado `products(name),inventory_units(unit_code,campuses(name))` **funciona** y devuelve
+    HTTP 200, con los embeds a-uno como **objeto y no como array**.
+    → **Y RLS se probó con datos, no leyendo la política:** se creó una reserva de **Bruno** y, con tres
+    reservas en la tabla, la consulta de Ana devolvió **exactamente sus dos**. Sin esa reserva ajena, «el
+    alumno solo ve las suyas» no se distingue de «ve todas y todas son suyas». Por eso **no se filtra por
+    `alumno_id` en el cliente**.
+
+29. **Un defecto de diseño encontrado revisando, y del género que este proyecto persigue: dos lecturas del
+    reloj para la misma decisión.** La página agrupaba con un `new Date()` y **la tarjeta volvía a llamar a
+    `grupoDeReserva()` con otro** para elegir el color del badge. Una reserva que venciera entre las dos
+    habría salido bajo «Próximas» pintada como pasada — **y contradecía el comentario de `agrupar.ts`, que
+    dice que el grupo se decide en un solo sitio**.
+    → Corregido pasando el grupo como prop. Es M-7 otra vez, en el cliente y en pequeño.
+
+30. **`cancellation_reason` no estaba en el alcance de la tarea y hacía falta.** Una reserva cancelada
+    aparecía sin decir por qué. No es hipotético por dos lados: la cancelación del alumno **exige** un
+    motivo *(BR-17, la Task 13)*, y el personal también cancela reservas *(BR-11, al inhabilitar un día que
+    ya tenía reservas)* — y en ese caso es la **única** explicación que el alumno va a recibir. Sin esto, el
+    motivo obligatorio de la Task 13 se guardaría para que nadie lo lea.
+    → Va con etiqueta propia y no bajo la palabra «Motivo», que ya significa el propósito de uso: son dos
+    columnas distintas y juntarlas haría creer que la reserva se canceló por lo que el alumno iba a hacer.
+
+31. **La garantía del `switch` exhaustivo se MIDIÓ en vez de suponerla.** El comentario afirmaba que añadir
+    un séptimo estado rompería el `typecheck`; el subagente lo marcó honestamente como inferencia sin
+    comprobar. Se añadió `expired` al enum de `lib/database.types.ts`, se corrió el `typecheck` —falló con
+    `TS2366: Function lacks ending return statement` en `agrupar.ts`— y **se revirtió el cambio**.
+    → **Con un matiz que ahora está escrito en el código:** el error apunta a **la función**, no al valor
+    que falta, así que quien se lo encuentre tiene que comparar el `switch` contra el enum. Una garantía
+    medida vale más que una prometida, y saber cómo falla vale casi tanto como saber que falla.
+
+**Verificado al cerrar la Task 12, en el navegador y con sesión real de Ana**, con cinco reservas montadas
+para cubrir las tres secciones: **«En curso»** la `active`; **«Próximas»** la `reserved` futura; y
+**«Anteriores»** las tres —completada, cancelada **con su motivo a la vista**, y la **`reserved` vencida con
+su línea de explicación**—. Las horas en **24 h** y el día en `America/Lima`. La reserva de Bruno **no
+aparece**. La **pantalla vacía** se comprobó moviendo temporalmente las reservas a otro alumno: título,
+explicación y botón al catálogo. **`/mi-panel` exige sesión**, verificado abriéndola en un contexto de
+navegador **sin cookies** —redirigió a `/login`— y **sin tocar `proxy.ts`**, que es la propiedad que compró
+la tanda 1. Consola **sin un solo error ni advertencia**. `typecheck`, `lint`, `test` (**43**) y `build` en
+verde, con **doce rutas**: la nueva es `ƒ /mi-panel` y las tres estáticas siguen siendo `/_not-found`,
+`/faq` y `/login`.
+
 ---
+
 
 > Escrito el 2026-08-10, **antes de ejecutar nada**, justo al cerrar la 2A. Sale de `FASE_2_DISENO.md` §9,
 > §10 y §11, del alcance que dejó fijado `PLANES/FASE_2_TANDA_2A.md`, y de **consultar el proyecto real**.

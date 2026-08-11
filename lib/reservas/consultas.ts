@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 // Tres consultas para pintar el calendario, y no una, y el motivo esta
 // medido y no es gusto de diseno.
@@ -234,4 +235,147 @@ export async function sancionDelAlumno(): Promise<string | null> {
   }
 
   return alumno?.banned_until ?? null;
+}
+
+// El enum de verdad, leido del esquema generado, y NO una union escrita a
+// mano. lib/reservas/agrupar.ts necesita los SEIS valores para un switch
+// exhaustivo, y escribirlos ahi Y aca serian dos listas que se separan del
+// esquema real sin que nada avise: si una migracion futura le agrega un
+// septimo valor al enum, este alias lo hereda con solo regenerar
+// lib/database.types.ts, mientras que una union tecleada a mano se quedaria
+// en seis sin que el typecheck se quejara.
+export type EstadoReserva = Database['public']['Enums']['reservation_status'];
+
+export type ReservaDelAlumno = {
+  id: string;
+  inicio: string; // ISO, tal cual llega
+  fin: string; // ISO, tal cual llega
+  estado: EstadoReserva;
+  motivo: string | null;
+  // El motivo de la CANCELACION, que no es el mismo dato que `motivo` -ese es
+  // el proposito de uso que el alumno eligio al reservar-. Se trae porque una
+  // reserva cancelada sin decir por que deja al alumno sin la unica
+  // informacion que le importa de ella, y el caso no es hipotetico por dos
+  // lados: la cancelacion del alumno exige un motivo obligatorio (BR-17, y es
+  // la Task 13), y el personal tambien puede cancelar reservas -BR-11, cuando
+  // se inhabilita un dia que ya tenia reservas hechas-. En ese segundo caso
+  // es la unica explicacion que el alumno va a recibir.
+  motivoCancelacion: string | null;
+  producto: string;
+  sede: string;
+  unidad: string;
+};
+
+// La forma medida de la fila que devuelve el embed -misma tecnica que
+// FilaProducto en lib/catalogo/consultas.ts: se declara la forma esperada y
+// se usa como tipo del parametro de filaAReserva() mas abajo, para que
+// TypeScript la CONTRASTE contra lo que el `select` de misReservas() infiere
+// en vez de imponerla con `.returns<>()`, que seria un `as` con otro
+// nombre. Si el select cambia y este tipo no, el typecheck falla en vez de
+// mentir en silencio -D-26-.
+//
+// `products` e `inventory_units`, y adentro `campuses`, llegan como OBJETO y
+// no como array. Esto SI esta medido -el 2026-08-11, contra el stack local,
+// con un JWT firmado de la alumna Ana-: la consulta exacta de abajo devolvio
+// `"products":{"name":"Laptop Dell XPS 15"}` y
+// `"inventory_units":{"campuses":{"name":"Monterrico"},"unit_code":"LAP-001"}`.
+// Tiene sentido con el esquema: la FK vive en `inventory_reservations` y en
+// `inventory_units` -no en la tabla embebida-, asi que cada fila trae COMO
+// MUCHO una relacionada. Es lo contrario de `product_images` en
+// lib/catalogo/consultas.ts, donde la FK vive en la tabla embebida y por eso
+// llega como array.
+//
+// Los tres campos embebidos se tipan `| null` aunque las TRES filas medidas
+// -las unicas que existen en el escenario- trajeran los tres completos: esto
+// es DEDUCCION, no medicion. Si el producto, la unidad o la sede de una
+// reserva se borraran, PostgREST devolveria `null` en ese embed en vez de
+// omitir la fila entera -es como se comporta un LEFT JOIN-, y nadie ha
+// borrado un producto con una reserva encima para comprobarlo.
+type FilaReserva = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: EstadoReserva;
+  purpose: string | null;
+  cancellation_reason: string | null;
+  products: { name: string } | null;
+  inventory_units: { unit_code: string; campuses: { name: string } | null } | null;
+};
+
+// Traduce una fila cruda al tipo que pinta la pantalla, o la DESCARTA -null-
+// si falta alguno de los tres embeds. Ver el comentario de FilaReserva
+// arriba: esa caida es una deduccion sobre un caso que nunca ocurrio en el
+// escenario medido, no un hecho comprobado. Se descarta en vez de pintarse
+// con un nombre vacio porque una tarjeta sin nombre de equipo o sin sede no
+// le dice nada util al alumno: es preferible que falte la fila a que se vea
+// rota. El console.error deja rastro de que paso, igual que el resto de
+// funciones de este archivo que se tragan un fallo.
+function filaAReserva(fila: FilaReserva): ReservaDelAlumno | null {
+  if (
+    fila.products === null ||
+    fila.inventory_units === null ||
+    fila.inventory_units.campuses === null
+  ) {
+    console.error(
+      'misReservas: fila descartada, el producto, la unidad o la sede llegaron null',
+      fila.id,
+    );
+    return null;
+  }
+
+  return {
+    id: fila.id,
+    inicio: fila.start_at,
+    fin: fila.end_at,
+    estado: fila.status,
+    motivo: fila.purpose,
+    motivoCancelacion: fila.cancellation_reason,
+    producto: fila.products.name,
+    sede: fila.inventory_units.campuses.name,
+    unidad: fila.inventory_units.unit_code,
+  };
+}
+
+// Las reservas del alumno de la sesion, para /mi-panel. Task 12 de la tanda 2B.
+//
+// NO SE FILTRA POR `alumno_id` en el cliente, y es a proposito -no un
+// descuido-. Medido el 2026-08-11 contra el stack local con un JWT firmado
+// de la alumna Ana: la tabla tenia TRES reservas -dos de Ana y una de
+// Bruno-, y esta misma consulta, sin ningun `.eq()` de por medio, devolvio
+// EXACTAMENTE las dos de Ana; la de Bruno no aparecio. La politica
+// `reservations_select_own` ya hace ese filtro DENTRO de RLS, evaluada como
+// el alumno que consulta y no como este codigo, asi que anadir aca un
+// `.eq('alumno_id', ...)` redundante no reforzaria nada: solo sugeriria que
+// el aislamiento hace falta en el cliente, cuando la prueba es que ya esta
+// resuelto un nivel mas abajo.
+//
+// El embed es el exacto medido arriba en el comentario de FilaReserva, y el
+// orden es por `start_at` para que agrupar.ts reciba las reservas ya en
+// orden cronologico dentro de cada grupo.
+export async function misReservas(): Promise<ReservaDelAlumno[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('inventory_reservations')
+    .select(
+      'id,start_at,end_at,status,purpose,cancellation_reason,products(name),inventory_units(unit_code,campuses(name))',
+    )
+    .order('start_at');
+
+  // Igual que franjasDelDia() y diasInhabilitados() mas arriba en este
+  // archivo, y A DIFERENCIA de sancionDelAlumno(): aca un array vacio es una
+  // pantalla sin reservas, que es exactamente el estado real de produccion
+  // hoy -cero reservas creadas fuera de un escenario de prueba- y ya tiene
+  // su propio diseno en app/(alumno)/mi-panel/page.tsx. No es un permiso que
+  // se le escape a nadie por leerse vacio: a diferencia de la sancion, donde
+  // un `null` por fallo de red se leeria como "no tiene sancion" y dejaria
+  // pasar a alguien que si la tiene, aca un vacio por fallo de red y un
+  // vacio por no tener reservas se ven identicos EN LA PANTALLA CORRECTA
+  // para los dos casos: ninguno le da al alumno algo que no deberia tener.
+  if (error) {
+    console.error('misReservas: fallo la consulta a inventory_reservations', error.message);
+    return [];
+  }
+
+  return data.map(filaAReserva).filter((reserva): reserva is ReservaDelAlumno => reserva !== null);
 }
