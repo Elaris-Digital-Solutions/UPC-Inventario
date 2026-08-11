@@ -56,6 +56,14 @@ type CalendarioProps = {
   diasInhabilitados: DiaInhabilitado[];
   duracionMinutos: number;
   sede: string;
+  // Las dos props de la Task 10. A diferencia de dia/duracion -que navegan,
+  // porque el servidor necesita volverlos a pedir- elegir una franja no pide
+  // nada nuevo a la base: por eso vive en el `useState` de
+  // formulario-reserva.tsx y no en la URL, y por eso este componente la
+  // recibe como prop en vez de leerla el mismo. Ver el comentario de
+  // formulario-reserva.tsx para el porque completo.
+  franjaElegida: string | null;
+  onElegirFranja: (slotStart: string) => void;
 };
 
 // Los elementos de `dias` son fechas civiles YA resueltas en Lima
@@ -96,6 +104,8 @@ export function Calendario({
   diasInhabilitados,
   duracionMinutos,
   sede,
+  franjaElegida,
+  onElegirFranja,
 }: CalendarioProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -193,34 +203,66 @@ export function Calendario({
               esas nueve franjas grises las que hacen falta a la vista para
               que la explicacion tenga sentido.
 
-              Y ninguna franja, libre u ocupada, es un <button> con onClick:
+              ~~Y ninguna franja, libre u ocupada, es un <button> con onClick:
               elegir una franja concreta todavia no tiene a donde ir -la
               accion de reservar es la Task 10-. Ofrecerlas como clicables
               aca repetiria, con otro nombre, el mismo caso que el detalle ya
               resolvio con su boton deshabilitado
               (app/(alumno)/catalogo/[id]/page.tsx): una interaccion que no
-              lleva a ningun lado es peor que no ofrecerla. */}
+              lleva a ningun lado es peor que no ofrecerla.~~
+              Desde la Task 10 eso ya NO es cierto: la accion de reservar
+              existe (lib/reservas/acciones.ts), asi que elegir una franja SI
+              tiene a donde ir. Por eso solo las de `free > 0` se volvieron
+              <button>: las de `free = 0` siguen sin ser interactivas, y a
+              proposito -no hay nada que elegir en una franja sin unidades
+              libres, y ofrecerla como clicable solo para que el envio la
+              rechazara despues seria el mismo error que el comentario viejo
+              ya evitaba, con otro nombre. */}
           <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {franjas.map((franja) => (
-              <li
-                key={franja.slotStart}
-                className={cn(
-                  "rounded-lg border px-3 py-2 text-sm",
-                  franja.free === 0
-                    ? "text-muted-foreground border-dashed opacity-60"
-                    : "border-border",
-                )}
-              >
-                <span className="block font-medium">{formatearHora(franja.slotStart)}</span>
-                <span className="text-muted-foreground block text-xs">
-                  {franja.free === 0
-                    ? "Ocupado"
-                    : franja.free === 1
-                      ? "1 equipo libre"
-                      : `${franja.free} equipos libres`}
-                </span>
-              </li>
-            ))}
+            {franjas.map((franja) => {
+              const elegida = franja.slotStart === franjaElegida;
+              const contenido = (
+                <>
+                  <span className="block font-medium">{formatearHora(franja.slotStart)}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    {franja.free === 0
+                      ? "Ocupado"
+                      : franja.free === 1
+                        ? "1 equipo libre"
+                        : `${franja.free} equipos libres`}
+                  </span>
+                </>
+              );
+
+              if (franja.free === 0) {
+                return (
+                  <li
+                    key={franja.slotStart}
+                    className="text-muted-foreground rounded-lg border border-dashed px-3 py-2 text-sm opacity-60"
+                  >
+                    {contenido}
+                  </li>
+                );
+              }
+
+              return (
+                <li key={franja.slotStart}>
+                  <button
+                    type="button"
+                    aria-pressed={elegida}
+                    onClick={() => onElegirFranja(franja.slotStart)}
+                    className={cn(
+                      "w-full rounded-lg border px-3 py-2 text-left text-sm",
+                      elegida
+                        ? "border-upc-red bg-upc-red/10 font-bold"
+                        : "border-border",
+                    )}
+                  >
+                    {contenido}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

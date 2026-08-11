@@ -2,28 +2,36 @@
 
 ---
 
-## 📍 Dónde se paró — pausa del 2026-08-10, 20:11
+## 📍 Dónde se paró — actualizado el 2026-08-11, 23:40
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**DOS de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **dos commits, NADA empujado**, árbol
-limpio. `develop` está en `e115e17` (PR #26, el plan de esta tanda).
+**TRES de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+`develop` está en `e115e17` (PR #26, el plan de esta tanda).
 
 | Commit | Tarea |
 |---|---|
 | `16bd440` | 2B.8 · la rejilla como lógica pura — **19 pruebas de Vitest, las primeras del proyecto** |
 | `d1a48a0` | 2B.9 · el calendario de reserva — **once rutas en el `build`** |
+| *(pendiente)* | 2B.10 · la reserva — **escrita y verificada en navegador**, ver las correcciones 12 a 18 |
 
-**Siguiente: la Task 10, la reserva contra `create_reservation`.** No está empezada: no hay ni un archivo
-escrito. **Pero sus tres pasos de medición YA ESTÁN HECHOS**, y sus resultados están abajo para no
-repetirlos.
+**Siguiente: la Task 11, el bloqueo por sanción.** Su Step 3 pide montar el escenario con un `update`
+directo sobre `alumnos` *(corrección 7)* — y ojo con la trampa de abajo: **`alumnos.id` no es
+`auth_user_id`**. El mensaje de sanción ya existe y está escrito en `lib/reservas/acciones.ts`, con los dos
+casos que el motor distingue *(corrección 17)*.
 
-### ✅ Lo que la Task 10 ya NO tiene que medir
+**El escenario del stack local sobrevivió a esta sesión** y tiene ya **dos** reservas de Ana: la del
+`2026-08-11` que midió el buffer, y la del `2026-08-14` creada desde el navegador en la Task 10. Las dos
+sirven para la Task 12, que es la que pinta `/mi-panel`.
+
+### ✅ Lo que la Task 10 ya NO tuvo que medir
 
 **Step 0 · punto a verificar 5 — resuelto.** `create_reservation` tiene `grant execute to authenticated` y
 es alcanzable. No hace falta tocar SQL.
 
-**Step 2 · punto a verificar 3 — resuelto. Los once rechazos, disparados uno a uno contra el stack local:**
+**Step 2 · punto a verificar 3 — resuelto. Los rechazos, disparados uno a uno contra el stack local.**
+⚠ **Eran once el 2026-08-10 y resultaron ser DOCE** *(corrección 13)*: faltaba el 3-bis, que las dos sondas
+de duración de aquel día no podían alcanzar.
 
 | # | Caso | SQLSTATE | Mensaje del motor (literal, sin tildes) |
 |---|---|---|---|
@@ -31,6 +39,7 @@ es alcanzable. No hace falta tocar SQL.
 | 1b | Perfil incompleto | `23514` | `Completa tu perfil antes de reservar` |
 | 2 | Sanción vigente | `23514` | `Tienes una sancion vigente hasta 2026-08-21 01:06:08.212931+00`, y con sanción permanente `... hasta infinity` |
 | 3 | Duración fuera de rango *(probado con 15 y con 600)* | `P0001` | `Duracion fuera del rango permitido para este producto` |
+| 3-bis | Duración no múltiplo del bloque *(añadido el 2026-08-11, ver corrección 13)* | `23514` | `La duracion tiene que ser multiplo de 30 minutos` |
 | 4a | En el pasado | `P0001` | `No se puede reservar en el pasado` |
 | 4b | Fuera de la ventana | `P0001` | `Fuera de la ventana de reserva` |
 | 5a | Día inhabilitado | `P0001` | `Ese dia no hay atencion` |
@@ -54,7 +63,10 @@ Ocho sondas sobre `2026-08-13`, pidiendo la primera y la última franja que ofre
 **Las ocho aceptadas. La rejilla no ofrece nada que `create_reservation` rechace**, y la última franja de
 cada duración termina clavada en `closing_time`, la igualdad que el paso 5 de la RPC acepta a propósito.
 
-### ⚠ La decisión que la Task 10 tiene que tomar, con el trabajo previo hecho
+### ✅ La decisión de los mensajes — aprobada el 2026-08-10, **ejecutada el 2026-08-11**
+
+> Vive en `mensajeDeRechazo()`, dentro de `lib/reservas/acciones.ts`. Los dos caminos se probaron en el
+> navegador: el texto propio con el límite diario, y el crudo forzando el campo oculto a las 07:00.
 
 **Los mensajes del motor NO se pueden mostrar crudos**, y por dos motivos medidos: están **sin tildes**
 —el SQL del proyecto se escribe así, y la interfaz sí las lleva— y **dos son inservibles para un alumno**:
@@ -220,6 +232,94 @@ da el **404 propio con 1 cabecera y 1 pie**. La consola queda con **un solo erro
 **ni uno de React ni de hidratación**. `typecheck`, `lint`, `test` (19) y `build` en verde, con **once
 rutas**: la nueva es `ƒ /catalogo/[id]/reservar` y las tres estáticas siguen siendo `/_not-found`, `/faq` y
 `/login`.
+
+### Task 10 · La reserva, y un argumento que el plan nombró sin definir
+
+12. ⚠ **El plan decía «cinco argumentos» y nunca dijo de dónde sale el quinto.** `create_reservation` pide
+    `p_purpose`, y ninguna pantalla de esta tanda lo recogía. No es un detalle de implementación: es un
+    campo que el alumno tiene que rellenar, y decidirlo a mitad de la escritura habría sido inventarlo.
+    → **La respuesta ya estaba escrita en la especificación funcional**, §F3 paso 5: el sistema Vite pedía
+    un **motivo con seis opciones fijas** —práctica de laboratorio, proyecto de curso, trabajo de
+    investigación, tesis, actividad extracurricular, otro— y §F6 dice que **el panel del personal lo
+    muestra**. La columna es `text` **nullable y sin `CHECK`**: la base acepta cualquier cosa, así que la
+    lista es una regla de la aplicación y no del motor.
+    → **Decidido con Alejandro el 2026-08-11:** las seis opciones fijas, obligatorio antes de confirmar.
+    Viven en `lib/reservas/motivos.ts` y no en `acciones.ts` por una restricción real de Next: en un
+    archivo con `"use server"` **todo lo exportado tiene que ser una función async**, así que una constante
+    compartida entre la acción y el componente necesita archivo propio.
+    → **Es el mismo género que `featured` en la 2A y que la encuesta en la corrección 4**: el plan nombró
+    algo sin decir a qué se ata, y el hueco solo se ve leyendo el esquema y la especificación, no el plan.
+
+13. ⚠ **Los rechazos de `create_reservation` son DOCE, no once.** La tabla del bloque de pausa —medida el
+    2026-08-10— tiene once, y le falta el **paso 3-bis**: `La duracion tiene que ser multiplo de 30
+    minutos`, `23514`. Lo añadió la migración `20260806171347_duration_slot_multiple.sql`, que redefine la
+    RPC entera *(D-19)*, y **la sesión de medición no lo alcanzó por una razón concreta**: probó 15 y 600
+    minutos, y los dos mueren antes, en el paso 3, porque están fuera del rango.
+    → **Se descubrió leyendo el SQL el 2026-08-11 y se midió ese mismo día:** 45 minutos sobre el Laptop
+    —que tiene `max_duration_hours = 8`, así que pasa el paso 3— contesta el mensaje del 3-bis, y **el mismo
+    instante con 60 minutos sí crea la reserva**. El `SQLSTATE` está leído del `using errcode` de la
+    migración, no medido aparte, y así está escrito en el código.
+    → **La lección de método:** medir once casos y encontrarlos todos no prueba que sean once. La lista de
+    lo que hay que medir se saca del **código vigente**, y la versión vigente de una función no es el
+    archivo que la creó sino el último que la redefine.
+
+14. **La Task 10 tocó el doble de archivos de los que su plan listaba, y no es desviación de alcance.** El
+    plan decía «Create `lib/reservas/acciones.ts` · Modify `catalogo/[id]/page.tsx`». Hicieron falta además
+    `lib/reservas/motivos.ts`, `components/reservas/formulario-reserva.tsx`, y modificar `calendario.tsx` y
+    `reservar/page.tsx`.
+    → **El motivo es que la Task 9 dejó las franjas como `<li>` inertes a propósito** —su corrección 11 lo
+    dice: no había acción a la que llevar—. **Sin poder tocar una franja no hay reserva posible**, así que
+    volverlas seleccionables es parte de esta tarea aunque el plan no lo escribiera.
+
+15. **El estado de cliente sobrevive a un cambio de día, y eso era un fallo de verdad esperando.** Cambiar
+    de día o de duración es un `router.push()` a la **misma ruta**, así que React reconcilia el árbol en vez
+    de montarlo de nuevo y `franjaElegida` no se limpia sola. Sin defensa, el alumno elegía las 10:00 del
+    jueves, cambiaba al viernes, y el campo oculto **seguía llevando el jueves**: se habría reservado una
+    franja que nadie eligió, sin nada en pantalla que lo delatara.
+    → Resuelto con `key={día-duración}` en el formulario, que fuerza a React a desmontar y montar limpio.
+    → **Verificado en el navegador, no deducido:** con la franja elegida, el campo oculto valía
+    `2026-08-13T15:00:00+00:00`; tras pulsar otro día, valía cadena vacía y el botón volvió a deshabilitarse.
+
+16. **Sexto hecho falso de un subagente en la Fase 2, y otra vez con el código funcionando.** Un comentario
+    justificaba el type guard citando **D-26** como «un tipo impuesto no se verifica». **D-26 no dice eso:**
+    es la decisión de que los tipos salen de `supabase gen types` y el CI comprueba que no estén viejos.
+    El razonamiento del comentario era correcto; la cita, inventada.
+    → Y hubo un séptimo del mismo género, más sutil: escribió que el caso 3-bis «NO está medido», cuando se
+    había medido **veinte minutos antes** de que él escribiera esa línea. **Una afirmación de este proyecto
+    caduca igual que un comentario**, y la verificación tiene que ser contra el estado de hoy.
+    → **Lo que no falló:** la afirmación de que `disponibilidadPorSede()` filtra por `in_stock` se comprobó
+    y era **cierta**. Verificar no es asumir que todo lo del subagente está mal.
+
+17. **El mensaje de sanción mostraba solo el día, y eso mandaba al alumno a chocarse otra vez.** La RPC
+    compara `banned_until > now()`, un **instante**, no una fecha civil: la sanción medida vence a las
+    **20:06 de Lima**. Quien leyera «hasta el 20 de agosto» volvería esa mañana y se llevaría el mismo
+    rechazo con el mismo texto, sin forma de entender por qué. Corregido para que diga también la hora.
+    → El otro caso, `infinity`, **nunca se formatea como fecha**: es el bloqueo permanente de D-12.
+
+18. **La cabecera del 404 dice «Entrar» aunque la sesión esté viva — y esto NO es un hallazgo nuevo.** Se
+    ve al reservar bien, porque el redirect a `/mi-panel` cae en el 404 previsto por el Step 5. La sesión
+    **no se pierde** —comprobado volviendo al calendario, que siguió mostrando «Salir»—.
+    → **La tanda 2A ya lo había anotado y ya había decidido no arreglarlo**, con el motivo escrito en la
+    bitácora del 2026-08-10: saberlo exige leer cookies, y eso sacaría `/_not-found` del prerender
+    estático. La decisión sigue en pie y esta tarea no la reabre.
+    → **Lo único nuevo es dónde aparece:** hasta ahora se llegaba a ese 404 por una URL mal escrita; desde
+    esta tarea se llega **justo después de reservar**, que es la única acción irreversible de la pantalla.
+    Deja de ser una rareza de una ruta muerta y pasa a ser lo primero que ve alguien que acaba de reservar
+    bien. **La Task 12 lo cierra por el otro lado**, haciendo que `/mi-panel` exista.
+    → Vale como recordatorio de método: **un hallazgo repetido no es un hallazgo**, y comprobarlo contra la
+    bitácora antes de anotarlo cuesta menos que corregirlo después.
+
+**Verificado al cerrar la tarea, en un navegador de verdad y con sesión real de Ana:** el botón del detalle
+**ya no dice «muy pronto»** y arrastra la sede; el calendario del día 14 ofrece sus 28 franjas; elegir hora
+y motivo habilita el botón; y **confirmar creó la reserva**: `LAP-001` en Monterrico, **14 de agosto de
+10:00 a 10:30 hora de Lima** —la franja exacta que se eligió, sin desplazarse ni una hora—, motivo `Tesis`,
+estado `reserved`, con la unidad elegida por el motor por rotación justa. Después, el mismo producto el
+mismo día contesta el **texto propio** del límite diario, con tildes y sin salir de la página; y forzando a
+mano el campo oculto a las 07:00 —una hora que la rejilla **nunca** ofrece— contesta el **mensaje crudo**
+`Fuera del horario de atencion` y **no crea nada**: siguen siendo dos reservas. Esa última es la prueba de
+los dos sentidos que importa: **manipular el formulario no abre nada, porque quien decide es el motor.**
+Consola **sin un solo error ni advertencia**. `typecheck`, `lint`, `test` (19) y `build` en verde, con
+**once rutas** y las mismas tres estáticas: una Server Action no añade ruta.
 
 ---
 
