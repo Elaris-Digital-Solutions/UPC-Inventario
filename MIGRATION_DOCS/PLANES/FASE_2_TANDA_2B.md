@@ -19,8 +19,49 @@
 
 **Siguiente: la Task 13, la cancelación con motivo.** Ya tiene medio camino hecho: la tarjeta del panel
 **ya muestra `cancellation_reason`** *(corrección 30)*, así que el motivo que la Task 13 pida tendrá dónde
-verse. Su Step 5 —comprobar que cancelar **libera la franja**— se monta con el Laptop, que tiene **una sola
-unidad** en Monterrico.
+verse. **Y sus dos pasos de medición —Steps 4 y 5— YA ESTÁN HECHOS**, abajo. No hay que repetirlos.
+
+### ✅ Lo que la Task 13 ya NO tiene que medir
+
+**Todo medido el 2026-08-11 contra el stack local, dentro de transacciones con `rollback`: el escenario
+quedó intacto** —comprobado después: 3 `reserved`, 1 `active`, 1 `cancelled`, 1 `completed`—.
+
+**Step 4 · Los rechazos de `cancel_reservation` son CUATRO, no tres como dice el plan:**
+
+| # | Caso | SQLSTATE | Mensaje del motor (literal, sin tildes) |
+|---|---|---|---|
+| 1 | Motivo vacío o solo espacios | `23514` | `La cancelacion exige un motivo` |
+| 2 | Reserva inexistente | `P0002` | `Reserva inexistente` |
+| 3 | Reserva **ajena** | `42501` | `No puedes cancelar una reserva ajena` |
+| 4 | Estado distinto de `reserved` | `23514` | `Solo se cancela una reserva en estado reserved (esta en active)` |
+
+**El orden confirma la corrección 3 del plan:** pedir la cancelación de una reserva **inexistente y sin
+motivo** contesta *«La cancelacion exige un motivo»*, no *«Reserva inexistente»*. Es correcto —la más
+fundamental primero— pero **la interfaz no debe traducir ese mensaje como «no existe»**.
+
+**Y el rechazo por reserva ajena tiene DOS caminos que contestan distinto, medido sin querer:**
+
+- Si el cliente **busca el id por consulta**, RLS se lo tapa y nunca llega a intentarlo: la RPC recibe
+  `NULL` y contesta *«Reserva inexistente»*.
+- Si el cliente **ya tiene el id** por otro medio, la RPC contesta *«No puedes cancelar una reserva ajena»*.
+
+→ **Las dos capas protegen, y por eso la primera medición fue un falso positivo:** la sonda pasaba el id
+con un subquery que se evalúa **fuera** de la función, con las claims de Ana, así que RLS lo convertía en
+`NULL` antes de llegar. **Otra vez lo mismo de esta tanda: el primer sospechoso de una medición rara es la
+medición.** La sonda buena pasa el UUID literal, que es justo lo que haría un cliente que lo consiguió por
+otro lado — el caso que hay que probar.
+
+**Step 5 · Cancelar SÍ libera la franja, y libera también el buffer.** Sobre el Laptop en Monterrico, que
+tiene **una sola unidad**, el día `2026-08-14` con franjas de 30 minutos:
+
+| Momento | Libres | Ocupadas |
+|---|---|---|
+| Antes de cancelar | **19** | **9** |
+| Después de cancelar | **28** | **0** |
+
+→ Las **nueve** que libera son exactamente las que el buffer de 120 minutos bloqueaba alrededor de una
+reserva de media hora *(corrección 4)*. La franja no vuelve sola: vuelve **con todo su buffer**.
+→ Y la fila quedó en `cancelled` con su `cancellation_reason` puesto.
 
 ### El escenario montado en el stack local, al día de hoy
 
