@@ -2,6 +2,111 @@
 
 ---
 
+## 📍 Dónde se paró — pausa del 2026-08-10, 20:11
+
+> **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
+
+**DOS de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **dos commits, NADA empujado**, árbol
+limpio. `develop` está en `e115e17` (PR #26, el plan de esta tanda).
+
+| Commit | Tarea |
+|---|---|
+| `16bd440` | 2B.8 · la rejilla como lógica pura — **19 pruebas de Vitest, las primeras del proyecto** |
+| `d1a48a0` | 2B.9 · el calendario de reserva — **once rutas en el `build`** |
+
+**Siguiente: la Task 10, la reserva contra `create_reservation`.** No está empezada: no hay ni un archivo
+escrito. **Pero sus tres pasos de medición YA ESTÁN HECHOS**, y sus resultados están abajo para no
+repetirlos.
+
+### ✅ Lo que la Task 10 ya NO tiene que medir
+
+**Step 0 · punto a verificar 5 — resuelto.** `create_reservation` tiene `grant execute to authenticated` y
+es alcanzable. No hace falta tocar SQL.
+
+**Step 2 · punto a verificar 3 — resuelto. Los once rechazos, disparados uno a uno contra el stack local:**
+
+| # | Caso | SQLSTATE | Mensaje del motor (literal, sin tildes) |
+|---|---|---|---|
+| 1a | Sin alumno activo para la sesión | `42501` | `No hay un alumno activo para esta sesion` |
+| 1b | Perfil incompleto | `23514` | `Completa tu perfil antes de reservar` |
+| 2 | Sanción vigente | `23514` | `Tienes una sancion vigente hasta 2026-08-21 01:06:08.212931+00`, y con sanción permanente `... hasta infinity` |
+| 3 | Duración fuera de rango *(probado con 15 y con 600)* | `P0001` | `Duracion fuera del rango permitido para este producto` |
+| 4a | En el pasado | `P0001` | `No se puede reservar en el pasado` |
+| 4b | Fuera de la ventana | `P0001` | `Fuera de la ventana de reserva` |
+| 5a | Día inhabilitado | `P0001` | `Ese dia no hay atencion` |
+| 5b | Fuera del horario | `P0001` | `Fuera del horario de atencion` |
+| 6 | La hora no cae en un bloque | `23514` | `La hora de inicio no cae en un bloque de 30 minutos` |
+| 7 | Límite diario por producto | `P0001` | `Ya tienes una reserva de este producto para ese dia` |
+| 8 | Sin unidades libres en la franja | `P0001` | `No hay unidades disponibles en esa franja` |
+
+**Y una sanción CADUCADA no bloquea:** la RPC acepta. Medido.
+
+**Step 3 · punto a verificar 4 — resuelto POR EL LADO BUENO, y es la propiedad central de la tanda.**
+Ocho sondas sobre `2026-08-13`, pidiendo la primera y la última franja que ofrece la rejilla:
+
+| Duración | Franjas libres | Primera | Última | Termina |
+|---|---|---|---|---|
+| 30 min | 28 | 08:00 ✅ | 21:30 ✅ | 22:00 |
+| 1 h | 27 | 08:00 ✅ | 21:00 ✅ | 22:00 |
+| 4 h | 21 | 08:00 ✅ | 18:00 ✅ | 22:00 |
+| 8 h | 13 | 08:00 ✅ | 14:00 ✅ | 22:00 |
+
+**Las ocho aceptadas. La rejilla no ofrece nada que `create_reservation` rechace**, y la última franja de
+cada duración termina clavada en `closing_time`, la igualdad que el paso 5 de la RPC acepta a propósito.
+
+### ⚠ La decisión que la Task 10 tiene que tomar, con el trabajo previo hecho
+
+**Los mensajes del motor NO se pueden mostrar crudos**, y por dos motivos medidos: están **sin tildes**
+—el SQL del proyecto se escribe así, y la interfaz sí las lleva— y **dos son inservibles para un alumno**:
+`infinity` es jerga de Postgres y el otro es un timestamp UTC con microsegundos.
+
+**Criterio propuesto y NO ejecutado** *(se paró la sesión antes de escribir el código)*:
+
+- **Texto propio** para los cuatro que un alumno puede provocar navegando: **1b, 2, 7 y 8**.
+- **Mensaje crudo del motor** para los siete restantes —**1a, 3, 4a, 4b, 5a, 5b, 6**—, que son
+  **inalcanzables desde la interfaz mientras el calendario funcione**: la rejilla ya no ofrece franjas
+  pasadas, ni fuera de ventana, ni fuera de horario, ni desalineadas, ni de días inhabilitados. **Si alguno
+  aparece, es un defecto, y el mensaje crudo dice qué se rompió mejor que uno bonito.**
+- El emparejamiento va por el **texto**, no solo por el SQLSTATE: `23514` lo comparten 1b, 2 y 6.
+- Lo no reconocido cae al **crudo**, nunca a un genérico: el mapa puede quedarse viejo si alguien cambia el
+  SQL, y ese fallo tiene que verse.
+
+### El escenario montado en el stack local, y que `db reset` se lleva
+
+- Una **reserva de Ana**: Laptop en Monterrico, `2026-08-11` de 10:00 a 10:30 *(la que midió el buffer)*.
+- Un **día inhabilitado** el `2026-08-12`, con `reason` en **NULL** —puesto así a propósito, porque es como
+  están las dos filas reales de producción—.
+- La unidad del Laptop en Monterrico se puso en `maintenance` para medir el día lleno **y se devolvió a
+  `active`**. Comprobado.
+
+**`db reset` borra los tres.** Hay que rehacerlos para volver a ver esas pantallas — y **el login ya NO se
+rompe**, porque el seed se arregló de raíz en la tanda 2A *(corrección 34)*.
+
+### Trampas de esta tanda, ya pagadas
+
+- **`alumnos.id` NO es `auth_user_id`.** Son columnas distintas y ninguna sonda avisa: un
+  `update ... where id = <uuid de auth.users>` afecta **cero filas sin error**. Costó un falso positivo que
+  parecía un agujero de seguridad —«la RPC acepta a un alumno sancionado»— y era la sonda.
+  → **Lo que lo delató:** el resultado era demasiado grave para ser cierto. Cuando una medición acusa al
+  componente más probado del sistema, el primer sospechoso es la medición.
+- **El buffer se aplica también a la franja CANDIDATA** *(corrección 4)*. Una reserva de 30 minutos deja
+  **nueve** franjas ocupadas, no cinco.
+- **Cero filas de `available_slots` nunca significa «lleno»** *(corrección 5)*.
+- **Sin `vitest.config.ts`, el alias `@/` no existe en las pruebas.** Import relativo.
+
+### Pendientes anotados que no bloquean
+
+- **`buffer_minutes = 120` en los 34 productos** hace que una reserva de media hora queme **4h30** de una
+  jornada de 14h. Es un dato, no código, y el admin tiene interfaz en la T3. **Pero es el número con más
+  impacto en la disponibilidad de todo el sistema**, y conviene saber si esas dos horas se midieron o se
+  estimaron.
+- **`supabase/setup-cli@v1` apunta a Node.js 20**, deprecado y forzado a Node 24 por GitHub. No rompe hoy;
+  candidato a la **T4**.
+- **A 390 px de ancho no está verificado** *(viene de la 2A)*. Chrome no baja de 485 en Windows con la
+  herramienta usada; Playwright sí controla el viewport.
+
+---
+
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
 > **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
