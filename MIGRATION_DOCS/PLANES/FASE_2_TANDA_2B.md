@@ -6,8 +6,9 @@
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**SIETE de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
-`develop` está en `e115e17` (PR #26, el plan de esta tanda).
+**OCHO de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+`develop` está en `e115e17` (PR #26, el plan de esta tanda). Quedan **nueve commits locales** por delante
+de `develop`.
 
 | Commit | Tarea |
 |---|---|
@@ -17,19 +18,17 @@
 | `f76378f` | 2B.11 · el bloqueo por sanción — **29 pruebas**, correcciones 19 a 24 |
 | `c43e17b` | 2B.12 · `/mi-panel` — **43 pruebas, doce rutas**, correcciones 25 a 31 |
 | `461dd49` | 2B.13 · la cancelación con motivo — correcciones 32 a 40 |
-| *(pendiente)* | 2B.14 · la encuesta de satisfacción — **trece rutas**, correcciones 41 a 51 |
+| `7dc8815` | 2B.14 · la encuesta de satisfacción — **trece rutas**, correcciones 41 a 51 |
 
-**Siguiente: la Task 15, la verificación de punta a punta**, y después la 16, de cierre y documentación.
-Lo que la 15 pide, y conviene tenerlo junto: `npx supabase db reset` más `npx supabase test db` con **142
-aserciones en 23 archivos** —otro número significa que se tocó SQL sin querer—; el **recorrido entero** por
-`127.0.0.1:3000`, de entrar hasta salir; el **recorrido del alumno sancionado**, con la RPC rechazando
-aunque se fuerce la llamada; y el barrido que resume la tanda, **¿ofrece la rejilla algo que la RPC
-rechace?**, pidiendo la primera y la última franja de varias duraciones.
+**Task 15, la verificación de punta a punta, quedó cerrada** —correcciones 52 a 57—. **Siguiente: la
+Task 16**, de cierre y documentación.
 
-⚠ **Ojo con el orden en la Task 15:** `db reset` **borra el escenario entero** —las seis reservas y la
-encuesta—, así que el recorrido en navegador se hace **después** de rehacerlo, no antes. Y el recorrido
-entero incluye la encuesta: para verla como «primera vez» hay que borrar su fila como `postgres`
-*(corrección 43: el alumno no tiene política de DELETE)*.
+**El aviso de orden de la Task 15 y el escenario de las seis reservas ya no aplican: el `db reset` se hizo
+y el escenario viejo se fue.** El de hoy es el que dejó la Task 15: una sola reserva de Ana —Laptop Dell
+XPS 15, `LAP-001`, Monterrico, vie 14 ago 10:00–10:30, motivo Tesis, estado `cancelled` con motivo «Se me
+cruzó con un examen»— y una encuesta de Ana con valoraciones 5, 4, 5, 4, 5, `would_recommend` en `true`,
+`best_feature` puesto y los otros dos textos en `null`. **Ana quedó sin sanción.**
+→ **La Task 16 no necesita este escenario**: es cierre y documentación.
 
 ### Lo medido de la cancelación, que sigue valiendo
 
@@ -92,7 +91,10 @@ verificación de la Task 13.
 
 ### El escenario montado en el stack local, al día de hoy
 
-Sobrevivió a la sesión entera y sirve para las tareas que quedan:
+⚠ **CADUCADO el 2026-08-11 por el Step 1 de la Task 15.** El `db reset` se llevó las seis reservas y la
+encuesta, tal y como este mismo bloque avisaba más abajo. **La tabla se conserva porque enseña qué hace
+falta para cubrir los tres grupos del panel y la prueba de RLS** —y esa receta sigue valiendo—, pero
+**ninguna de estas filas existe hoy**. Lo que hay en la base ahora está al principio de este bloque.
 
 | Alumno | Reserva | Estado | Para qué sirve |
 |---|---|---|---|
@@ -179,6 +181,10 @@ cada duración termina clavada en `closing_time`, la igualdad que el paso 5 de l
   SQL, y ese fallo tiene que verse.
 
 ### El escenario montado en el stack local, y que `db reset` se lleva
+
+⚠ **CADUCADO el 2026-08-11 por el Step 1 de la Task 15**, igual que la tabla de las seis reservas: el
+`db reset` se llevó los tres. **Se conserva como receta de cómo montarlos**, no como descripción de lo que
+hay hoy.
 
 - Una **reserva de Ana**: Laptop en Monterrico, `2026-08-11` de 10:00 a 10:30 *(la que midió el buffer)*.
 - Un **día inhabilitado** el `2026-08-12`, con `reason` en **NULL** —puesto así a propósito, porque es como
@@ -824,6 +830,106 @@ sigue habiendo **una sola fila** —el `upsert` no duplicó—, con el cambio ap
 mensaje**. `typecheck`, `lint`, `test` (**43**, las mismas: no hay lógica pura nueva) y `build` en verde, con
 **TRECE rutas** —la nueva es `ƒ /encuesta`, dinámica— y las tres estáticas de siempre: `/_not-found`,
 `/faq` y `/login`.
+
+### Task 15 · La verificación de punta a punta, y un servidor de desarrollo que mintió de dos formas
+
+52. **El servidor de desarrollo mintió en dos direcciones distintas, y ninguna era el código.** Primero: con
+    `npm run dev` corriendo desde hacía CINCO HORAS (arrancado a las 13:11, medido con `Get-CimInstance
+    Win32_Process`), las rutas `/catalogo/[id]` y `/catalogo/[id]/reservar` daban **500**. El overlay decía
+    `Jest worker encountered 2 child process exceptions, exceeding retry limit`. Las otras tres rutas del
+    alumno —`/catalogo`, `/mi-panel`, `/encuesta`— daban 200. El cuerpo de ese 500 era la página de error
+    del **Pages Router** (`page: "/_error"` en el `__NEXT_DATA__`) dentro de un proyecto que es App Router
+    puro: el segmento no llegó a compilar.
+    → **Segundo:** tras parar el servidor, borrar `.next/` y arrancarlo limpio, el detalle funcionó pero
+    `/catalogo/[id]/reservar` daba **404**. El log del servidor NUNCA escribió `Compiling
+    /catalogo/[id]/reservar`: Turbopack no intentó compilarla. Todas las variantes daban 404 —sin sede,
+    Monterrico, San Miguel, sede inventada, otro producto—, lo que descarta la lógica de sede y de producto
+    de esa página.
+    → **Tercero:** un segundo reinicio del servidor y todo funcionó.
+    → Lo que separó las causas fue `npm run build` limpio: compiló **las trece rutas**, `/catalogo/[id]` y
+    `/catalogo/[id]/reservar` incluidas, con `typecheck`, `lint` y las 43 pruebas en verde. **El código
+    estuvo sano todo el tiempo.**
+    → **La lección:** la nota del proyecto sobre que `.next/` produce falsos se queda corta. El servidor de
+    desarrollo también los produce **sin `.next/` de por medio**, y de dos formas distintas: un proceso
+    viejo que se degrada, y un arranque en frío que no registra una ruta. **El árbitro no es la pantalla ni
+    el dev server: es el `build`.**
+    → **Detalle de método que se pagó:** arrancar el dev server con **la salida redirigida a un archivo**
+    fue lo que dio el log donde se veía qué rutas compilaba. Sin esa salida no había forma de ver el
+    `Compiling` que faltaba.
+
+53. **Dos sondas mías fallaron, las dos del mismo género, y una tiene parentesco con D-33.**
+    (a) `Invoke-WebRequest` a la ruta del detalle devolvió **200 con 31 KB** y parecía que el servidor
+    estaba sano. Era la página de **login**: sin cookies el proxy contesta **307** hacia `/login`, y
+    `Invoke-WebRequest` sigue las redirecciones. La sonda medía otra página. Se destapó repitiendo con
+    `-MaximumRedirection 0`.
+    (b) Leer el overlay de error con `shadowRoot.textContent` devolvió el **CSS de Bootstrap Reboot** que
+    Next inyecta en su portal, no el mensaje.
+    → **El primer sospechoso de una medición rara es la medición**, otra vez.
+    → El parentesco con D-33 es por el reverso: allí `curl` era MÁS privilegiado que el navegador porque no
+    manda cabecera `Origin`; acá `Invoke-WebRequest` era MENOS capaz —no lleva sesión— y su resultado se
+    leía como éxito. **Una sonda sin sesión no prueba nada sobre una ruta que exige sesión.**
+
+54. **El barrido de la rejilla se amplió a los dos bordes móviles, que es donde de verdad se rozan.** El
+    plan pedía barrer "el día entero pidiendo la primera y la última franja de varias duraciones". Eso se
+    hizo sobre `2026-08-13` y las ocho salieron aceptadas, con los mismos números que ya tenía medidos la
+    Task 9. Pero ese día está en mitad de la ventana, donde nada se roza.
+    → Se añadieron los dos bordes que sí se rozan. Medido a las **17:56 de Lima**:
+
+    | Borde | Qué ofrece la rejilla | La ofrecida, contra la RPC | La de al lado, que NO ofrece |
+    |---|---|---|---|
+    | **Hoy** (2026-08-11) | 8 franjas, 18:00 → 21:30 | 18:00 **aceptada** | 17:30 → `No se puede reservar en el pasado` |
+    | **Día 8** (2026-08-18) | 20 franjas, 08:00 → **17:30** | 17:30 **aceptada** | 18:00 → `Fuera de la ventana de reserva` |
+    | **Día 9** (2026-08-19) | **0 franjas** | — | — |
+
+    → El día 8 es el que importa: **la rejilla lo corta a las 17:30 y no ofrece el día entero.** Eso cierra
+    por medición el fallo de diseño que el propio plan detectó al escribirse —`available_slots` filtrando
+    por fechas donde `create_reservation` compara instantes—, que es exactamente el fallo que esa función
+    existe para evitar.
+    → Y la regla que gobierna sigue en pie y ahora tiene número: **la rejilla se corta exactamente donde la
+    RPC empieza a rechazar**, en los dos bordes que se mueven con el reloj.
+
+55. **La rejilla avanza con el reloj, y se vio sin buscarlo.** A las 17:56 la rejilla ofrecía **8** franjas
+    para hoy, desde las 18:00. A las ~18:20, en el navegador, ofrecía **7**, desde las 18:30. Las 18:00
+    habían pasado.
+    → Es el mismo hecho que el borde A de la corrección 54, visto por el camino del alumno y media hora más
+    tarde.
+
+56. **Las dos imágenes de Cloudinary del seed local dan 404, y es dato del seed, no código.** Medido con
+    una petición HEAD: `res.cloudinary.com/demo/image/upload/seed/lap-001.jpg` y `.../cam-001.jpg`
+    contestan **404**. El log del dev server lo dice también: `upstream image response failed ... 404`.
+    → No rompe ninguna página y **no afecta a producción**, cuyas imágenes son otras. Es el mismo género
+    que `featured` en la 2A: **el seed local es una fixture de valores convenientes, no representativos.**
+
+57. **El 404 posterior a reservar quedó cerrado por el otro lado, y se comprobó.** La corrección 18 anotó
+    que tras reservar bien el redirect caía en un 404 porque `/mi-panel` no existía todavía. En este
+    recorrido **el redirect cayó en `/mi-panel` y la reserva estaba ahí**. La Task 12 lo cerró como estaba
+    previsto.
+
+**Verificado al cerrar la Task 15, en un navegador de verdad y con sesión real de Ana**, entrando por magic
+link vía Mailpit —el enlace apuntaba a `http://127.0.0.1:3000/auth/confirm`, con **el host conservado**— y
+con el reparto por perfil llevando a `/catalogo`. El calendario del Laptop ofrece **ocho días** —del martes
+11 al martes 18— y **dieciséis duraciones**; el día 14, sus **28 franjas** de 08:00 a 21:30, todas con «1
+equipo libre». El campo oculto `slotStart` valía `2026-08-14T15:00:00+00:00`, que son las **10:00 de Lima**:
+la franja exacta, **sin desplazarse una hora**. **La reserva se creó** —`LAP-001` en Monterrico, viernes 14
+de 10:00 a 10:30, motivo `Tesis`, estado `reserved`— y el redirect cayó en `/mi-panel` *(corrección 57)*. Al
+cancelar, el día 14 pasó de **19 libres y 9 ocupadas** a **28 y 0**, y las 28 se volvieron a ver **en la
+pantalla**, no solo por SQL. En el diálogo: nace deshabilitado, **con cinco espacios sigue deshabilitado**
+—lo que mantiene inalcanzable el rechazo #1— y el motivo se tecleó con espacios alrededor, **29 caracteres,
+guardados 25**, con la tilde intacta. Después, «Próximas» desapareció, la tarjeta pasó a «Anteriores» como
+«Cancelada por: …» y el diálogo **se cerró solo**. **La encuesta** nace con el botón deshabilitado; se
+guardaron 5, 4, 5, 4, 5 con la recomendación en `true`, un texto de **37 caracteres tecleados y 33
+guardados**, y los otros dos vacíos quedaron en **`null`**; el acuse fue el de **primera vez**, con la línea
+«Ya respondiste» del Server Component encima —la redundancia de la corrección 51, vista otra vez y **no
+retocada**—. `/mi-panel` perdió la invitación y quedó «Editar mi encuesta de satisfacción». **Al salir**, la
+cabecera vuelve a «Entrar» y `/mi-panel` y `/catalogo` redirigen. **Y el recorrido del sancionado, que es el
+que prueba dónde vive el control:** el `update` sobre `alumnos` **por `auth_user_id`** afectó **1 fila**; la
+pantalla dijo «Tienes una sanción vigente hasta el 26 de agosto de 2026, 18:28.» **sin calendario, sin
+duraciones, sin franjas y sin botón**, y sin la palabra `infinity`; y forzando la RPC con las claims de Ana
+sobre una franja **libre** —28 libres ese día, así que no era falta de sitio— contestó `Tienes una sancion
+vigente hasta 2026-08-26 23:28:49.322761+00` y **no creó nada**. Los dos formatos de `banned_until`
+volvieron a verse juntos *(corrección 19)*. Consola **sin un solo error ni advertencia**, solo
+`[Fast Refresh]` y `[HMR] connected`. `typecheck`, `lint`, `test` (**43** en 3 archivos) y `build` en verde,
+con **trece rutas** y las tres estáticas de siempre: `/_not-found`, `/faq` y `/login`.
 
 ---
 
