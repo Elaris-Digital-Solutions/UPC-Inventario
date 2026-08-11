@@ -407,6 +407,12 @@ select id, 'admin' from auth.users where email = '<correo>@upc.edu.pe';
 | `/admin/estadisticas` | Cinco indicadores y desgloses | **Admin** | Agregados sobre reservas |
 | `/admin/personal` | Alta y baja de personal | **Admin** | `staff_members` |
 
+> ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** La fila de `/mi-panel` nombra «encuesta» sin decir
+> de qué es. **`final_satisfaction_surveys` es UNA por alumno y editable, no una por reserva:** la tabla
+> tiene `UNIQUE (alumno_id)` y **no tiene ninguna columna `reservation_id`**; existe una política de
+> `UPDATE` propia del alumno, y **no hay política de `DELETE`**. No es una encuesta de fin de préstamo: es
+> la encuesta final de satisfacción con el servicio.
+
 **Tres cosas que esta tabla dice y conviene leer despacio:**
 
 1. **El operador no tiene ninguna ruta propia bajo `/admin`.** Es D-11 hecho URL: estrictamente operativo,
@@ -461,6 +467,13 @@ reserva.
 Y subir `min_duration_minutes` a 30 **no lo arregla**: 45 minutos sigue siendo ≥ 30 y sigue terminando a
 mitad de bloque. La regla que hace falta es el múltiplo.
 
+> ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** Lo de arriba describe el bloqueo por **detrás**
+> de una reserva, pero el buffer también se aplica a la franja **candidata** al reservar, no solo por
+> delante de una reserva ya existente. Medido con `buffer_minutes = 120`: una reserva de 30 minutos deja
+> **nueve franjas ocupadas de veintiocho**, y la primera franja libre queda recién a las 12:30. **Esa parte
+> de la predicción de arriba estaba incompleta.** Consecuencia de producto, no de código: media hora
+> reservada quema **cuatro horas y media** de una jornada de catorce.
+
 ```sql
 alter table public.app_settings
   alter column min_duration_minutes set default 30;
@@ -493,6 +506,13 @@ sería cierto e inútil.
 > solo vigila las funciones **de trigger**—, así que en cualquiera de los dos desenlaces se añade la
 > aserción que falta: **ninguna RPC de `public` es ejecutable por `anon`**.
 
+> ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** `create_reservation` pide un **quinto argumento,
+> `p_purpose`**, que este documento no explicaba de dónde sale. Se resolvió con las **seis opciones fijas**
+> que ya estaban en `ESPECIFICACION_FUNCIONAL.md`: práctica de laboratorio, proyecto de curso, trabajo de
+> investigación, tesis, actividad extracurricular, otro. La columna es `text`, **nullable y sin `CHECK`**,
+> así que la lista es una regla de la aplicación y no del motor. Y sus rechazos son **doce, no once**:
+> faltaba el de duración no múltiplo del bloque *(§11.1, D-19)*.
+
 ### 11.2 D-20 · `available_slots(...)`: el día entero en una llamada
 
 > **Corrección (2026-08-06), detectada al escribir el plan de la tanda 0.** La primera versión de esta
@@ -505,6 +525,13 @@ sería cierto e inútil.
 >
 > **La regla que salió de ahí, y vale más que el arreglo:** la rejilla puede ser **más estricta** que la
 > RPC, nunca más laxa.
+
+> ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** Comparar sobre instantes —el arreglo de arriba—
+> tiene una consecuencia que no se había anotado: **la ventana móvil de 7 días da OCHO días civiles con
+> franjas reservables, no siete**, y el octavo queda cortado por la mitad. La causa es la misma: `create_reservation`
+> compara instantes y no fechas. Medido el 2026-08-11 a las 17:56 de Lima: el octavo día ofrecía **20
+> franjas, de 08:00 a 17:30**, la de 17:30 la aceptó la RPC y la de 18:00 la rechazó con «Fuera de la
+> ventana de reserva».
 
 Con la rejilla de 08:00 a 22:00 en bloques de 30, un día son 28 franjas. Pintarlo con `available_units`
 son **28 llamadas**, y eso son 28 viajes a la base y —lo que importa más— **28 fotos distintas**: la
@@ -556,6 +583,11 @@ Cuatro decisiones dentro de esas veinte líneas:
   con sus propios privilegios vería libre todo lo que otros tienen ocupado.
 - **La última franja es `closing_time - duración`**, para que la reserva termine justo al cierre. Coincide
   con el paso 5 de la RPC, que rechaza `v_end_at::time > closing_time` pero acepta la igualdad.
+
+> ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** **Cero filas de `available_slots` NUNCA significa
+> «el día está lleno».** Un día lleno del todo devuelve sus **28 filas con `free = 0`**. Cero filas significa
+> otras tres cosas: día inhabilitado, día fuera de la ventana, o **hoy ya agotado para esa duración** — la
+> tercera no la había previsto este documento, y es la más probable de las tres.
 
 ### 11.3 Cómo se pinta
 
