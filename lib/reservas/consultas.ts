@@ -171,3 +171,67 @@ export async function diasInhabilitados(desde: string, hasta: string): Promise<D
 
   return data;
 }
+
+// Lo que el alumno de la sesion tiene en `banned_until`, SIN interpretar.
+// Task 11 de la tanda 2B.
+//
+// `auth_user_id` y NUNCA `id`: son columnas DISTINTAS de la misma tabla
+// `alumnos` -`id` es la clave primaria propia de la fila, `auth_user_id` es
+// la del usuario en `auth.users`-, y confundirlas NO da error. Un
+// `.eq('id', sub)` con el UUID de sesion, que no coincide con ningun `id` de
+// `alumnos`, devuelve CERO FILAS en silencio: `maybeSingle()` no distingue
+// "este alumno no existe" de "consultaste por la columna equivocada". Ya
+// costo un falso positivo en esta tanda que parecia un agujero de seguridad
+// y no lo era: era esta misma confusion.
+//
+// ESTO NO ES UN CONTROL DE AUTORIZACION, y el nombre de esta funcion invita a
+// pensar lo contrario. `create_reservation` ya rechaza con sancion vigente en
+// su paso 2, adentro del motor. Esta funcion solo ANTICIPA ese rechazo para
+// no pintar un calendario y un boton de reservar que van a fallar seguro. Si
+// alguien borrara esta funcion entera, NO se abriria ningun agujero: la
+// reserva seguiria rechazandose exactamente igual, solo que sin avisar
+// antes. Esa es la prueba de que el control esta en el sitio correcto.
+//
+// Devuelve el valor CRUDO -tal cual sale de la columna- y no lo interpreta:
+// decidir que es "infinity", que es una fecha pasada o que es una fecha
+// futura es trabajo de sancionVigente() (lib/reservas/sancion.ts), que es
+// pura y esta probada aparte. Esta capa solo traduce la fila.
+//
+// Si la consulta FALLA, esta funcion NO sigue el patron de `console.error` +
+// vacio que usan franjasDelDia() y diasInhabilitados() mas arriba en este
+// mismo archivo, y es a proposito: alla un resultado vacio es una pantalla
+// sin datos que pintar, una degradacion razonable. ACA un vacio -`null`-
+// significa "sin sancion" para quien llama, y devolverlo por un error
+// dejaria pasar a alguien cuya sancion no se pudo leer, no por no tenerla
+// sino porque la consulta fallo. Por eso se PROPAGA el error -igual que
+// ajustesReserva(), mas arriba en este archivo- y la pagina falla de forma
+// visible en vez de ofrecer, por un fallo de red o de RLS, una reserva que
+// no deberia ofrecerse.
+export async function sancionDelAlumno(): Promise<string | null> {
+  const supabase = await createClient();
+
+  const { data } = await supabase.auth.getClaims();
+  const sub = data?.claims.sub;
+
+  // Sin sesion no hay alumno de quien leer la sancion. En la practica esta
+  // rama es INALCANZABLE bajo app/(alumno)/: el layout del grupo
+  // (app/(alumno)/layout.tsx) ya redirigio a /login a quien no tiene sesion
+  // antes de que esta funcion llegue a llamarse. Se comprueba igual porque
+  // el tipo de `sub` es `string | undefined` y no hay forma de afirmarle al
+  // compilador lo contrario sin un `as` que estaria mintiendo.
+  if (!sub) {
+    return null;
+  }
+
+  const { data: alumno, error } = await supabase
+    .from('alumnos')
+    .select('banned_until')
+    .eq('auth_user_id', sub)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`sancionDelAlumno: fallo la consulta a alumnos: ${error.message}`);
+  }
+
+  return alumno?.banned_until ?? null;
+}

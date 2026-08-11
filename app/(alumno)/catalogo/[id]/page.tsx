@@ -187,6 +187,11 @@ export default async function DetalleProductoPage({
             // PRIMERA de `sedes`. Nunca se manda `?sede=` vacio o inventado:
             // esta pantalla ya sabe, por `sedes`, en cuales SI hay algo que
             // reservar.
+            //
+            // Este boton NO comprueba sancion (Task 11, tanda 2B): quien
+            // llega por aca cae en /catalogo/[id]/reservar, que si la
+            // comprueba y muestra el mensaje de bloqueo alla. No hay ningun
+            // camino sin explicacion.
             <Button asChild size="lg" className="mt-8 w-full sm:w-auto">
               <Link
                 href={`/catalogo/${producto.id}/reservar?sede=${

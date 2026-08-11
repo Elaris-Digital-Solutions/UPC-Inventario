@@ -6,23 +6,24 @@
 
 > **Bloque temporal.** Se borra al cerrar la tanda; lo reutilizable se convierte en receta.
 
-**TRES de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
+**CUATRO de nueve tareas cerradas.** Rama `feature/fase-2-tanda-2b`, **NADA empujado**, árbol limpio.
 `develop` está en `e115e17` (PR #26, el plan de esta tanda).
 
 | Commit | Tarea |
 |---|---|
 | `16bd440` | 2B.8 · la rejilla como lógica pura — **19 pruebas de Vitest, las primeras del proyecto** |
 | `d1a48a0` | 2B.9 · el calendario de reserva — **once rutas en el `build`** |
-| *(pendiente)* | 2B.10 · la reserva — **escrita y verificada en navegador**, ver las correcciones 12 a 18 |
+| `452e2a8` | 2B.10 · la reserva — **el alumno ya reserva de punta a punta**, correcciones 12 a 18 |
+| *(pendiente)* | 2B.11 · el bloqueo por sanción — **29 pruebas de Vitest**, correcciones 19 a 24 |
 
-**Siguiente: la Task 11, el bloqueo por sanción.** Su Step 3 pide montar el escenario con un `update`
-directo sobre `alumnos` *(corrección 7)* — y ojo con la trampa de abajo: **`alumnos.id` no es
-`auth_user_id`**. El mensaje de sanción ya existe y está escrito en `lib/reservas/acciones.ts`, con los dos
-casos que el motor distingue *(corrección 17)*.
+**Siguiente: la Task 12, `/mi-panel`.** Es la que cierra el 404 al que hoy cae una reserva correcta
+*(corrección 18)*.
 
-**El escenario del stack local sobrevivió a esta sesión** y tiene ya **dos** reservas de Ana: la del
+**El escenario del stack local sobrevivió a esta sesión** y tiene **dos** reservas de Ana: la del
 `2026-08-11` que midió el buffer, y la del `2026-08-14` creada desde el navegador en la Task 10. Las dos
-sirven para la Task 12, que es la que pinta `/mi-panel`.
+sirven para la Task 12. **Ana quedó sin sanción** —`banned_until` en `NULL`—, así que el panel se ve normal;
+para volver a montar cualquiera de los tres estados basta un `update` sobre `alumnos` **por `auth_user_id`,
+nunca por `id`**.
 
 ### ✅ Lo que la Task 10 ya NO tuvo que medir
 
@@ -309,17 +310,87 @@ rutas**: la nueva es `ƒ /catalogo/[id]/reservar` y las tres estáticas siguen s
     → Vale como recordatorio de método: **un hallazgo repetido no es un hallazgo**, y comprobarlo contra la
     bitácora antes de anotarlo cuesta menos que corregirlo después.
 
-**Verificado al cerrar la tarea, en un navegador de verdad y con sesión real de Ana:** el botón del detalle
-**ya no dice «muy pronto»** y arrastra la sede; el calendario del día 14 ofrece sus 28 franjas; elegir hora
-y motivo habilita el botón; y **confirmar creó la reserva**: `LAP-001` en Monterrico, **14 de agosto de
-10:00 a 10:30 hora de Lima** —la franja exacta que se eligió, sin desplazarse ni una hora—, motivo `Tesis`,
-estado `reserved`, con la unidad elegida por el motor por rotación justa. Después, el mismo producto el
-mismo día contesta el **texto propio** del límite diario, con tildes y sin salir de la página; y forzando a
-mano el campo oculto a las 07:00 —una hora que la rejilla **nunca** ofrece— contesta el **mensaje crudo**
-`Fuera del horario de atencion` y **no crea nada**: siguen siendo dos reservas. Esa última es la prueba de
-los dos sentidos que importa: **manipular el formulario no abre nada, porque quien decide es el motor.**
-Consola **sin un solo error ni advertencia**. `typecheck`, `lint`, `test` (19) y `build` en verde, con
-**once rutas** y las mismas tres estáticas: una Server Action no añade ruta.
+**Verificado al cerrar la Task 10, en un navegador de verdad y con sesión real de Ana:** el botón del
+detalle **ya no dice «muy pronto»** y arrastra la sede; el calendario del día 14 ofrece sus 28 franjas;
+elegir hora y motivo habilita el botón; y **confirmar creó la reserva**: `LAP-001` en Monterrico, **14 de
+agosto de 10:00 a 10:30 hora de Lima** —la franja exacta que se eligió, sin desplazarse ni una hora—,
+motivo `Tesis`, estado `reserved`, con la unidad elegida por el motor por rotación justa. Después, el mismo
+producto el mismo día contesta el **texto propio** del límite diario, con tildes y sin salir de la página; y
+forzando a mano el campo oculto a las 07:00 —una hora que la rejilla **nunca** ofrece— contesta el **mensaje
+crudo** `Fuera del horario de atencion` y **no crea nada**: siguen siendo dos reservas. Esa última es la
+prueba de los dos sentidos que importa: **manipular el formulario no abre nada, porque quien decide es el
+motor.** Consola **sin un solo error ni advertencia**. `typecheck`, `lint`, `test` (19) y `build` en verde,
+con **once rutas** y las mismas tres estáticas: una Server Action no añade ruta.
+
+### Task 11 · El bloqueo por sanción, y un dato que se lee distinto según por dónde entre
+
+19. ⚠ **`banned_until` llega en DOS formatos distintos según por dónde se lea, y eso obliga a dos códigos
+    que parecen incoherentes.** Medido el 2026-08-11 con `to_jsonb`, que es la serialización que PostgREST
+    devuelve al cliente:
+
+    | De dónde | Cómo llega |
+    |---|---|
+    | La **columna**, leída por la API | `"2026-08-26T04:41:49.669513+00:00"` — ISO 8601 completo |
+    | El **mensaje de error** de la RPC | `2026-08-21 01:06:08.212931+00` — espacio y desfase de 2 dígitos |
+
+    → `lib/reservas/acciones.ts` **normaliza** antes de `new Date()` porque lo necesita;
+    `lib/reservas/sancion.ts` **no normaliza nada** porque su entrada ya es ISO válido. Copiar la
+    normalización allí por analogía habría sido código muerto que sugiere un problema inexistente, así que
+    **los dos archivos llevan escrito el porqué de la diferencia**, cada uno apuntando al otro.
+    → **Y los decimales varían:** Postgres recorta los ceros finales, así que la misma columna dio **seis**
+    (`.212931`) y **cinco** (`.73449`). El comentario de la Task 10 afirmaba «6 dígitos» y se corrigió. El
+    parseo aguanta cero, uno, cinco y seis, probado en Node.
+
+20. **Un defecto que ninguna prueba habría encontrado, porque solo se ve en pantalla: «11:41 p. m..», con
+    dos puntos.** En `es-PE` el formato de 12 horas termina en `p. m.` —con punto— y la frase cerraba con
+    otro.
+    → **Y al mirarlo apareció el problema de fondo, que era mayor:** el calendario pinta las franjas en
+    **24 horas** (`hour12: false` en `formatearHora()`) y esta pantalla las pintaba en 12. **Dos pantallas
+    contiguas escribiendo la hora de dos maneras se leen como dos sistemas distintos.** `hour12: false`
+    arregla las dos cosas de una.
+    → **Se fijó con dos pruebas de regresión** —que el texto no contenga `..` y que no contenga `a. m.` ni
+    `p. m.`—, y **la primera fija el síntoma y no la causa**, para que siga sirviendo si el texto se
+    reescribe. Total: **29 pruebas de Vitest**, desde las 19 de la Task 8.
+    → **Lo que enseña:** `typecheck`, `lint`, `test` y `build` estaban en verde con el defecto dentro. Lo
+    encontró abrir la pantalla y leerla.
+
+21. **La sanción permanente llega como el string literal `"infinity"`**, no como `null` ni como una fecha
+    lejana — medido. Y `'infinity'::timestamptz > now()` es `true`, así que el paso 2 de la RPC bloquea sin
+    ningún caso especial. **En pantalla la palabra `infinity` no aparece nunca** y no se formatea como
+    fecha: verificado en el navegador, el mensaje permanente no la menciona ni inventa un 1970.
+
+22. **Octavo hecho falso de un subagente, y de un género nuevo: afirmar «medido» sobre algo que no se puede
+    medir.** El comentario decía que la RPC acepta «en el instante EXACTO en que vence, medido». Ese
+    instante **no se puede disparar a propósito**, porque `now()` avanza mientras se prepara la sonda. La
+    afirmación correcta es que el `>` estricto está **leído del SQL**; lo que sí está medido es el caso de
+    al lado, la sanción ya vencida.
+    → **Y un noveno, que él mismo señaló en su informe:** atribuyó a la Task 9 el botón deshabilitado por
+    falta de sedes con stock, que es de la **Task 10**. **Un subagente que enumera lo que no verificó vale
+    más que uno que afirma con seguridad**, y esta vez el aviso vino de él.
+
+23. **Ante un `banned_until` ilegible, se trata al alumno como sancionado.** Es la opción restrictiva, y se
+    eligió con el argumento escrito: el motor va a rechazar igual —su columna sigue siendo lo que sea que no
+    se pudo leer—, así que ofrecer un botón que fallará seguro es peor que no ofrecerlo. **Y equivocarse
+    aquí no abre nada**, que es lo que permite elegir la opción prudente sin coste.
+    → Por el mismo motivo, `sancionDelAlumno()` **propaga** el error en vez de seguir el `console.error` +
+    vacío de `franjasDelDia()`: allí un vacío es una pantalla sin datos, aquí sería un permiso.
+
+24. **Una sonda mía dio un falso negativo, y la causa fue CSS.** Contando los botones de día por su texto
+    salieron **cero**: el `textContent` real es `lun, 10 ago.` en minúscula, y la mayúscula que se ve la
+    pone `capitalize`, que **no cambia el texto del DOM**.
+    → Es la misma lección de la tanda, otra vez y desde el otro lado: **cuando una medición dice algo raro,
+    el primer sospechoso es la medición.** Aquí el resultado era demasiado absurdo para ser cierto —un
+    calendario sin días pero con botón de confirmar—, y eso fue lo que lo delató.
+
+**Verificado al cerrar la Task 11, en el navegador y con sesión real de Ana**, los tres estados montados uno
+a uno con un `update` sobre `alumnos` *(corrección 7: esta tanda no puede provocar una sanción)*: con
+sanción **temporal**, sale el mensaje con fecha y hora y **no hay calendario, ni duraciones, ni botón**; con
+sanción **permanente**, el mensaje sin fecha y **sin la palabra `infinity`**; y con sanción **caducada**,
+**el calendario vuelve entero** —dieciséis duraciones, ocho días y botón de confirmar—, alineado con la RPC,
+que acepta. **Y el otro sentido, que es el que prueba dónde vive el control:** con la sanción puesta, llamar
+a `create_reservation` **directamente por SQL** contesta `Tienes una sancion vigente hasta
+2026-08-26 04:41:49.73449+00`. **Quitar la comprobación de la interfaz no abriría nada.** `typecheck`,
+`lint`, `test` (**29**) y `build` en verde, **once rutas**.
 
 ---
 

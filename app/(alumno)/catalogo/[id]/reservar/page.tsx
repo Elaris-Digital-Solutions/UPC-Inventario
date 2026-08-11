@@ -31,8 +31,14 @@ import { notFound } from "next/navigation";
 import { FormularioReserva } from "@/components/reservas/formulario-reserva";
 import { SelectorDuracion } from "@/components/reservas/selector-duracion";
 import { detalleProducto, sedesActivas } from "@/lib/catalogo/consultas";
-import { ajustesReserva, diasInhabilitados, franjasDelDia } from "@/lib/reservas/consultas";
+import {
+  ajustesReserva,
+  diasInhabilitados,
+  franjasDelDia,
+  sancionDelAlumno,
+} from "@/lib/reservas/consultas";
 import { diasDeLaVentana, duracionesPosibles } from "@/lib/reservas/rejilla";
+import { sancionVigente, textoDeSancion } from "@/lib/reservas/sancion";
 
 export default async function ReservarPage({
   params,
@@ -71,6 +77,52 @@ export default async function ReservarPage({
   const sedes = await sedesActivas();
   if (!sedes.some((s) => s.id === sede)) {
     notFound();
+  }
+
+  // El bloqueo por sancion se comprueba ANTES de pedir nada del calendario
+  // -ajustesReserva(), franjasDelDia(), diasInhabilitados()-, las TRES
+  // consultas que existen solo para pintar la rejilla (ver el comentario al
+  // principio de lib/reservas/consultas.ts). Si el alumno esta sancionado,
+  // `create_reservation` va a rechazar la reserva pase lo que pase -paso 2 de
+  // la RPC, y sigue rechazando aunque se la llame sin pasar por esta
+  // pantalla-, asi que pedir esas tres consultas para terminar enseñando una
+  // rejilla de la que no se puede salir seria trabajo tirado. Y enseñarla de
+  // todos modos seria ofrecer un calendario con el que no se puede terminar:
+  // el mismo criterio con el que la Task 10 dejo el boton "Reservar" del
+  // detalle deshabilitado cuando el producto no tiene unidades en ninguna
+  // sede (app/(alumno)/catalogo/[id]/page.tsx), en vez de fingir que
+  // funcionaba. Ese caso es de la Task 10 y no de la 9, aunque el boton
+  // llevara deshabilitado desde antes por un motivo distinto -entonces no
+  // existia la Server Action-.
+  const bannedUntil = await sancionDelAlumno();
+  const sancion = sancionVigente(bannedUntil, new Date());
+
+  if (sancion !== null) {
+    return (
+      <main className="container flex-1 py-12">
+        <Link
+          href={`/catalogo/${producto.id}?sede=${sede}`}
+          className="text-muted-foreground text-sm"
+        >
+          ← Volver a {producto.name}
+        </Link>
+
+        <h1 className="font-display text-upc-red mt-4 text-3xl sm:text-4xl">
+          Reservar {producto.name}
+        </h1>
+
+        {/* role="alert", igual que el bloque de error de
+            components/reservas/formulario-reserva.tsx: aca no hay ni
+            calendario, ni selector de duracion, ni formulario -nada que
+            llevaria a una reserva que el motor va a rechazar igual-. */}
+        <p
+          role="alert"
+          className="bg-destructive/10 text-destructive mt-8 rounded-lg px-4 py-3 text-sm"
+        >
+          {textoDeSancion(sancion)}
+        </p>
+      </main>
+    );
   }
 
   const ajustes = await ajustesReserva();

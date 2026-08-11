@@ -93,12 +93,22 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
       return 'Tienes una sanción vigente sin fecha de fin. Contacta con el personal para más información.';
     }
 
-    // El formato que manda Postgres -`2026-08-21 01:06:08.212931+00`- usa un
-    // espacio en vez de la `T` de ISO 8601, y un desfase de solo dos digitos
-    // en vez de `+00:00`. Se normalizan los dos antes de `new Date(...)`; los
-    // microsegundos de mas (6 digitos en vez de los 3 de milisegundos que
-    // espera JavaScript) no hace falta recortarlos aparte porque el motor de
-    // fechas los tolera y los trunca solo.
+    // El formato que manda Postgres al interpolar con `%` -por ejemplo
+    // `2026-08-21 01:06:08.212931+00`- usa un espacio en vez de la `T` de ISO
+    // 8601, y un desfase de solo dos digitos en vez de `+00:00`. Esos dos si
+    // se normalizan antes de `new Date(...)`.
+    //
+    // Los decimales, en cambio, no se tocan, y el numero de digitos VARIA:
+    // Postgres recorta los ceros finales, asi que la misma columna puede dar
+    // seis (`.212931`) o cinco (`.73449`), las dos medidas contra el stack
+    // local. `new Date()` los tolera y trunca a milisegundos por su cuenta en
+    // los cuatro casos probados -cero, uno, cinco y seis decimales-, asi que
+    // recortarlos a mano seria codigo que solo puede equivocarse.
+    //
+    // OJO: esta normalizacion es SOLO para el mensaje de error de la RPC. El
+    // mismo dato leido de la columna por la API llega en ISO completo
+    // (`2026-08-26T04:41:49.669513+00:00`) y no necesita nada de esto — ver
+    // lib/reservas/sancion.ts, que a proposito no repite este bloque.
     const normalizado = resto.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
     const fecha = new Date(normalizado);
 
@@ -117,10 +127,16 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
     // se llevaria el mismo rechazo con el mismo texto, sin forma de entender
     // por que. La zona es `America/Lima` igual que en todo el resto del
     // proyecto, porque el motor almacena en UTC y el alumno vive en Lima.
+    // `hour12: false` por el mismo par de motivos que en
+    // lib/reservas/sancion.ts: en `es-PE` el formato de 12 horas termina en
+    // "p. m." y chocaba con el punto final de la frase -"11:41 p. m.."-, y el
+    // resto del proyecto escribe las horas en 24 (formatearHora() en
+    // components/reservas/calendario.tsx).
     const formateada = new Intl.DateTimeFormat('es-PE', {
       timeZone: 'America/Lima',
       dateStyle: 'long',
       timeStyle: 'short',
+      hour12: false,
     }).format(fecha);
 
     return `Tienes una sanción vigente hasta el ${formateada}.`;
