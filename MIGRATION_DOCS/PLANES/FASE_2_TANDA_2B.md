@@ -1,5 +1,123 @@
 # Fase 2 · Tanda 2B — Reserva y panel · Plan de implementación
 
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> **El plan de abajo no se reescribe.** Esto es lo que la ejecución desmintió, anotado al cerrar cada
+> tarea y no al final, para no perderlo.
+
+### Task 8 · La rejilla, y una decisión que el plan no había visto
+
+1. **No hizo falta `vitest.config.ts`, y eso se midió antes de escribir la primera línea.** El proyecto no
+   tiene configuración de Vitest, así que corre con los valores por defecto y **no conoce el alias `@/*`**
+   del `tsconfig.json`. El archivo de pruebas importa con ruta relativa (`./rejilla`) y funciona; escribirlo
+   con alias habría compilado —`tsc` sí lo resuelve— y **fallado solo al ejecutar**.
+   → Se decidió **no añadir configuración**: un archivo de config es superficie que mantener, y una prueba
+   que vive junto a su código no necesita alias para encontrarlo. Las 13 pruebas que pasaron a la primera
+   son la evidencia de que el import resuelve.
+
+2. **`diasDeLaVentana` devuelve `bookingWindowDays + 1`, y el plan no anticipaba que hubiera que decidirlo.**
+   `create_reservation` compara **instantes** —`p_start_at > now() + booking_window_days`—, así que a las
+   14:00 del día 10 acepta hasta las 14:00 del día 17: hay **ocho** días civiles con franjas reservables y
+   el último está cortado por la mitad.
+   → Se ofrecen los ocho. La alternativa —siete, para no enseñar nunca un día a medias— es más bonita y más
+   pobre: escondería franjas que el motor acepta. La regla de §11.2 autoriza las dos, así que no decidía
+   ella.
+   → **Y la decisión tiene su propia prueba**, no un comentario: `ofrece OCHO dias con la ventana en 7` se
+   pone roja si alguien la cambia. **Un comentario no falla cuando lo contradicen.**
+
+3. **Las cuatro pruebas de esa función se vieron fallar antes de escribirla.** Es la disciplina de la
+   Fase 1 aplicada al cliente: el rojo fue la primera evidencia de que Vitest ejecutaba el archivo de
+   verdad. `npm run test` pasó de **0 a 19 pruebas**.
+
+### Task 9 · Tres cosas que el plan daba por ciertas y no lo eran
+
+4. **La predicción del buffer estaba MAL, y por eso el Step 0 existía.** El plan predijo que una reserva de
+   10:00 a 10:30 dejaría `free = 0` «de 10:00 a 12:30». Lo medido: **de 08:00 a 12:00, nueve franjas de
+   veintiocho**, y la primera libre es 12:30.
+   → **La causa:** `available_units` aplica el buffer **también a la franja candidata**. Una franja que
+   empieza a las 08:00 bloquearía hasta las 10:30, y eso choca con la reserva existente. El primer inicio
+   compatible sería las 07:30, y el local abre a las 08:00.
+   → **Consecuencia de producto, no de código:** con `buffer_minutes = 120` en los 34 productos reales, una
+   reserva de media hora inutiliza **cuatro horas y media** de una jornada de catorce. Un producto de una
+   sola unidad se queda casi sin día con tres reservas. **Se anota y no se toca** —es un dato, y el admin
+   recién tiene interfaz en la T3—, pero es el número con más impacto en la disponibilidad de todo el
+   sistema.
+   → De ahí sale el aviso que el calendario muestra cuando hay franjas ocupadas: sin él, nueve franjas
+   grises por una sola reserva parecen un error de la pantalla.
+
+5. **La corrección 1 del plan —heredada del alcance de la 2A— está mal planteada, y el punto a verificar 2
+   con ella.** Decía que un día inhabilitado y un día lleno son indistinguibles porque los dos dan cero
+   filas. **Falso, medido con cinco sondas:**
+
+   | Caso | Filas |
+   |---|---|
+   | Día inhabilitado | **0** |
+   | Día fuera de la ventana | **0** |
+   | **Hoy, agotado para esa duración** | **0** |
+   | Día parcialmente ocupado | **28**, nueve con `free = 0` |
+   | Día **lleno del todo** *(única unidad en `maintenance`)* | **28**, las 28 con `free = 0` |
+
+   → **«Cero filas» NUNCA significa «lleno».** La RPC devuelve también las franjas ocupadas, con su conteo
+   en cero. La ambigüedad real tiene otras tres causas.
+   → **La consulta aparte a `disabled_days` sigue siendo necesaria**, pero por un motivo distinto del que
+   decía el plan: no para separar «inhabilitado» de «lleno», sino de «hoy se acabó».
+
+6. **El tercer caso de cero filas no lo había previsto nadie, y es el más probable de los tres.** Medido a
+   las 19:31 de Lima: pedir 30 minutos para hoy dio **4 filas** (20:00 a 21:30) y pedir **240 dio CERO**,
+   porque la última franja de cuatro horas habría empezado a las 18:00. **Y ese día no estaba inhabilitado.**
+   → En la pantalla eso significa que **el alumno cambia la duración a 4 horas y el día de hoy se vacía**.
+   Sin un mensaje propio, parece una avería. Por eso son **cuatro** mensajes distintos y no uno.
+
+7. **`?sede=` no se validaba, y el fallo era del tipo silencioso.** Una sede inventada hacía que
+   `available_slots` fallara con `22P02`, que `franjasDelDia` se traga con `console.error` devolviendo un
+   array vacío: la pantalla decía «no hay franjas para esta duración» cuando lo que estaba mal era la URL.
+   → Arreglado comprobando la sede contra `sedesActivas()` antes de llamar a la RPC. Ahora da el **404
+   propio**. Es el mismo par de casos que la tarea 2A.6 separó en el detalle, y aquí el silencioso era peor:
+   no se veía como error sino como una respuesta legítima.
+
+8. **Cerrada la corrección 32 de la tanda 2A: la sede ya no se pierde.** La cadena catálogo → detalle →
+   reservar la conserva entera. La 2A la aplazó a propósito, y el motivo de cerrarla justo aquí es el que
+   se dijo entonces: mientras la sede solo decidía qué se *muestra*, perderla era cosmético; desde esta
+   tanda **una reserva es contra la unidad de UNA sede**.
+
+9. **Cuarto y quinto hecho falso de un subagente en la Fase 2, y el cuarto es LITERALMENTE el mismo de la
+   corrección 24 de la 2A.** (a) Escribió que las sondas se midieron «contra el proyecto real» cuando se
+   midieron **contra el stack local** —producción no tiene ni una reserva, así que el escenario no se puede
+   montar allí—. (b) Escribió como **medido** que un día lleno devuelve sus 28 filas en cero, cuando en ese
+   momento era una **deducción**: lo medido era un día *parcialmente* ocupado.
+   → Las dos corregidas a mano. **Y la segunda tuvo un desenlace que vale anotar:** se montó el escenario
+   que faltaba —la única unidad en `maintenance`— y la deducción resultó **cierta**, así que el comentario
+   volvió a decir «medido», ahora con derecho. **Corregir una sobre-atribución no es decidir que el hecho
+   es falso: es decidir que todavía no se sabía.**
+   → El código funcionaba en los dos casos. **Lo que hay que revisar de un subagente no es si su código
+   compila, sino si lo que AFIRMA es cierto**, y son dos comprobaciones distintas.
+
+10. **Un comentario que era cierto dejó de serlo en la misma tanda.** El botón del detalle explicaba que
+    estaba deshabilitado porque «`/catalogo/[id]/reservar` llevaría a un 404, esa ruta no existe todavía».
+    Desde esta tarea **esa ruta existe**. El botón sigue deshabilitado —la Server Action es la Task 10— pero
+    por otro motivo, así que el comentario se reescribió con el viejo tachado dentro.
+    → **Un comentario caducado compila igual que uno cierto y enseña lo contrario de lo que pasa.**
+
+11. **El botón «Confirmar reserva» de la pantalla nueva nace deshabilitado**, igual que hizo la 2A.6. La
+    pantalla es útil por sí sola —el alumno ya ve la disponibilidad real—, pero no se llega a ella desde la
+    interfaz hasta la Task 10, que es la que habilita el botón del detalle. Se probó navegando a la URL
+    directamente.
+
+**Verificado al cerrar la tarea, en un navegador de verdad y con sesión real de alumno:** las tarjetas del
+catálogo arrastran `?sede=`; el calendario del Laptop en Monterrico trae **28 franjas con 9 ocupadas, de
+08:00 a 12:00, y la primera libre a las 12:30** —idéntico a lo que devuelve la RPC por SQL—; las
+**dieciséis** duraciones del Laptop (8 horas en el seed local) se pintan bien; y los **cuatro** mensajes
+salen cada uno en su caso: día inhabilitado **con** motivo, día inhabilitado **sin** motivo —el caso real de
+producción, y sin imprimir `null`—, hoy agotado para 8 horas, y día lleno del todo. Una `?sede=` inventada
+da el **404 propio con 1 cabecera y 1 pie**. La consola queda con **un solo error**, el 404 de esa prueba, y
+**ni uno de React ni de hidratación**. `typecheck`, `lint`, `test` (19) y `build` en verde, con **once
+rutas**: la nueva es `ƒ /catalogo/[id]/reservar` y las tres estáticas siguen siendo `/_not-found`, `/faq` y
+`/login`.
+
+---
+
 > Escrito el 2026-08-10, **antes de ejecutar nada**, justo al cerrar la 2A. Sale de `FASE_2_DISENO.md` §9,
 > §10 y §11, del alcance que dejó fijado `PLANES/FASE_2_TANDA_2A.md`, y de **consultar el proyecto real**.
 > Al terminar, la cabecera de correcciones va **arriba de este párrafo**, fechada. Los planes de este

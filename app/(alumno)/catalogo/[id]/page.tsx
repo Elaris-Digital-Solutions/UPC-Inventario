@@ -17,12 +17,20 @@ import { detalleProducto, disponibilidadPorSede } from "@/lib/catalogo/consultas
 // `id`. Escribirlo como un objeto sincrono -como en versiones anteriores de
 // Next- no compila bajo `strict`: el tipo generado para esta ruta ya no es
 // ese.
+// `searchParams` se anadio en la tanda 2B para arrastrar la sede -correccion
+// 32 de la 2A-. Es OPCIONAL a proposito: a esta pantalla se puede llegar por
+// un enlace compartido sin `?sede=`, y el detalle no la necesita para nada de
+// lo que muestra -ensena el stock de TODAS las sedes-. Solo la usa para no
+// perderla al volver al catalogo.
 export default async function DetalleProductoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sede?: string }>;
 }) {
   const { id } = await params;
+  const { sede } = await searchParams;
   const producto = await detalleProducto(id);
 
   // notFound() y no un mensaje sobrio en la propia pagina: desde la tarea
@@ -39,7 +47,15 @@ export default async function DetalleProductoPage({
 
   return (
     <main className="container flex-1 py-12">
-      <Link href="/catalogo" className="text-muted-foreground text-sm">
+      {/* Conserva la sede si venimos con ella. Sin este `?sede=`, quien
+          entraba desde San Miguel volvia a Monterrico -la sede por defecto-,
+          que es la correccion 32 de la tanda 2A. Cuando no hay sede en la
+          URL, el enlace pelado sigue siendo correcto: el catalogo cae en su
+          sede por defecto, igual que antes. */}
+      <Link
+        href={sede === undefined ? '/catalogo' : `/catalogo?sede=${sede}`}
+        className="text-muted-foreground text-sm"
+      >
         ← Volver al catálogo
       </Link>
 
@@ -135,12 +151,18 @@ export default async function DetalleProductoPage({
             </p>
           </div>
 
-          {/* Deshabilitado a proposito, no un olvido: la pantalla de reserva
-              es de la tanda 2B. Un boton habilitado que enlazara hoy a
-              /catalogo/[id]/reservar llevaria a un 404 -esa ruta no existe
-              todavia-, y quien se lleva ese fallo seria el alumno, no quien
-              escribio el codigo. Deshabilitado dice la verdad: la funcion
-              existe en el diseño, todavia no en la aplicacion. */}
+          {/* Sigue deshabilitado, pero YA NO por el motivo original, y la
+              diferencia importa lo bastante como para reescribir el
+              comentario en vez de dejarlo:
+                ~~"/catalogo/[id]/reservar llevaria a un 404, esa ruta no
+                existe todavia"~~
+              Desde la tarea 2B.9 esa ruta SI existe y pinta el calendario.
+              Lo que todavia no existe es la Server Action que llama a
+              `create_reservation`, y esa es la 2B.10.
+              Se habilita ahi y no aqui, para que el boton no lleve nunca a
+              una pantalla desde la que no se pueda terminar lo que promete.
+              Un comentario que era cierto y deja de serlo es peor que no
+              tenerlo: compila igual y enseña lo contrario de lo que pasa. */}
           <Button size="lg" disabled className="mt-8 w-full sm:w-auto">
             Reservar (muy pronto)
           </Button>
