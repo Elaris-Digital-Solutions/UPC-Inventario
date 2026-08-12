@@ -329,6 +329,64 @@ falta. Que es un efecto distinto y bastante más visible que un nombre en blanco
     igual que en las Tasks 1 y 2—. `npm run build`: **catorce rutas, tres estáticas**, y **`/mostrador`
     sigue dinámica** — la señal de alarma que el encargo pedía vigilar no se disparó.
 
+### Briefing de arranque para la Task 6 *(escrito el 2026-08-12, antes de ejecutarla)*
+
+**Se corta la sesión aquí a propósito.** La Task 6 es la tarea delicada de la tanda —la primera que puede
+sancionar a una persona, con bloqueo permanente en un caso— y merece una sesión con contexto entero, no
+uno comprimido. Esto es lo que la sesión siguiente **no** tiene que volver a deducir.
+
+**Estado al cortar.** Tasks 1 a 5 cerradas y comiteadas: `2444685`, `8ddcc01`, `80956b6`, `1c1278f`,
+`71c42d9`. Árbol limpio, rama `feature/fase-2-tanda-3a`, nada empujado. Base local **limpia, 0 reservas**
+—todos los escenarios de medición se borraron—. **23 migraciones y 147 aserciones pgTAP en 24 archivos;
+56 pruebas de Vitest en 4 archivos; `build` de 14 rutas, 3 estáticas.**
+
+**Lo que ya existe y la Task 6 usa.** `lib/mostrador/acciones.ts` con `entregar()`, `recibir()`, el helper
+privado `moverEstado()` y `mensajeDeRechazoMostrador()` —las dos faltas se **añaden a ese mismo archivo**—.
+`components/mostrador/tarjeta-mostrador.tsx` ya tiene **el hueco de los dos botones marcado con un
+comentario**, al final de su fila de botones. Y `components/ui/` ya tiene `dialog.tsx`, `textarea.tsx` y
+`label.tsx`, instalados por la Task 1: **no hace falta `shadcn add`.**
+
+**El escenario que hay que montar, y por qué no sale del seed.** El seed no siembra ninguna reserva, y
+`create_reservation` rechaza el pasado a propósito, así que se insertan a mano como `postgres` —el stack
+local corre; si no, `npx supabase start`—. Alumnos sembrados: Ana `a0000000-…0001`, Bruno `…0002`;
+operador `…000b`, admin `…000a`. Unidades **distintas** por reserva, o el `EXCLUDE` anti-solape las choca.
+Para las dos faltas hacen falta: una `reserved` para `not_picked_up`, una `active` para `not_returned`, y
+—para ver la sanción de 15 días— **dos** `not_picked_up` del mismo alumno dentro de los 90 días.
+
+**Los tres contrastes de `banned_until`, que son el Step 5 y no se pueden razonar, hay que verlos:**
+
+| Momento | `banned_until` esperado |
+|---|---|
+| Tras la **primera** `not_picked_up` | sigue **`NULL`** — `apply_penalties` exige `v_count >= 2` |
+| Tras la **segunda** en 90 días | `now() + 15 days`, con `greatest(...)` para no acortar una que ya corría |
+| Tras una `not_returned` | **`infinity`** |
+
+**Ya está medido que la primera no sanciona** —se vio de paso en el Step 0 de la Task 4: Bruno quedó con
+`banned_until` vacío tras una `not_picked_up`—. Faltan la segunda y la `not_returned`.
+
+**Cinco cosas medidas en las Tasks 4 y 5 que la Task 6 hereda:**
+
+1. **El `SQLSTATE` llega por PostgREST en `error.code`**, tal cual. `23514` para `CHECK`, `42501` para
+   privilegio.
+2. **Las columnas reales del log son `old_status` y `new_status`** —más `reason`, `changed_by`,
+   `changed_at`—. No existen `from_status` ni `to_status`; consultarlas falla y ya costó un intento.
+3. **Un `UPDATE` con el mismo valor no da error, no deja fila en el log, pero SÍ mueve `updated_at`**, que
+   es contra lo que `apply_penalties` cuenta los 90 días. Hoy lo cierra el filtro de reservas vivas.
+4. **Al marcar `not_picked_up`, la reserva DESAPARECE de la pantalla entera** —no se queda con el nombre
+   en blanco, como predecía el punto a verificar 4—: el filtro `status in ('reserved','active')` la
+   excluye. Es lo que hay que mirar en la Task 9, y conviene que la Task 6 no se sorprenda.
+5. **La receta del JWT de operador** para medir por PostgREST está en la corrección del Step 0 de la
+   Task 4 y en la memoria del proyecto. Es la única forma de medir RLS por la herramienta real.
+
+**Y una decisión que el plan ya tomó y no hay que reabrir:** en `marcarNoDevuelta()` va **primero el
+`INSERT` de la nota y después el `UPDATE` del estado**. Las dos escrituras no son atómicas —la API no da
+transacción entre dos llamadas del cliente—, y con ese orden, si la nota falla, la sanción nunca se
+dispara. Al revés quedaría un alumno bloqueado sin ningún rastro escrito de por qué.
+
+**Lo que la Task 6 NO hace:** no construye nada para levantar una sanción puesta por error. Solo
+`admin_set_ban` puede, es de admin, y su pantalla es de la T3B. Un operador no puede deshacer su propio
+error desde el mostrador, y eso se deja escrito en vez de compensarlo.
+
 ---
 
 ## Por qué la T3 se parte en dos
