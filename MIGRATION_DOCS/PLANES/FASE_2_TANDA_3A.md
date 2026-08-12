@@ -4,6 +4,38 @@
 
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
+### Estado de la ejecución *(al 2026-08-12)*
+
+| Task | Estado |
+|---|---|
+| **1 · El andamio del personal** | ✅ **Cerrada.** Commit `2444685`. `typecheck`, `lint`, `test` (43) y `build` (**14 rutas**) en verde |
+| **2 · Migración 23, cierra Q-17** | ✅ **Cerrada.** Migración `20260812053243_cancel_before_start.sql` y `supabase/tests/31_cancel_before_start.sql` escritos. `db reset` aplicó **23 migraciones**; `test db`: `Files=24, Tests=147`, `Result: PASS`. `typecheck`, `lint` y `build` (14 rutas) verdes; `test` sigue en 43, sin cambios. **Sin comitear todavía** |
+| **3 a 10** | Sin empezar |
+
+**Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
+**54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
+Mailpit—. `npx supabase start` falla con `bind: An attempt was made to access a socket in a way forbidden
+by its access permissions`. Verificado con `netsh interface ipv4 show excludedportrange protocol=tcp`, que
+además muestra un segundo rango contiguo, 54145–54244. **Se resuelve con `wsl --shutdown` o reiniciando el
+servicio `winnat` como administrador**, no tocando el repositorio.
+
+**El bloqueo se resolvió reiniciando, y queda confirmado que el rango desapareció.**
+`netsh interface ipv4 show excludedportrange protocol=tcp` ya **no** muestra 54245–54344; los rangos que
+quedan (49682–49992, 50000–50579, 60004–60103) no tocan los puertos de Supabase. **Y esta vez la
+comprobación de que el stack estaba arriba se hizo por el puerto del host, no con `docker exec`**:
+`docker ps` mostró `0.0.0.0:54322->5432/tcp`, y un socket TCP abierto desde el host con
+`System.Net.Sockets.TcpClient` conectó. La trampa de la sesión anterior —la sonda más privilegiada que la
+herramienta real— no se repitió.
+
+**Y una trampa nueva del entorno, que conviene no volver a pisar:** el stack **parecía** arrancado.
+`npx supabase start` había salido con código 0 y el contenedor figuraba como `healthy`, pero **sin puerto
+publicado en el host** —`docker inspect` mostraba `"5432/tcp":[]`—. Las consultas hechas con
+`docker exec ... psql` funcionaban, porque van por dentro del contenedor y no pasan por el puerto. **La
+sonda que funcionaba era más privilegiada que la herramienta real**, que se conecta por `127.0.0.1:54322`.
+Es la misma forma de la trampa de D-33 y de la sonda sin sesión de la T2B: **la herramienta con la que
+compruebas no es la que va a usar el trabajo de verdad.** Para saber si el stack está arriba, lo que hay
+que probar es una conexión **por el puerto del host**, no un `docker exec`.
+
 ### Task 1 · El andamio del personal *(2026-08-11)*
 
 1. **Ninguna tarea creaba `app/(personal)/mostrador/page.tsx`.** La «Estructura de archivos» la lista como
@@ -32,6 +64,56 @@
 6. **`npm run test` sigue en 43**, sin cambios: esta tarea no añade lógica pura que probar. El verde de
    `test` aquí **no afirma nada** sobre lo que se escribió, y conviene decirlo en vez de contarlo como
    evidencia.
+
+### Task 2 · Migración 23 (2026-08-12)
+
+1. **El rojo no fue de cinco aserciones sino de dos, y el archivo abortó antes de llegar a las otras
+   tres.** El Step 2 predecía ver fallar las cinco. Lo que dio `pg_prove`: la aserción 1
+   (`throws_ilike`) con «no exception thrown»; la aserción 2 con «have: cancelled / want: reserved»; y
+   después un `ERROR: Transicion no permitida: cancelled -> not_picked_up` que tumbó la transacción
+   entera —`Parse errors: Bad plan. You planned 5 tests but ran 2`—. **No es un defecto del arnés**: la
+   aserción 3 hace un `update` suelto, fuera de `throws_ok`/`lives_ok`, y con la fila ya en `cancelled`
+   —porque la RPC vieja la dejó cancelar— el trigger de la máquina de estados dispara la excepción y
+   tumba todo lo que venía después. **Y el aborto mismo es la prueba**: es Q-17 reproducido en la base,
+   con la reserva llegando a `cancelled` y el personal perdiendo la posibilidad de marcarla
+   `not_picked_up` desde un estado terminal. Es el daño que D-38 cierra, visto ejecutándose delante.
+2. **El decimoquinto hecho falso de un subagente, y es de un género nuevo: sobre-afirmación de
+   ALCANCE.** El comentario de cabecera de la migración decía que el personal ya puede cancelar
+   «cualquier» reserva por `UPDATE` directo. **Es falso**: solo puede cancelar las que están en
+   `reserved`. Una `active` no la cancela nadie, porque `active -> cancelled` no está entre las
+   transiciones válidas de `enforce_reservation_transition()` —
+   `supabase/migrations/20260806005731_reservation_state_machine.sql:38-39`—. El código funciona,
+   porque la comprobación nueva va después del filtro por `reserved` y ahí la reserva siempre está en
+   ese estado; el comentario mentía sobre hasta dónde llegaba la afirmación. **No es un dato inventado
+   ni una fuente inventada** —los catorce anteriores eran de esos dos géneros—, es un hecho cierto en el
+   caso que importaba, estirado a un caso más amplio donde es falso. **Las dos comprobaciones
+   habituales lo habrían dado por bueno**: el personal sí tiene la política `reservations_update_staff`,
+   y esa política sí existe. Lo que falla es el cuantificador, no el dato ni la fuente. Ya está
+   corregido en el propio archivo de la migración, con la cita de líneas.
+3. **La atribución que sí se verificó, y salió correcta.** El subagente citó
+   `20260806171347_duration_slot_multiple.sql`, líneas 23-27, como fuente de que `create or replace`
+   conserva los privilegios de una función. Abierto el archivo, está exactamente ahí. Es la primera
+   atribución de un subagente que se comprueba y resulta correcta desde que se empezó a vigilar este
+   género de error.
+4. **Punto a verificar 2, resuelto: sí.** `19_function_hardening.sql` (4 aserciones) sigue en verde tras
+   el `create or replace` de la migración 23, sin tocar ese archivo. La predicción del plan se cumplió,
+   confirmada corriendo `npx supabase test db` y no razonándola.
+5. **Punto a verificar 1, resuelto a medias.** Lo medido: el texto del rechazo nuevo es «No puedes
+   cancelar una reserva que ya empezo», fijo y sin interpolación `%` —a diferencia del rechazo #4, que
+   interpola el estado y por eso `mensajeDeRechazoCancelacion()` lo empareja por prefijo—.
+   **Consecuencia para la Task 3:** este quinto caso se puede emparejar por igualdad exacta, no hace
+   falta prefijo. Lo NO medido: el `SQLSTATE` tal como llega por PostgREST, que es la herramienta real
+   de `lib/reservas/acciones.ts`. `check_violation` es `23514` por definición en Postgres, pero no se ha
+   visto llegar así por PostgREST —no hay `psql` en el host, y montar ese escenario es justo la Task 9—.
+   Queda anotado como pendiente de medir ahí, no como medido. La predicción de que el rechazo nuevo no
+   compite con los otros cuatro se sostiene por la ubicación del `if`, pero disparar cada uno de los
+   cinco a propósito también es Task 9.
+6. **Los números finales.** `npx supabase db reset` aplicó **23 migraciones**. `npx supabase test db`:
+   `Files=24, Tests=147`, `Result: PASS`. De **22 a 23 migraciones**, de **142 a 147 aserciones**, en
+   **24 archivos** (antes 23) —las 5 nuevas son las de `31_cancel_before_start.sql`—. `typecheck` y
+   `lint` verdes. `npm run test`: **43 pruebas en 3 archivos**, sin cambios —esta tarea es SQL y no
+   añade lógica pura, así que ese verde no afirma nada sobre lo escrito, igual que en la Task 1. `npm
+   run build`: **catorce rutas**, tres estáticas (`/_not-found`, `/faq`, `/login`).
 
 ---
 
