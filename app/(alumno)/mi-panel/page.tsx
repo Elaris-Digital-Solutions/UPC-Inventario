@@ -35,7 +35,15 @@ export default async function MiPanelPage() {
   // lee inventory_reservations, la otra final_satisfaction_surveys- y ninguna
   // necesita el resultado de la otra para ejecutarse.
   const [reservas, encuesta] = await Promise.all([misReservas(), miEncuesta()]);
-  const { en_curso, proxima, pasada } = agruparReservas(reservas, new Date());
+
+  // UNA SOLA lectura del reloj para toda la pantalla, reutilizada tanto para
+  // agrupar como para pasarla a cada <TarjetaReserva>. Es el fallo M-7 que ya
+  // senala el comentario de TarjetaReservaProps: dos lecturas del reloj para
+  // la misma decision pueden desincronizarse entre si -una reserva que
+  // venciera justo entre las dos llamadas quedaria agrupada con un `ahora` y
+  // evaluada por seOfreceCancelar() con otro.
+  const ahora = new Date();
+  const { en_curso, proxima, pasada } = agruparReservas(reservas, ahora);
 
   return (
     <main className="container flex-1 py-12">
@@ -109,7 +117,7 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">En curso</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {en_curso.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="en_curso" />
+                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="en_curso" ahora={ahora} />
                 ))}
               </div>
             </section>
@@ -120,7 +128,7 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">Próximas</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {proxima.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="proxima" />
+                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="proxima" ahora={ahora} />
                 ))}
               </div>
             </section>
@@ -131,7 +139,7 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">Anteriores</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {pasada.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="pasada" />
+                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="pasada" ahora={ahora} />
                 ))}
               </div>
             </section>

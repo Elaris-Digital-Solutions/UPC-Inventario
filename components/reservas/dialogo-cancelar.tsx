@@ -59,8 +59,12 @@ export function DialogoCancelar({ reservationId, producto }: DialogoCancelarProp
   // reserva con `status = 'cancelled'`. app/(alumno)/mi-panel/page.tsx
   // reagrupa con grupoDeReserva() y esta reserva deja el array `proxima`
   // para pasar a `pasada`, ASI QUE la condicion de mas abajo en
-  // tarjeta-reserva.tsx -`reserva.estado === "reserved" && grupo ===
-  // "proxima"`- deja de cumplirse. React no mueve ese TarjetaReserva de una
+  // tarjeta-reserva.tsx -hoy la llamada a seOfreceCancelar(),
+  // lib/reservas/agrupar.ts; esta linea citaba la condicion inline vieja
+  // `reserva.estado === "reserved" && grupo === "proxima"`, que la Task 3 de
+  // la tanda 3A extrajo a esa funcion y amplio con un tercer termino- deja
+  // de cumplirse: `cancelled` no es `reserved`, asi que el PRIMER termino ya
+  // basta para que devuelva `false`. React no mueve ese TarjetaReserva de una
   // seccion a otra: lo desmonta donde estaba -ya no aparece en el array que
   // pinta "Proximas"- y monta uno nuevo, sin este dialogo, donde ahora
   // corresponde -"Anteriores"-. Este componente desaparece con el, y con el

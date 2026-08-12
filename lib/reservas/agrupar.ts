@@ -57,6 +57,55 @@ export function grupoDeReserva(estado: EstadoReserva, fin: string, ahora: Date):
 }
 
 /**
+ * Si a esta reserva se le ofrece el boton de cancelar en /mi-panel.
+ *
+ * `true` solo si se cumplen TRES condiciones a la vez, y son TRES DECISIONES
+ * distintas que solo coinciden en esta misma linea:
+ *
+ *   - `estado === 'reserved'`. En `active` el boton DESAPARECE -no se
+ *     deshabilita-, porque una reserva ya entregada no se cancela, se
+ *     devuelve (ya estaba, antes de esta funcion).
+ *   - `grupo === 'proxima'`. D-35: oculta la reserva cuyo FIN ya paso -sigue
+ *     en `reserved` en la base porque nadie la recogio, pero ofrecerla como
+ *     cancelable prometeria algo que ya no tiene sentido (ya estaba).
+ *   - `new Date(inicio) > ahora`. D-38: oculta la reserva cuyo INICIO ya
+ *     paso, aunque el FIN siga en el futuro -la migracion 23
+ *     (20260812053243_cancel_before_start.sql) rechaza esa cancelacion en el
+ *     motor, asi que la pantalla deja de ofrecer un boton que el motor va a
+ *     rechazar (nuevo, D-38).
+ *
+ * Comparacion ESTRICTA (`>`), no `>=`: el SQL de la migracion 23 rechaza con
+ * `v_start_at <= now()`, asi que esta funcion y el motor coinciden en el
+ * instante exacto del inicio -ningun segundo en el que uno ofrezca el boton
+ * y el otro lo rechace.
+ *
+ * `ahora` se RECIBE y no se calcula aca con `new Date()`, por el mismo
+ * motivo que ya explica el comentario de grupoDeReserva() mas arriba.
+ *
+ * HALLAZGO: para una reserva `reserved`, el TERCER termino SUBSUME al
+ * SEGUNDO. `grupo === 'proxima'` equivale a `fin > ahora` -es literalmente
+ * como lo calcula grupoDeReserva()-, y como `inicio < fin` siempre es cierto,
+ * `inicio > ahora` ya implica `fin > ahora`. Y ese "siempre" NO es una
+ * suposicion de dominio: la base lo hace cumplir con
+ * `CONSTRAINT chk_reservation_dates CHECK (end_at > start_at)`, leido en
+ * supabase/migrations/20260805030123_baseline.sql:180 -asi que ninguna fila
+ * de `inventory_reservations` puede violarlo. Los
+ * dos terminos se CONSERVAN a proposito, ninguno sobra: son dos decisiones
+ * con dos fuentes distintas -D-35 y D-38-, y quitar el de D-35 haria que
+ * este boton dependiera del invariante `inicio < fin` sin revalidarlo -esta
+ * funcion no lee `fin` en ningun momento, asi que no tiene forma de saber si
+ * ese invariante se sigue cumpliendo.
+ */
+export function seOfreceCancelar(
+  estado: EstadoReserva,
+  grupo: Grupo,
+  inicio: string,
+  ahora: Date,
+): boolean {
+  return estado === 'reserved' && grupo === 'proxima' && new Date(inicio) > ahora;
+}
+
+/**
  * El texto que ve el alumno para cada estado, en español y sin jerga de
  * esquema -que se entienda sin saber que es un `enum` de Postgres-.
  *

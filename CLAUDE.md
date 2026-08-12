@@ -67,7 +67,9 @@ que sostiene un commit, borrarla lo pierde. Tags vivos: `legacy/vite-final` y `l
 aserciones pgTAP; la **tanda 0 de la Fase 2** añadió las dos últimas migraciones del proyecto: **21
 migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas. ⚠ **Corregido el
 2026-08-07:** la tanda 1 añadió **una migración más, la 22** *(D-32, el enganche de dominio)*, así que hoy
-son **22 migraciones y 142 aserciones en 23 archivos**. Diseño en
+son **22 migraciones y 142 aserciones en 23 archivos**. ⚠ **Corregido otra vez el 2026-08-12:** la T3A
+añadió la **migración 23** *(D-38, cierra Q-17)*, así que hoy son **23 migraciones y 147 aserciones en 24
+archivos**. Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
 | Tanda | Contenido | Estado |
@@ -149,13 +151,31 @@ se escribe ahora.~~ ⚠ **Corregido el 2026-08-11:** la T2B también cerró, ver
 `feature/fase-2-tanda-2a`, nada empujado todavía. **41 correcciones** al plan en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_2A.md`. El alumno ya puede ver qué hay —landing, FAQ, catálogo con
 sede y detalle—, todo lectura pura: sin escribir una fila y sin tocar SQL. Base intacta en 22 migraciones y
-142 aserciones. **Falta empujarla y abrir el PR.**
+142 aserciones. **Falta empujarla y abrir el PR.** ⚠ **Corregido el 2026-08-12:** esa cifra era la del
+cierre de la T2A; la T3A añadió la migración 23, y hoy la base tiene **23 migraciones y 147 aserciones en
+24 archivos**.
 
 **T2B CERRADA el 2026-08-11.** Las 9 tareas cerradas, **10 commits locales** en `feature/fase-2-tanda-2b`,
 sin empujar. **57 correcciones** al plan en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md`. El alumno ya
 reserva de punta a punta: calendario, reserva, bloqueo por sanción, `/mi-panel`, cancelación y encuesta.
 **Vitest estrenó en esta tanda**: de 0 a **43 pruebas**. El `build` pasó de **diez rutas a trece**.
-**Ninguna migración: la base sigue en 22 migraciones y 142 aserciones.** **Siguiente: la T3, el personal.**
+~~**Ninguna migración: la base sigue en 22 migraciones y 142 aserciones.**~~ ⚠ **Corregido el
+2026-08-12:** era cierto al cerrar la T2B; la T3A añadió la migración 23, y hoy son **23 migraciones y
+147 aserciones en 24 archivos**. ~~**Siguiente: la T3, el personal.**~~ ⚠ **Corregido el 2026-08-12:** la
+T3 se partió en T3A y T3B *(D-37)*; la T3A ya cerró, ver el párrafo siguiente.
+
+**T3A CERRADA el 2026-08-12.** Las 10 tareas cerradas. Nueve commits en `feature/fase-2-tanda-3a` al
+empezar la sesión de hoy, más el de los textos y el de esta documentación de cierre, sin empujar todavía.
+El personal ya atiende el mostrador de punta a punta: tres columnas —«Por entregar», «Activas», «Por
+devolver»—, entregar, recibir, las dos faltas con confirmación y sanción real, anotaciones de unidad con su
+historial, y un filtro de fecha sobre «Por entregar». **Y la migración 23** *(D-38, cierra Q-17)*: la base
+pasa de 22 migraciones y 142 aserciones a **23 migraciones y 147 aserciones en 24 archivos**, medido con
+`npx supabase test db`, sin empujar al remoto. **Vitest de 43 pruebas en 3 archivos a 65 en 5.** El `build`
+pasó de **trece rutas a catorce**, con las mismas tres estáticas. Abierto **Q-18**: las notas de unidad las
+lee cualquier alumno con sesión —es **D-2**, la trazabilidad legible, no un fallo nuevo—, y esta es la
+primera tanda que escribe ahí desde una pantalla. Mitigado por texto en los dos diálogos que escriben
+notas; arreglarlo de verdad es RLS, y queda para la T4 o una migración propia. **Siguiente: la T3B, la
+administración.**
 
 **El `seed.sql` impedía entrar en local, y ya no.** Faltaban cuatro columnas de token en el `insert into
 auth.users` —`confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`—, y se
