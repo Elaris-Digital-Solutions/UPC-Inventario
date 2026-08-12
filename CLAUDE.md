@@ -142,14 +142,20 @@ link, el canje en `/auth/confirm`, `/auth/error`, `/auth/signout`, el reparto po
 flujo se probó entero en un navegador de verdad: entrar, completar el perfil y caer en `/admin/inventario`.
 Las **48 correcciones** al plan están en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md`. ~~**Siguiente: T2, el
 alumno** — landing, catálogo, el calendario, reserva y panel.~~ ⚠ **Corregido el 2026-08-10:** la T2 se
-partió en T2A y T2B *(D-34)*; la T2A ya cerró, ver el párrafo siguiente. **Siguiente: la T2B**, cuyo plan
-se escribe ahora.
+partió en T2A y T2B *(D-34)*; la T2A ya cerró, ver el párrafo siguiente. ~~**Siguiente: la T2B**, cuyo plan
+se escribe ahora.~~ ⚠ **Corregido el 2026-08-11:** la T2B también cerró, ver los dos párrafos siguientes.
 
 **T2A CERRADA el 2026-08-10.** Las 7 tareas cerradas, séptima incluida, nueve commits locales en
 `feature/fase-2-tanda-2a`, nada empujado todavía. **41 correcciones** al plan en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_2A.md`. El alumno ya puede ver qué hay —landing, FAQ, catálogo con
 sede y detalle—, todo lectura pura: sin escribir una fila y sin tocar SQL. Base intacta en 22 migraciones y
 142 aserciones. **Falta empujarla y abrir el PR.**
+
+**T2B CERRADA el 2026-08-11.** Las 9 tareas cerradas, **10 commits locales** en `feature/fase-2-tanda-2b`,
+sin empujar. **57 correcciones** al plan en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md`. El alumno ya
+reserva de punta a punta: calendario, reserva, bloqueo por sanción, `/mi-panel`, cancelación y encuesta.
+**Vitest estrenó en esta tanda**: de 0 a **43 pruebas**. El `build` pasó de **diez rutas a trece**.
+**Ninguna migración: la base sigue en 22 migraciones y 142 aserciones.** **Siguiente: la T3, el personal.**
 
 **El `seed.sql` impedía entrar en local, y ya no.** Faltaban cuatro columnas de token en el `insert into
 auth.users` —`confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`—, y se
@@ -162,9 +168,27 @@ verde y en rojo según qué máquina lo corriera. Ahora se sabe que también mie
 hizo que la primera carga reportara **504** donde en caliente son **404**, por la compilación en frío de
 Turbopack agotando el optimizador de imágenes.
 
+**Y el servidor de desarrollo produce falsos igual que `.next/`, de dos formas distintas** *(Task 15 de la
+T2B)*: un proceso viejo que se degrada, con `500` y `Jest worker encountered ... exceeding retry limit`; y
+un arranque en frío que no registra una ruta, con `404` sin que Turbopack llegue a escribir `Compiling`.
+**Lo dirimió `npm run build`**, que compiló las trece rutas con el código sano. El árbitro no es la
+pantalla ni el servidor de desarrollo: es el `build`.
+
 **Lo que hay que verificar de un subagente no es solo si su código funciona, sino si lo que AFIRMA es
-cierto.** En esta tanda colaron cuatro hechos falsos en comentarios, con el código funcionando en los
-cuatro casos.
+cierto.** ~~En esta tanda colaron cuatro hechos falsos en comentarios, con el código funcionando en los
+cuatro casos.~~ ⚠ **Corregido el 2026-08-11: esos cuatro eran los de la T2A, y al cerrar la T2B van
+TRECE**, con el código funcionando en los trece.
+
+**Y desde la Task 13 el género se desplazó: los cuatro últimos son de ATRIBUCIÓN**, no de dato — el hecho
+es cierto y lo inventado es de dónde sale. **Comprobar el dato los confirma**, así que hay que verificar
+**el hecho Y la fuente**: son dos comprobaciones distintas y cuestan lo mismo.
+
+**Y quien dicta no está a salvo, que es lo que la T2B añade.** Pedirle al subagente que enumere lo que
+**no** verificó y si algo del encargo le pareció contradictorio ha destapado **cinco** cosas, y **tres
+fueron errores de quien dictaba**: un párrafo que se contradecía consigo mismo, un escenario caducado que
+el encargo no mandaba actualizar, y —en la propia tarea de cierre— una predicción atribuida al diseño que
+en realidad era del plan. **El mismo género que se persigue en el subagente, cometido al encargarle el
+trabajo.**
 
 **Cinco fallos de la T1 pasaron con `typecheck`, `lint` y `build` en verde, y ninguna herramienta avisó:**
 el enganche de dominio **desactivado en los contenedores** —`db reset` no aplica el `config.toml`, hacen

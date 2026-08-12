@@ -26,6 +26,14 @@ export function CabeceraSesion() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/catalogo">Catálogo</Link>
           </Button>
+          {/* Va AQUI, en la cabecera CON sesion, y no en components/cabecera.tsx
+              -aunque el plan de la tanda diga lo segundo, correccion anotada-.
+              cabecera.tsx es la de las pantallas SIN sesion -landing y FAQ-, y
+              /mi-panel no tiene ningun sentido sin sesion: ofrecerlo alli seria
+              un enlace que rebota a /login en vez de llevar a algo. */}
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/mi-panel">Mis reservas</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href="/faq">Preguntas</Link>
           </Button>

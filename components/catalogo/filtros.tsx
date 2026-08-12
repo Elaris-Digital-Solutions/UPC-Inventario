@@ -28,6 +28,17 @@ import type { ProductoVitrina } from "@/lib/catalogo/consultas";
 
 type FiltrosCatalogoProps = {
   productos: ProductoVitrina[];
+  // La sede que el servidor ya aplico a `productos`. Viaja hasta el `href` de
+  // cada tarjeta para que el detalle -y desde el, la pantalla de reserva- no
+  // tengan que adivinarla.
+  //
+  // Es la correccion 32 de la tanda 2A, que aquella tanda dejo anotada y sin
+  // arreglar a proposito. El motivo de cerrarla ahora y no antes: mientras la
+  // sede solo decidia que se MUESTRA, perderla era un detalle de navegacion
+  // que el boton "atras" del navegador ya resolvia. Desde la tanda 2B deja de
+  // ser cosmetica -una reserva es contra la unidad de UNA sede-, asi que la
+  // cadena catalogo -> detalle -> reservar tiene que conservarla entera.
+  sedeId: string;
 };
 
 // Los nombres reales en la base van SIN tilde -"Camara Sony A7 III",
@@ -42,7 +53,7 @@ const normalizar = (texto: string) =>
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
 
-export function FiltrosCatalogo({ productos }: FiltrosCatalogoProps) {
+export function FiltrosCatalogo({ productos, sedeId }: FiltrosCatalogoProps) {
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
 
@@ -122,7 +133,7 @@ export function FiltrosCatalogo({ productos }: FiltrosCatalogoProps) {
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
           {filtrados.map((p) => (
-            <TarjetaProducto key={p.id} producto={p} href={`/catalogo/${p.id}`} />
+            <TarjetaProducto key={p.id} producto={p} href={`/catalogo/${p.id}?sede=${sedeId}`} />
           ))}
         </div>
       )}

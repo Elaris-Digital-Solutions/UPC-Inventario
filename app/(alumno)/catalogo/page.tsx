@@ -99,7 +99,7 @@ export default async function CatalogoPage({
         </p>
       ) : (
         <div className="mt-8">
-          <FiltrosCatalogo productos={productos} />
+          <FiltrosCatalogo productos={productos} sedeId={sedeActiva.id} />
         </div>
       )}
     </main>
