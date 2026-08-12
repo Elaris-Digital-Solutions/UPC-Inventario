@@ -13,9 +13,10 @@
 | **3 · El botón imposible** | ✅ **Cerrada.** Commit `80956b6`. `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
 | **4 · Las tres columnas** | ✅ **Cerrada.** Commit `1c1278f`. Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
 | **5 · Entregar y recibir** | ✅ **Cerrada.** `acciones.ts`, `tarjeta-mostrador.tsx` y la pantalla con las tres columnas. Los dos `UPDATE` medidos por PostgREST antes de escribir. **Cierra el pendiente del `SQLSTATE`** y el punto a verificar 1. Los cuatro comandos verdes; `build` en 14 rutas con `/mostrador` dinámica |
-| **6 · Las dos faltas** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas) en verde, corridos dos veces —antes y después de los cambios de texto—. Efecto verificado también desde la pantalla, con sesión de operador de verdad |
-| **7 · Anotaciones de unidad** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde |
-| **8 a 10** | Sin empezar |
+| **6 · Las dos faltas** | ✅ **Cerrada.** Commit `ddc9e24`. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas) en verde, corridos dos veces —antes y después de los cambios de texto—. Efecto verificado también desde la pantalla, con sesión de operador de verdad |
+| **7 · Anotaciones de unidad** | ✅ **Cerrada.** Commit `745d48e`. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde |
+| **8 · El filtro de fecha y el reloj** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**65 en 5 archivos**, de 56 en 4) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde. Verificado también desde la pantalla, con sesión de operador y la predicción escrita antes de mirar |
+| **9 y 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -633,6 +634,71 @@ con 3 estáticas, sin cambios**: no agrega ninguna ruta.
     vacía **en el servidor**; `marcarNoDevuelta()` solo la recorta, y su barrera contra el vacío vive
     únicamente en el diálogo. No es una regresión —ya era así al cerrar la Task 6— y no se corrige acá
     para no reabrir una tarea ya verificada y comiteada.
+
+### Task 8 · Cierre *(2026-08-12)*
+
+**Cerrada. Commit pendiente de crear.** Los cuatro comandos, corridos a mano y verdes: `typecheck` salida
+0, `lint` salida 0, `test` **65 pruebas en 5 archivos** —de 56 en 4, la primera subida desde la Task 4—,
+`build` **14 rutas con 3 estáticas, sin cambios**.
+
+1. **Lo construido.** `lib/mostrador/filtro.ts` con `pasaFiltroFecha()`, `lib/mostrador/filtro.test.ts`, y
+   `components/mostrador/filtro-fecha.tsx` —que exporta `FiltroPorEntregar`—; `app/(personal)/mostrador/page.tsx`
+   monta el filtro solo sobre «Por entregar». «Activas» y «Por devolver» quedan exactamente como estaban.
+2. **Dos archivos que el plan no previó, y esta vez la razón es forzosa.** Los `Files` de la Task 8 solo
+   listan `filtro-fecha.tsx` y `page.tsx`. Se crearon además `filtro.ts` y `filtro.test.ts` porque Vitest
+   no puede probar componentes en este proyecto —no hay `@testing-library/react` ni `jsdom`—, así que
+   probar la regla del filtro obliga a extraerla a una función pura. Es el mismo hueco inverso que
+   registró la Task 7: el cuerpo de la tarea pide algo que la lista de archivos no refleja.
+3. **UN HALLAZGO DEL ENTORNO QUE NO ESTABA EN NINGÚN SITIO: el alias `@/` NO funciona bajo Vitest.** El
+   proyecto no tiene `vitest.config.ts`, así que Vitest corre con los valores por defecto y no conoce el
+   alias `@/*` que declara `tsconfig.json`. La primera versión de `filtro.ts` importaba
+   `@/lib/reservas/rejilla` —igual que hace `consultas.ts` para el mismo cruce de carpetas— y rompió
+   `npm run test`. Se arregló con un import relativo, `'../reservas/rejilla'`.
+4. **Por qué no había salido hasta ahora, que es la parte que vale.** Ningún módulo probado tenía todavía
+   un import de valor en tiempo de ejecución. `columnas.ts` y `agrupar.ts` importan solo
+   `import type { EstadoReserva }`, que TypeScript borra al compilar, así que Vitest nunca llega a
+   resolver nada; y `rejilla.ts` no importa absolutamente nada. `filtro.ts` es el primero que importa una
+   función de verdad desde otra carpeta. **Lo peligroso es el modo de fallo: `typecheck` y `build` pasan
+   en verde con el alias, y solo `vitest run` se rompe** —otra vez dos herramientas del mismo repositorio
+   discrepando sobre el mismo archivo.
+5. **Las dos decisiones de Alejandro, del 2026-08-12.** Primera: el filtro acota hacia adelante y nunca
+   hacia atrás —una reserva de «Por entregar» cuya hora ya pasó se ve con cualquier opción, «Hoy»
+   incluida, porque son las candidatas a «No se retiró» y esconderlas haría que esa falta no se marcara
+   nunca. La condición es un techo sin suelo. Segunda: ventanas móviles, no de calendario —«Hoy» es hoy;
+   «Próximos 3 días» es hoy y los dos siguientes; «Esta semana» es hoy y los seis siguientes, sin ningún
+   concepto de domingo a sábado. Juntas dan una sola comparación: `fechaEnLima(inicio) <= hoy + N`.
+6. **Verificado en pantalla, con `npm run dev` y sesión de operador, y con la predicción escrita ANTES de
+   mirar.** El escenario se amplió a seis reservas en «Por entregar», repartidas en los cortes: −2, −1, 0,
+   +1, +4 y +8 días. Lo predicho y lo observado coincidieron en las cuatro opciones:
+
+   | Filtro | Predicho | Observado |
+   |---|---|---|
+   | Todas | 6 | **6** |
+   | Hoy | 3 | **3** |
+   | Próximos 3 días | 4 | **4** |
+   | Esta semana | 5 | **5** |
+
+   Y las dos reservas vencidas aparecen en las cuatro, que es la decisión 1 funcionando.
+7. **La rama que no se alcanza con datos normales, forzada a propósito.** El componente distingue «no hay
+   nada pendiente» de «hay reservas pero el filtro las esconde», y el segundo mensaje es inalcanzable
+   mientras haya una reserva vencida, porque el filtro no tiene suelo. Se forzó desplazando las seis
+   `reserved` diez días hacia adelante y revirtiendo con el desplazamiento inverso, exacto. El mensaje
+   salió como debía. **Decir «nada pendiente» ahí habría sido una afirmación falsa** con consecuencia
+   operativa: un operador podría creer que no le queda trabajo cuando solo está filtrado.
+8. **Un texto corregido: la interfaz TUTEA.** El mensaje del filtro decía «Probá con otro filtro», en
+   voseo. Todos los textos de la aplicación tutean —«Actualiza la página», «Describe abajo qué pasó con el
+   equipo», «no escribas datos personales»—; el voseo es de los comentarios y de estos documentos, no de
+   la pantalla, y mezclar los dos registros se lee como un descuido.
+9. **El reloj: la decisión (B) del Step 2 se cumplió tal cual.** No se construyó ningún `setInterval` ni
+   ningún refresco automático. Queda en pie lo que el propio Step ya anotó: si en la Task 9 el desfase del
+   borde «Activas»/«Por devolver» molesta de verdad, el término medio es un botón manual de «Actualizar»,
+   no el temporizador.
+10. **Detalles de la interfaz que son de comportamiento y no de estética.** El filtro arranca en «Todas»,
+    para no esconderle trabajo pendiente a quien abre el mostrador por primera vez en su turno; el botón
+    activo se distingue con una `variant` distinta y lleva `aria-pressed`, porque saber qué filtro está
+    aplicado es lo que evita creer que no hay reservas cuando solo están filtradas.
+11. **Cero advertencias en consola.** Los errores que aparecen son todos el mismo WebSocket de HMR
+    rechazado —ruido del servidor de desarrollo, con ids de dos instancias distintas—, ninguno del código.
 
 ---
 

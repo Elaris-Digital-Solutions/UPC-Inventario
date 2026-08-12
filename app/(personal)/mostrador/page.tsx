@@ -8,6 +8,7 @@
 // son del servidor. La interactividad de cada tarjeta -los botones y su
 // estado pendiente/error- vive dentro de TarjetaMostrador
 // (components/mostrador/tarjeta-mostrador.tsx), que SI es Client Component.
+import { FiltroPorEntregar } from "@/components/mostrador/filtro-fecha";
 import { TarjetaMostrador } from "@/components/mostrador/tarjeta-mostrador";
 import { columnaDeReserva, type Columna } from "@/lib/mostrador/columnas";
 import { reservasMostrador, type ReservaMostrador } from "@/lib/mostrador/consultas";
@@ -118,7 +119,22 @@ export default async function MostradorPage() {
             <section key={columna}>
               <h2 className="font-display text-xl">{TITULOS[columna]}</h2>
               <div className="mt-4 space-y-4">
-                {columnas[columna].length === 0 ? (
+                {columna === "por_entregar" ? (
+                  // La UNICA columna con el filtro de fecha (F5, Task 8 de
+                  // la tanda 3A). "Activas" y "Por devolver" NO cambian: se
+                  // siguen pintando abajo exactamente igual que antes de
+                  // esta tarea, mapeando columnas[columna] directo.
+                  <FiltroPorEntregar
+                    reservas={columnas.por_entregar}
+                    // El MISMO `ahora` leido una sola vez arriba (regla
+                    // M-7), no un segundo `new Date()` dentro del
+                    // componente cliente: viaja como ISO porque esa es la
+                    // frontera servidor->cliente que FiltroPorEntregar
+                    // documenta en sus props.
+                    ahora={ahora.toISOString()}
+                    notasPorUnidad={porUnidad}
+                  />
+                ) : columnas[columna].length === 0 ? (
                   <p className="text-muted-foreground text-sm">Nada pendiente en esta columna.</p>
                 ) : (
                   columnas[columna].map((reserva) => (
