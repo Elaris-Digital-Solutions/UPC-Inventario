@@ -9,8 +9,9 @@
 | Task | Estado |
 |---|---|
 | **1 · El andamio del personal** | ✅ **Cerrada.** Commit `2444685`. `typecheck`, `lint`, `test` (43) y `build` (**14 rutas**) en verde |
-| **2 · Migración 23, cierra Q-17** | ✅ **Cerrada.** Migración `20260812053243_cancel_before_start.sql` y `supabase/tests/31_cancel_before_start.sql` escritos. `db reset` aplicó **23 migraciones**; `test db`: `Files=24, Tests=147`, `Result: PASS`. `typecheck`, `lint` y `build` (14 rutas) verdes; `test` sigue en 43, sin cambios. **Sin comitear todavía** |
-| **3 a 10** | Sin empezar |
+| **2 · Migración 23, cierra Q-17** | ✅ **Cerrada.** Commit `8ddcc01`. Migración `20260812053243_cancel_before_start.sql` y `supabase/tests/31_cancel_before_start.sql`. `db reset` aplicó **23 migraciones**; `test db`: `Files=24, Tests=147`, `Result: PASS`. `typecheck`, `lint` y `build` (14 rutas) verdes; `test` sigue en 43, sin cambios |
+| **3 · El botón imposible** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
+| **4 a 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -114,6 +115,53 @@ que probar es una conexión **por el puerto del host**, no un `docker exec`.
    `lint` verdes. `npm run test`: **43 pruebas en 3 archivos**, sin cambios —esta tarea es SQL y no
    añade lógica pura, así que ese verde no afirma nada sobre lo escrito, igual que en la Task 1. `npm
    run build`: **catorce rutas**, tres estáticas (`/_not-found`, `/faq`, `/login`).
+
+### Task 3 · El alumno deja de ver un botón imposible *(2026-08-12)*
+
+1. **El Step 4 no se podía cumplir sin extraer la condición del JSX, y eso no es una preferencia de
+   estilo.** El plan pide «una prueba de Vitest para la regla de visibilidad del botón», pero el proyecto
+   **no tiene `@testing-library/react` ni `jsdom`** —comprobado en `package.json`—, así que Vitest solo
+   puede probar funciones puras: las tres suites que existen lo son. La alternativa habría sido añadir
+   dependencias, y eso es un desvío que el plan no autoriza. La regla vive ahora en
+   `seOfreceCancelar(estado, grupo, inicio, ahora)`, en `lib/reservas/agrupar.ts`, al lado de
+   `grupoDeReserva()` y probada en el mismo archivo que ya lo cubría. **El plan describía el cambio como
+   una edición en tres archivos y en realidad son cinco**, con la función pura y su prueba.
+2. **La condición nueva SUBSUME a la vieja, y las dos se conservan igual.** Para una reserva `reserved`,
+   `grupo === 'proxima'` equivale a `fin > ahora`; y como `inicio < fin` siempre, `inicio > ahora` ya
+   implica `fin > ahora`. En lógica estricta el término de D-35 sobra. Se conservan los dos porque son
+   **dos decisiones con dos fuentes distintas** que solo coinciden en la misma línea, y porque quitar el
+   de D-35 haría que el botón dependiera de un invariante que esta función no puede revalidar —no lee
+   `fin` en ningún momento—. **Y ese «siempre» no es una suposición de dominio:** lo hace cumplir
+   `CONSTRAINT chk_reservation_dates CHECK (end_at > start_at)`,
+   `supabase/migrations/20260805030123_baseline.sql:180`. El subagente lo había escrito como inferencia
+   razonable **y avisó de que no lo había verificado**; se verificó al revisarlo y resultó cierto.
+3. **Ninguno de los tres géneros de hecho falso apareció esta vez. Siguen siendo QUINCE.** El subagente
+   abrió las seis citas de archivo:línea que escribió, y las verificadas por segunda vez al revisar
+   —el texto del mensaje en la migración 23, el guardado por `not private.is_staff()`, el orden de los
+   cinco rechazos, y que `TarjetaReserva` solo se usa en `/mi-panel`— salieron todas correctas. **Es la
+   segunda tarea seguida sin un hecho falso**, tras la Task 2.
+4. **Y una imprecisión que el subagente destapó él mismo, en su propia lista de «lo que no verifiqué».**
+   El comentario de `tarjeta-reserva.tsx` decía, desde la T2B, que `not_picked_up` «es la marca que
+   dispara la sanción». **Es sobre-afirmación de alcance, y es preexistente:** una sola `not_picked_up`
+   no sanciona a nadie. `apply_penalties()` exige `v_count >= 2` en los últimos 90 días —
+   `supabase/migrations/20260806013146_penalties.sql:44`—, así que la primera falta no hace nada visible.
+   El subagente la conservó por no estar en su alcance y la reportó; se corrigió al revisar, porque el
+   comentario que la contenía se estaba reescribiendo de todas formas. **No cuenta como decimosexto hecho
+   falso: reportar una imprecisión ajena es lo contrario de escribir una propia.**
+5. **Un género nuevo de comentario caducado, y este sí se le pasó: por EFECTO COLATERAL en otro archivo.**
+   `components/reservas/dialogo-cancelar.tsx` explicaba por qué el diálogo se cierra solo, y para hacerlo
+   **citaba literalmente** la condición de `tarjeta-reserva.tsx`. Al extraer esa condición a
+   `seOfreceCancelar()`, la cita quedó describiendo código que ya no existe —con el razonamiento todavía
+   correcto—. `typecheck`, `lint`, `test` y `build` no pueden ver esto: es prosa. **La lección es de
+   método: cambiar una condición caduca las citas LITERALES de esa condición en otros archivos**, y el
+   encargo solo nombraba los archivos a modificar, no los que la mencionan. Se corrigió al revisar.
+6. **Los números.** `typecheck` y `lint` verdes. `npm run test`: **48 pruebas en 3 archivos**, de 43 —las
+   5 nuevas son las de `seOfreceCancelar`—, y a diferencia de las Tasks 1 y 2 **este verde sí afirma algo
+   sobre lo que se escribió**. `npm run build`: **catorce rutas**, tres estáticas —`/_not-found`, `/faq`,
+   `/login`—, sin cambios respecto de la Task 1, porque esta tarea no añade ninguna ruta.
+7. **El `SQLSTATE` por PostgREST sigue SIN MEDIR**, y quedó escrito así en el propio código. El
+   emparejamiento va por texto y no lo necesita, pero el pendiente es de la Task 9 y no se contó como
+   resuelto.
 
 ---
 

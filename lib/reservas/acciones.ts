@@ -202,35 +202,49 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
 }
 
 // Traduce el mensaje CRUDO que devuelve `cancel_reservation` -Task 13 de la
-// tanda 2B- al texto que ve el alumno, aplicando el MISMO criterio que
-// mensajeDeRechazo() de arriba: texto propio SOLO para lo que un alumno puede
-// provocar navegando de verdad, mensaje CRUDO para lo inalcanzable, y lo no
-// reconocido cae al crudo, nunca a un generico.
+// tanda 2B, y Q-17/D-38 de la tanda 3A para el quinto caso- al texto que ve
+// el alumno, aplicando el MISMO criterio que mensajeDeRechazo() de arriba:
+// texto propio SOLO para lo que un alumno puede provocar navegando de
+// verdad, mensaje CRUDO para lo inalcanzable, y lo no reconocido cae al
+// crudo, nunca a un generico.
 //
 // PRECISION SOBRE QUIEN DECIDIO QUE, porque la primera version de este
 // comentario lo atribuia mal: el CRITERIO GENERAL de las tres lineas de
 // arriba lo aprobo Alejandro el 2026-08-11, pero para la Task 10 y sus doce
-// rechazos de `create_reservation`. Su APLICACION a los cuatro rechazos de
-// ESTA funcion -que solo el #4 lleve texto propio y los otros tres vayan
-// crudos- se decidio al escribir la Task 13, razonando caso por caso cual es
-// alcanzable desde la pantalla, y no se le consulto aparte. Un criterio
-// aprobado no aprueba por si solo cada uso que se le de despues.
+// rechazos de `create_reservation`. Su APLICACION a los rechazos de ESTA
+// funcion -cuales llevan texto propio y cuales van crudos- se decidio caso
+// por caso al escribir la Task 13 primero y la Task 3 de la tanda 3A
+// despues, razonando cual es alcanzable desde la pantalla, y no se le
+// consulto aparte. Un criterio aprobado no aprueba por si solo cada uso que
+// se le de despues.
 //
-// La RPC rechaza en CUATRO pasos, EN ESTE ORDEN -leido de
-// supabase/migrations/20260806012057_cancel_reservation_rpc.sql-:
+// La RPC rechaza en CINCO pasos, EN ESTE ORDEN -leido de
+// supabase/migrations/20260806012057_cancel_reservation_rpc.sql y, desde la
+// migracion 23, de
+// supabase/migrations/20260812053243_cancel_before_start.sql-:
 //
-//   1. Motivo vacio o solo espacios (`btrim`)  -> 23514 (check_violation)
-//   2. Reserva inexistente                     -> P0002 (no_data_found)
-//   3. Reserva ajena                           -> 42501
-//   4. Estado distinto de `reserved`           -> 23514 (check_violation)
+//   1. Motivo vacio o solo espacios (`btrim`)     -> 23514 (check_violation)
+//   2. Reserva inexistente                        -> P0002 (no_data_found)
+//   3. Reserva ajena                               -> 42501
+//   4. Estado distinto de `reserved`               -> 23514 (check_violation)
+//   5. Inicio ya pasado, SOLO si no es personal     -> 23514 (check_violation)
 //
 // Y el reparto es:
 //
-//   - #4 -> TEXTO PROPIO. Es el UNICO alcanzable de forma realista: el
-//     alumno tiene /mi-panel abierto, el personal le entrega el equipo -la
-//     reserva pasa a `active`- y en ese momento el alumno pulsa Cancelar. Es
-//     una carrera entre dos personas, igual que el caso 8 de
-//     mensajeDeRechazo() de arriba, y no es culpa de nadie.
+//   - #4 -> TEXTO PROPIO. Es el UNICO de los cuatro originales alcanzable de
+//     forma realista: el alumno tiene /mi-panel abierto, el personal le
+//     entrega el equipo -la reserva pasa a `active`- y en ese momento el
+//     alumno pulsa Cancelar. Es una carrera entre dos personas, igual que el
+//     caso 8 de mensajeDeRechazo() de arriba, y no es culpa de nadie.
+//   - #5 -> TEXTO PROPIO, desde la tanda 3A (D-38). Tambien es alcanzable de
+//     forma realista, y por una carrera parecida a la de #4 pero contra el
+//     RELOJ en vez de contra otra persona: el alumno tiene /mi-panel abierto
+//     desde ANTES de la hora de inicio, no recarga la pagina, y pulsa
+//     Cancelar ya pasada esa hora. Una carga NUEVA de /mi-panel ya no
+//     ofreceria el boton -seOfreceCancelar(), lib/reservas/agrupar.ts, lo
+//     descarta-, pero la pantalla que el alumno tiene abierta se pinto
+//     cuando la reserva todavia era cancelable, y React no vuelve a evaluar
+//     esa condicion solo porque pase el tiempo.
 //   - #1, #2 y #3 -> CRUDO. Los tres son inalcanzables desde esta pantalla:
 //     el dialogo (components/reservas/dialogo-cancelar.tsx) deja el boton de
 //     confirmar deshabilitado mientras el motivo este vacio tras `trim()`,
@@ -244,16 +258,23 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
 //     un DEFECTO en otro sitio, y el mensaje crudo dice que se rompio mejor
 //     que uno bonito que lo disimularia.
 //
-// OJO CON EL ORDEN: el motor evalua #1 ANTES que #2. Pedir la cancelacion de
-// una reserva INEXISTENTE y SIN MOTIVO a la vez contesta "La cancelacion
-// exige un motivo", no "Reserva inexistente" -el motivo vacio nunca deja que
-// el motor llegue a comprobar si el id existe-. Si este mensaje aparece
-// alguna vez en pantalla, NO hay que leerlo como "la reserva no existe": el
-// motor todavia no llego a mirar eso.
+// OJO CON EL ORDEN: el motor evalua #1 ANTES que #2, y #4 ANTES que #5.
+// Pedir la cancelacion de una reserva INEXISTENTE y SIN MOTIVO a la vez
+// contesta "La cancelacion exige un motivo", no "Reserva inexistente" -el
+// motivo vacio nunca deja que el motor llegue a comprobar si el id existe-.
+// Si este mensaje aparece alguna vez en pantalla, NO hay que leerlo como "la
+// reserva no existe": el motor todavia no llego a mirar eso.
 //
 // Igual que en mensajeDeRechazo(), el EMPAREJAMIENTO VA POR EL TEXTO del
-// mensaje y no por el SQLSTATE: `23514` lo comparten #1 y #4, asi que
-// ramificar por codigo los habria mezclado.
+// mensaje y no por el SQLSTATE: `23514` lo comparten AHORA TRES -#1, #4 y
+// #5-, asi que ramificar por codigo los habria mezclado.
+//
+// SOBRE EL SQLSTATE DE #5, TAL COMO LLEGA POR POSTGREST: esta funcion
+// empareja por TEXTO, asi que el SQLSTATE exacto que PostgREST devuelve en
+// `error.code` no le hace falta a este codigo. Pero para quien lea este
+// comentario buscando esa cifra: NO ESTA MEDIDO todavia como llega ese campo
+// desde PostgREST para este quinto rechazo -medirlo es la Task 9 de esta
+// misma tanda, no esta tanda.
 function mensajeDeRechazoCancelacion(mensajeDelMotor: string): string {
   // 4 · estado distinto de `reserved`. Coincidencia por PREFIJO y no exacta,
   // porque el resto del mensaje es el estado ACTUAL de la reserva
@@ -270,6 +291,26 @@ function mensajeDeRechazoCancelacion(mensajeDelMotor: string): string {
     // Es el mismo genero que el "11:41 p. m.." de textoDeSancion() en
     // lib/reservas/sancion.ts.
     return 'El equipo ya se entregó, y una reserva entregada no se cancela, se devuelve. Si necesitas devolverla antes de tiempo, contacta con el personal.';
+  }
+
+  // 5 · inicio ya pasado (D-38, migracion 23), solo para el alumno -guardado
+  // en el SQL por `not private.is_staff()`-. Coincidencia por IGUALDAD
+  // EXACTA y no por prefijo, al contrario que el caso 4 de arriba: este
+  // mensaje es TEXTO FIJO, sin ningun dato variable interpolado con `%`, a
+  // diferencia del estado de la reserva que el caso 4 si interpola. Es el
+  // mismo criterio que ya distingue, dentro de mensajeDeRechazo() mas
+  // arriba, sus casos de coincidencia exacta (1b, 7, 8) de su unico caso por
+  // prefijo (2, la sancion con fecha variable pegada al final).
+  if (mensajeDelMotor === 'No puedes cancelar una reserva que ya empezo') {
+    // NO promete que el personal se la va a cancelar: lo que el personal
+    // puede hacer con una reserva `reserved` ya empezada y no recogida es
+    // marcarla `not_picked_up`, que CUENTA para el bloqueo de D-12 -dos
+    // `not_picked_up` acumuladas en 90 dias, no cualquiera de forma
+    // aislada-, y eso es exactamente lo contrario de lo que el alumno
+    // querria. Prometer una cancelacion aca seria un texto MAS AMABLE que
+    // FALSO, y este proyecto ya eligio, en mensajeDeRechazo() de arriba, que
+    // un mensaje feo y cierto vale mas que uno bonito que no lo es.
+    return 'Ya empezó la franja de esta reserva y no se puede cancelar desde aquí. Habla con el personal del mostrador.';
   }
 
   // Los otros tres -1, 2 y 3- y cualquier mensaje que este mapa todavia no

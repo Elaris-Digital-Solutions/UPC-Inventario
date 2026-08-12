@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogoCancelar } from "@/components/reservas/dialogo-cancelar";
-import { etiquetaDeEstado, type Grupo } from "@/lib/reservas/agrupar";
+import { etiquetaDeEstado, seOfreceCancelar, type Grupo } from "@/lib/reservas/agrupar";
 import type { ReservaDelAlumno } from "@/lib/reservas/consultas";
 
 // El dia se formatea en America/Lima, y NO en UTC como formatearDia() de
@@ -46,6 +46,12 @@ type TarjetaReservaProps = {
   // grupo se decide en un solo sitio-. Una reserva que venciera entre las dos
   // llamadas habria salido bajo "Proximas" pintada como pasada.
   grupo: Grupo;
+  // El reloj llega YA CALCULADO desde la pagina, igual que `grupo` dos lineas
+  // arriba y por el mismo motivo: esta tarjeta NO vuelve a leer el reloj con
+  // un `new Date()` propio. Se usa para decidir si se ofrece el boton de
+  // cancelar -ver seOfreceCancelar(), lib/reservas/agrupar.ts- comparandolo
+  // contra `reserva.inicio` (D-38).
+  ahora: Date;
 };
 
 // Componente de servidor: no necesita estado ni eventos propios -solo pinta
@@ -60,7 +66,7 @@ type TarjetaReservaProps = {
 // contrario; se corrige aca porque un comentario caducado compila igual que
 // uno cierto y enseña lo contrario de lo que pasa-, pero NO en toda reserva:
 // ver la condicion de mas abajo, justo antes de pintar <DialogoCancelar>.
-export function TarjetaReserva({ reserva, grupo }: TarjetaReservaProps) {
+export function TarjetaReserva({ reserva, grupo, ahora }: TarjetaReservaProps) {
   return (
     <Card>
       <CardHeader>
@@ -106,38 +112,71 @@ export function TarjetaReserva({ reserva, grupo }: TarjetaReservaProps) {
           <p>Esta reserva venció sin que se recogiera el equipo.</p>
         )}
 
-        {/* El boton de cancelar se PINTA -y no solo se deshabilita- bajo DOS
-            condiciones a la vez, y son DOS DECISIONES DISTINTAS que solo
-            coinciden en la misma linea de codigo:
+        {/* El boton de cancelar se PINTA -y no solo se deshabilita- bajo TRES
+            condiciones a la vez, decididas por seOfreceCancelar()
+            (lib/reservas/agrupar.ts) y no de forma inline: son TRES
+            DECISIONES DISTINTAS que solo coinciden en esa unica llamada.
               1. `reserva.estado === "reserved"`. En `active` el boton
                  DESAPARECE en vez de quedar deshabilitado, porque una
                  reserva ya entregada no se cancela, se devuelve -y la RPC
                  la rechazaria igual, es el rechazo #4 de
                  mensajeDeRechazoCancelacion() en lib/reservas/acciones.ts-.
-              2. `grupo === "proxima"`. Esto excluye la reserva que sigue en
-                 `reserved` pero cuya franja YA PASO -la del parrafo de
-                 arriba, "vencio sin que se recogiera"-. El motor SI la
-                 aceptaria (medido el 2026-08-11 contra el stack local,
-                 dentro de una transaccion con rollback: `cancel_reservation`
-                 solo comprueba el estado, nunca la fecha), y aun asi no se
-                 ofrece: cancelarla borraria el unico rastro de que la
-                 franja se vencio sin devolucion, que es la marca
-                 `not_picked_up` que el personal todavia puede poner -
-                 `cancelled` es un estado TERMINAL, leido en
+              2. `grupo === "proxima"` (D-35). Esto excluye la reserva que
+                 sigue en `reserved` pero cuya franja YA PASO -la del parrafo
+                 de arriba, "vencio sin que se recogiera"-: cancelarla
+                 borraria el unico rastro de que la franja se vencio sin
+                 devolucion, que es la marca `not_picked_up` que el personal
+                 todavia puede poner -`cancelled` es un estado TERMINAL,
+                 leido en
                  supabase/migrations/20260806005731_reservation_state_machine.sql-,
-                 y esa marca es la que dispara la sancion, leido en
-                 supabase/migrations/20260806013146_penalties.sql. Ocultar el
-                 boton aca NO CIERRA ese camino -quien llame a la RPC por su
-                 cuenta puede cancelarla igual, el motor la deja-, solo deja
-                 de OFRECERLO desde esta pantalla. Queda pendiente como M-12
-                 de MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md -"cancelacion
-                 con antelacion minima"-, que decide algo mas amplio y
-                 todavia no esta resuelto.
-            `grupo` se usa TAL CUAL llega por props, sin recalcularlo: ver el
-            comentario de TarjetaReservaProps mas arriba, en la definicion del
-            tipo -volver a leer el reloj aca seria repetir el fallo que ese
+                 y esa marca es la que CUENTA para la sancion. Con
+                 precision, porque la version anterior de esta linea decia
+                 "es la que dispara la sancion" y eso estira el alcance:
+                 UNA sola `not_picked_up` NO sanciona a nadie. El trigger
+                 apply_penalties() solo bloquea 15 dias cuando encuentra
+                 `v_count >= 2` en los ultimos 90 dias -leido en
+                 supabase/migrations/20260806013146_penalties.sql:44-, asi
+                 que la primera falta no hace nada visible y la segunda si.
+                 Lo que se pierde al cancelar, entonces, no es una sancion
+                 inmediata sino el registro que HABILITA la siguiente.
+              3. `new Date(reserva.inicio) > ahora` (D-38). Excluye la
+                 reserva cuyo INICIO ya paso, aunque el FIN siga en el
+                 futuro -el caso de una reserva de 10:00 a 10:30 vista a las
+                 10:15-.
+
+            D-38 cierra la MITAD de M-12 de
+            MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md -"cancelacion con
+            antelacion minima"-: ahora no se cancela DESPUES de que la
+            reserva empezo, y desde la migracion 23
+            (supabase/migrations/20260812053243_cancel_before_start.sql) eso
+            lo hace cumplir el MOTOR, no solo esta pantalla. M-12 SIGUE
+            PENDIENTE en su OTRA mitad: cancelar un minuto ANTES de que
+            empiece sigue sin ninguna restriccion -M-12 pide una antelacion
+            minima, y eso todavia no esta resuelto.
+
+            Esto tambien corrige lo que este comentario decia antes sobre la
+            condicion 2: "el motor SI la aceptaria, y quien llame a la RPC
+            por su cuenta puede cancelarla igual". Eso YA NO ES CIERTO para
+            el alumno en el caso del INICIO ya pasado -el motor lo rechaza
+            desde la migracion 23-, y de hecho, para una reserva `reserved`,
+            un FIN ya pasado implica un INICIO ya pasado -`inicio < fin`
+            siempre-, asi que en la practica la condicion 2 (D-35) y la
+            condicion 3 (D-38) SE SOLAPAN: cualquier reserva que la condicion
+            2 excluye, la condicion 3 ya la habria excluido tambien, y el
+            motor ya la rechaza si quien llama es el alumno. Lo que el motor
+            SIGUE permitiendo, con precision, es que el PERSONAL cancele por
+            esta misma RPC -o por UPDATE directo- una reserva `reserved` ya
+            empezada: la comprobacion nueva de la migracion 23 esta guardada
+            por `not private.is_staff()`, asi que no lo alcanza. Ocultar el
+            boton aca no toca esa via en absoluto -este componente solo se usa
+            en /mi-panel, la pantalla del alumno-, solo deja de OFRECERSELO
+            al alumno.
+
+            `grupo` y `ahora` se usan TAL CUAL llegan por props, sin
+            recalcularlos: ver el comentario de TarjetaReservaProps mas
+            arriba -volver a leer el reloj aca seria repetir el fallo que ese
             comentario ya explica. */}
-        {reserva.estado === "reserved" && grupo === "proxima" && (
+        {seOfreceCancelar(reserva.estado, grupo, reserva.inicio, ahora) && (
           <DialogoCancelar reservationId={reserva.id} producto={reserva.producto} />
         )}
       </CardContent>

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
 // conoce el alias `@/*` que declara `tsconfig.json`. Misma correccion que ya
 // aplicaron lib/reservas/rejilla.test.ts y lib/reservas/sancion.test.ts.
-import { etiquetaDeEstado, grupoDeReserva } from './agrupar';
+import { etiquetaDeEstado, grupoDeReserva, seOfreceCancelar } from './agrupar';
 
 describe('grupoDeReserva', () => {
   const ahora = new Date('2026-08-11T00:00:00Z');
@@ -82,5 +82,38 @@ describe('etiquetaDeEstado', () => {
 
   it('not_returned tiene una etiqueta no vacia', () => {
     expect(etiquetaDeEstado('not_returned')).not.toBe('');
+  });
+});
+
+describe('seOfreceCancelar', () => {
+  const ahora = new Date('2026-08-11T00:00:00Z');
+  const inicioFuturo = '2026-08-20T00:00:00Z';
+  const inicioPasado = '2026-08-01T00:00:00Z';
+
+  it('reserved, proxima, inicio en el futuro: se ofrece (caso normal)', () => {
+    expect(seOfreceCancelar('reserved', 'proxima', inicioFuturo, ahora)).toBe(true);
+  });
+
+  // El caso que D-38 cierra y el que hoy fallaba: una reserva de 10:00 a
+  // 10:30 vista a las 10:15 -el inicio ya paso, pero el fin -10:30- todavia
+  // no, asi que grupoDeReserva() la sigue clasificando como `proxima`. Sin el
+  // tercer termino, el boton se seguiria ofreciendo aca justo en el caso que
+  // el motor ya rechaza (migracion 23).
+  it('reserved, proxima, inicio ya pasado pero fin en el futuro: no se ofrece', () => {
+    expect(seOfreceCancelar('reserved', 'proxima', inicioPasado, ahora)).toBe(false);
+  });
+
+  // El borde exacto: inicio igual a ahora. La comparacion es estricta (`>`),
+  // igual que `v_start_at <= now()` en el motor rechaza ese mismo instante.
+  it('reserved, proxima, inicio exactamente igual a ahora: no se ofrece', () => {
+    expect(seOfreceCancelar('reserved', 'proxima', ahora.toISOString(), ahora)).toBe(false);
+  });
+
+  it('active: no se ofrece, aunque el inicio siga en el futuro', () => {
+    expect(seOfreceCancelar('active', 'en_curso', inicioFuturo, ahora)).toBe(false);
+  });
+
+  it('reserved, pasada: no se ofrece', () => {
+    expect(seOfreceCancelar('reserved', 'pasada', inicioPasado, ahora)).toBe(false);
   });
 });
