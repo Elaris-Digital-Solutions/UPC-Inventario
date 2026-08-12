@@ -19,14 +19,18 @@
 // evito una vez -"generalizar con un unico caso real todavia no es
 // generalizar, es adivinar"-.
 //
-// La Task 6 SI agrega dialogos -dialogo-falta.tsx, con confirmacion y una
-// nota obligatoria- y esos SI van en su propio archivo, por la misma razon
-// que separa DialogoCancelar: necesitan su propio estado de apertura y un
-// campo de texto. Ese hueco queda marcado mas abajo, sin construirse.
+// La Task 6 SI agrega dialogos -components/mostrador/dialogo-falta.tsx, con
+// confirmacion explicita y, solo para `not_returned`, una nota obligatoria-
+// y SI van en su propio archivo, por la misma razon que separa
+// DialogoCancelar: necesitan su propio estado de apertura y (uno de los dos
+// casos) un campo de texto. Esta tarjeta los monta en el hueco que quedaba
+// marcado mas abajo, pero no los construye aca: DialogoFalta trae su propio
+// boton disparador, y esta tarjeta solo le pasa los datos que ya tiene.
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogoFalta } from "@/components/mostrador/dialogo-falta";
 import { entregar, recibir, type ResultadoMostrador } from "@/lib/mostrador/acciones";
 import type { Columna } from "@/lib/mostrador/columnas";
 import type { AlumnoMostrador, ReservaMostrador } from "@/lib/mostrador/consultas";
@@ -116,8 +120,13 @@ export function TarjetaMostrador({ reserva, columna }: TarjetaMostradorProps) {
       }
       // Sin `else` que limpie nada mas: en exito, la Server Action ya llamo
       // a `revalidatePath('/mostrador')`, asi que la pagina se vuelve a
-      // pintar con la reserva en su columna nueva -o fuera de la lista si
-      // paso a un estado terminal en una tarea futura-. Esta tarjeta se
+      // pintar con la reserva en su columna nueva -entregar() la lleva de
+      // "Por entregar" a "Activas"- o fuera de la lista entera -recibir()
+      // la deja en `completed`, terminal, y reservasMostrador() solo trae
+      // `reserved` y `active`-. Una version anterior de estas lineas daba
+      // ese segundo caso por "una tarea futura", y ya no lo es: lo produce
+      // recibir(), de la Task 5, y tambien los dos botones de falta de
+      // DialogoFalta, de la Task 6. Esta tarjeta se
       // DESMONTA de donde estaba montada y, si sigue viva, se vuelve a
       // montar en otra seccion: no queda ningun estado local que limpiar a
       // mano, la misma propiedad ESTRUCTURAL que ya explica el comentario de
@@ -174,15 +183,34 @@ export function TarjetaMostrador({ reserva, columna }: TarjetaMostradorProps) {
             </Button>
           )}
 
-          {/* HUECO MARCADO, no construido aca: los botones de las dos faltas
-              -"No recogido" (reserved -> not_picked_up, sobre por_entregar)
-              y "No devuelto" (active -> not_returned, sobre activas y
-              por_devolver, con nota obligatoria)- llegan en la Task 6, con
-              su propio dialogo de confirmacion en
-              components/mostrador/dialogo-falta.tsx. Esta tarea no los
-              construye: "NO toques components/mostrador/dialogo-falta.tsx
-              ni nada de las faltas" es una restriccion explicita de esta
-              tarea. */}
+          {/* "No se retiro": reserved -> not_picked_up, sobre por_entregar
+              -mismo criterio de columna que "Producto entregado" arriba: no
+              hace falta comprobar `reserva.estado` aparte-. DialogoFalta
+              (components/mostrador/dialogo-falta.tsx) trae su propio boton
+              disparador y su dialogo de confirmacion; esta tarjeta solo le
+              pasa los tres datos que ya tiene por props o que ya calculo
+              arriba para pintarse a si misma. */}
+          {columna === "por_entregar" && (
+            <DialogoFalta
+              tipo="not_picked_up"
+              reservationId={reserva.id}
+              unidadId={reserva.unidadId}
+              alumno={textoAlumno(reserva.alumno)}
+            />
+          )}
+
+          {/* "No se devolvio": active -> not_returned, sobre LAS DOS columnas
+              que agrupan `active` -activas y por_devolver-, mismo criterio
+              que "Producto devuelto" arriba: marcar que no se devolvio tiene
+              sentido tanto ANTES como DESPUES de la hora de fin. */}
+          {(columna === "activas" || columna === "por_devolver") && (
+            <DialogoFalta
+              tipo="not_returned"
+              reservationId={reserva.id}
+              unidadId={reserva.unidadId}
+              alumno={textoAlumno(reserva.alumno)}
+            />
+          )}
         </div>
       </CardContent>
     </Card>

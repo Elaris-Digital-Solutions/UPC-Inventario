@@ -13,7 +13,8 @@
 | **3 · El botón imposible** | ✅ **Cerrada.** Commit `80956b6`. `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
 | **4 · Las tres columnas** | ✅ **Cerrada.** Commit `1c1278f`. Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
 | **5 · Entregar y recibir** | ✅ **Cerrada.** `acciones.ts`, `tarjeta-mostrador.tsx` y la pantalla con las tres columnas. Los dos `UPDATE` medidos por PostgREST antes de escribir. **Cierra el pendiente del `SQLSTATE`** y el punto a verificar 1. Los cuatro comandos verdes; `build` en 14 rutas con `/mostrador` dinámica |
-| **6 a 10** | Sin empezar |
+| **6 · Las dos faltas** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas) en verde, corridos dos veces —antes y después de los cambios de texto—. Efecto verificado también desde la pantalla, con sesión de operador de verdad |
+| **7 a 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -386,6 +387,169 @@ dispara. Al revés quedaría un alumno bloqueado sin ningún rastro escrito de p
 **Lo que la Task 6 NO hace:** no construye nada para levantar una sanción puesta por error. Solo
 `admin_set_ban` puede, es de admin, y su pantalla es de la T3B. Un operador no puede deshacer su propio
 error desde el mostrador, y eso se deja escrito en vez de compensarlo.
+
+### Task 6 · Estado al cortar *(2026-08-12, sesión interrumpida por presupuesto de contexto)*
+
+**NO está cerrada y NO hay commit.** El árbol tiene los tres archivos modificados sin versionar. Lo que
+sigue separa lo **medido** de lo **escrito pero no verificado**, que es justo la distinción que esta tanda
+lleva persiguiendo dieciséis veces.
+
+**MEDIDO por PostgREST con JWT de operador, contra el stack local.** Los tres contrastes del Step 5, que
+son la razón de ser de la tarea, **están los tres confirmados** y con los tres `UPDATE` en HTTP 200:
+
+| Momento | `banned_until` medido |
+|---|---|
+| Tras la **primera** `not_picked_up` | **`NULL`** — el trigger exige `v_count >= 2` |
+| Tras la **segunda** en 90 días | **`2026-08-27`**, o sea `now() + 15 days` |
+| Tras la `not_returned` | **`infinity`** |
+
+**Y `reservation_status_log` recibió una fila por cada uno de los tres cambios**, con `old_status`,
+`new_status`, `reason` en `NULL` —el trigger lo copia de `cancellation_reason`, que en una falta no se
+escribe— y `changed_by` poblado con el operador. **Eso deja el Step 5 medido en la base, que es lo que
+pedía; falta verlo desde la pantalla, que es la Task 9.**
+
+**Medido también el `INSERT` de la nota, la primera escritura de `marcarNoDevuelta()`:**
+
+- Con solo `(unit_id, note)` → **HTTP 201**, y `created_by` se rellena solo con el operador.
+- **Mandando `created_by` explícitamente → HTTP 403, `42501`, `permission denied for table
+  inventory_unit_notes`.** El `GRANT` solo enumera dos columnas: mandarla no es inútil, **falla**.
+- Un **alumno** insertando → 403 y `42501` también, pero con **otro mensaje**: `new row violates
+  row-level security policy`. Mismo código, distinta causa.
+
+**Dos correcciones al briefing de arranque, las dos medidas:**
+
+1. **`a0000000-…0001` y `…0002` son `auth_user_id`, NO `alumnos.id`.** El briefing los da como «alumnos
+   sembrados» sin decir cuál de las dos claves son. `inventory_reservations.alumno_id` referencia
+   `alumnos.id`, que es un UUID aleatorio que pone el trigger de aprovisionamiento. Insertar el escenario
+   con el `a0000000-…` habría fallado por clave foránea. Los reales de hoy: Ana
+   `1273c0d4-24a3-4d31-ad02-03bded74f799`, Bruno `7d72071e-6986-4d1a-8c49-b876d501a2e4` — **y no se pueden
+   copiar a la próxima sesión: `db reset` los vuelve a generar distintos.** Se consultan por correo.
+2. **`inventory_unit_notes` no tiene ninguna columna de severidad ni de tipo.** Sus columnas son `id`,
+   `unit_id`, `note`, `created_by`, `created_at`. La «anotación de alerta roja» de F5 es **texto dentro de
+   `note`**, no una columna, así que no hay nada que rellenar aparte del texto.
+
+**Y una trampa del instrumento que costó DOS sondas, del mismo género que la Task 5 ya documentó —«cuando
+varios casos que deberían diferir dan exactamente el mismo error, el sospechoso es el instrumento»— pero
+con dos causas NUEVAS y distintas de la de entonces:**
+
+1. **`Get-Date -UFormat %s` devuelve el epoch en hora LOCAL en PowerShell 5.1.** En UTC−5 el JWT nace
+   caducado cuatro horas antes, y PostgREST contesta `PGRST303 JWT expired` a los tres contrastes por
+   igual. Se arregla con `[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()`.
+2. **`Set-Content -Encoding utf8` escribe BOM**, y esos tres bytes delante del JSON hacen que PostgREST
+   conteste `PGRST102 Empty or invalid json` a todo por igual. **Es el mismo síntoma que la Task 5
+   atribuyó al quoting de `-d` inline, y su arreglo —el cuerpo en un archivo con `--data-binary`— NO
+   basta**: el archivo puede nacer con BOM. Se arregla con
+   `[IO.File]::WriteAllText(ruta, json, (New-Object System.Text.UTF8Encoding $false))`.
+   **La lección se amplía: un mismo código de error de PostgREST tiene más de una causa de instrumento, así
+   que reconocer el síntoma no basta para dar por buena la explicación de la vez anterior.**
+
+**Lo ESCRITO pero NO verificado del todo** —`lib/mostrador/acciones.ts` modificado,
+`components/mostrador/dialogo-falta.tsx` creado, `components/mostrador/tarjeta-mostrador.tsx`
+modificado—. El subagente reporta `typecheck`, `lint`, `test` (56, sin cambios) y `build` (14 rutas, 3
+estáticas) en verde, **y eso no está confirmado a mano**. De la revisión alcanzó a hacerse:
+
+- **Verificadas y correctas:** las citas a `20260806013146_penalties.sql` (30-33, 35-48, 44) y a
+  `20260805195549_traceability.sql` (26, 40-42), leídas en el archivo.
+- **SIN verificar:** `20260805030123_baseline.sql:187-193` y `ESPECIFICACION_FUNCIONAL.md:142`, las dos
+  citadas en comentarios nuevos. **Y `tarjeta-mostrador.tsx` no se llegó a leer después de modificarlo.**
+
+**Dos imprecisiones PREEXISTENTES que el subagente destapó él mismo**, las dos del género vigilado y
+ninguna suya:
+
+1. **El comentario de `moverEstado()` (Task 5) tenía una sobre-afirmación de alcance:** decía que escribir
+   `not_picked_up` o `not_returned` sería «saltarse la anotación obligatoria que la Task 6 exige para esas
+   dos». **Solo `not_returned` exige nota**, no las dos. Ya está reescrito.
+2. **`tarjeta-mostrador.tsx` dice que la reserva sale de la lista «si pasó a un estado terminal en una
+   tarea futura»**, y `recibir()` ya produce `completed`, terminal desde la propia Task 5. Sigue sin
+   corregir.
+
+**El escenario de datos está CONSUMIDO**, no limpio: las tres reservas quedaron en estado terminal, Bruno
+bloqueado hasta el 2026-08-27, Ana en `infinity`, y hay una nota de prueba en la unidad `LAP-001`. **Hay
+que rehacerlo antes de verificar nada.** Y el stack local se levantó **sin** `storage`, `imgproxy`,
+`edge_runtime`, `analytics`, `vector` ni `pooler`: no estorba a esta tarea, pero **bloquearía un
+`db reset`**, que los exige todos.
+
+### Task 6 · Cierre *(2026-08-12)*
+
+**Cerrada. Commit pendiente de crear** —queda para el próximo comando de git, fuera de este documento—.
+Los cuatro comandos, corridos a mano dos veces —antes y después de los cambios de texto del punto 6— y
+verdes las dos veces: `typecheck` salida 0, `lint` salida 0, `test` 56 pruebas en 4 archivos, `build` 14
+rutas con 3 estáticas.
+
+1. **Las dos citas que quedaban sin verificar del corte anterior, verificadas y correctas.**
+   `20260805030123_baseline.sql:187-193` es la tabla `inventory_unit_notes`, con `note text NOT NULL` y sin
+   ningún `CHECK`; y ninguna otra migración le añade uno, comprobado buscando la tabla en todo
+   `supabase/migrations`. `ESPECIFICACION_FUNCIONAL.md:142` dice literalmente lo que se le atribuye.
+2. **HECHO FALSO NÚMERO 17, del género ATRIBUCIÓN.** El comentario de `marcarNoDevuelta()` decía que
+   `unidadId` se agregó «en la Task 4 anticipando exactamente este uso». El comentario que la propia Task 4
+   dejó en `lib/mostrador/consultas.ts:35-37` dice otra cosa: que la necesita `anotar()`, la Task 7. El dato
+   es cierto —el campo existe y sirve— y la intención atribuida es inventada. Ya reescrito.
+3. **Una frase que se contradecía sola, en el mismo archivo.** Decía que `note` está «sin ningún `CHECK`, a
+   diferencia de `cancellation_reason`, que **tampoco** lo tiene». Corregida a «igual que».
+4. **Una salvaguarda declarada que no cubría lo que decía cubrir, y su medición.** `dialogo-falta.tsx`
+   afirma evitar la cadena `asChild` sobre un `<Button>` sin `forwardRef`. Pero `DialogContent` la monta
+   por su cuenta: `components/ui/dialog.tsx:70-81` envuelve un `<Button>` en `DialogPrimitive.Close
+   asChild`, y `showCloseButton` viene en `true` por defecto. **Medido en el navegador: cero
+   advertencias.** Y el cómo importa: la primera medición se hizo contra `next start` y NO valía, porque
+   React silencia en producción casi todas sus advertencias de desarrollo —la sonda era menos exigente que
+   el caso real, el mismo género que el `curl` sin cabecera `Origin` de la T1—. Se repitió contra
+   `npm run dev`, con el diálogo abierto: los 6 mensajes de consola son todos del andamio de Next (React
+   DevTools, HMR, Fast Refresh), ninguno del código. **Cierra la duda que `dialogo-cancelar.tsx` dejó
+   escrita en la T2B**, donde decía que nadie había abierto un navegador para confirmarlo.
+5. **La imprecisión preexistente que quedaba pendiente, corregida.** `tarjeta-mostrador.tsx` daba por «una
+   tarea futura» que una reserva saliera de la lista por llegar a un estado terminal. Lo produce
+   `recibir()`, de la Task 5, y también los dos botones de falta de esta Task 6.
+6. **Los textos de los dos botones, alineados con la especificación por decisión de Alejandro del
+   2026-08-12.** Estaban como «No recogido» y «No devuelto»; F5 los nombra «No se retiró» y «No se
+   devolvió» —`ESPECIFICACION_FUNCIONAL.md:136` y `:138`—. Ganó la especificación, para que pantalla y
+   documento no se contradigan. Los títulos y los botones de confirmar del diálogo siguen el mismo verbo
+   —«Marcar como no retirado», «Marcar no retirado»— y esos no son de la especificación, solo existen en el
+   componente. **Y cambiar esos textos caducó sus citas literales en dos archivos que la Task 6 no
+   nombraba** —`lib/mostrador/acciones.ts` y `components/mostrador/tarjeta-mostrador.tsx`, que los citaban
+   entre comillas—: es el mismo género de comentario caducado por efecto colateral que la T2B ya
+   documentó, cometido esta vez al corregir. Se buscaron todas las apariciones antes de dar el cambio por
+   hecho.
+7. **Un texto que podía leerse falso, corregido.** El diálogo de «No se devolvió» decía «la nota queda en
+   su historial», y el antecedente admitía leerse como el historial del alumno. La nota va a
+   `inventory_unit_notes`: el historial es de la unidad. Dice ahora «el historial de la unidad».
+8. **El efecto completo, verificado DESDE LA PANTALLA con sesión de operador de verdad** —magic link
+   pedido en `/login` y recogido en Mailpit, que llegó apuntando a `127.0.0.1:3000`—, no solo por
+   PostgREST:
+   - Primera `not_picked_up`: `banned_until` sigue en `NULL` y la tarjeta desaparece de la columna en el
+     acto.
+   - Segunda en 90 días: `banned_until` a exactamente 15.00 días desde `now()`, medido en la base.
+   - `not_returned` con nota: `banned_until` a `infinity`, y la nota escrita en `LAP-001` con `created_by`
+     poblado y las tildes intactas.
+   - `reservation_status_log`: tres filas, una por cambio, con `reason` en `NULL` y `changed_by` poblado.
+   - Confirmar deshabilitado sin nota, y sigue deshabilitado con cinco espacios: el `.trim()` funciona en
+     la pantalla.
+   - Las columnas que se vacían muestran «Nada pendiente en esta columna.».
+   - El diálogo se cierra solo al tener éxito, sin `setAbierto(false)`: la tarjeta se desmonta entera.
+9. **La carrera, provocada a propósito y medida.** Con el diálogo de «No se devolvió» abierto se movió la
+   reserva a `completed` por SQL, a espaldas de la pantalla. Al confirmar salió el mensaje traducido
+   —«Esta reserva ya cambió de estado, probablemente porque otro operador la actualizó primero. Actualiza
+   la página para ver su estado actual.»— dentro del diálogo, que **no se cerró**. **Y la nota SÍ quedó
+   escrita**: una nota huérfana en la unidad, sin ninguna falta marcada. Es el costo real del orden «nota
+   primero» que el Step 2 eligió, y hasta ahora estaba solo razonado; ahora está medido. **No cambia la
+   decisión** —una nota de más es recuperable y un alumno bloqueado sin rastro no—, pero conviene saber
+   que existe.
+10. **El escenario de datos, rehecho** tras quedar consumido, y con **una reserva más que la vez
+    anterior**: una `active` con el fin todavía por venir, en `LAP-002`, que cae en la columna «Activas».
+    Sin ella esa columna queda vacía y no se ve que «No se devolvió» se ofrece en las **dos** columnas que
+    agrupan `active`. Además deja al alumno con una reserva viva después de marcarle la falta en la otra,
+    así que el operador no pierde su nombre por `alumnos_select_staff`.
+11. **Una trampa del instrumento nueva, del mismo género que las de PostgREST.** Un bucle de espera con
+    `docker info 2>$null | Out-Null; if ($?)` informó «Docker responde: False tras 300 segundos» cuando
+    Docker llevaba rato listo: **PowerShell 5.1 envuelve el stderr de un ejecutable nativo en un
+    `NativeCommandError` y deja `$?` en `False` aunque el proceso salga con 0.** Se comprueba mirando
+    `$LASTEXITCODE`, o directamente sin redirigir el stderr. Suma a `PGRST303` por el epoch local y a
+    `PGRST102` por el BOM: **tres instrumentos distintos mintiendo, y ninguno era el sujeto medido.**
+12. **`.playwright-mcp/` añadido al `.gitignore`.** Son las instantáneas que deja Playwright al conducir el
+    navegador; no estaban ignoradas y habrían entrado al commit o bloqueado el siguiente `checkout`. No lo
+    pedía la Task 6.
+13. **El entorno, comprobado como manda el propio plan:** el rango TCP 54245–54344 **no aparece**, y el
+    stack se verificó **por el puerto del host** —`docker ps` mostrando `0.0.0.0:54322->5432/tcp` y un
+    `TcpClient` conectando a 54321, 54322 y 54324—, nunca con `docker exec`.
 
 ---
 

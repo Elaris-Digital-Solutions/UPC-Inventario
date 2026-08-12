@@ -46,6 +46,12 @@ lerna-debug.log*
 # Volcados de Git Bash en Windows
 *.stackdump
 
+# Instantaneas que deja Playwright al conducir el navegador en las
+# verificaciones. Son artefactos de una sesion concreta -refs y marcas de
+# tiempo-, no del proyecto, y aparecen solas en cuanto alguien abre una
+# pantalla para comprobarla.
+.playwright-mcp/
+
 # Supabase CLI: estado local del enlace, propio de cada máquina.
 supabase/.temp
 supabase/.branches

@@ -1,11 +1,11 @@
 'use server';
 
-// Las Server Actions del mostrador, Task 5 de la tanda 3A: HOY solo dos,
-// entregar() y recibir(). marcarNoRecogida(), marcarNoDevuelta() (Task 6) y
-// anotar() (Task 7) se agregan a este mismo archivo despues -el plan
+// Las Server Actions del mostrador. Task 5 de la tanda 3A dejo entregar() y
+// recibir(); esta misma Task 6 agrega marcarNoRecogida() y marcarNoDevuelta()
+// -las dos faltas-. anotar() (Task 7) todavia no esta: el plan
 // (MIGRATION_DOCS/PLANES/FASE_2_TANDA_3A.md, "Estructura de archivos") ya
 // describe este archivo entero como "entregar, recibir, las dos faltas,
-// anotar", asi que agregarlas aca no es una sorpresa de alcance.
+// anotar", asi que agregarla despues no es una sorpresa de alcance.
 
 import { revalidatePath } from 'next/cache';
 
@@ -62,17 +62,18 @@ export type ResultadoMostrador = { error: string } | null;
 // DESDE ESTA PANTALLA, el UNICO rechazo alcanzable es la transicion
 // invalida -"Transicion no permitida: % -> %", raise en
 // supabase/migrations/20260806005731_reservation_state_machine.sql:41-, y no
-// por descuido: la tarjeta (components/mostrador/tarjeta-mostrador.tsx) solo
-// ofrece "Producto entregado" sobre una reserva `reserved` y "Producto
-// devuelto" sobre una `active`, asi que este codigo nunca PIDE una
-// transicion que la maquina de estados rechace... salvo que la reserva HAYA
-// CAMBIADO DE ESTADO entre que la pagina se pinto y que el operador pulso el
-// boton. La Task 8 de esta tanda decidio no usar un temporizador de
-// cliente, asi que una pantalla abierta hace un rato puede estar desfasada.
-// Es una CARRERA -entre dos operadores en dos mostradores, el mismo
-// operador con dos pestañas, o la Task 6 marcando una falta sobre la misma
-// reserva mientras esta pantalla seguia mostrando el boton viejo-, no un
-// error de nadie.
+// por descuido: la tarjeta (components/mostrador/tarjeta-mostrador.tsx, con
+// el dialogo de confirmacion de components/mostrador/dialogo-falta.tsx para
+// las dos faltas) solo ofrece "Producto entregado" y "No se retiro" sobre una
+// reserva `reserved`, y "Producto devuelto" y "No se devolvio" sobre una
+// `active`, asi que este codigo nunca PIDE una transicion que la maquina de
+// estados rechace... salvo que la reserva HAYA CAMBIADO DE ESTADO entre que
+// la pagina se pinto y que el operador pulso el boton. La Task 8 de esta
+// tanda decidio no usar un temporizador de cliente, asi que una pantalla
+// abierta hace un rato puede estar desfasada. Es una CARRERA -entre dos
+// operadores en dos mostradores, el mismo operador con dos pestañas, o un
+// operador pulsando un boton sobre una reserva que otro ya movio con
+// cualquiera de los otros tres-, no un error de nadie.
 //
 // EL CASO "LAS DOS ESCRITURAS LLEGAN AL MISMO VALOR" -dos operadores
 // pulsando "Producto entregado" casi a la vez sobre la misma reserva- NO cae
@@ -81,7 +82,7 @@ export type ResultadoMostrador = { error: string } | null;
 // archivo-, asi que la segunda pulsacion recibe HTTP 200 sin ningun cambio
 // real, no un error. El rechazo solo aparece cuando la reserva tomo un
 // camino DISTINTO -por ejemplo, otro operador ya la marco `not_picked_up` o
-// `not_returned` (Task 6) antes de que esta pulsacion llegara-.
+// `not_returned` antes de que esta pulsacion llegara-.
 //
 // Cancelar sin motivo (`Cancelar exige un motivo`) y la falta de GRANT sobre
 // una columna (`permission denied for table inventory_reservations`) son
@@ -108,17 +109,33 @@ function mensajeDeRechazoMostrador(mensajeDelMotor: string): string {
   return mensajeDelMotor;
 }
 
-// El UPDATE compartido entre entregar() y recibir(): las dos hacen
-// EXACTAMENTE lo mismo -escribir `status` sobre una fila de
+// El UPDATE compartido entre entregar(), recibir() y marcarNoRecogida(): las
+// tres hacen EXACTAMENTE lo mismo -escribir `status` sobre una fila de
 // `inventory_reservations` y revalidar `/mostrador`- y solo cambian el valor
-// destino. `status` se tipa como el subconjunto de dos valores que este
-// archivo necesita, no como el enum completo de seis: escribir aca
-// `not_picked_up` o `not_returned` seria saltarse la anotacion obligatoria
-// que la Task 6 exige para esas dos, asi que ni siquiera se le da la
-// oportunidad al tipo.
+// destino. `status` se tipa como el subconjunto de TRES valores que esta
+// funcion puede escribir SIN NINGUNA PRECONDICION previa, no como el enum
+// completo de seis.
+//
+// `not_picked_up` SI entra en ese subconjunto -una version anterior de este
+// comentario decia lo contrario, y era falso-: F5 no le exige ninguna
+// anotacion, solo a `not_returned` -"«No se devolvio» fuerza una anotacion
+// de alerta roja", MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md:142-, asi que
+// marcar `reserved -> not_picked_up` es tan simple como entregar() o
+// recibir(): un UPDATE y ya, sin nada que hacer antes.
+//
+// `not_returned` SI se queda afuera, y esta vez a proposito: esa transicion
+// SI tiene una precondicion real -el INSERT de la nota obligatoria tiene que
+// terminar bien ANTES de que el UPDATE se dispare, ver marcarNoDevuelta() mas
+// abajo-, asi que el contrato de esta funcion -"llamame y la transicion queda
+// completa y a salvo, sin nada pendiente"- seria FALSO para ese valor.
+// Sacarlo del tipo evita que una llamada futura a moverEstado() escriba
+// `not_returned` sin haber pasado antes por esa anotacion: ni siquiera se le
+// da la oportunidad al tipo. marcarNoDevuelta() no reutiliza esta funcion
+// por eso, y repite su forma -mismo `.update()`, misma traduccion de
+// mensaje, mismo `revalidatePath`- con la precondicion delante.
 async function moverEstado(
   reservationId: string,
-  status: 'active' | 'completed',
+  status: 'active' | 'completed' | 'not_picked_up',
 ): Promise<ResultadoMostrador> {
   const supabase = await createClient();
 
@@ -153,4 +170,140 @@ export async function entregar(reservationId: string): Promise<ResultadoMostrado
 // `active`, solo cambia si `fin` ya paso, lib/mostrador/columnas.ts-).
 export async function recibir(reservationId: string): Promise<ResultadoMostrador> {
   return moverEstado(reservationId, 'completed');
+}
+
+// `reserved -> not_picked_up`, la primera de las dos faltas (Task 6, "la
+// tarea delicada de la tanda": es la primera vez que el proyecto sanciona a
+// una persona de verdad). El boton "No se retiro" en
+// components/mostrador/tarjeta-mostrador.tsx, dentro del dialogo de
+// confirmacion de components/mostrador/dialogo-falta.tsx, solo se ofrece
+// sobre una reserva en `reserved` (columna "Por entregar") y solo despues de
+// que ese dialogo lo confirme explicitamente.
+//
+// SIN anotacion: a diferencia de marcarNoDevuelta() de mas abajo, F5 no
+// fuerza ninguna nota para esta falta -solo para "No se devolvio"-, asi que
+// es un UPDATE tan simple como entregar() o recibir(), y por eso SI pasa por
+// moverEstado(). La sancion -15 dias si es la SEGUNDA `not_picked_up` del
+// mismo alumno en los ultimos 90 dias, contra `updated_at`- la aplica el
+// trigger `apply_penalties`
+// (supabase/migrations/20260806013146_penalties.sql:35-48) por su cuenta:
+// este codigo no calcula nada de eso, solo pide la transicion. La PRIMERA
+// falta no sanciona -el trigger exige `v_count >= 2`, linea 44 del mismo
+// archivo-, asi que tras una unica `not_picked_up` `banned_until` se queda
+// en `NULL`; ya esta medido asi en el Step 0 de la Task 4 de esta tanda.
+export async function marcarNoRecogida(reservationId: string): Promise<ResultadoMostrador> {
+  return moverEstado(reservationId, 'not_picked_up');
+}
+
+// `active -> not_returned`, la segunda falta (Task 6) y la unica accion de
+// este archivo con una sancion PERMANENTE: `apply_penalties` pone
+// `banned_until = 'infinity'` sin condicion, linea 30-33 del mismo archivo
+// de arriba -a diferencia de `not_picked_up`, que exige una segunda vez-.
+// Solo `admin_set_ban`, de admin, puede revertirlo: esta pantalla no ofrece
+// ninguna forma de deshacer el propio error del operador, y eso es a
+// proposito, no un hueco (Step 6 del plan).
+//
+// `unidadId` llega por parametro y NO se consulta aca: ReservaMostrador
+// (lib/mostrador/consultas.ts) ya trae `unidadId` -la FK cruda `unit_id`-,
+// asi que quien ya tiene el dato -la tarjeta, via dialogo-falta.tsx- se lo
+// pasa directo, sin que esta funcion tenga que volver a leerlo de la base.
+// La Task 4 lo agrego anticipando anotar() (Task 7), no esta funcion -asi lo
+// dice su propio comentario en consultas.ts, y una version anterior de estas
+// lineas se lo atribuia a la Task 6-. Que sirva tambien aca es porque las dos
+// escriben en la misma tabla, no porque estuviera previsto para esto.
+//
+// ORDEN DECIDIDO EN EL PLAN Y NO REABIERTO AQUI
+// (MIGRATION_DOCS/PLANES/FASE_2_TANDA_3A.md, "Task 6 - Las dos faltas"):
+// PRIMERO el INSERT de la nota obligatoria que pide F5 -"«No se devolvio»
+// fuerza una anotacion de alerta roja",
+// MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md:142-, DESPUES el UPDATE de
+// `status`. La API REST de Supabase no da una transaccion entre dos
+// llamadas del cliente -a diferencia de una funcion SQL, que corre entera
+// dentro de una sola-, asi que las dos escrituras pueden fallar por
+// separado, y el orden decide cual es el peor caso:
+//
+//   - CON ESTE ORDEN (nota primero): si el INSERT falla, la funcion
+//     devuelve el error de inmediato y el UPDATE de status NUNCA se
+//     ejecuta -la sancion no se dispara-. El peor caso es una falta SIN
+//     marcar, que el operador puede reintentar sin que nada se haya
+//     escrito a medias.
+//   - AL REVES (status primero): si el UPDATE tuviera exito y el INSERT de
+//     la nota fallara despues, quedaria un alumno BLOQUEADO -en este caso,
+//     de forma PERMANENTE- sin ningun rastro escrito de POR QUE. Ni el
+//     operador que lo hizo ni el admin que revise despues con
+//     `admin_set_ban` sabrian que paso con el equipo.
+//
+// El primer caso es un error recuperable; el segundo es una persona
+// sancionada a ciegas. Por eso nota primero, estado despues, siempre.
+//
+// NO PASA POR moverEstado(): a proposito, no un descuido. Esa funcion
+// asume que su UNICA responsabilidad es escribir `status` y revalidar -un
+// UPDATE SIN ninguna precondicion previa-, y ese contrato es FALSO para
+// `not_returned`: esta transicion exige que el INSERT de arriba haya
+// terminado bien ANTES de que el UPDATE se dispare, y por eso el tipo de
+// moverEstado() ya no admite este valor (ver su comentario). El UPDATE de
+// aca abajo repite la forma de esa funcion -mismo `.update()`, misma
+// traduccion de mensaje via mensajeDeRechazoMostrador(), mismo
+// `revalidatePath`- porque es exactamente lo mismo que hace esa funcion,
+// solo que con una precondicion que su tipo ya no puede admitir.
+export async function marcarNoDevuelta(
+  reservationId: string,
+  unidadId: string,
+  nota: string,
+): Promise<ResultadoMostrador> {
+  const supabase = await createClient();
+
+  // Recortada -mismo motivo que motivo.trim() en cancelar()
+  // (lib/reservas/acciones.ts): el boton de confirmar en
+  // dialogo-falta.tsx ya queda deshabilitado mientras la nota este vacia
+  // tras `trim()`, pero esto es la misma regla aplicada una segunda vez del
+  // lado del servidor, por si algo llega a esta funcion sin pasar por ese
+  // boton. `note` es `text not null` sin ningun `CHECK` que rechace una
+  // cadena vacia -IGUAL que `cancellation_reason`, que tampoco lo tiene, y
+  // por eso cancelar() pone esta misma barrera del lado del servidor-, asi
+  // que sin ella una nota de solo espacios pasaria el INSERT sin ningun
+  // error.
+  const notaRecortada = nota.trim();
+
+  // Columnas EXACTAS `(unit_id, note)`, y nada mas -ni `created_by`: el
+  // DEFAULT `auth.uid()` lo rellena solo, y el GRANT de INSERT de
+  // `inventory_unit_notes` NI SIQUIERA ENUMERA esa columna
+  // (`grant insert (unit_id, note) on public.inventory_unit_notes to
+  // authenticated`, supabase/migrations/20260805195549_traceability.sql:26).
+  // Mandar `created_by` a proposito da HTTP 403 con `42501` -medido por
+  // PostgREST contra el stack local, el 2026-08-12-, asi que ni conviene
+  // intentarlo.
+  const { error: errorNota } = await supabase
+    .from('inventory_unit_notes')
+    .insert({ unit_id: unidadId, note: notaRecortada });
+
+  // SIN mensajeDeRechazoMostrador(): esa funcion traduce mensajes del
+  // TRIGGER DE LA MAQUINA DE ESTADOS sobre `inventory_reservations`, y esto
+  // es un error de OTRA tabla -`inventory_unit_notes`- con otro origen
+  // posible. En el uso normal esta rama es inalcanzable -el boton de
+  // dialogo-falta.tsx ya exige la nota no vacia tras `trim()`, y la politica
+  // `unit_notes_insert_staff` (`private.is_staff()`,
+  // supabase/migrations/20260805195549_traceability.sql:40-42) ya deja
+  // pasar a cualquier operador o admin activo-, asi que si algo cae aca es
+  // un DEFECTO en otro sitio -o una cuenta de personal que dejo de estar
+  // activa entre que abrio el mostrador y este clic-, y el mensaje crudo lo
+  // dice mejor que uno bonito que lo disimularia.
+  if (errorNota) {
+    return { error: errorNota.message };
+  }
+
+  const { error: errorEstado } = await supabase
+    .from('inventory_reservations')
+    .update({ status: 'not_returned' })
+    .eq('id', reservationId);
+
+  if (errorEstado) {
+    return { error: mensajeDeRechazoMostrador(errorEstado.message) };
+  }
+
+  // Mismo motivo que moverEstado(): el personal YA esta en /mostrador, asi
+  // que revalidar y no redirigir.
+  revalidatePath('/mostrador');
+
+  return null;
 }
