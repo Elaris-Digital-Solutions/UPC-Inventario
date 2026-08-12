@@ -4,7 +4,34 @@
 
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
-Sin correcciones todavía: la tanda no se ha ejecutado.
+### Task 1 · El andamio del personal *(2026-08-11)*
+
+1. **Ninguna tarea creaba `app/(personal)/mostrador/page.tsx`.** La «Estructura de archivos» la lista como
+   nueva y la Task 5 dice «Modify», pero **nadie la crea**. Sin ella el grupo `(personal)` no aporta ni una
+   ruta al `build`, y el andamio no se puede abrir en un navegador — que es lo único que ha encontrado los
+   fallos de esta fase. **La crea la Task 1**, mínima y diciendo que las columnas llegan después: una
+   pantalla que finge estar hecha es peor que una que dice que no lo está.
+2. **Los enlaces a `/admin/*` NO entran todavía**, aunque el Step 2 los pedía bajo `role === "admin"`. Esas
+   cinco pantallas son de la T3B, así que hoy serían **enlaces a un 404**. El hueco queda marcado en
+   `components/cabecera-personal.tsx` con la condición escrita. **Y un efecto preexistente que esto no
+   arregla y conviene no confundir con un fallo nuevo:** `lib/auth/destino.ts` manda al admin a
+   `/admin/inventario` nada más entrar, y esa ruta seguirá dando 404 hasta la T3B.
+3. **El `--dry-run` acertó exactamente, y `globals.css` no se tocó.** Predijo «Files (5) +4 new, =1 skip»
+   —`table`, `textarea`, `label`, `dialog` nuevos y `button` idéntico— y eso fue lo que pasó: cuatro
+   archivos, cero modificaciones, `package.json` y `package-lock.json` intactos. **D-30 no se repitió**, y
+   la razón por la que se sabe no es que el build siguiera verde —en la T0 también lo estaba con el defecto
+   dentro— sino que se miró el diff.
+4. **Se retiró un truco para callar al linter.** La primera versión de la cabecera llevaba
+   `{role === "admin" && null}`, escrito para que ESLint no marcara `role` como prop sin usar. Es código que
+   no renderiza nada y existe solo para satisfacer una herramienta. **La regla tenía razón —el prop no se
+   usaba—, y la respuesta correcta no era esquivarla**: la cabecera ahora muestra con qué rol se está
+   operando. Eso es **visibilidad y no estética**: la misma persona puede ser admin y estar atendiendo el
+   mostrador, y lo que marque como «no se retiró» sanciona a un alumno de verdad.
+5. **Punto a verificar 3, resuelto: catorce rutas**, contra las trece de la T2B, y **las mismas tres
+   estáticas** —`/_not-found`, `/faq`, `/login`—. La predicción del plan se cumplió sin desviación.
+6. **`npm run test` sigue en 43**, sin cambios: esta tarea no añade lógica pura que probar. El verde de
+   `test` aquí **no afirma nada** sobre lo que se escribió, y conviene decirlo en vez de contarlo como
+   evidencia.
 
 ---
 
