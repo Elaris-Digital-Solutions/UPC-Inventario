@@ -14,7 +14,8 @@
 | **4 · Las tres columnas** | ✅ **Cerrada.** Commit `1c1278f`. Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
 | **5 · Entregar y recibir** | ✅ **Cerrada.** `acciones.ts`, `tarjeta-mostrador.tsx` y la pantalla con las tres columnas. Los dos `UPDATE` medidos por PostgREST antes de escribir. **Cierra el pendiente del `SQLSTATE`** y el punto a verificar 1. Los cuatro comandos verdes; `build` en 14 rutas con `/mostrador` dinámica |
 | **6 · Las dos faltas** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas) en verde, corridos dos veces —antes y después de los cambios de texto—. Efecto verificado también desde la pantalla, con sesión de operador de verdad |
-| **7 a 10** | Sin empezar |
+| **7 · Anotaciones de unidad** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde |
+| **8 a 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -550,6 +551,88 @@ rutas con 3 estáticas.
 13. **El entorno, comprobado como manda el propio plan:** el rango TCP 54245–54344 **no aparece**, y el
     stack se verificó **por el puerto del host** —`docker ps` mostrando `0.0.0.0:54322->5432/tcp` y un
     `TcpClient` conectando a 54321, 54322 y 54324—, nunca con `docker exec`.
+
+### Task 7 · Cierre *(2026-08-12)*
+
+**Cerrada. Commit pendiente de crear.** Los cuatro comandos, corridos a mano y verdes: `typecheck` salida
+0, `lint` salida 0, `test` **56 pruebas en 4 archivos, sin cambios** —esta tarea no añade lógica pura
+aislable del cliente de Supabase, así que ese verde no afirma nada sobre lo escrito—, `build` **14 rutas
+con 3 estáticas, sin cambios**: no agrega ninguna ruta.
+
+1. **Lo construido.** `lib/mostrador/notas.ts` y los componentes `historial-notas.tsx` y
+   `dialogo-nota.tsx`, nuevos; `acciones.ts` gana `anotar()` y el helper privado `insertarNota()`;
+   `tarjeta-mostrador.tsx` y `app/(personal)/mostrador/page.tsx`, modificados. Un botón «Anotar unidad»
+   **en las tres columnas** —anotar no depende del estado de la reserva, a diferencia de los otros cuatro
+   botones—, que abre un diálogo con el historial de esa unidad y un campo para añadir.
+2. **Un archivo que el plan no previó, y el mismo hueco de siempre.** El Step 2 pide que la lectura de
+   notas esté «separada de `lib/mostrador/consultas.ts`», pero la «Estructura de archivos» solo enumera
+   `consultas.ts`, `columnas.ts`, `columnas.test.ts` y `acciones.ts` bajo `lib/mostrador/`. Se creó
+   `lib/mostrador/notas.ts`. **Y es el hueco INVERSO del que ya llevaba tres apariciones**: la Task 1 y la
+   Task 5 registraron archivos que la «Estructura» **sí lista** y que ninguna tarea crea —«cuando un Step
+   dice “los botones en X” y X no está en los `Files` de esa tarea, nadie lo va a crear»—; acá pasa al
+   revés, un archivo que **ninguna lista menciona** y que un Step exige de todas formas. Mismo documento,
+   dos formas de desincronizarse: la lista promete de más, o el cuerpo pide de más.
+3. **HECHO FALSO NÚMERO 18, del género SOBRE-AFIRMACIÓN.** El comentario de ese archivo nuevo decía que
+   «el Step 2 de la Task 7 lo pide **por nombre** y por motivo». La cita textual que traía era correcta;
+   lo falso es «por nombre»: el plan no menciona `notas.ts` en ninguna parte. Lo que el plan manda es la
+   **separación**; el nombre y la ubicación los elige la ejecución. Ya reescrito. **Y es el mismo patrón
+   que el 15 y el 17**: comprobar el dato lo habría dado por bueno, porque el dato está bien — falla el
+   alcance de la afirmación.
+4. **Un comentario que nació caducado, por una medición de este mismo día.** `dialogo-nota.tsx`
+   justificaba no envolver un `<Button>` con `asChild` diciendo que esa cadena «no está confirmada sin
+   advertencia». Se confirmó al cerrar la Task 6, unas horas antes, y está registrado en la sección
+   anterior de este mismo documento. Corregido: hoy se escribe así porque los otros dos diálogos ya lo
+   hacen, no por riesgo. **La lección no es del subagente sino del encargo: se le dio el patrón a imitar y
+   no el hallazgo que lo había dejado obsoleto.**
+5. **Una imprecisión de mecanismo, corregida.** El comentario de `anotar()` decía que `cancel_reservation`
+   «tiene un `CHECK`» para el motivo vacío. Es un `raise exception ... using errcode = 'check_violation'`
+   (`20260806012057_cancel_reservation_rpc.sql:27`), no una restricción `CHECK` de tabla: quien fuera a
+   buscar la restricción no la encontraría.
+6. **UN CUARTO ERROR DE QUIEN DICTABA, y lo destapó el subagente al preguntársele qué le pareció
+   contradictorio.** El encargo pedía que `anotar()` rechazara la nota vacía «igual que ya hace
+   `cancelar()`». **`cancelar()` no hace eso:** recorta con `trim()` (`lib/reservas/acciones.ts:456`) pero
+   **no** rechaza el vacío en JS — delega en el motor. Como `note` no tiene nada equivalente en la base
+   donde delegar, la validación tuvo que escribirse en JS, y quedó anotada como lo que es: el mismo
+   criterio —una barrera de servidor, no solo del diálogo— por un mecanismo distinto.
+7. **Dos textos distintos que no son un error, y por qué conviene dejarlo escrito.** El proyecto tiene dos
+   mensajes parecidos para «falta el motivo», y parecían contradecirse entre dos comentarios:
+   **`Cancelar exige un motivo`** es del **trigger** de la máquina de estados
+   (`20260806005731_reservation_state_machine.sql:47`), y **`La cancelacion exige un motivo`** es de la
+   **RPC** (`20260806012057_cancel_reservation_rpc.sql:27`). Los dos comentarios eran correctos, cada uno
+   citando su fuente. **Dos textos distintos para la misma idea no prueban que uno sea falso**: hay que
+   abrir los dos archivos antes de acusar.
+8. **Por qué el historial no dice quién escribió cada nota, medido y no supuesto.** `created_by` referencia
+   `auth.users`, y PostgREST **no puede embeberlo**: pedir `staff_members(full_name)` desde las notas
+   devuelve **`PGRST200`**, «no matches were found». Y aunque se resolviera con una segunda consulta,
+   `staff_select_self` (`20260805194015_staff_policies.sql:17-19`) deja que un operador **solo se vea a sí
+   mismo**, así que el nombre de un compañero es inalcanzable. Mostrarlo exigiría SQL nuevo, vetado en
+   esta tanda.
+9. **UN HALLAZGO DE PRIVACIDAD, MEDIDO, QUE CONVIENE CONVERTIR EN Q-n AL CERRAR LA TANDA.** Un JWT de
+   **alumno** leyendo `inventory_unit_notes` recibe **HTTP 200 con todas las notas**: la política
+   `unit_notes_select_auth` es `for select to authenticated using (true)`
+   (`20260805195549_traceability.sql:37-38`), sin recorte por rol ni por unidad. **No es un fallo nuevo**
+   —es D-2, la trazabilidad legible— y hoy ningún alumno tiene forma de llegar a la pantalla, que vive
+   detrás del layout de `app/(personal)/`. Pero el diálogo pide «describe qué pasó con el equipo», y ahí
+   un operador escribe con naturalidad el nombre de una persona. **Se mitiga por texto, no por política**:
+   el diálogo avisa de que cualquiera con sesión puede leer la nota y de que no se escriban datos
+   personales. Arreglarlo de verdad sería tocar RLS, o sea SQL.
+10. **El alcance, decidido por Alejandro el 2026-08-12.** F5 dice «Toda acción admite adjuntar una
+    anotación a la unidad» (`ESPECIFICACION_FUNCIONAL.md:141`), pero la Task 7 solo desglosa un punto de
+    entrada general. Se eligió **quedarse en el botón aparte**, sin tocar `entregar()` ni `recibir()`
+    —cerradas y verificadas en la Task 5—. **La diferencia con F5 queda registrada, no resuelta:**
+    adjuntar una nota al entregar y al recibir sigue sin existir.
+11. **Verificado en pantalla, con `npm run dev` y sesión de operador.** El botón aparece en las tres
+    columnas; el historial sale ordenado de más reciente a más antiguo y con **año** en la fecha —una nota
+    no tiene ventana de vigencia, a diferencia de una reserva—; una unidad sin notas dice «Esta unidad
+    todavía no tiene notas.»; al guardar, **el campo se limpia y el diálogo se cierra**, y la nota aparece
+    la primera al reabrir; el botón queda deshabilitado con **seis espacios**, así que el `trim()`
+    funciona; y la nota llegó a la base con `created_by` poblado y las tildes intactas. **Cero
+    advertencias en consola** — los errores que aparecen son de un WebSocket de HMR de una instancia
+    anterior de `dev`, no del código.
+12. **Una asimetría heredada de la Task 6, que se deja escrita y no se toca.** `anotar()` rechaza la nota
+    vacía **en el servidor**; `marcarNoDevuelta()` solo la recorta, y su barrera contra el vacío vive
+    únicamente en el diálogo. No es una regresión —ya era así al cerrar la Task 6— y no se corrige acá
+    para no reabrir una tarea ya verificada y comiteada.
 
 ---
 

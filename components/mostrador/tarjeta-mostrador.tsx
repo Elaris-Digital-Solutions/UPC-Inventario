@@ -31,9 +31,11 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogoFalta } from "@/components/mostrador/dialogo-falta";
+import { DialogoNota } from "@/components/mostrador/dialogo-nota";
 import { entregar, recibir, type ResultadoMostrador } from "@/lib/mostrador/acciones";
 import type { Columna } from "@/lib/mostrador/columnas";
 import type { AlumnoMostrador, ReservaMostrador } from "@/lib/mostrador/consultas";
+import type { NotaUnidad } from "@/lib/mostrador/notas";
 
 // Mismo criterio que components/reservas/tarjeta-reserva.tsx, REPETIDO y no
 // importado: esas dos constantes no estan exportadas de ese archivo -son
@@ -89,9 +91,17 @@ type TarjetaMostradorProps = {
   // aca con un `new Date()` propio, que seria una segunda lectura del reloj
   // para la misma decision (fallo M-7).
   columna: Columna;
+  // Las notas de LA UNIDAD de esta reserva, Task 7 de la tanda 3A. Llegan
+  // YA RESUELTAS desde la pagina -mismo criterio que `columna`, arriba-: la
+  // pagina llama a notasPorUnidad() UNA VEZ para todas las tarjetas
+  // (app/(personal)/mostrador/page.tsx), y esta tarjeta no vuelve a
+  // consultar por su cuenta. Puede llegar vacio -una unidad sin ninguna
+  // nota-, y eso no es un caso de error: es el caso normal para un equipo
+  // que nunca dio problemas.
+  notas: NotaUnidad[];
 };
 
-export function TarjetaMostrador({ reserva, columna }: TarjetaMostradorProps) {
+export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorProps) {
   const [pendiente, iniciarTransicion] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -211,6 +221,16 @@ export function TarjetaMostrador({ reserva, columna }: TarjetaMostradorProps) {
               alumno={textoAlumno(reserva.alumno)}
             />
           )}
+
+          {/* "Anotar unidad": SIN ninguna condicion de columna, a diferencia
+              de los cuatro botones de arriba. anotar() (Task 7,
+              lib/mostrador/acciones.ts) no depende del estado de esta
+              reserva -escribe en inventory_unit_notes, no en
+              inventory_reservations-, asi que este boton se ofrece en las
+              TRES columnas por igual: dejar una nota sobre el equipo tiene
+              sentido tanto si esta todavia por entregar, como si esta
+              activo o por devolver. */}
+          <DialogoNota unidadId={reserva.unidadId} unidad={reserva.unidad} notas={notas} />
         </div>
       </CardContent>
     </Card>

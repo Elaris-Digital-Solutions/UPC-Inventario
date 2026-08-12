@@ -11,6 +11,7 @@
 import { TarjetaMostrador } from "@/components/mostrador/tarjeta-mostrador";
 import { columnaDeReserva, type Columna } from "@/lib/mostrador/columnas";
 import { reservasMostrador, type ReservaMostrador } from "@/lib/mostrador/consultas";
+import { notasPorUnidad } from "@/lib/mostrador/notas";
 
 const TITULOS: Record<Columna, string> = {
   por_entregar: "Por entregar",
@@ -71,6 +72,19 @@ export default async function MostradorPage() {
   const ahora = new Date();
   const columnas = agruparEnColumnas(reservas, ahora);
 
+  // Las notas de TODAS las unidades que aparecen en esta pagina, en UNA sola
+  // llamada -Task 7 de la tanda 3A-, mismo motivo que reservasMostrador() se
+  // llama una unica vez arriba: notasPorUnidad() (lib/mostrador/notas.ts) ya
+  // acepta un array entero y hace una sola consulta con `in.(...)`, asi que
+  // pedirla aca, antes de pintar cualquier tarjeta, evita una consulta por
+  // tarjeta. Puede haber `unit_id` repetidos si la misma unidad tiene mas de
+  // una reserva viva sin solape de horario -el `EXCLUDE` anti-solape impide
+  // que se solapen en el tiempo, no que existan dos reservas no simultaneas
+  // sobre la misma unidad-, y eso no es un problema: un valor repetido
+  // dentro de un `in.(...)` no cambia el resultado, solo lo pide dos veces.
+  const unidadIds = reservas.map((reserva) => reserva.unidadId);
+  const porUnidad = await notasPorUnidad(unidadIds);
+
   return (
     <main className="container flex-1 py-12">
       <h1 className="font-display text-upc-red text-4xl">Mostrador</h1>
@@ -108,7 +122,18 @@ export default async function MostradorPage() {
                   <p className="text-muted-foreground text-sm">Nada pendiente en esta columna.</p>
                 ) : (
                   columnas[columna].map((reserva) => (
-                    <TarjetaMostrador key={reserva.id} reserva={reserva} columna={columna} />
+                    <TarjetaMostrador
+                      key={reserva.id}
+                      reserva={reserva}
+                      columna={columna}
+                      // `?? []` NO es defensivo "por si acaso": una unidad
+                      // sin ninguna nota simplemente NO aparece como clave
+                      // en el `Record` que devuelve notasPorUnidad() -esa
+                      // funcion solo agrega una clave cuando encuentra al
+                      // menos una fila para agrupar-, asi que el caso normal
+                      // de un equipo sin historial cae aca, no en un error.
+                      notas={porUnidad[reserva.unidadId] ?? []}
+                    />
                   ))
                 )}
               </div>

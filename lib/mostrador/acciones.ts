@@ -1,11 +1,11 @@
 'use server';
 
 // Las Server Actions del mostrador. Task 5 de la tanda 3A dejo entregar() y
-// recibir(); esta misma Task 6 agrega marcarNoRecogida() y marcarNoDevuelta()
-// -las dos faltas-. anotar() (Task 7) todavia no esta: el plan
+// recibir(); la Task 6 agrego marcarNoRecogida() y marcarNoDevuelta() -las
+// dos faltas-. Esta misma Task 7 agrega anotar(): el plan
 // (MIGRATION_DOCS/PLANES/FASE_2_TANDA_3A.md, "Estructura de archivos") ya
-// describe este archivo entero como "entregar, recibir, las dos faltas,
-// anotar", asi que agregarla despues no es una sorpresa de alcance.
+// describia este archivo entero como "entregar, recibir, las dos faltas,
+// anotar", asi que agregarla ahora no es una sorpresa de alcance.
 
 import { revalidatePath } from 'next/cache';
 
@@ -236,33 +236,40 @@ export async function marcarNoRecogida(reservationId: string): Promise<Resultado
 // El primer caso es un error recuperable; el segundo es una persona
 // sancionada a ciegas. Por eso nota primero, estado despues, siempre.
 //
-// NO PASA POR moverEstado(): a proposito, no un descuido. Esa funcion
-// asume que su UNICA responsabilidad es escribir `status` y revalidar -un
-// UPDATE SIN ninguna precondicion previa-, y ese contrato es FALSO para
-// `not_returned`: esta transicion exige que el INSERT de arriba haya
-// terminado bien ANTES de que el UPDATE se dispare, y por eso el tipo de
-// moverEstado() ya no admite este valor (ver su comentario). El UPDATE de
-// aca abajo repite la forma de esa funcion -mismo `.update()`, misma
-// traduccion de mensaje via mensajeDeRechazoMostrador(), mismo
-// `revalidatePath`- porque es exactamente lo mismo que hace esa funcion,
-// solo que con una precondicion que su tipo ya no puede admitir.
-export async function marcarNoDevuelta(
-  reservationId: string,
+// El INSERT compartido entre marcarNoDevuelta() (mas abajo) y anotar() (al
+// final del archivo): las DOS hacen exactamente el mismo `INSERT` sobre
+// `inventory_unit_notes`, con las mismas columnas y el mismo recorte, y solo
+// cambia QUIEN las llama y CUANDO. Hasta esta Task 7 vivia escrito una unica
+// vez, dentro de marcarNoDevuelta(): con un solo consumidor, extraerlo
+// habria sido la misma sobre-generalizacion que dialogo-cancelar.tsx (T2B)
+// ya evito una vez -adivinar un segundo caso antes de que exista-. El Step 3
+// de la Task 7 del plan (MIGRATION_DOCS/PLANES/FASE_2_TANDA_3A.md) lo dice
+// de forma literal: "la escritura que Task 6 hace dentro de
+// marcarNoDevuelta() es un caso particular de la misma tabla, no una tabla
+// distinta; si conviene compartir codigo entre las dos, se extrae aqui, no
+// antes -la misma regla que ya aplico dialogo-cancelar.tsx sobre
+// generalizar con un unico caso real". Con anotar() como segundo
+// consumidor, este es exactamente ese momento previsto, no antes.
+//
+// Se define ANTES de marcarNoDevuelta() -no despues- por la MISMA
+// convencion que ya sigue moverEstado() con entregar(), recibir() y
+// marcarNoRecogida() mas arriba en este archivo: el helper privado precede
+// a sus consumidores.
+async function insertarNota(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   unidadId: string,
   nota: string,
-): Promise<ResultadoMostrador> {
-  const supabase = await createClient();
-
+): Promise<{ error: string | null }> {
   // Recortada -mismo motivo que motivo.trim() en cancelar()
-  // (lib/reservas/acciones.ts): el boton de confirmar en
-  // dialogo-falta.tsx ya queda deshabilitado mientras la nota este vacia
-  // tras `trim()`, pero esto es la misma regla aplicada una segunda vez del
-  // lado del servidor, por si algo llega a esta funcion sin pasar por ese
-  // boton. `note` es `text not null` sin ningun `CHECK` que rechace una
-  // cadena vacia -IGUAL que `cancellation_reason`, que tampoco lo tiene, y
-  // por eso cancelar() pone esta misma barrera del lado del servidor-, asi
-  // que sin ella una nota de solo espacios pasaria el INSERT sin ningun
-  // error.
+  // (lib/reservas/acciones.ts): cada llamador ya valida por su cuenta que la
+  // nota no quede vacia tras `trim()` -el dialogo de dialogo-falta.tsx, para
+  // marcarNoDevuelta(); anotar() mismo, para su propio caso, mas abajo-,
+  // pero esto es la misma regla aplicada una segunda vez del lado del
+  // servidor, por si algo llega hasta aca sin pasar por esa validacion.
+  // `note` es `text not null` sin ningun `CHECK` que rechace una cadena
+  // vacia -IGUAL que `cancellation_reason`, que tampoco lo tiene-, asi que
+  // sin este recorte una nota de solo espacios pasaria el INSERT tal cual,
+  // con los espacios dentro.
   const notaRecortada = nota.trim();
 
   // Columnas EXACTAS `(unit_id, note)`, y nada mas -ni `created_by`: el
@@ -273,9 +280,36 @@ export async function marcarNoDevuelta(
   // Mandar `created_by` a proposito da HTTP 403 con `42501` -medido por
   // PostgREST contra el stack local, el 2026-08-12-, asi que ni conviene
   // intentarlo.
-  const { error: errorNota } = await supabase
+  const { error } = await supabase
     .from('inventory_unit_notes')
     .insert({ unit_id: unidadId, note: notaRecortada });
+
+  return { error: error?.message ?? null };
+}
+
+// NO PASA POR moverEstado(): a proposito, no un descuido. Esa funcion
+// asume que su UNICA responsabilidad es escribir `status` y revalidar -un
+// UPDATE SIN ninguna precondicion previa-, y ese contrato es FALSO para
+// `not_returned`: esta transicion exige que el INSERT de arriba
+// -insertarNota()- haya terminado bien ANTES de que el UPDATE se dispare, y
+// por eso el tipo de moverEstado() ya no admite este valor (ver su
+// comentario). El UPDATE de aca abajo repite la forma de esa funcion -mismo
+// `.update()`, misma traduccion de mensaje via mensajeDeRechazoMostrador(),
+// mismo `revalidatePath`- porque es exactamente lo mismo que hace esa
+// funcion, solo que con una precondicion que su tipo ya no puede admitir.
+//
+// El INSERT de la nota YA NO ESTA ESCRITO ACA: vive en insertarNota(), justo
+// arriba de esta funcion. La Task 7 lo extrajo -ver su comentario para el
+// porque y el cuando-; esta funcion sigue haciendo EXACTAMENTE lo mismo que
+// hacia antes de la extraccion, solo que a traves del helper.
+export async function marcarNoDevuelta(
+  reservationId: string,
+  unidadId: string,
+  nota: string,
+): Promise<ResultadoMostrador> {
+  const supabase = await createClient();
+
+  const { error: errorNota } = await insertarNota(supabase, unidadId, nota);
 
   // SIN mensajeDeRechazoMostrador(): esa funcion traduce mensajes del
   // TRIGGER DE LA MAQUINA DE ESTADOS sobre `inventory_reservations`, y esto
@@ -289,7 +323,7 @@ export async function marcarNoDevuelta(
   // activa entre que abrio el mostrador y este clic-, y el mensaje crudo lo
   // dice mejor que uno bonito que lo disimularia.
   if (errorNota) {
-    return { error: errorNota.message };
+    return { error: errorNota };
   }
 
   const { error: errorEstado } = await supabase
@@ -303,6 +337,53 @@ export async function marcarNoDevuelta(
 
   // Mismo motivo que moverEstado(): el personal YA esta en /mostrador, asi
   // que revalidar y no redirigir.
+  revalidatePath('/mostrador');
+
+  return null;
+}
+
+// `anotar(unitId, nota)`, Task 7 de la tanda 3A: el punto de entrada GENERAL
+// para dejar una anotacion en el historial de una unidad, no solo al marcar
+// "No se devolvio". F5 lo pide asi -"Toda accion admite adjuntar una
+// anotacion a la unidad, que se guarda en el historial",
+// MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md:141- y el Step 3 del plan lo
+// dice igual: el INSERT de marcarNoDevuelta() de arriba es UN CASO
+// PARTICULAR de la misma tabla, no una tabla distinta.
+//
+// RECHAZA CON UN ERROR PROPIO si la nota queda vacia tras `trim()` -barrera
+// de SERVIDOR, igual que cancelar() en lib/reservas/acciones.ts es una
+// barrera de servidor y no solo del dialogo que la invoca-, pero por un
+// MECANISMO distinto al de cancelar(): esa funcion delega el rechazo en el
+// propio motor -`cancel_reservation` hace `raise exception 'La cancelacion
+// exige un motivo' using errcode = 'check_violation'` cuando el motivo llega
+// vacio, supabase/migrations/20260806012057_cancel_reservation_rpc.sql:27;
+// es un `raise` con ese SQLSTATE, NO una restriccion `CHECK` de tabla, y
+// buscar una restriccion no la encontraria-. `note` no tiene ni una cosa ni
+// la otra (ver el comentario de insertarNota() mas arriba). Sin esta comprobacion aca, una nota vacia pasaria el INSERT sin
+// ningun error y quedaria guardada como una cadena vacia en el historial de
+// la unidad: un registro sin contenido, indistinguible en la base de un
+// fallo silencioso de la interfaz.
+//
+// SIN mensajeDeRechazoMostrador(): esa funcion traduce mensajes del TRIGGER
+// DE LA MAQUINA DE ESTADOS sobre `inventory_reservations`, y esta accion ni
+// siquiera toca esa tabla -escribe unicamente en `inventory_unit_notes`.
+// Mensaje crudo del INSERT, el mismo criterio que ya aplica la rama de error
+// de marcarNoDevuelta() de mas arriba.
+export async function anotar(unitId: string, nota: string): Promise<ResultadoMostrador> {
+  if (nota.trim() === '') {
+    return { error: 'La nota no puede quedar vacía.' };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await insertarNota(supabase, unitId, nota);
+
+  if (error) {
+    return { error };
+  }
+
+  // Mismo motivo que moverEstado() y marcarNoDevuelta(): el personal YA esta
+  // en /mostrador, asi que revalidar y no redirigir.
   revalidatePath('/mostrador');
 
   return null;
