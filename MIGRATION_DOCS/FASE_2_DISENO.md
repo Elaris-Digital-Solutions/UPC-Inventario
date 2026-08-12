@@ -648,6 +648,19 @@ en vez de cinco. Se decide **escribiendo el plan**, no a mitad de ejecutarlo.
 > hay que verificar — hasta el punto de que la 2A puede probarse contra el proyecto real sin riesgo. **El
 > umbral acertó el cuándo y se quedó corto en el porqué**, que es la parte reutilizable para la T3.
 
+> ⚠ **Y se reutilizó. Corregido el 2026-08-11** *(D-37)*: la **T3 también se partió al escribir su plan**,
+> con **22 tareas**, así que la Fase 2 tiene **siete tandas**. **T3A** el mostrador —tarea 2.7— y **T3B** la
+> administración —2.8 y 2.9—. Plan de la 3A en [`PLANES/FASE_2_TANDA_3A.md`](./PLANES/FASE_2_TANDA_3A.md).
+>
+> **Lo que la T3 añade al criterio, y no estaba en la lección de la T2.** Allí el corte separó *quién puede
+> corromper un dato*. Aquí las dos mitades escriben, así que esa pregunta no reparte nada, y la que sí
+> reparte es **qué daño distinto hace cada una**: la T3A puede **bloquear a una persona 15 días o para
+> siempre**, con un trigger que el cliente no ve y que el propio operador **no puede deshacer** —levantar
+> una sanción es `admin_set_ban`, y es de admin—; la T3B no toca a ninguna persona pero reescribe el
+> catálogo real e introduce el **primer secreto de servidor** del proyecto. **Corromper un dato se arregla
+> con un `update`; sancionar a un alumno de verdad, no.** El umbral de quince tareas lleva dos aciertos en
+> el *cuándo* y dos fallos en el *porqué*: sirve para levantar la vista, no para decidir por dónde cortar.
+
 ---
 
 ## 13. Pruebas
