@@ -11,8 +11,9 @@
 | **1 · El andamio del personal** | ✅ **Cerrada.** Commit `2444685`. `typecheck`, `lint`, `test` (43) y `build` (**14 rutas**) en verde |
 | **2 · Migración 23, cierra Q-17** | ✅ **Cerrada.** Commit `8ddcc01`. Migración `20260812053243_cancel_before_start.sql` y `supabase/tests/31_cancel_before_start.sql`. `db reset` aplicó **23 migraciones**; `test db`: `Files=24, Tests=147`, `Result: PASS`. `typecheck`, `lint` y `build` (14 rutas) verdes; `test` sigue en 43, sin cambios |
 | **3 · El botón imposible** | ✅ **Cerrada.** Commit `80956b6`. `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
-| **4 · Las tres columnas** | ✅ **Cerrada.** Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
-| **5 a 10** | Sin empezar |
+| **4 · Las tres columnas** | ✅ **Cerrada.** Commit `1c1278f`. Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
+| **5 · Entregar y recibir** | ✅ **Cerrada.** `acciones.ts`, `tarjeta-mostrador.tsx` y la pantalla con las tres columnas. Los dos `UPDATE` medidos por PostgREST antes de escribir. **Cierra el pendiente del `SQLSTATE`** y el punto a verificar 1. Los cuatro comandos verdes; `build` en 14 rutas con `/mostrador` dinámica |
+| **6 a 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -254,6 +255,79 @@ falta. Que es un efecto distinto y bastante más visible que un nombre en blanco
 8. **Los números.** `typecheck` y `lint` verdes. `npm run test`: **56 pruebas en 4 archivos**, de 48 en 3
    —las 8 nuevas son las de `columnas.test.ts`—. Sin `build`: esta tarea no añade ninguna ruta y el plan
    no lo pide; `typecheck` ya cubre la compilación de los tres archivos.
+
+### Task 5 · Entregar y recibir *(2026-08-12)*
+
+1. **Tercera vez que el plan lista un archivo que ninguna tarea crea.** El Step 4 pide los botones «en
+   `tarjeta-mostrador.tsx`», la «Estructura de archivos» lo lista como nuevo, y ninguna tarea lo crea.
+   Lo crea la Task 5. Es exactamente el hueco que la Task 1 encontró con `mostrador/page.tsx`. **El patrón
+   ya es reconocible: cuando un Step dice «los botones en X» y X no está en los `Files` de esa tarea,
+   nadie lo va a crear.**
+2. **Se midió por PostgREST ANTES de escribir, y esa es la razón de que no hubiera sorpresas.** pgTAP ya
+   probaba el `UPDATE` del operador, pero con `set local role` en SQL directo, que no atraviesa el JWT ni
+   el rol real ni el conjunto de columnas que manda el cliente. Medido con JWT de operador firmado a mano:
+   `reserved → active` y `active → completed` dan **HTTP 200**. **Y el alumno falla en silencio: HTTP 200
+   con `[]`**, cero filas y ningún error —lo que el comentario de `cancelar()` describía desde la T2B,
+   ahora medido por la herramienta real—.
+3. **PENDIENTE CERRADO, el que la Task 2 dejó abierto: el `SQLSTATE` SÍ llega por PostgREST**, en
+   `error.code`, con el código de Postgres tal cual. Medido: `23514` para las violaciones de `CHECK` y
+   `42501` para privilegio denegado, con `hint` incluido en este último.
+4. **Punto a verificar 1, RESUELTO, adelantado de la Task 9** porque el instrumento ya estaba montado.
+   Los cinco rechazos de `cancel_reservation`, disparados a propósito:
+
+   | # | Mensaje literal | `code` | HTTP |
+   |---|---|---|---|
+   | 1 | `La cancelacion exige un motivo` | 23514 | 400 |
+   | 2 | `Reserva inexistente` | P0002 | **500** |
+   | 3 | `No puedes cancelar una reserva ajena` | 42501 | 403 |
+   | 4 | `Solo se cancela una reserva en estado reserved (esta en active)` | 23514 | 400 |
+   | 5 | `No puedes cancelar una reserva que ya empezo` | 23514 | 400 |
+
+   **La predicción del plan se cumple y el mapeo de la Task 3 queda validado entero:** el quinto mensaje
+   es literal y fijo —la igualdad exacta era la decisión correcta—, `23514` lo comparten **tres**, y el
+   orden #1 antes de #2 se confirma pidiendo una reserva inexistente **sin** motivo: contesta por el
+   motivo. Los dos casos que deben funcionar dieron **204**, el del personal cancelando una reserva ya
+   empezada incluido —la guarda `not private.is_staff()` hace lo que dice—. **Dato nuevo: el rechazo #2
+   llega con HTTP 500**, no 400; PostgREST trata `no_data_found` como error de servidor. No cambia nada
+   —se empareja por texto— pero conviene saberlo antes de verlo en un log.
+5. **La única deducción del subagente, medida y CORRECTA.** Declaró honestamente que «dos operadores
+   pulsando el mismo botón no da error» lo había leído del trigger y no medido. Medido: la segunda
+   pulsación con el mismo valor da **HTTP 200 sin error**, y `reservation_status_log` queda con **una
+   sola fila** —el trigger de log no registra un cambio que no ocurrió—. El contraste también:
+   `active → not_picked_up` da 400 con `Transicion no permitida`.
+6. **Y ese mismo experimento destapó algo que la Task 6 tiene que saber: `updated_at` SÍ se mueve aunque
+   el estado no cambie.** La segunda pulsación lo actualizó sin dejar rastro en el log. **Importa porque
+   `apply_penalties` cuenta los `not_picked_up` de los últimos 90 días contra `updated_at`**, así que un
+   `UPDATE` con el mismo valor **rejuvenece** esa fecha y puede meter en la ventana una falta que ya había
+   salido de ella. **No es un defecto nuevo:** el propio comentario de
+   `20260806013146_penalties.sql:19-21` ya lo anticipa y ofrece `reservation_status_log.changed_at` como
+   alternativa si se endurece. **Y hoy está cerrado por el filtro:** `reservasMostrador()` solo trae
+   reservas vivas, así que el mostrador nunca ofrece un botón sobre una fila ya terminal.
+7. **Una lección de método que costó una sonda: mi propia medición mintió primero.** El primer intento de
+   capturar los rechazos dio `PGRST102 Empty or invalid json` en los **tres** casos, con tres cuerpos JSON
+   válidos y distintos. Eso es imposible como comportamiento del sistema: era el quoting de PowerShell 5.1
+   al pasar `-d '{"...":"..."}'` a `curl.exe`. Se corrigió mandando el cuerpo desde un archivo con
+   `--data-binary "@ruta"`. **La señal general: cuando varios casos que deberían diferir dan
+   EXACTAMENTE el mismo error, el sospechoso es el instrumento, no lo medido.** De haberlo anotado, el
+   plan diría hoy que PostgREST rechaza los `UPDATE` del mostrador — falso, y con el código correcto
+   delante.
+8. **Y un error mío de menor tamaño, también delatado por la medición:** consulté `from_status` y
+   `to_status` en `reservation_status_log`. Las columnas reales son **`old_status` y `new_status`**, más
+   `reason`, `changed_by` y `changed_at`. Anotado para la Task 6, que tiene que comprobar ese log.
+9. **`useTransition` y no `useActionState`, con la cita abierta.** Los dos botones no tienen ningún campo
+   de formulario, solo un id que la tarjeta ya conoce. La tabla «Next steps» de
+   `node_modules/next/dist/docs/01-app/02-guides/interactive-apps.md` reparte exactamente así los dos
+   casos. **Es la primera vez en la tanda que un subagente cita los docs de Next 16 en vez de la memoria**,
+   que es lo que `AGENTS.md` manda.
+10. **Ningún hecho falso nuevo: siguen DIECISÉIS.** Las cuatro citas al SQL de la máquina de estados
+    —líneas 33, 41, 45 y 62-68— se reverificaron y las cuatro son exactas, la desambiguación entre el
+    cuerpo y la corrección 8 de `FASE_2_TANDA_2B.md` también. **Y respondió al control nuevo**: se le pidió
+    releer sus propios comentarios antes de afirmar que había dejado algo marcado como pendiente, y reportó
+    haber hecho `grep` para confirmarlo.
+11. **Los números.** `typecheck`, `lint` y `build` verdes. `npm run test`: **56 en 4 archivos, SIN
+    CAMBIOS** —esta tarea no añade lógica pura, así que ese verde **no afirma nada** sobre lo escrito,
+    igual que en las Tasks 1 y 2—. `npm run build`: **catorce rutas, tres estáticas**, y **`/mostrador`
+    sigue dinámica** — la señal de alarma que el encargo pedía vigilar no se disparó.
 
 ---
 
