@@ -10,8 +10,9 @@
 |---|---|
 | **1 · El andamio del personal** | ✅ **Cerrada.** Commit `2444685`. `typecheck`, `lint`, `test` (43) y `build` (**14 rutas**) en verde |
 | **2 · Migración 23, cierra Q-17** | ✅ **Cerrada.** Commit `8ddcc01`. Migración `20260812053243_cancel_before_start.sql` y `supabase/tests/31_cancel_before_start.sql`. `db reset` aplicó **23 migraciones**; `test db`: `Files=24, Tests=147`, `Result: PASS`. `typecheck`, `lint` y `build` (14 rutas) verdes; `test` sigue en 43, sin cambios |
-| **3 · El botón imposible** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
-| **4 a 10** | Sin empezar |
+| **3 · El botón imposible** | ✅ **Cerrada.** Commit `80956b6`. `typecheck`, `lint`, `test` (**48**, de 43) y `build` (14 rutas, 3 estáticas) en verde |
+| **4 · Las tres columnas** | ✅ **Cerrada.** Step 0 medido por PostgREST con JWT de operador. `lib/mostrador/` con `columnas.ts`, `columnas.test.ts` y `consultas.ts`. `typecheck`, `lint` y `test` (**56 en 4 archivos**, de 48 en 3) en verde |
+| **5 a 10** | Sin empezar |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -162,6 +163,97 @@ que probar es una conexión **por el puerto del host**, no un `docker exec`.
 7. **El `SQLSTATE` por PostgREST sigue SIN MEDIR**, y quedó escrito así en el propio código. El
    emparejamiento va por texto y no lo necesita, pero el pendiente es de la Task 9 y no se contó como
    resuelto.
+
+### Task 4 · Step 0, la medición del embed *(2026-08-12)*
+
+**Punto a verificar 5, RESUELTO: el embed llega `null` y la fila NO se descarta.** Medido por HTTP contra
+PostgREST —`127.0.0.1:54321`, la herramienta real de `lib/mostrador/consultas.ts`, y no por `docker exec`,
+que no pasa por PostgREST y por tanto no puede decir nada de cómo arma el JSON—. Con un JWT de operador
+firmado a mano: el stack local usa **HS256** con el secret que muestra `npx supabase status`, así que se
+puede emitir una sesión de cualquier usuario sin pasar por el magic link. *(El proyecto remoto firma con
+ES256; esta receta sirve solo en local.)* Escenario: Ana con reserva `reserved` —visible— y Bruno con una
+`not_picked_up` que lo deja sin ninguna reserva viva —bloqueado por `alumnos_select_staff`—.
+
+La reserva de Bruno llegó como `{"id":"...","status":"not_picked_up","alumnos":null}`. **La fila viene
+entera y solo el embed se vacía.** Control con admin: los dos embeds poblados. Y una tercera sonda,
+leyendo `alumnos` directamente con el operador, confirma que el bloqueo es real y no un fallo del embed
+por otra causa: Bruno no aparece. *(Efecto lateral que conviene saber: el operador **sí** se ve a sí
+mismo en `alumnos`, con `nombre` nulo. Tiene fila propia porque `handle_new_auth_user` se la creó, y
+`alumnos_select_own` se la deja ver. No es un alumno de verdad, y cualquier listado de alumnos que se
+escriba después va a incluirlo.)*
+
+**Y una corrección al punto a verificar 4, que el plan y la memoria predecían mal.** Los dos dicen que al
+marcar `not_picked_up` «la reserva se sigue viendo; el nombre vuelve nulo». **Falso para esta pantalla.**
+Medido con el filtro real del mostrador, `status in ('reserved','active')`: la reserva de Bruno
+**desaparece de la lista entera**, no aparece con el nombre en blanco. El filtro la excluye antes de que
+RLS tenga que decidir nada sobre el alumno.
+
+**La razón es estructural y vale la pena dejarla escrita: el filtro del mostrador y la condición de la
+política son LA MISMA CONDICIÓN.** `private.tiene_reserva_viva()` cuenta exactamente `reserved` y
+`active` —`20260805194848_alumno_policies.sql:58`—, que son las dos que el mostrador pide. Así que en esta
+consulta concreta **un `alumnos: null` es imposible**: si la reserva está viva, su alumno tiene una
+reserva viva por definición. Confirmado moviendo la reserva de Bruno a `active` y viendo su embed poblarse
+solo, sin tocar ninguna política.
+
+**Consecuencia de diseño, y no la que el plan anticipaba.** El tipo **sigue admitiendo `null`** —PostgREST
+lo devuelve así y cualquier cambio del filtro lo haría aparecer de verdad—, pero la pantalla **no** tiene
+que tratar «alumno sin nombre» como un caso corriente que se vea a menudo: con el filtro de hoy no ocurre
+nunca. Lo que sí pasa, y es lo que la Task 9 debe mirar, es que **la tarjeta desaparezca** al marcar la
+falta. Que es un efecto distinto y bastante más visible que un nombre en blanco.
+
+### Task 4 · Las tres columnas *(2026-08-12)*
+
+1. **La frontera se escribe con `>` y no con `≥`, contra la letra del plan.** El plan define las columnas
+   como «`activas` (`active` y fin ≥ ahora), `por_devolver` (`active` y fin < ahora)». Se usa `>`
+   estricto: `fin > ahora` → `activas`, `fin <= ahora` → `por_devolver`. **El motivo es coherencia
+   interna:** `grupoDeReserva()` ya parte esa misma frontera con `finFecha > ahora` y explica por qué
+   —en el instante exacto en que `fin` alcanza a `ahora` no queda ningún segundo dentro de la franja—.
+   Que dos funciones del mismo proyecto cortaran el mismo instante en direcciones opuestas es el género
+   de inconsistencia que esta fase persigue. Sin consecuencia práctica —es un instante—, y queda
+   documentado en el código y probado en el borde.
+2. **`columnaDeReserva()` devuelve `Columna | null` y no un cuarto valor.** La función tiene que ser
+   total —su entrada es `EstadoReserva` entero, seis valores—, pero un cuarto miembro de `Columna`
+   obligaría a cada consumidor a manejar una columna que no se pinta nunca: el mostrador no tiene
+   sección «otros». La consulta ya excluye los cuatro terminales, así que esa rama no se alcanza hoy.
+3. **Desviación de alcance, aceptada: `ReservaMostrador` trae `unidadId`, que la Task 4 no pedía.** Es la
+   FK cruda `unit_id`, y la añadió el subagente anticipando que `anotar(unitId, nota)` de la Task 7 la va
+   a necesitar. Roza la regla de «no generalizar antes de tener el caso» que el propio plan invoca en su
+   Task 7, pero se conserva: es **un dato crudo de la fila**, no una abstracción especulativa, y la Task 7
+   lo necesita con certeza. **Se anota porque el subagente lo declaró como decisión propia y ofreció
+   quitarlo**, no porque se descubriera después.
+4. **El decimosexto hecho falso de un subagente, y estrena un género que es el más incómodo hasta ahora:
+   falsedad sobre la PROPIA SALVAGUARDA.** El comentario de `consultas.ts` afirmaba, en indicativo y sin
+   matiz, que «que columnas exactas de `alumnos` se pidan no cambia esto». En su lista de «lo que no
+   verifiqué» el subagente **avisó correctamente de que era inferencia y no medición** —eso funcionó—,
+   pero añadió que «lo dejé escrito como inferencia, no como medición, en el comentario». **Eso último es
+   falso: el comentario no lo marcaba de ninguna forma.** Los quince anteriores fueron afirmaciones
+   falsas sobre el sistema; esta es una afirmación falsa **sobre el propio texto que se acababa de
+   escribir**, y aparece dentro del mecanismo que existe para cazar a los otros. **La lección: el reporte
+   de autoverificación no sustituye a abrir el archivo.** Si se hubiera confiado en el reporte, habría
+   quedado una afirmación categórica sin medir.
+5. **Y el dato de fondo resultó CIERTO, medido al revisarlo.** Tres sets de columnas sobre la misma fila
+   bloqueada —`alumnos(email)`, `alumnos(nombre,apellido,email)` y uno de siete columnas que incluye
+   `banned_until`, que **no tiene `GRANT` para nadie**— devolvieron los tres `"alumnos":null`. **Cuando
+   RLS bloquea la fila relacionada, el embed se vacía entero sin llegar a mirar columnas.** El comentario
+   ya cita esa medición en vez de la inferencia.
+6. **Dos errores que el subagente se corrigió a sí mismo antes de entregar, y conviene registrarlos
+   porque son de los géneros vigilados.** Uno de atribución: había citado **D-16** como fuente de que
+   `reservations_select_staff` deja ver todo al personal; abrió `ESTADO_Y_PLAN.md` y vio que D-16 trata de
+   **quién mueve el estado**, no de la política de `SELECT`, y la sustituyó por
+   `20260805195852_reservation_policies.sql:27-29`. Otro de cita textual: había entrecomillado como
+   literal una frase del comentario de `ajustesReserva()` que en realidad había parafraseado, y la
+   reescribió sin comillas diciendo que es el mismo argumento adaptado. **Las tres citas SQL que quedaron
+   se reverificaron al revisar y las tres son correctas.**
+7. **Un tipo que parecía mal y estaba bien.** `AlumnoMostrador` declara `nombre` y `apellido` como
+   `string | null` y `email` como `string`, mientras el baseline los crea los tres `NOT NULL`
+   —`20260805030123_baseline.sql:90-92`—. No es un error: `20260805194424_alumno_provisioning.sql:22-23`
+   les quita el `NOT NULL` a `nombre` y `apellido` después, porque el trigger crea la fila al **pedir** el
+   magic link, cuando todavía no se sabe cómo se llama nadie. `lib/database.types.ts` lo confirma.
+   **Leer solo el baseline habría dado un falso positivo:** el esquema de hoy son veintitrés migraciones,
+   no la primera.
+8. **Los números.** `typecheck` y `lint` verdes. `npm run test`: **56 pruebas en 4 archivos**, de 48 en 3
+   —las 8 nuevas son las de `columnas.test.ts`—. Sin `build`: esta tarea no añade ninguna ruta y el plan
+   no lo pide; `typecheck` ya cubre la compilación de los tres archivos.
 
 ---
 
