@@ -117,16 +117,33 @@ const TEXTO: Record<
     titulo: "Marcar como no retirado",
     confirmar: "Marcar no retirado",
     confirmarPendiente: "Marcando…",
+    // SIN GENERO GRAMATICAL, y no es un detalle de estilo: `alumno` es un
+    // nombre propio interpolado, asi que "quedara bloqueado" concuerda mal
+    // con cualquier alumna. Lo destapo la Task 9 al ver el dialogo con una
+    // Ana en pantalla. Es el mismo genero de defecto que "11:41 p. m.." y
+    // "se entrego", que este proyecto ya persigue: solo se ve leyendo la
+    // pantalla, ninguna herramienta lo marca.
     consecuencia: (alumno) =>
-      `${alumno} no retiró el equipo en su horario reservado. Si esta es la segunda vez que no retira en los últimos 90 días, quedará bloqueado 15 días.`,
+      `${alumno} no retiró el equipo en su horario reservado. Si esta es la segunda vez que no retira en los últimos 90 días, se le bloqueará 15 días.`,
   },
   not_returned: {
     boton: "No se devolvió",
     titulo: "Marcar como no devuelto",
     confirmar: "Marcar no devuelto",
     confirmarPendiente: "Marcando…",
+    // EL AVISO DE PRIVACIDAD NO ES DECORACION. Esta nota va a
+    // `inventory_unit_notes`, y la politica `unit_notes_select_auth` es
+    // `for select to authenticated using (true)`
+    // (supabase/migrations/20260805195549_traceability.sql:37-38): CUALQUIER
+    // alumno con sesion la lee entera. Medido por PostgREST en la Task 9, con
+    // un JWT de alumno: HTTP 200 y la nota completa. Es D-2 -la trazabilidad
+    // legible- y no un fallo nuevo, pero este dialogo es justo donde mas
+    // probable es escribir el nombre de una persona, porque pide describir
+    // una falta. dialogo-nota.tsx ya avisaba; este no, y esa asimetria dejaba
+    // sin cubrir el caso mas expuesto de los dos. Queda anotado como Q-18:
+    // arreglarlo de verdad seria tocar RLS, o sea SQL, vetado en esta tanda.
     consecuencia: (alumno) =>
-      `Esto bloquea a ${alumno} de forma permanente, y solo un administrador puede revertirlo. Describe abajo qué pasó con el equipo: la nota queda en el historial de la unidad.`,
+      `Esto bloquea a ${alumno} de forma permanente, y solo un administrador puede revertirlo. Describe abajo qué pasó con el equipo: la nota queda en el historial de la unidad, y cualquier persona con sesión puede leerla, así que no escribas datos personales de un alumno.`,
   },
 };
 

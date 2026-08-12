@@ -16,7 +16,8 @@
 | **6 · Las dos faltas** | ✅ **Cerrada.** Commit `ddc9e24`. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas) en verde, corridos dos veces —antes y después de los cambios de texto—. Efecto verificado también desde la pantalla, con sesión de operador de verdad |
 | **7 · Anotaciones de unidad** | ✅ **Cerrada.** Commit `745d48e`. `typecheck`, `lint`, `test` (**56 en 4 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde |
 | **8 · El filtro de fecha y el reloj** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**65 en 5 archivos**, de 56 en 4) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde. Verificado también desde la pantalla, con sesión de operador y la predicción escrita antes de mirar |
-| **9 y 10** | Sin empezar |
+| **9 · Verificación de punta a punta** | ✅ **Cerrada.** Commit pendiente de crear. `typecheck`, `lint`, `test` (**65 en 5 archivos**, sin cambios) y `build` (**14 rutas**, 3 estáticas, sin cambios) en verde, corridos dos veces. Escenario de 8 reservas montado a mano sobre 7 unidades, y las tres columnas y los cuatro filtros contra una predicción escrita antes: los ocho números exactos. Los cinco rechazos de `cancel_reservation`, **solo por PostgREST**; los tres escalones de `banned_until` y las seis filas del log, **en la base**; el recorrido y el 404 de `/admin/inventario`, **en pantalla**, con operador y con admin. Halló un hueco de orden entre el Step 4 y el Step 5 —falta un `db reset`— y midió Q-18 |
+| **10 · Cierre y documentación** | ✅ **Cerrada**, salvo los pasos que ejecuta Alejandro. `ESTADO_Y_PLAN.md` con la bitácora, la tabla de tandas, la casilla 2.7 y **Q-18 abierto**; la corrección fechada de **F8** en `ESPECIFICACION_FUNCIONAL.md` *(D-40)*; `CLAUDE.md` al día; y esta cabecera de correcciones. **D-37 a D-40, Q-17 y Q-14 ya estaban escritos desde el 2026-08-11**, al aprobar el plan, así que el Step 1 solo tuvo que comprobarlos. Quedan los **Steps 6 y 7**: empujar la rama, abrir el PR y esperar al CI |
 
 **Por qué se paró, y no es del código:** Windows reservó para Hyper-V/WSL2 el rango de puertos TCP
 **54245–54344**, que se traga los cuatro de Supabase local —54321 API, 54322 base, 54323 Studio, 54324
@@ -699,6 +700,138 @@ con 3 estáticas, sin cambios**: no agrega ninguna ruta.
     aplicado es lo que evita creer que no hay reservas cuando solo están filtradas.
 11. **Cero advertencias en consola.** Los errores que aparecen son todos el mismo WebSocket de HMR
     rechazado —ruido del servidor de desarrollo, con ids de dos instancias distintas—, ninguno del código.
+
+### Task 9 · Cierre *(2026-08-12)*
+
+**Cerrada. Commit pendiente de crear.** Los cuatro comandos, corridos dos veces —antes y después del
+cambio de textos del punto 11— y verdes las dos: `typecheck` salida 0, `lint` salida 0, `test` **65
+pruebas en 5 archivos**, sin cambios desde la Task 8, `build` **14 rutas con 3 estáticas**
+(`/_not-found`, `/faq`, `/login`), sin cambios. El escenario montado: 8 reservas insertadas como
+`postgres`, sobre 7 unidades activas del seed —TRI-001 lleva dos, en franjas que no solapan—. Alumno A =
+`alumno.a@upc.edu.pe` (en pantalla, «Ana Perez»), alumno B = `alumno.b@upc.edu.pe` («Bruno Diaz»).
+
+1. **Punto a verificar 1, RESUELTO: los cinco rechazos de `cancel_reservation`**, disparados uno a uno por
+   PostgREST con un JWT de alumno A firmado a mano:
+
+   | # | Caso | HTTP | `error.code` | `error.message` |
+   |---|---|---|---|---|
+   | 1 | motivo vacío | 400 | 23514 | La cancelacion exige un motivo |
+   | 2 | reserva inexistente | 500 | P0002 | Reserva inexistente |
+   | 3 | reserva ajena | 403 | 42501 | No puedes cancelar una reserva ajena |
+   | 4 | estado `active` | 400 | 23514 | Solo se cancela una reserva en estado reserved (esta en active) |
+   | 5 | inicio ya pasado | 400 | 23514 | No puedes cancelar una reserva que ya empezo |
+
+   **La predicción del plan se cumple:** la reserva del caso 4 estaba `active` y además ya había empezado,
+   o sea que cumplía las condiciones de los rechazos 4 y 5 a la vez, y contestó el **4**. El quinto no le
+   quita ningún mensaje al cuarto. **Y tres de los cinco comparten `23514`**, que es exactamente por qué
+   `mensajeDeRechazoCancelacion()` empareja por texto y no por `SQLSTATE`.
+2. **UN HUECO DEL PROPIO PLAN: el escenario mínimo que pide el Step 1 no distingue D-38 de D-35.** El
+   Step 1 pide «una `reserved` con `start_at` futuro» y «una `reserved` con `start_at` ya pasado». Si esa
+   segunda tiene también el fin pasado —lo natural al escribirla—, cae en «Anteriores» de `/mi-panel` y el
+   botón de cancelar ya se le oculta por **D-35** (el fin pasó), sin que D-38 llegue a intervenir: las dos
+   reglas dan el mismo resultado y la prueba no separa cuál actuó. Hizo falta añadir una **octava**
+   reserva: `reserved` con inicio hace 1 hora y fin dentro de 1 hora. Esa cae en «Próximas»
+   —`grupoDeReserva()` la manda ahí porque `fin > ahora`— y ahí sí queda sin botón, al lado de otras dos de
+   la misma sección que sí lo tienen. **El contraste dentro de una misma sección es la prueba limpia de
+   D-38.** Y el propio `seOfreceCancelar()` ya lo dejaba escrito en su comentario —el término de D-38
+   implica el de D-35—, así que el hueco estaba anunciado en el código y no en el plan.
+3. **Step 3, el recorrido del alumno, verificado en pantalla con sesión real.** «Próximas»: la de mañana y
+   la de dentro de 2 h, las dos con «Cancelar reserva»; la de inicio pasado y fin futuro, sin. «Anteriores»:
+   las dos de inicio y fin pasados, sin botón y con la línea «Esta reserva venció sin que se recogiera el
+   equipo.». Pantalla y motor coinciden: el rechazo #5 medido en el punto 1 es el que recibiría quien
+   forzara la llamada.
+4. **Step 2, el operador: las tres columnas contra una predicción escrita antes de mirar.** Predicho «Por
+   entregar» 6, «Activas» 1, «Por devolver» 1; observado 6, 1, 1. Y los cuatro filtros de fecha, también
+   predichos antes: Todas **6**, Hoy **4**, Próximos 3 días **5**, Esta semana **6** —los cuatro exactos.
+   Las dos reservas vencidas se ven en las cuatro opciones, que es el «techo sin suelo» de la Task 8
+   funcionando con un escenario distinto del que lo estrenó.
+5. **Las seis acciones del mostrador, en cadena y verificadas en la base después de cada una** —las mismas
+   seis que deja el log del punto 8, una fila por acción—. Entregar →
+   la tarjeta salta de «Por entregar» a «Activas». Recibir → desaparece del mostrador (`completed`).
+   Primera `not_picked_up` → `banned_until` sigue **NULL**. Segunda `not_picked_up` del mismo alumno →
+   `banned_until` a **14,9998 días** de `now()` —los 15 exactos menos lo que tardó la consulta—.
+   `not_returned` con nota → **`infinity`**, y la nota escrita en LAP-002 con `created_by` poblado y las
+   tildes intactas. **Y el contraejemplo, que es la mitad que suele faltar:** el alumno B, con una sola
+   `not_picked_up`, quedó **sin sanción**. Una falta no sanciona a nadie, visto en la base y no razonado.
+6. **Punto a verificar 4, RESUELTO, y la predicción del plan es cierta pero inobservable en la pantalla.**
+   El Step 2 pide comprobar que «el nombre y correo del alumno desaparecen de la fila» al marcarle su única
+   reserva viva. **En el mostrador eso no pasa, y no por casualidad:** al marcar la falta la reserva sale de
+   `reserved`/`active`, que es justo el filtro de `reservasMostrador()`, así que **la fila entera desaparece
+   de la pantalla** en vez de quedarse con el nombre en blanco. El filtro de la consulta y la condición de
+   `tiene_reserva_viva()` son la misma condición. **Donde sí se ve es por la API**, y así se midió: con el
+   alumno B ya sin ninguna reserva viva, un `select` sobre `alumnos` devolvió **al operador** solo
+   `alumno.a@upc.edu.pe` y su propia fila `operador@upc.edu.pe`, y **al admin** las cuatro —`admin@`,
+   `alumno.a`, `alumno.b`, `operador@`—. `alumnos_select_staff` funciona exactamente como el plan predijo;
+   lo que no se sostiene es el sitio donde el plan decía que se vería.
+7. **Step 2 con admin, y un 404 confirmado en pantalla.** El admin ve el mostrador igual que el operador,
+   con los mismos nombres, y la cabecera muestra «Administrador» —el rol con el que se está operando, que
+   la Task 1 añadió—. «Por devolver», ya vacía, dice «Nada pendiente en esta columna.». **Y al entrar con
+   el magic link, `destino()` lo mandó a `/admin/inventario`, que respondió `404`**: es lo que la Task 1
+   dejó anotado como efecto preexistente hasta la T3B, visto ahora en un navegador.
+8. **Step 4: `reservation_status_log` con exactamente seis filas, una por cada cambio de estado**, en
+   orden, con `old_status`/`new_status` correctos, `reason` en `NULL` —ninguna de las seis fue una
+   cancelación— y `changed_by` poblado con el operador en las seis.
+9. **UN HALLAZGO DE ORDEN DEL PROPIO PLAN: el Step 5 no se puede correr después del Step 2.** Con el
+   escenario montado, `npx supabase test db` da **FAIL**: 7 archivos con fallos, `Files=24, Tests=125`.
+   **No es un defecto del código ni de las pruebas**, es que el escenario y las fixtures de pgTAP comparten
+   los mismos actores del seed. El alumno A queda con `banned_until = infinity` tras el recorrido, así que
+   todo lo que llama a `create_reservation` en su nombre muere con «Tienes una sancion vigente hasta
+   infinity» —`23_create_reservation.sql`, `27_available_units.sql`, `28_duration_slot.sql`—;
+   `25_penalties.sql` encuentra la sanción ya puesta donde esperaba `NULL`; y las reservas del escenario
+   sobre CAM-001 chocan con el `EXCLUDE` en `17_rls_reservations.sql` y `21_no_overlap.sql`. **Hace falta un
+   `db reset` entre el Step 4 y el Step 5**, y el plan no lo dice. Hecho el reset, el resultado es el bueno:
+   **`Files=24, Tests=147, Result: PASS`**, el número exacto que anotó la Task 2.
+10. **DOS TRAMPAS NUEVAS DEL INSTRUMENTO, y con estas van CINCO en la tanda.** Las tres anteriores fueron
+    `PGRST303` por el epoch local, `PGRST102` por el BOM y `docker info` con `$?`. Las de hoy:
+    - **`$_.To.Address` sobre la respuesta de Mailpit no devuelve ninguna dirección: devuelve un
+      `PSMethod`.** `$_.To` es un `System.Object[]`, y `System.Array` tiene un método nativo
+      **`Address(int)`**, que PowerShell resuelve antes de enumerar los miembros de los elementos. **Y
+      falla en silencio**, con cero coincidencias en vez de un error, así que parecía que Mailpit no tenía
+      el correo. Se ve con `$_.To.Address.GetType()`, que dice `System.Management.Automation.PSMethod`. Se
+      arregla con `$_.To | Select-Object -ExpandProperty Address`. **Es un género distinto de los tres
+      anteriores: no es una conversión mal hecha, es una colisión de nombres entre una propiedad del JSON y
+      un método del tipo .NET que PowerShell puso debajo.**
+    - **`$_.Exception.Response.GetResponseStream()` ya viene consumido** por `Invoke-WebRequest` en
+      PowerShell 5.1, así que releerlo da cadena vacía. Los cinco rechazos de `cancel_reservation` salieron
+      con `code=` y `message=` vacíos **y el HTTP correcto y distinto en cada uno** —400, 500, 403, 400,
+      400—, que es la firma exacta del patrón: lo que difería venía del sujeto, lo que se repetía venía del
+      instrumento. El cuerpo se lee de `$_.ErrorDetails.Message`.
+    - **Y un caso donde el patrón habría acusado al instrumento sin razón:** la primera consulta a Mailpit
+      tampoco encontró el correo, y la causa era que **todavía no había llegado** —GoTrue tarda—. El mismo
+      síntoma, dos causas, y solo una era del instrumento. Refuerza lo que la Task 6 ya dejó escrito:
+      reconocer el síntoma no valida la explicación de la vez anterior.
+11. **DOS DEFECTOS DE TEXTO ENCONTRADOS AL MIRAR LA PANTALLA, corregidos con aprobación de Alejandro del
+    2026-08-12**, en `components/mostrador/dialogo-falta.tsx`:
+    - **Concordancia de género.** Decía «`${alumno}` … quedará bloqueado 15 días», y `alumno` es un
+      **nombre propio interpolado**, así que concordaba mal con cualquier alumna —se vio con «Ana Perez»
+      delante—. Ahora dice «se le bloqueará 15 días», sin género. Es el mismo género de defecto que «11:41
+      p. m..» y «se entrego»: ninguna herramienta lo marca, solo leerlo.
+    - **El aviso de privacidad faltaba justo donde más falta hacía.** El diálogo de «No se devolvió» pide
+      «describe qué pasó con el equipo» y no avisaba de que la nota la puede leer cualquiera con sesión;
+      `dialogo-nota.tsx`, el de «Anotar unidad», sí avisaba desde la Task 7. **La asimetría dejaba sin
+      cubrir el caso más expuesto de los dos**, porque es el diálogo que pide describir una falta y por
+      tanto el que más invita a escribir el nombre de una persona. Ahora lleva el aviso. Los dos textos se
+      verificaron después del cambio, en pantalla y con sesión de operador.
+12. **Q-18, medido y ya no solo propuesto.** Un JWT de **alumno** contra `inventory_unit_notes` devolvió
+    **HTTP 200 con la nota que describe la falta de otro alumno** —la que se acababa de escribir desde el
+    mostrador—. La política `unit_notes_select_auth` es `for select to authenticated using (true)`,
+    verificado abriendo `supabase/migrations/20260805195549_traceability.sql:37-38`. **No es un fallo
+    nuevo:** es D-2, la trazabilidad legible. Se mitiga por texto en los dos diálogos, no por política. Se
+    abre como **Q-18** al cerrar la tanda.
+13. **Una corrección al briefing de arranque de esta sesión, sobre el entorno.** Decía que el stack estaba
+    «sin storage, imgproxy, edge_runtime, analytics, vector ni pooler, y `db reset` los exige todos».
+    **`supabase/config.toml` tiene `storage.enabled = false`, `analytics.enabled = false` y
+    `db.pooler.enabled = false`**, así que esos servicios no arrancan nunca en este proyecto y `db reset`
+    no puede exigirlos. Lo único que le faltaba al stack era **`edge_runtime`**. Tras `stop` y `start`
+    quedan **nueve** contenedores —db, kong, auth, rest, realtime, studio, pg_meta, inbucket,
+    edge_runtime— y con esos nueve `db reset` corrió sin problema. El rango TCP 54245–54344 **sigue sin
+    aparecer**, y el stack se comprobó otra vez **por el puerto del host** con `TcpClient` sobre 54321,
+    54322 y 54324, nunca con `docker exec`.
+14. **Consola del navegador: cero advertencias y cero errores del código.** En la sesión dedicada al
+    mostrador, cero de los dos. En el recorrido largo aparecieron tres errores y ninguno es de esta tanda:
+    dos `404` de `/_next/image` sobre URLs de Cloudinary del seed —`res.cloudinary.com/demo/seed/...`, que
+    no existen— vistos en `/catalogo`, y un `405` provocado por pedir `/auth/signout` con GET desde la
+    herramienta, cuando esa ruta solo responde a POST.
 
 ---
 
