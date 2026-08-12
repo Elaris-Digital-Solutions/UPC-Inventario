@@ -171,8 +171,13 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
 ### F8 · Días inhabilitados (`components/admin/AdminDisabledDays.tsx`)
 
 - Calendario para marcar feriados o días sin atención (solo fechas futuras o de hoy).
-- Al inhabilitar un día, **cancela automáticamente** todas las reservas `reserved` y `active` de esa fecha,
-  con la razón «Cancelado por la administración (Día inhabilitado)».
+- Al inhabilitar un día, ~~**cancela automáticamente** todas las reservas `reserved` y `active` de esa
+  fecha, con la razón «Cancelado por la administración (Día inhabilitado)».~~ ⚠ **Corregido el
+  2026-08-12** → **D-40**: el motor solo permite la mitad — `active → cancelled` no está entre las
+  transiciones válidas de `enforce_reservation_transition()`. Se cancelan solas las reservas todavía **no
+  retiradas** (`reserved`), con esa misma razón; los préstamos ya **`active`** siguen vivos, para que el
+  alumno los devuelva normal. No toca SQL: es exactamente lo que el motor permite hoy. La ejecuta la
+  **T3B**, que construye `/admin/dias`; la T3A no la implementa.
 - Lista de días inhabilitados; los futuros se pueden revertir, los pasados quedan en gris.
 
 ### F9 · Estadísticas (`components/admin/ReservationStatsPanel.tsx`)
