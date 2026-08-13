@@ -72,7 +72,9 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               otra vez por el mismo motivo: sin este enlace, /admin/personal
               quedaria construida, funcionando y solo alcanzable tecleando la
               URL a mano -- exactamente el defecto que este comentario viene
-              anotando desde la Task 6.
+              anotando desde la Task 6. Y /admin/ajustes se suma en la Task
+              10, y CON ESTE ENLACE CIERRA LA LISTA DE SEIS que este
+              comentario viene enumerando desde la Task 1.
 
               Y el 404 que esto SI arregla, y que era preexistente:
               lib/auth/destino.ts manda al admin a /admin/inventario nada mas
@@ -100,6 +102,9 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/admin/personal">Personal</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/ajustes">Ajustes</Link>
               </Button>
             </>
           )}

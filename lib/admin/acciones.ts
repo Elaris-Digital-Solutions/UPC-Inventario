@@ -11,6 +11,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { aperturaDesalineada } from '@/lib/admin/ajustes';
 import { reservasVivas } from '@/lib/admin/dias';
 import { particionarPorDia, type RolStaff } from '@/lib/admin/filtros';
 import { hoyEnLima } from '@/lib/reservas/rejilla';
@@ -1233,3 +1234,149 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 //      `activo=false` conserva esa constancia y corta el acceso igual (ver el
 //      comentario de cambiarActivoPersonal()), asi que borrar no gana nada y
 //      si pierde ese registro.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 10 · /admin/ajustes (D-54, Q-19)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos por `check` que `app_settings` puede dar. Mismo
+// criterio de siempre -texto propio SOLO para lo alcanzable, mensaje CRUDO
+// para lo demas, y lo no reconocido cae al crudo y nunca a un generico-.
+//
+// LOS CINCO SON `23514`, y se distinguen por el NOMBRE de la restriccion en
+// el `message`, nunca por el HTTP ni por el codigo -los cinco dan HTTP 400-.
+// MEDIDO POR PostgREST el 2026-08-13, con un JWT de ADMIN firmado a mano
+// contra el stack local:
+//
+//   slot_minutes: 45            -> constraint "app_settings_slot_divisor"
+//   booking_window_days: 61     -> constraint "app_settings_booking_window_days_check"
+//   closing_time <= opening_time-> constraint "app_settings_horario"
+//   min_duration_minutes: 4     -> constraint "app_settings_min_duration_minutes_check"
+//   daily_limit_per_product: 11 -> constraint "app_settings_daily_limit_per_product_check"
+//
+// SOLO CUATRO llevan texto propio, y NO CINCO, y hay que decir por que:
+// `app_settings_slot_divisor` NO ES ALCANZABLE desde esta pantalla. El Step 1
+// de la Task 10 ofrece `slot_minutes` como un DESPLEGABLE de los ocho valores
+// legales -5, 6, 10, 12, 15, 20, 30, 60-, no como un campo libre de 5 a 60:
+// 45 nunca sale del navegador. Escribirle un mensaje seria darle texto a un
+// rechazo que nadie va a provocar desde el formulario, y ese texto quedaria
+// sin nadie que lo leyera nunca. Si algun dia el desplegable se reemplazara
+// por un campo libre, este rechazo volveria a ser alcanzable y caeria al
+// mensaje CRUDO hasta que alguien le escriba el suyo.
+function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('app_settings_booking_window_days_check')) {
+    return 'La ventana de reserva tiene que ser de entre 1 y 60 días.';
+  }
+
+  if (mensajeDelMotor.includes('app_settings_horario')) {
+    return 'La hora de cierre tiene que ser posterior a la hora de apertura.';
+  }
+
+  if (mensajeDelMotor.includes('app_settings_min_duration_minutes_check')) {
+    return 'La duración mínima tiene que ser de entre 5 y 480 minutos.';
+  }
+
+  if (mensajeDelMotor.includes('app_settings_daily_limit_per_product_check')) {
+    return 'El límite diario por producto tiene que ser de entre 1 y 10.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// Edicion de los seis ajustes globales de reserva (D-39/Q-14 y D-54/Q-19).
+//
+// D-54 PRIMERO, ANTES DE TOCAR LA BASE: barrera de SERVIDOR, mismo criterio
+// que la fecha pasada en inhabilitarDia() -la pantalla ya hace esta misma
+// comprobacion con aperturaDesalineada() antes de mandar el formulario, y
+// esto no es una repeticion ociosa, es la regla de siempre: lo del cliente es
+// VISIBILIDAD, no control-. Ver el comentario extenso de aperturaDesalineada()
+// en lib/admin/ajustes.ts para el porque completo: en corto, la base no tiene
+// ningun `check` que ate `opening_time` a `slot_minutes`, y una apertura
+// desalineada deja el CALENDARIO ENTERO irreservable sin ningun aviso visible
+// desde ninguna pantalla -medido el 2026-08-13-.
+//
+// SOLO SEIS COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
+// 403 con 42501 "permission denied for table app_settings", medido el
+// 2026-08-13 -ninguna de las dos se concede a nadie, y `updated_at` la mueve
+// sola el trigger `trg_app_settings_updated_at`-.
+//
+// `.eq('id', true)` ES OBLIGATORIO, y no un adorno: un PATCH SIN filtro,
+// con JWT de admin y un cuerpo valido, devolvio HTTP 400 con code "21000",
+// "UPDATE requires a WHERE clause", medido el 2026-08-13. Esto NO esta en el
+// plan, y sin el filtro esta pantalla fallaria SIEMPRE -con typecheck, lint y
+// build en verde-: ninguna de esas tres herramientas lo hubiera encontrado.
+//
+// PIDE LA FILA DE VUELTA CON `.select()` Y TRATA EL VACIO COMO ERROR, mismo
+// criterio que habilitarDia() y cambiarRolPersonal() mas arriba. Motivo
+// MEDIDO: un PATCH `?id=eq.true` con JWT de OPERADOR o de ALUMNO -ninguno
+// tiene politica de UPDATE sobre `app_settings`, solo `app_settings_update_admin`
+// se la da al admin- devolvio HTTP 200 con CUERPO VACIO `[]` y NINGUN ERROR,
+// los dos medidos el 2026-08-13. Sin este chequeo, un PATCH que no cambio
+// nada contestaria exactamente igual que uno que si.
+export async function guardarAjustes(ajustes: {
+  ventanaDias: number;
+  apertura: string;
+  cierre: string;
+  slotMinutos: number;
+  duracionMinima: number;
+  limiteDiario: number;
+}): Promise<ResultadoAdmin> {
+  if (aperturaDesalineada(ajustes.apertura, ajustes.slotMinutos)) {
+    return {
+      error: `Con bloques de ${ajustes.slotMinutos} minutos, la hora de apertura tiene que caer justo en un bloque, y "${ajustes.apertura}" no cae. Ajusta la apertura para que sus minutos sean múltiplo de ${ajustes.slotMinutos} y no lleve segundos.`,
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .update({
+      booking_window_days: ajustes.ventanaDias,
+      opening_time: ajustes.apertura,
+      closing_time: ajustes.cierre,
+      slot_minutes: ajustes.slotMinutos,
+      min_duration_minutes: ajustes.duracionMinima,
+      daily_limit_per_product: ajustes.limiteDiario,
+    })
+    .eq('id', true)
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoAjustes(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo guardar. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  // DOS revalidatePath, porque estos ajustes los lee TAMBIEN el calendario
+  // del alumno, no solo esta pantalla -lib/reservas/consultas.ts,
+  // ajustesReserva(), es quien lo consume del otro lado, y
+  // `diasDeLaVentana()` (lib/reservas/rejilla.ts) es quien usa
+  // `booking_window_days` para decidir cuantos dias ofrecer-. Es el efecto
+  // que el Step 4 del plan pide comprobar a mano: cambiar la ventana aca y
+  // verla reflejada en /catalogo/[id]/reservar, no en esta pantalla.
+  //
+  // LA RUTA ES DINAMICA (`[id]`), asi que hace falta el segundo parametro
+  // 'page' con el patron de archivo -incluido el grupo de rutas `(alumno)`-,
+  // no la URL literal: sin el, Next.js exigiria un `id` de producto exacto,
+  // que esta funcion no tiene. Documentado en
+  // node_modules/next/dist/docs/01-app/03-api-reference/04-functions/
+  // revalidatePath.md, seccion "Revalidating a Page path". Esto es lectura
+  // de la documentacion de Next.js, no una medicion contra PostgREST.
+  //
+  // NO SE REVALIDA /admin/inventario ni sus formularios, aunque tambien leen
+  // `app_settings` -leerSlotMinutes() en lib/admin/consultas.ts, para el
+  // desplegable de buffer de crearProducto()/editarProducto()-: decision
+  // deliberada, no un olvido. Ese desplegable es una CONVENIENCIA sobre una
+  // relacion que la base no exige -Q-14 ya establece que `buffer_minutes` y
+  // `slot_minutes` no estan atados por ningun `check`-, mientras que
+  // `booking_window_days` SI cambia cuantos dias puede reservar el alumno de
+  // verdad. Si esto resulta insuficiente, es un desvio a registrar, no un
+  // hecho medido hoy.
+  revalidatePath('/admin/ajustes');
+  revalidatePath('/(alumno)/catalogo/[id]/reservar', 'page');
+
+  return null;
+}

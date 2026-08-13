@@ -226,6 +226,18 @@ canceladas. Más desgloses por día de la semana.
 
 El bloqueo impide crear nuevas reservas y se muestra al alumno con la fecha de habilitación.
 
+### F12 · Ajustes de reserva
+
+**Es una pantalla NUEVA que el sistema original no tenía**, así que no lleva referencia a ningún archivo del código viejo entre paréntesis, al revés que F1 a F11. Nace de **D-39**, y el diseño de la Fase 2 tampoco la tenía: su tabla de rutas lista cinco pantallas de administración y esta es la sexta.
+
+Pantalla de administración que edita seis valores de `app_settings`: ventana de reserva en días, hora de apertura, hora de cierre, tamaño del bloque, duración mínima y límite diario por producto. Solo el administrador.
+
+**El tamaño del bloque se elige de una lista de ocho valores** — 5, 6, 10, 12, 15, 20, 30 y 60 minutos — porque son los únicos que dividen exacto una hora.
+
+**Al cambiar el bloque, la pantalla avisa si algún producto queda con un tiempo de retorno que ya no encaja**, lo nombra, y **deja guardar igual**: la base lo permite. Es la segunda mitad de **Q-14**.
+
+**La hora de apertura tiene que caer en un bloque, y si no, la pantalla no deja guardar** *(D-54)*. Es la única de las seis con esa restricción.
+
 ---
 
 ## 6. Reglas de negocio consolidadas
