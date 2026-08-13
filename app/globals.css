@@ -253,16 +253,24 @@
  * es OTRA cosa -el ancho de la PANTALLA a partir del cual el container deja
  * de crecer- y no el ancho del contenido. El contenido lo fijaba `max-w-7xl`
  * en cada pagina.
+ *
+ * SEGUNDA CORRECCION, el 2026-08-13 y a peticion explicita: 1536px y 1.5rem
+ * de relleno, no 1280 y 2rem. Y esto SE APARTA A PROPOSITO del original, que
+ * centraba en 1280: en un monitor ancho, 1280 centrados dejan mas de 300px
+ * muertos a cada lado y la pagina se lee "muy al centro". Queda dicho para
+ * que no se lea como un desliz al comparar las dos versiones: el resto de la
+ * tipografia y el color si estan medidos contra el Vite; este numero es una
+ * decision nueva.
  */
 @utility container {
   margin-inline: auto;
   padding-inline: 1rem;
-  max-width: 1280px;
+  max-width: 1536px;
 }
 
 @media (width >= 40rem) {
   .container {
-    padding-inline: 2rem;
+    padding-inline: 1.5rem;
   }
 }
 

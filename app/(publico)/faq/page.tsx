@@ -3,9 +3,17 @@
 // normal, sin async, para que se sirva desde el prerender.
 //
 // Los numeros de aqui abajo estan escritos a mano, medidos contra la
-// configuracion real el 2026-08-08: horario 08:00-22:00 hora de Lima,
+// configuracion real el 2026-08-08: ~~horario 08:00-22:00 hora de Lima,~~
 // bloques de 30 minutos, ventana de reserva de 7 dias movil, una reserva por
-// equipo y por dia. La duracion maxima NO se escribe como un numero unico:
+// equipo y por dia.
+//
+// ⚠ CORREGIDO el 2026-08-13: EL HORARIO YA NO SE ANUNCIA COMO UN NUMERO.
+// Aquel 08:00-22:00 era cierto como lectura de la configuracion de ese dia,
+// pero falso como promesa: la franja se ajusta por semana y los feriados se
+// cierran desde `disabled_days`. La respuesta remite ahora al calendario, que
+// es el unico sitio que sabe lo que hay para un dia concreto. Los otros tres
+// numeros siguen escritos a mano y siguen teniendo el problema que describe
+// el parrafo siguiente. La duracion maxima NO se escribe como un numero unico:
 // es un limite por equipo, no global. Hoy todos los equipos coinciden en el
 // mismo valor, pero escribir ese numero aqui prometeria una regla que no es
 // la real -la regla real vive en la ficha de cada equipo-.
@@ -80,7 +88,14 @@ const SECCIONES: SeccionFaq[] = [
     preguntas: [
       {
         pregunta: "¿En qué horario puedo reservar?",
-        respuesta: "De 08:00 a 22:00, hora de Lima.",
+        // CAMBIADO el 2026-08-13 a peticion del equipo. Antes decia "De
+        // 08:00 a 22:00, hora de Lima", que es la franja que hay hoy en la
+        // configuracion, pero prometia como fija una cosa que no lo es: el
+        // horario se ajusta por semana y los feriados se cierran desde
+        // `disabled_days`. Un numero exacto en una FAQ es una promesa, y esta
+        // no se podia cumplir.
+        respuesta:
+          "Cambian según la disponibilidad de cada semana y los feriados. El calendario de reserva te muestra las franjas que hay para el día que elijas.",
       },
       {
         pregunta: "¿En bloques de cuánto tiempo?",
@@ -199,19 +214,33 @@ export default function FaqPage() {
                 la sacaria del prerender estatico -es una de las tres rutas
                 que `next build` marca como estaticas-. <details> es HTML
                 puro: se pliega sin JavaScript y es accesible por teclado. */}
-            <div className="border-border mt-6 divide-y rounded-xl border">
+            {/* SIN CAJA REDONDEADA, corregido el 2026-08-13: iba dentro de un
+                `rounded-xl border` y quedaba como una pastilla flotando en
+                medio de una pagina cuyo idioma es de reglas rectas -las
+                tarjetas de sede son cuadradas, el antetitulo es una regla de
+                2px, la llamada a la accion no tiene radio-. Aqui las
+                preguntas se separan con hairlines y nada mas.
+                El original tambien la metia en una caja redondeada, asi que
+                esto se aparta de el a proposito y queda dicho. */}
+            <div className="border-border divide-border mt-6 divide-y border-y">
               {seccion.preguntas.map((item) => (
                 <details key={item.pregunta} className="group/faq">
-                  <summary className="marker:content-none hover:text-primary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                  <summary className="marker:content-none hover:text-primary flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
                     {item.pregunta}
                     <ChevronDown
-                      className="text-muted-foreground size-4 shrink-0 transition-transform group-open/faq:rotate-180"
+                      className="text-muted-foreground size-4 shrink-0 transition-transform duration-300 group-open/faq:rotate-180"
                       aria-hidden="true"
                     />
                   </summary>
-                  <p className="text-muted-foreground px-5 pb-5 leading-relaxed">
-                    {item.respuesta}
-                  </p>
+                  {/* La regla roja de siempre, aqui marcando la respuesta
+                      abierta: el mismo hairline de 1px que crece en las
+                      tarjetas y que sostiene el antetitulo. */}
+                  <div className="pb-6">
+                    <div className="bg-primary mb-4 h-px w-8" />
+                    <p className="text-muted-foreground leading-relaxed">
+                      {item.respuesta}
+                    </p>
+                  </div>
                 </details>
               ))}
             </div>

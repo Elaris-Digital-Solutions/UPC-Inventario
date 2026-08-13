@@ -9,45 +9,79 @@ import Link from "next/link";
 // que si estan y son identicos byte a byte. Se recupero a `public/` el
 // 2026-08-13.
 //
-// El texto "UPC-Inventario" NO se toca. El original decia "Reserva UPC /
-// Sistema de Prestamos" y esto es OTRO nombre, pero los textos de interfaz no
-// se reescriben desde la capa visual: queda preguntado y, mientras tanto, el
-// logo se SUMA al texto que ya habia en vez de sustituirlo.
+// EL ROTULO, corregido el 2026-08-13 con las dos versiones abiertas al lado:
+// aqui decia "UPC-Inventario" en Playfair a 20px, y el original es un rotulo
+// de DOS LINEAS en Montserrat diminuto, separado del logo por una regla
+// vertical (MIGRATION_GUIDE/src/components/Header.tsx:28-38). Medido en un
+// navegador:
 //
-// `alt=""` a proposito: el nombre del servicio ya lo dice el texto de al
+//   linea 1   "Reserva UPC"           11px / 600 / track 2.42px / gris 900
+//   linea 2   "Sistema de Prestamos"  10px / 400 / track 1.80px / gris 400
+//   logo      48px de alto            cabecera 96px
+//
+// Los 20px en serif eran, con diferencia, la letra mas grande de la cabecera
+// donde el original tiene la mas pequena. Ese contraste -marca diminuta,
+// titular enorme- es medio caracter del producto.
+//
+// EL NOMBRE CAMBIA, y es una decision del proyecto y no mia: el producto se
+// llama "Reserva UPC · Sistema de Prestamos", no "UPC-Inventario", que era el
+// nombre del repositorio colado a la interfaz. Queda pendiente decidir si el
+// <title> del documento (app/layout.tsx) y los textos que nombran al servicio
+// en el pie y en la FAQ tienen que seguirlo.
+//
+// `alt=""` a proposito: el nombre del servicio ya lo dice el rotulo de al
 // lado, asi que describir la imagen otra vez le haria leer lo mismo dos veces
 // a quien use un lector de pantalla. La imagen es decorativa; el enlace no, y
 // ese si tiene texto.
 type LogotipoProps = {
-  // El pie lo quiere mas pequeno y sin el texto, igual que en el Vite
-  // (MIGRATION_GUIDE/src/components/Footer.tsx:8), donde el nombre de la
-  // universidad iba al lado en vez del nombre del sistema.
+  // El pie lo quiere mas pequeno y sin el rotulo, igual que en el Vite
+  // (MIGRATION_GUIDE/src/components/Footer.tsx:8), donde al lado iba el
+  // nombre de la universidad y no el del sistema.
   tamano?: "cabecera" | "pie";
 };
 
 export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
-  const esPie = tamano === "pie";
+  if (tamano === "pie") {
+    return (
+      <Link
+        href="/"
+        className="flex shrink-0 items-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <Image
+          src="/upc-logo.png"
+          alt=""
+          width={600}
+          height={600}
+          className="h-8 w-auto opacity-70"
+        />
+      </Link>
+    );
+  }
 
   return (
     <Link
       href="/"
-      className="flex shrink-0 items-center gap-3 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex shrink-0 items-center gap-4 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Image
         src="/upc-logo.png"
         alt=""
         width={600}
         height={600}
-        // `priority` solo en la cabecera: esta sobre el pliegue en las once
-        // pantallas. El del pie no, que llega cuando ya se bajo hasta abajo.
-        priority={!esPie}
-        className={esPie ? "h-8 w-auto opacity-70" : "h-9 w-auto sm:h-11"}
+        priority
+        className="h-10 w-auto sm:h-12"
       />
-      {!esPie && (
-        <span className="font-display text-upc-red text-lg leading-none font-bold sm:text-xl">
-          UPC-Inventario
-        </span>
-      )}
+      {/* Oculto por debajo de `sm`, igual que el original: en un telefono el
+          rotulo competia por sitio con el boton de menu, y el logo solo ya
+          identifica de sobra. */}
+      <div className="border-border hidden border-l pl-4 sm:block">
+        <p className="text-foreground text-[11px] leading-tight font-semibold tracking-[0.22em] uppercase">
+          Reserva UPC
+        </p>
+        <p className="text-muted-foreground mt-0.5 text-[10px] leading-tight tracking-[0.18em] uppercase">
+          Sistema de Préstamos
+        </p>
+      </div>
     </Link>
   );
 }

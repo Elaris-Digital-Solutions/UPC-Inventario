@@ -27,7 +27,6 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { EncabezadoSeccion } from "@/components/antetitulo";
 import {
   Heroe,
@@ -129,35 +128,43 @@ export default async function Home() {
           titulo="Dos sedes"
           className="mb-12 max-w-2xl"
         />
+        {/* TARJETAS CUADRADAS, no la <Card> redondeada. Medido en el original
+            el 2026-08-13: `border-radius: 0px`, borde de 1px transparente que
+            se vuelve rojo al pasar por encima, la imagen en 4/3 y debajo un
+            bloque de texto sobre `rgb(242,242,242)` -que es exactamente
+            nuestro `--secondary`- con 32px de alto y 28 de ancho de relleno
+            (MIGRATION_GUIDE/src/pages/Index.tsx:126-166).
+            Aqui salian como tarjetas redondeadas con sombra, que es el
+            aspecto por defecto de shadcn y no el de este producto.
+            La regla roja que CRECE al pasar por encima es parte del idioma:
+            aparece igual en las tarjetas de pasos y en las categorias del
+            original. */}
         <div className="grid gap-6 sm:grid-cols-2">
-          <Card className="gap-3 overflow-hidden pt-0">
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <Image
-                src="/Campus.png"
-                alt="Sede Monterrico"
-                fill
-                sizes="(min-width: 640px) 50vw, 100vw"
-                className="object-cover"
-              />
+          {[
+            { src: "/Campus.png", nombre: "Monterrico" },
+            { src: "/campus-san-miguel.webp", nombre: "San Miguel" },
+          ].map((sede) => (
+            <div
+              key={sede.nombre}
+              className="group hover:border-primary flex flex-col border border-transparent transition-colors duration-300"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <Image
+                  src={sede.src}
+                  alt={`Sede ${sede.nombre}`}
+                  fill
+                  sizes="(min-width: 640px) 50vw, 100vw"
+                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]"
+                />
+              </div>
+              <div className="bg-secondary flex flex-1 flex-col px-7 py-8">
+                <p className="text-foreground text-[10px] font-semibold tracking-[0.3em] uppercase">
+                  {sede.nombre}
+                </p>
+                <div className="bg-primary mt-3 h-px w-8 transition-[width] duration-500 ease-out group-hover:w-12" />
+              </div>
             </div>
-            <CardHeader>
-              <CardTitle>Monterrico</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="gap-3 overflow-hidden pt-0">
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <Image
-                src="/campus-san-miguel.webp"
-                alt="Sede San Miguel"
-                fill
-                sizes="(min-width: 640px) 50vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <CardHeader>
-              <CardTitle>San Miguel</CardTitle>
-            </CardHeader>
-          </Card>
+          ))}
         </div>
         </div>
       </section>
