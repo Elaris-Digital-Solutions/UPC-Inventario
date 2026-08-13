@@ -23,7 +23,12 @@ y qué comando la verifica.
 | Plan | Tanda | Estado |
 |---|---|---|
 | [`FASE_2_TANDA_0.md`](./FASE_2_TANDA_0.md) | Cimientos: borrar el Vite, Next.js, tokens, tipos, y las dos últimas migraciones | ✅ ejecutado el 2026-08-06 · 4 correcciones al diseño + **13 al plan** · 4 puntos a verificar resueltos |
-| [`FASE_2_TANDA_1.md`](./FASE_2_TANDA_1.md) | La sesión: `@supabase/ssr`, `proxy.ts`, magic link, completar perfil, sembrar el admin, y la puerta del dominio *(D-32)* | 📝 escrito el 2026-08-06 · **6 correcciones al diseño** · 6 puntos a verificar · **sin ejecutar** |
+| [`FASE_2_TANDA_1.md`](./FASE_2_TANDA_1.md) | La sesión: `@supabase/ssr`, `proxy.ts`, magic link, completar perfil, sembrar el admin, y la puerta del dominio *(D-32)* | ✅ **ejecutado y mergeado el 2026-08-07** (PR #21) · 6 correcciones al diseño + **48 al plan** · **cierra P0-3 y Q-15** |
+| [`FASE_2_TANDA_2A.md`](./FASE_2_TANDA_2A.md) | El alumno que mira: landing, FAQ, catálogo con sede y detalle. **No escribe una sola fila** | ✅ **ejecutado y mergeado el 2026-08-10** (PR #25; el #24 fue el del plan) · **41 correcciones al plan** |
+| [`FASE_2_TANDA_2B.md`](./FASE_2_TANDA_2B.md) | El alumno que reserva: el calendario, la reserva, la sanción, `/mi-panel`, la cancelación y la encuesta | ✅ **ejecutado y mergeado el 2026-08-11** (PR #27) · **57 correcciones al plan** · estrena Vitest |
+| [`FASE_2_TANDA_3A.md`](./FASE_2_TANDA_3A.md) | El mostrador: entregar, recibir, las dos faltas con sanción real, anotaciones de unidad. **Y la migración 23** *(D-38)* | ✅ **ejecutado y mergeado el 2026-08-12** (PR #29) · correcciones al plan por tarea, sin total declarado · **cierra Q-17**, abre Q-18 |
+| [`FASE_2_TANDA_3B.md`](./FASE_2_TANDA_3B.md) | La administración: inventario en tres URL, imágenes con firma de servidor, reservas, días, estadísticas, personal y ajustes | ✅ **ejecutado y mergeado el 2026-08-13** (PR #30) · **145 correcciones al plan** · **cierra P0-4 y Q-14**, abre Q-19 |
+| [`FASE_2_TANDA_4.md`](./FASE_2_TANDA_4.md) | El endurecimiento: cabeceras con CSP por nonce, E2E de Playwright, lint y auditoría bloqueantes, Q-13, y la migración 24 *(Q-19)* | 📝 escrito el 2026-08-13 · **D-55 a D-58** · 10 tareas · 10 puntos a verificar · **en ejecución** |
 
 ## Cómo leerlos
 

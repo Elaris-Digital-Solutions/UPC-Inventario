@@ -12,7 +12,7 @@
 
 | Task | Estado |
 |---|---|
-| **0 · La deuda documental** | ⬜ pendiente |
+| **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
 | **1 · Migración 24: Q-19** | ⬜ pendiente |
 | **2 · Las cabeceras de seguridad** | ⬜ pendiente |
 | **3 · Playwright y el flujo de entrada** | ⬜ pendiente |
@@ -22,6 +22,57 @@
 | **7 · Los pendientes menores** | ⬜ pendiente |
 | **8 · Verificación de punta a punta** | ⬜ pendiente |
 | **9 · Cierre y documentación** | ⬜ pendiente |
+
+### Task 0 · La deuda documental *(2026-08-13)*
+
+1. **M-5 se sospechó a medias y está entera.** `in_stock` aparecía en `lib/database.types.ts` y parecía
+   una columna superviviente de `products`, que es justo lo que M-5 mandaba quitar. **Vive en la vista
+   `product_availability`**, y en la tabla ya no existe ninguna de las dos columnas viejas. **Leer un
+   nombre en el archivo de tipos no dice en qué objeto vive:** hay que mirar si cae bajo `Tables` o bajo
+   `Views`. La sospecha se escribió antes de mirar y se deshizo mirando; **si se hubiera dictado, habría
+   metido un defecto inexistente en la especificación**.
+2. **M-6 tiene un residuo que el plan no preveía, y es benigno.** La landing lista las dos sedes a mano, y
+   no por descuido: **empareja cada una con una imagen de `public/` que la base no guarda**, así que leer
+   `campuses` no le daría la foto. Medido contra producción: los nombres coinciden exactos —Monterrico y
+   San Miguel— y los dos archivos existen. **La landing no miente.** Y encima ese archivo lo tocó el
+   compañero de la fase visual en sus dos commits, así que además es terreno ajeno: se anota y no se toca.
+3. **El mecanismo del `.gitignore` no era el que se deduce leyendo el archivo.** Quien protegía
+   `.env.local` era **`*.local`**, no `.env` ni `.env.*.local`, y por eso `.env.local.apagado` —que ya no
+   termina en `.local`— se quedó fuera. **Lo dijo `git check-ignore -v`, que nombra la regla que decide;**
+   deducirlo leyendo los patrones daba la respuesta equivocada. Misma lección que Q-15 en su día: dos
+   herramientas pueden contestar bien a la pregunta equivocada.
+4. **Y se verificó con contraejemplo, que es lo que hace válida la medición.** Que `.env.local.apagado`
+   pase a ignorado no prueba nada por sí solo —una regla `*` lo haría igual—; lo que lo prueba es que
+   **`.env.example` sigue NO ignorado** y la excepción funciona.
+5. **ERROR 22 DE QUIEN DICTA: el PR de la T2A no es el #24, es el #25.** El **#24 fue el PR del plan** de
+   la T2A, y la tanda entró por el #25. Se destapó **listando los PR reales del repositorio** antes de
+   escribir la fila, no releyendo la memoria. El mismo par existe en las otras tandas —#26 plan y #27
+   tanda, #28 plan y #29 tanda—, así que era un error con tres formas de haberse repetido.
+6. **Una cifra que NO se escribió, por no estar declarada en ninguna parte: las correcciones de la T3A.**
+   `CLAUDE.md` declara las de la T1, la T2A, la T2B y la T3B, y **de la T3A ninguna**; contarlas con un
+   `grep` de líneas numeradas dio 14 y esa sonda no es fiable, porque captura cualquier lista. **La fila se
+   escribió sin número.** Un hueco declarado es mejor que una cifra plausible — y el primer borrador
+   llevaba «127», que es la de la T3B.
+7. **UNA CIFRA CADUCADA EN `CLAUDE.md`, y el plan no la preveía.** Dice **«127 correcciones al plan»** de
+   la T3B y ese plan llega a **145**: la frase se escribió en la Task 11 y la Task 12 añadió dieciocho más.
+   **Importa más que otras porque `CLAUDE.md` se carga solo al abrir cada sesión**, así que una cifra falsa
+   ahí se propaga a todas. Se corrige en esta tarea aunque no estuviera en su lista, por el criterio que la
+   define: se arregla lo que afirma algo falso **sobre hoy**. **Tercera vez en la fase que un pendiente
+   documental resulta más grande que su enunciado.**
+8. **UN SUBAGENTE VIOLÓ LA PROHIBICIÓN DE DAR CIFRAS: uno de los cinco de la sesión.** El encargo la
+   prohibía con todas las letras y aun así informó de un rango de líneas y de tres recuentos. **No se
+   comprobó si eran ciertos: se descartaron**, que cuesta menos y es la salvaguarda que de verdad funciona.
+   **Y el dato afina lo que ya sabía el proyecto:** con la prohibición explícita van **cuatro de cinco
+   cumpliendo** en esta sesión, contra dos de tres en la T3B. Sigue valiendo la conclusión de entonces
+   —prohibirlo ayuda y no garantiza—, y sigue sin poder ser la salvaguarda.
+   *Escrito primero como «van tres de cinco», que era falso: cumplieron cuatro. **Sobre-afirmación de
+   alcance de quien registra**, cazada contando los subagentes en vez de estimarlos.*
+9. **La aritmética del diff cuadró exacto, y esta vez medida por archivo y no inferida del total.**
+   `ESPECIFICACION_FUNCIONAL.md` **36 insertadas y 16 borradas** —las 12 filas, la cabecera de la tabla y
+   el párrafo final—; `PLANES/README.md` **6 y 1**. **El README suma 7 y no 9 porque la fila de la T0 se
+   reescribió idéntica y git no la cuenta**, que es justo el tipo de descuadre que hay que saber explicar
+   antes de darlo por bueno. El desglose se había deducido restando del total; `--numstat` lo confirmó, y
+   **restar del total es una inferencia, no una medición**.
 
 ---
 

@@ -193,8 +193,9 @@ pasó de **catorce rutas a 23**, tres estáticas, con **ocho colgando de `/admin
 en 5 archivos a 138 en 10**. **La base no se movió: 23 migraciones y 147 aserciones en 24 archivos**, y
 esta vez está comprobado al final con `db reset` y `supabase test db` — **D-41 cumplido**. **Cierra P0-4,
 el último defecto crítico de la auditoría, y Q-14.** **Catorce decisiones nuevas, D-41 a D-54**, todas
-tomadas antes de escribir el código que las aplica. **127 correcciones al plan** en
-`MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md`. **Siguiente: la T4, el endurecimiento**, que hereda **Q-18**
+tomadas antes de escribir el código que las aplica. ~~**127 correcciones al plan**~~ ⚠ **Corregido el
+2026-08-13: son 145**, en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md`. El 127 era el recuento de la Task 11
+y la Task 12 añadió dieciocho más, así que la frase nació cierta y caducó el mismo día. **Siguiente: la T4, el endurecimiento**, que hereda **Q-18**
 —las notas de unidad legibles por cualquier alumno con sesión—, **Q-19** —que la base ate `opening_time` a
 `slot_minutes` por su cuenta—, **Q-13** y **Q-10**, el advisor **`auth_leaked_password_protection`**
 desactivado, **`supabase/setup-cli@v1` apuntando a Node.js 20**, ya deprecado, y **M-12**, la cancelación

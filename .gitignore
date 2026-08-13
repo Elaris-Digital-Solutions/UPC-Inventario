@@ -25,7 +25,16 @@ lerna-debug.log*
 
 # Variables de entorno. NEXT_PUBLIC_* viaja al navegador (D-28), pero el archivo
 # no se versiona igualmente: CLOUDINARY_API_SECRET vive aqui.
+#
+# El patron general `.env*` esta aqui por un fallo medido el 2026-08-13: al
+# renombrar .env.local a .env.local.apagado, el archivo salio de la proteccion
+# y quedo listo para entrar en un `git add .` con el secreto dentro. Quien lo
+# cubria era `*.local` -no `.env` ni `.env.*.local`-, y el nombre nuevo ya no
+# termina en .local. Comprobado que ni el archivo ni el secreto llegaron nunca
+# al historial. La leccion es la que fija la regla: un secreto protegido por
+# como se llama el archivo deja de estarlo en cuanto alguien lo renombra.
 .env
+.env*
 .env.*.local
 *.local
 !.env.example
