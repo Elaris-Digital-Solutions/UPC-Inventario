@@ -443,7 +443,7 @@ export async function cancelar(
   // `btrim(p_reason)`, que solo se usa dos lineas antes, para el rechazo-.
   // Sin este trim aca, un motivo tecleado con un espacio de mas al principio
   // o al final se guardaria con ese espacio dentro, y quien lo lea despues
-  // en tarjeta-reserva.tsx ("Cancelada por: ...") veria el descuadre. Y para
+  // en tarjeta-reserva.tsx ("Motivo de la cancelación: ...") veria el descuadre. Y para
   // el motivo de SOLO espacios -sin texto de verdad-: el boton de confirmar
   // en dialogo-cancelar.tsx ya lo deja deshabilitado comprobando
   // `motivo.trim() === ""`, asi que este trim aca no es la unica barrera:

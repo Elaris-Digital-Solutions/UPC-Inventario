@@ -148,6 +148,7 @@ app/
       dias/page.tsx
       estadisticas/page.tsx
       personal/page.tsx
+      ajustes/page.tsx             ⚠ añadida el 2026-08-13 · D-39, no estaba en este diseño
 
   api/
     cloudinary/firma/route.ts      firma la subida; el secreto no sale de aquí
@@ -404,14 +405,36 @@ select id, 'admin' from auth.users where email = '<correo>@upc.edu.pe';
 | `/admin/inventario` | Productos, unidades e imágenes | **Admin** | Catálogo completo + `/api/cloudinary/firma` |
 | `/admin/reservas` | Tabla completa con filtros | **Admin** | `inventory_reservations` · `cancel_reservation` |
 | `/admin/dias` | Días inhabilitados | **Admin** | `disabled_days` |
-| `/admin/estadisticas` | Cinco indicadores y desgloses | **Admin** | Agregados sobre reservas |
-| `/admin/personal` | Alta y baja de personal | **Admin** | `staff_members` |
+| `/admin/estadisticas` | ~~Cinco indicadores~~ **ocho** *(D-51)* y desgloses | **Admin** | Agregados sobre reservas |
+| `/admin/personal` | Alta y baja de personal, **y cambio de rol** *(D-52)* | **Admin** | `staff_members` · `alumnos` |
+| `/admin/ajustes` ⚠ | Los seis valores globales de reserva | **Admin** | `app_settings` · `products` |
 
 > ⚠ **Corregido el 2026-08-11, al ejecutar la tanda 2B.** La fila de `/mi-panel` nombra «encuesta» sin decir
 > de qué es. **`final_satisfaction_surveys` es UNA por alumno y editable, no una por reserva:** la tabla
 > tiene `UNIQUE (alumno_id)` y **no tiene ninguna columna `reservation_id`**; existe una política de
 > `UPDATE` propia del alumno, y **no hay política de `DELETE`**. No es una encuesta de fin de préstamo: es
 > la encuesta final de satisfacción con el servicio.
+
+> ⚠ **Corregido el 2026-08-13, al cerrar la tanda 3B. Esta tabla listaba cinco pantallas de administración
+> y son seis.** La sexta es **`/admin/ajustes`**, y no es un olvido de este documento: **nace de D-39**, del
+> 2026-08-11, que eligió cerrar Q-14 «haciendo que la interfaz de admin solo ofrezca múltiplos» en vez de
+> tocar SQL. Las cinco filas originales eran correctas el 2026-08-06, así que se anotan y no se reescriben.
+> Queda registrada como **F12** en `ESPECIFICACION_FUNCIONAL.md`, con la marca de que el sistema original
+> tampoco la tenía.
+>
+> **Y dos filas más se quedaron cortas por debajo, las dos por decisiones posteriores y no por error de
+> este diseño.** `/admin/estadisticas` decía «cinco indicadores» y **D-51** fijó **ocho** —los seis estados,
+> el total de registradas y los préstamos de la semana—, con la propiedad de que los seis estados suman
+> exactamente el total y eso se comprueba de un vistazo en la propia pantalla. Y `/admin/personal` decía
+> «alta y baja», mientras **D-52** añadió el **cambio de rol** entre operador y administrador, medido antes
+> de escribirlo: es el mismo privilegio y la misma política que la baja.
+>
+> **Lo que la ejecución NO desmintió, y conviene dejarlo dicho:** `/admin/inventario` se abrió en **tres
+> URL** —listado, `nuevo` y `[id]`— *(D-43)*, y eso **respeta** este diseño en vez de contradecirlo. El
+> documento dice que «`/admin/unidades` se absorbe en `/admin/inventario`», y así fue: no hay ruta de
+> unidades de primer nivel. Lo que se aplicó es el propio argumento de este diseño contra las pestañas —
+> **una pestaña que no es una URL no se puede enlazar, ni marcar, ni proteger por separado**—. Bajo
+> `/admin/` quedan **ocho** rutas, contadas en la tabla del `build`.
 
 **Tres cosas que esta tabla dice y conviene leer despacio:**
 
@@ -720,3 +743,30 @@ buffers finos o no.
 
 **Riesgo mientras tanto: ninguno con los datos actuales.** Los 34 productos tienen `buffer_minutes = 120`,
 que es múltiplo de 30. Hoy el único desalineador posible era la duración, y D-19 lo cierra.
+
+---
+
+⚠ **Corregido el 2026-08-13, al cerrar Q-14 en la tanda 3B: este enunciado describía UNA de sus dos
+mitades.** Todo lo de arriba es cierto y sigue en pie, pero el pendiente era más grande de lo que dice.
+
+**La mitad escrita acá es la que mira hacia adelante:** que nadie pueda guardar un `buffer_minutes` que no
+encaje en el bloque. La cierra el **formulario de producto** —alta y edición—, que ofrece los tiempos de
+retorno como una lista de diecisiete valores, todos múltiplos, y donde **«45 min» no existe**.
+
+**La mitad que faltaba mira hacia atrás, y solo aparece cuando `buffer_minutes` ya tiene interfaz:** el
+bloque **también se puede cambiar**, y al cambiarlo desalinea buffers que ya estaban guardados y eran
+válidos. Ningún control del formulario de producto alcanza a eso, porque el valor que se mueve está en
+`app_settings` y no en `products`. La cierra `/admin/ajustes`, que al confirmar **avisa de qué productos
+quedan desalineados, los nombra, y deja guardar igual** — porque la base lo permite y esconderlo sería
+mentir sobre el estado real.
+
+**Y una tercera cosa que solo se supo midiendo: esa mitad retroactiva es hoy inalcanzable.** El `check`
+`60 % slot_minutes = 0` deja **ocho** valores de bloque —5, 6, 10, 12, 15, 20, 30 y 60— y **los ocho
+dividen a 120**, que es el buffer de los 34 productos de producción. **Ningún cambio legal del bloque
+desalinea el catálogo actual.** El caso nace en cuanto exista un producto con otro buffer: uno de 30 lo
+rompen 12, 20 y 60. **Consecuencia de método, y es la que vale para el próximo pendiente parecido:** el
+aviso **no se puede probar con datos reales**, hay que fabricar el caso — y **un cero no prueba nada sin
+su contraejemplo**, así que se comprobó también que con el bloque de vuelta en 30 el diálogo **no** avisa.
+
+**Q-14 queda cerrado el 2026-08-13**, con **tres puertas** y no una: el alta, la edición y los ajustes. Si
+faltara cualquiera de las tres, seguiría abierto.
