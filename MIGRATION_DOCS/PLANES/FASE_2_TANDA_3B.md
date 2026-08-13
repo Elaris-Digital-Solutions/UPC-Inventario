@@ -11,7 +11,7 @@
 | **0 · La deuda documental** | ✅ **Cerrada.** Las cuatro correcciones aplicadas y verificadas: `ESTADO_Y_PLAN.md` 35 y 751, `CLAUDE.md` 168 y 173. Dos filas nuevas de bitácora —el push de la migración 23 y la escritura de este plan—. Ninguna reescrita sin marca |
 | **1 · Andamio de `/admin` y listado de inventario** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**70 en 6 archivos**, de 65 en 5) y `build` (**15 rutas**, 3 estáticas) en verde, corridos **dos veces** —antes y después del arreglo de texto—. **Punto a verificar 1 resuelto: SÍ embebe.** Verificado en pantalla con sesión de admin y de operador de verdad |
 | **2 · Alta de producto con sus unidades** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, de 70 en 6) y `build` (**16 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cuatro escrituras medidas por PostgREST antes de escribir. **Q-14 primera mitad verificada en pantalla:** el desplegable ofrece 17 buffers y **no ofrece 45** |
-| **3 · Estado de unidad y sus notas** | ⬜ Sin empezar |
+| **3 · Estado de unidad y sus notas** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, sin cambios) y `build` (**17 rutas**, 3 estáticas) en verde, corridos **dos veces**. La baja como `retired` verificada **por su efecto en la pantalla del alumno**, con la línea base tomada antes |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ⬜ Sin empezar |
 | **5 · Subida y gestión de imágenes** | ⬜ Sin empezar |
 | **6 · `/admin/reservas`** | ⬜ Sin empezar |
@@ -133,6 +133,51 @@
     eso fue: `components/ui/select.tsx` creado, cero modificaciones. **Y se sabe por el hash, no porque el
     build siguiera verde:** `globals.css` y `package.json` con SHA-256 idéntico antes y después. Sin
     dependencia nueva, porque el proyecto usa el paquete unificado `radix-ui`.
+
+### Task 3 · Estado de unidad, notas y la baja como `retired` *(2026-08-12)*
+
+18. **El plan pidió dos Server Actions SIN ASIGNARLES PANTALLA.** Su lista de archivos enumera
+    `panel-unidades.tsx` y `dialogo-estado-unidad.tsx`, y manda añadir `agregarUnidad()` y
+    `editarProducto()` a `acciones.ts` — **pero ningún componente las llama**. Una Server Action sin
+    pantalla no la puede usar nadie. Nacen `components/admin/dialogo-agregar-unidad.tsx` y
+    `components/admin/formulario-editar-producto.tsx`. **Es el mismo género de hueco que la Task 1 de la
+    T3A ya registró** sobre `mostrador/page.tsx`: la estructura de archivos de un plan **no es
+    exhaustiva**, y conviene leerla como un mínimo y no como un contrato.
+
+19. **`anotar()` gana un parámetro de ruta en vez de duplicarse.** El diálogo de nota de la T3A revalida
+    `/mostrador`, y desde `/admin/inventario/[id]` eso refresca una pantalla que el admin no está mirando
+    mientras deja rancia la que sí. **Se parametrizó la ruta** —con valor por defecto, así que ningún
+    llamador de la T3A cambia— en lugar de escribir un `anotarUnidad()` en `lib/admin/acciones.ts`: el
+    `INSERT` es idéntico —misma tabla, mismas dos columnas, mismo `trim()`, misma política— y duplicarlo
+    habría copiado también `insertarNota()` con su comentario sobre `created_by`, para que las dos copias
+    se separaran con el tiempo.
+
+20. **`formulario-editar-producto.tsx` NO usa `useActionState`, y es consecuencia directa de la corrección
+    10.** React resetea un `<form action>` al terminar la acción; en el alta eso obligó a controlar todos
+    los campos. Acá los campos ya nacen controlados —arrancan con los valores del producto—, así que se
+    dispara con `useTransition` sobre un `onClick` y **el reset no llega a existir**. Evitar el problema de
+    raíz sale más barato que compensarlo.
+
+21. **El desplegable de buffer de la edición admite un valor QUE ÉL MISMO NO OFRECERÍA, y no es una
+    contradicción:** es la segunda mitad de Q-14 vista desde esta pantalla. Si alguien cambia
+    `slot_minutes` en `/admin/ajustes`, un producto puede quedar con un buffer que ya no es múltiplo. Sin
+    añadirle su propio valor, el `<Select>` aparecería **vacío** y guardar cambiaría el buffer **sin que
+    nadie lo pidiera**. Se muestra, se marca «(no encaja en los bloques)» y se avisa debajo.
+
+22. **La baja como `retired` verificada POR SU EFECTO, con la línea base tomada antes de tocar nada.** Se
+    eligió el Trípode porque tiene **una sola** unidad, que es lo que hace observable el efecto. **Antes:**
+    `active_units = 1`, `in_stock = true`. **Después de retirarla desde la pantalla:** `0` y `false`. **Y en
+    la pantalla del alumno de verdad**, no solo por la API: el Trípode **desapareció** de `/catalogo` y el
+    contador pasó a «2 equipos en Monterrico», contra los 3 que midió la T2A. Los 2 errores de consola son
+    los 404 de las imágenes ficticias del seed, conocidos desde la T2A.
+
+23. **El aviso de que la baja no borra aparece SOLO al elegir «Retirada»**, verificado en pantalla: con el
+    estado en «Disponible» no está, y al cambiar a «Retirada» sale entero. La pregunta que responde solo se
+    hace en ese momento.
+
+24. **El motivo obligatorio, medido con los dos casos:** con **seis espacios** el botón sigue
+    deshabilitado —`trim()` del cliente—, y con texto se habilita. La misma regla la repite
+    `cambiarEstadoUnidad()` del lado del servidor.
 
 ---
 

@@ -123,6 +123,85 @@ export async function listarInventario(): Promise<FilaInventario[]> {
   return (data ?? []).map(filaAInventario);
 }
 
+// Una unidad tal como la pinta el detalle del producto.
+export type UnidadDetalle = {
+  id: string;
+  unitCode: string;
+  assetCode: string | null;
+  estado: EstadoUnidad;
+  sede: string;
+};
+
+export type ProductoDetalle = {
+  id: string;
+  nombre: string;
+  categoria: string | null;
+  descripcion: string | null;
+  maxDuracionHoras: number;
+  bufferMinutos: number;
+  unidades: UnidadDetalle[];
+};
+
+// El detalle de UN producto con sus unidades, para /admin/inventario/[id].
+//
+// Devuelve `null` cuando no hay fila, y la pantalla llama a notFound(). NO se
+// lanza un error: un id que no existe es una URL equivocada -- del historial,
+// de un enlace viejo, de alguien tecleando --, no un fallo del sistema. La
+// T2A ya midio esta distincion en /catalogo/[id]: un UUID inexistente
+// devuelve `[]` con HTTP 200 y un id MALFORMADO devuelve `22P02` con 400, asi
+// que los dos casos tienen que acabar en el mismo 404 y solo uno pasa por
+// aca. `.maybeSingle()` y no `.single()`: `single()` convierte "cero filas"
+// en un ERROR, que es justo lo que no se quiere.
+export async function leerProducto(id: string): Promise<ProductoDetalle | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('products')
+    .select(
+      'id,name,category,description,max_duration_hours,buffer_minutes,inventory_units(id,unit_code,asset_code,status,campuses(name))',
+    )
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    // Un id malformado llega aca como `22P02` y NO es un fallo del sistema:
+    // es la otra mitad del mismo caso de arriba. Se trata como "no existe".
+    if (error.code === '22P02') {
+      return null;
+    }
+    throw new Error(error.message);
+  }
+
+  if (data === null) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    nombre: data.name,
+    categoria: data.category,
+    descripcion: data.description,
+    maxDuracionHoras: data.max_duration_hours,
+    bufferMinutos: data.buffer_minutes,
+    unidades: data.inventory_units
+      .map((u) => ({
+        id: u.id,
+        unitCode: u.unit_code,
+        assetCode: u.asset_code,
+        estado: u.status,
+        // `campuses` llega como OBJETO y no como array -- la FK vive en
+        // `inventory_units`, o sea muchos a uno --, al reves que
+        // `inventory_units` dentro de `products`. Mismo hecho que ya midieron
+        // lib/reservas/consultas.ts y lib/mostrador/consultas.ts.
+        sede: u.campuses?.name ?? '—',
+      }))
+      // Ordenadas ACA y no en el `select`: PostgREST no ordena una tabla
+      // embebida por una columna suya con `.order()` de nivel superior, y son
+      // pocas unidades por producto -- 3 como mucho en el catalogo real.
+      .sort((a, b) => a.unitCode.localeCompare(b.unitCode, 'es')),
+  };
+}
+
 // Las categorias que YA EXISTEN en el catalogo, para el desplegable del alta.
 //
 // D-42, y es la correccion directa de un error que este proyecto ya pago tres

@@ -180,6 +180,171 @@ export async function crearProducto(
   return { productoId: producto.id };
 }
 
+// LA BAJA DE UNA UNIDAD ES `retired`, NO UN DELETE, y no es una limitacion que
+// se descubra al intentarlo: F7 de ESPECIFICACION_FUNCIONAL.md manda un
+// "borrado forzado en cascada manual -- notas, luego reservas, luego la
+// unidad --", y ESO NO SE PUEDE HACER, a proposito.
+//
+//   - `inventory_reservations` no tiene NINGUN `GRANT` de `DELETE` para nadie
+//     ni ninguna politica de `DELETE`. No es que el admin no la tenga: no la
+//     tiene nadie.
+//   - La clave foranea `inventory_reservations_unit_id_fkey` NO cascadea
+//     (supabase/migrations/20260805030123_baseline.sql:455, sin
+//     ON DELETE CASCADE), asi que borrar una unidad con historial falla.
+//
+// `retired` existe justo para esto. Y la pantalla lo DICE en vez de limitarse
+// a no ofrecer el boton: un boton ausente sin explicacion se lee como un
+// defecto, y alguien acabaria pidiendolo o -- peor -- borrando filas por SQL.
+//
+// LA NOTA ES OBLIGATORIA, y la decide ESTE PLAN, no el esquema. F7 no la exige
+// para el cambio de estado -- solo F5 la fuerza para "No se devolvio" --, pero
+// una unidad que desaparece del catalogo sin explicacion es exactamente el
+// caso que la trazabilidad existe para cubrir (D-2). Mismo criterio que la
+// T3A aplico a marcarNoDevuelta().
+//
+// Y EL MISMO ORDEN QUE marcarNoDevuelta(), por el mismo motivo: PRIMERO la
+// nota, DESPUES el estado. La API REST no da una transaccion entre dos
+// llamadas del cliente, asi que el orden decide cual es el peor caso.
+//   - Con este orden: si el INSERT falla, la unidad NO cambia y el admin
+//     reintenta. Una nota huerfana es el costo -- medido de verdad en la T3A
+//     provocando la carrera --, y es recuperable.
+//   - Al reves: una unidad retirada SIN ningun rastro de por que. El equipo
+//     desaparece del catalogo y nadie sabe si esta roto, prestado a un
+//     profesor o perdido.
+export async function cambiarEstadoUnidad(
+  unitId: string,
+  estado: 'active' | 'maintenance' | 'retired',
+  nota: string,
+  productoId: string,
+): Promise<ResultadoAdmin> {
+  if (nota.trim() === '') {
+    return { error: 'Explica el motivo del cambio: queda en el historial de la unidad.' };
+  }
+
+  const supabase = await createClient();
+
+  // Columnas EXACTAS `(unit_id, note)`. `created_by` lo pone el DEFAULT
+  // auth.uid() y el GRANT de INSERT ni siquiera enumera esa columna
+  // (supabase/migrations/20260805195549_traceability.sql:26); mandarla da 403
+  // con 42501, ya medido en la T3A.
+  const { error: errorNota } = await supabase
+    .from('inventory_unit_notes')
+    .insert({ unit_id: unitId, note: nota.trim() });
+
+  if (errorNota) {
+    return { error: errorNota.message };
+  }
+
+  const { error: errorEstado } = await supabase
+    .from('inventory_units')
+    .update({ status: estado })
+    .eq('id', unitId);
+
+  if (errorEstado) {
+    return { error: mensajeDeRechazoAdmin(errorEstado.message) };
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  // Tambien el listado: sus tres recuentos por estado y el de "sin codigo"
+  // cambian con esto, y sin revalidar mostraria los de antes.
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
+// Alta de una unidad suelta sobre un producto que ya existe (F7: "alta
+// individual -- codigo, sede, anotacion --; rechaza codigos duplicados dentro
+// del producto").
+//
+// La unicidad es (product_id, unit_code) y NO global -- medido el 2026-08-12
+// creando el mismo codigo en otro producto, que se acepto con HTTP 201 --, asi
+// que aca no hace falta comprobar contra el inventario entero: la restriccion
+// de la base ya acota al producto correcto.
+export async function agregarUnidad(
+  productoId: string,
+  unidad: UnidadNueva,
+): Promise<ResultadoAdmin> {
+  if (unidad.unitCode.trim() === '') {
+    return { error: 'La unidad necesita un código.' };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('inventory_units')
+    .insert({
+      product_id: productoId,
+      campus_id: unidad.campusId,
+      unit_code: unidad.unitCode.trim(),
+      asset_code: unidad.assetCode.trim() === '' ? null : unidad.assetCode.trim(),
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    return { error: mensajeDeRechazoAdmin(error.message) };
+  }
+
+  // La anotacion inicial es OPCIONAL aca -- al reves que en
+  // cambiarEstadoUnidad(), donde es obligatoria --, y la diferencia no es
+  // capricho: dar de alta una unidad nueva no esconde nada que haya que
+  // explicar, y retirarla si.
+  if (unidad.nota.trim() !== '') {
+    const { error: errorNota } = await supabase
+      .from('inventory_unit_notes')
+      .insert({ unit_id: data.id, note: unidad.nota.trim() });
+
+    // La unidad YA existe: una nota inicial que no entra no justifica dar el
+    // alta por fallida. Se devuelve el error para que el admin lo vea y pueda
+    // volver a anotar desde el historial de la unidad.
+    if (errorNota) {
+      return { error: errorNota.message };
+    }
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
+// Edicion de los datos del producto.
+//
+// VUELVE A OFRECER EL BUFFER POR multiplosDeSlot(), igual que el alta, y eso
+// NO es una repeticion ociosa: editar es OTRA PUERTA a `buffer_minutes`.
+// Dejarla sin filtro reabriria por detras exactamente lo que la Task 2 cierra
+// por delante, y Q-14 seguiria abierto con la pantalla de alta impecable.
+export async function editarProducto(
+  productoId: string,
+  datos: DatosProducto,
+): Promise<ResultadoAdmin> {
+  if (datos.nombre.trim() === '') {
+    return { error: 'El producto necesita un nombre.' };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('products')
+    .update({
+      name: datos.nombre.trim(),
+      category: datos.categoria.trim() === '' ? null : datos.categoria.trim(),
+      description: datos.descripcion.trim() === '' ? null : datos.descripcion.trim(),
+      max_duration_hours: datos.maxDuracionHoras,
+      buffer_minutes: datos.bufferMinutos,
+    })
+    .eq('id', productoId);
+
+  if (error) {
+    return { error: mensajeDeRechazoAdmin(error.message) };
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
 // El adaptador que consume useActionState desde el formulario, con la misma
 // forma que reservar() en lib/reservas/acciones.ts: (estadoPrevio, formData).
 // crearProducto() de arriba se queda como el nucleo TIPADO -- recibe datos ya
