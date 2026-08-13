@@ -62,22 +62,39 @@ export function FiltroPorEntregar({ reservas, ahora, notasPorUnidad }: FiltroPor
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {ORDEN_FILTROS_FECHA.map((opcion) => (
-          <button
-            key={opcion}
-            type="button"
-            aria-pressed={opcion === filtro}
-            onClick={() => setFiltro(opcion)}
-            // El boton activo se distingue con una `variant` distinta -no
-            // es una eleccion de estetica: saber cual filtro esta aplicado
-            // es lo que evita creer que no hay reservas cuando en realidad
-            // estan filtradas.
-            className={buttonVariants({ variant: opcion === filtro ? "default" : "outline", size: "sm" })}
-          >
-            {ETIQUETAS_FILTRO_FECHA[opcion]}
-          </button>
-        ))}
+      {/* `size: "xs"` y no `"sm"`, y el CONTADOR al lado. Medido en pantalla
+          el 2026-08-13: con cuatro chips de `sm` dentro de una columna que en
+          un portatil mide unos 400px, "Todas" se caia sola a una segunda
+          linea -y siendo la activa, en rojo, parecia un fallo de maquetacion
+          y no un filtro puesto-. Con `xs` los cuatro entran en una linea.
+          Son controles SECUNDARIOS -filtran una vista, no ejecutan nada sobre
+          una reserva-, asi que bajar su tamano no toca la regla de los 44px
+          que si aplica a los botones que entregan, reciben o marcan una falta.
+          El numero de la derecha es el de las reservas que SE VEN, no el
+          total: por eso vive aca y no en la cabecera de la columna. Con el
+          filtro puesto, un contador que dijera el total contradiria a la
+          lista que hay debajo. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {ORDEN_FILTROS_FECHA.map((opcion) => (
+            <button
+              key={opcion}
+              type="button"
+              aria-pressed={opcion === filtro}
+              onClick={() => setFiltro(opcion)}
+              // El boton activo se distingue con una `variant` distinta -no
+              // es una eleccion de estetica: saber cual filtro esta aplicado
+              // es lo que evita creer que no hay reservas cuando en realidad
+              // estan filtradas.
+              className={buttonVariants({ variant: opcion === filtro ? "default" : "outline", size: "xs" })}
+            >
+              {ETIQUETAS_FILTRO_FECHA[opcion]}
+            </button>
+          ))}
+        </div>
+        <span className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums">
+          {filtradas.length}
+        </span>
       </div>
 
       {filtradas.length === 0 ? (
