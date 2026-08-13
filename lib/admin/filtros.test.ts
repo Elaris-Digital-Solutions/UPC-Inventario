@@ -6,14 +6,17 @@ import { describe, expect, it } from 'vitest';
 // el alias y solo `vitest run` se rompe --, y por eso el modulo probado y su
 // prueba se escriben asi.
 import {
+  cruzarPersonal,
   filtrarYOrdenar,
   normalizar,
   particionarPorDia,
   pasaBusqueda,
   pasaFiltroEstado,
   pasaFiltroFechaReservas,
+  type AlumnoParaCruce,
   type ReservaDelDia,
   type ReservaFiltrable,
+  type StaffParaCruce,
 } from './filtros';
 
 // El instante fijo de todas las pruebas de fecha: 12 de agosto de 2026 a las
@@ -279,5 +282,72 @@ describe('particionarPorDia', () => {
     const enLaFrontera = reservaDelDia({ id: 'frontera', inicio: '2026-08-13T02:00:00Z' });
     const { reservadas } = particionarPorDia([enLaFrontera], '2026-08-12');
     expect(reservadas.map((r) => r.id)).toEqual(['frontera']);
+  });
+});
+
+describe('cruzarPersonal', () => {
+  function staffCrudo(cambios: Partial<StaffParaCruce> = {}): StaffParaCruce {
+    return {
+      userId: 'u1',
+      rol: 'operator',
+      activo: true,
+      registro: '2026-08-10T14:00:00Z',
+      ...cambios,
+    };
+  }
+
+  function alumnoCrudo(cambios: Partial<AlumnoParaCruce> = {}): AlumnoParaCruce {
+    return {
+      authUserId: 'u1',
+      email: 'ana@upc.edu.pe',
+      nombre: 'Ana',
+      apellido: 'Perez',
+      ...cambios,
+    };
+  }
+
+  it('cruza un miembro con su fila de alumnos', () => {
+    const r = cruzarPersonal([staffCrudo()], [alumnoCrudo()]);
+    expect(r).toEqual([
+      {
+        userId: 'u1',
+        rol: 'operator',
+        activo: true,
+        registro: '2026-08-10T14:00:00Z',
+        alumno: { email: 'ana@upc.edu.pe', nombre: 'Ana', apellido: 'Perez' },
+      },
+    ]);
+  });
+
+  it('deja `alumno` en null cuando no hay fila en alumnos para ese user_id', () => {
+    // El caso que importa de verdad: staff_members.user_id referencia
+    // auth.users, no alumnos, y el trigger de aprovisionamiento solo crea la
+    // fila de alumnos para correos @upc.edu.pe. El cruce no puede perder de
+    // vista a esta persona solo porque no tenga fila en alumnos.
+    const r = cruzarPersonal([staffCrudo({ userId: 'u2' })], []);
+    expect(r).toEqual([
+      {
+        userId: 'u2',
+        rol: 'operator',
+        activo: true,
+        registro: '2026-08-10T14:00:00Z',
+        alumno: null,
+      },
+    ]);
+  });
+
+  it('con la lista de personal vacia devuelve vacio, sin reventar', () => {
+    expect(cruzarPersonal([], [])).toEqual([]);
+    // Ni siquiera importa si hay alumnos sin nadie con quien cruzarlos.
+    expect(cruzarPersonal([], [alumnoCrudo()])).toEqual([]);
+  });
+
+  it('el orden que entra es el orden que sale', () => {
+    const a = staffCrudo({ userId: 'a', rol: 'admin' });
+    const b = staffCrudo({ userId: 'b', rol: 'operator' });
+    const c = staffCrudo({ userId: 'c', rol: 'operator' });
+
+    const r = cruzarPersonal([c, a, b], []);
+    expect(r.map((m) => m.userId)).toEqual(['c', 'a', 'b']);
   });
 });

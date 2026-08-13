@@ -68,7 +68,11 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               /admin/dias se suma en la Task 7, por el mismo motivo: no se
               deja para "despues" -- aca no hay despues, cada tarea enlaza la
               suya. /admin/estadisticas se suma ahora, en la Task 8, por el
-              mismo motivo otra vez.
+              mismo motivo otra vez. /admin/personal se suma en la Task 9,
+              otra vez por el mismo motivo: sin este enlace, /admin/personal
+              quedaria construida, funcionando y solo alcanzable tecleando la
+              URL a mano -- exactamente el defecto que este comentario viene
+              anotando desde la Task 6.
 
               Y el 404 que esto SI arregla, y que era preexistente:
               lib/auth/destino.ts manda al admin a /admin/inventario nada mas
@@ -93,6 +97,9 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/admin/estadisticas">Estadísticas</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/personal">Personal</Link>
               </Button>
             </>
           )}

@@ -10,12 +10,19 @@
 // confirmar. Es la misma idea que el resto de este archivo -- una funcion
 // pura, probada aparte -- aplicada a otra pantalla.
 //
+// Y DESDE LA TASK 9 TAMBIEN SIRVE A /admin/personal: cruzarPersonal(), al
+// final del archivo, junta una fila de `staff_members` con su fila de
+// `alumnos` -- dos consultas que lib/admin/personal.ts hace por separado,
+// porque el embed entre esas dos tablas no existe -- ver el comentario de la
+// funcion, con la medicion que lo confirma.
+//
 // IMPORTS RELATIVOS y no `@/`: este modulo lo carga filtros.test.ts, y Vitest
 // no conoce el alias que declara tsconfig.json -- no hay vitest.config.ts --.
 // `typecheck` y `build` pasan en verde con el alias; solo `vitest run` se
 // rompe. Medido en la Task 8 de la tanda 3A.
 import { fechaEnLima, sumarDias } from '../reservas/rejilla';
 
+import type { Database } from '../database.types';
 import type { EstadoReserva } from '../reservas/consultas';
 
 // Re-exportado para que la pantalla y sus componentes tengan un solo sitio de
@@ -309,4 +316,96 @@ export function particionarPorDia<T extends ReservaDelDia>(
     reservadas: delDia.filter((r) => r.estado === 'reserved'),
     activas: delDia.filter((r) => r.estado === 'active'),
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 9 · /admin/personal (D-52, D-53)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// El rol de un miembro del personal, leido del ESQUEMA GENERADO y no escrito
+// a mano como `'admin' | 'operator'` -- D-26 --. Si el enum ganara un tercer
+// valor algun dia, el typecheck de este archivo lo diria solo.
+export type RolStaff = Database['public']['Enums']['staff_role'];
+
+// Lo que cruzarPersonal() necesita leer de una fila de `staff_members`, y NADA
+// MAS. Estructural y declarado aca -- no importado de lib/admin/personal.ts --,
+// mismo motivo que ReservaDelDia mas arriba: ese modulo importa el cliente de
+// servidor por el alias `@/`, y este archivo lo carga Vitest.
+export type StaffParaCruce = {
+  userId: string;
+  rol: RolStaff;
+  activo: boolean;
+  registro: string; // `created_at` en ISO, tal cual llega
+};
+
+// Lo que cruzarPersonal() necesita leer de una fila de `alumnos` que YA tiene
+// `auth_user_id` -- la columna es nulable en el esquema, pero quien produce
+// este tipo (lib/admin/personal.ts) descarta esa rama antes de construirlo--.
+export type AlumnoParaCruce = {
+  authUserId: string;
+  email: string;
+  nombre: string | null;
+  apellido: string | null;
+};
+
+// Lo que pinta /admin/personal por cada miembro. Misma forma que
+// `ReservaFiltrable.alumno` mas arriba: `nombre` y `apellido` nulables por
+// separado, `email` no.
+export type MiembroPersonal = {
+  userId: string;
+  rol: RolStaff;
+  activo: boolean;
+  registro: string; // `created_at` en ISO, tal cual llega
+  // `null` cuando NO hay fila en `alumnos` para este `user_id`. La rama
+  // IMPORTA aunque hoy sea el camino menos comun -- no es un caso teorico,
+  // pero tampoco el camino normal --: desde D-32 el enganche Before User
+  // Created `private.hook_restrict_signup_domain()`
+  // (supabase/migrations/20260807002839_signup_domain_hook.sql) RECHAZA el
+  // registro si el correo no termina en `@upc.edu.pe`, asi que por el flujo
+  // normal -pedir el enlace de acceso- una cuenta asi ya no deberia poder
+  // nacer. Sigue siendo alcanzable saltandose ese flujo -por SQL directo: el
+  // propio seed local inserta `alguien@gmail.com` en `auth.users` asi
+  // (supabase/seed.sql:105), sin pasar por Auth ni por el enganche-, y
+  // `staff_members.user_id` referencia `auth.users`, no `alumnos`: nada en el
+  // esquema impide que una fila de personal exista sin fila de alumnos. (El
+  // primer admin de produccion NO es un ejemplo de esta rama: Task 9 de
+  // MIGRATION_DOCS/PLANES/FASE_2_TANDA_1.md exige entrar primero por el flujo
+  // normal con la cuenta @upc.edu.pe -Step 1- y recien despues insertar por
+  // SQL SOLO la fila de `staff_members` -Step 3-, asi que esa cuenta si tiene
+  // fila en `alumnos`: el trigger ya la habia creado.) El cruce no puede
+  // descartar la fila sin alumno: perder de vista a un miembro del personal
+  // es peor que mostrarlo sin correo.
+  alumno: { email: string; nombre: string | null; apellido: string | null } | null;
+};
+
+/**
+ * Cruza el personal con sus datos de alumno, por `user_id` / `auth_user_id`.
+ *
+ * PURA: sin red, sin Supabase, mismo espiritu que el resto del archivo. Hace
+ * falta como funcion aparte porque el embed que haria PostgREST solo
+ * -`staff_members(...alumnos(...))`- no existe: `staff_members.user_id`
+ * referencia `auth.users`, no `alumnos`, y no hay ninguna FK entre las dos
+ * tablas. La medicion completa -el codigo, el HTTP y el mensaje literal de
+ * PostgREST- esta en el comentario de cabecera de lib/admin/personal.ts, que
+ * es quien hace las DOS consultas por separado y le pasa los dos arrays a
+ * esta funcion.
+ *
+ * EL ORDEN QUE ENTRA ES EL ORDEN QUE SALE: recorre `staff` con `.map()`, que
+ * no reordena, asi que quien decide el orden final es el `order('created_at')`
+ * de la consulta en lib/admin/personal.ts, no esta funcion.
+ */
+export function cruzarPersonal(staff: StaffParaCruce[], alumnos: AlumnoParaCruce[]): MiembroPersonal[] {
+  const porUserId = new Map(alumnos.map((a) => [a.authUserId, a]));
+
+  return staff.map((s) => {
+    const alumno = porUserId.get(s.userId) ?? null;
+
+    return {
+      userId: s.userId,
+      rol: s.rol,
+      activo: s.activo,
+      registro: s.registro,
+      alumno: alumno ? { email: alumno.email, nombre: alumno.nombre, apellido: alumno.apellido } : null,
+    };
+  });
 }

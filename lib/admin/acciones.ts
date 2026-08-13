@@ -12,7 +12,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { reservasVivas } from '@/lib/admin/dias';
-import { particionarPorDia } from '@/lib/admin/filtros';
+import { particionarPorDia, type RolStaff } from '@/lib/admin/filtros';
 import { hoyEnLima } from '@/lib/reservas/rejilla';
 import { createClient } from '@/lib/supabase/server';
 
@@ -1001,3 +1001,235 @@ export async function habilitarDia(fecha: string): Promise<ResultadoAdmin> {
 
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 9 · /admin/personal (D-52, D-53)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que el ALTA de personal puede provocar de verdad.
+// Mismo criterio de siempre -- texto propio SOLO para lo alcanzable, mensaje
+// CRUDO para lo demas --.
+//
+// MEDIDO POR PostgREST el 2026-08-13, con un JWT de ADMIN firmado a mano
+// contra el stack local:
+//
+//   POST con un user_id que YA es personal
+//     -> HTTP 409, code "23505", constraint "staff_members_pkey"
+//   POST con un user_id que no existe en auth.users
+//     -> HTTP 409, code "23503", constraint "staff_members_user_id_fkey",
+//        details 'Key is not present in table "users".'
+//
+// LOS DOS DAN EL MISMO HTTP -409- Y CODIGOS DISTINTOS: por eso se distinguen
+// por el nombre de la restriccion en el mensaje, no por el status.
+function mensajeDeRechazoPersonal(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('staff_members_pkey')) {
+    return 'Esa persona ya es parte del personal.';
+  }
+
+  if (mensajeDelMotor.includes('staff_members_user_id_fkey')) {
+    // OJO CON EL TEXTO: NO es "todavia no tiene acceso" -- para cuando este
+    // codigo llega, darDeAltaPersonal() ya leyo `auth_user_id` de una fila de
+    // `alumnos` que SI lo tenia. Si el motor igual rechaza el INSERT con este
+    // codigo, es porque esa cuenta desaparecio de `auth.users` en el medio, y
+    // decirle a alguien "entra primero con tu enlace" seria un consejo
+    // equivocado para ese caso: la cuenta ya no esta, no es que nunca entro.
+    return 'Esa cuenta ya no existe en el sistema de acceso. Puede haberse eliminado justo después de que la buscaste; vuelve a intentarlo.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// Alta de personal (D-53: se busca por el CORREO COMPLETO, nunca con un
+// buscador incremental ni trayendo todos los alumnos -- asi ninguna lectura
+// de `alumnos` queda expuesta como endpoint invocable desde el navegador --).
+//
+// EL CORREO SE NORMALIZA con trim() y toLowerCase() antes de buscar: el
+// trigger handle_new_auth_user
+// (supabase/migrations/20260805194424_alumno_provisioning.sql:26-37) guarda
+// `alumnos.email` en minusculas con lower(), asi que buscar con mayusculas no
+// encontraria a nadie aunque la cuenta exista.
+//
+// TRES CAUSAS DISTINTAS PARA "no se puede dar de alta", con tres mensajes
+// porque cada una la arregla una persona distinta:
+//   1. No hay fila en `alumnos` con ese correo -- `GET
+//      alumnos?email=eq.<correo que no existe>` da HTTP 200 con `[]`, medido,
+//      no un error --. El mensaje dice las DOS causas posibles: nunca pidio
+//      su enlace de acceso, o su correo no es @upc.edu.pe -- el trigger de
+//      arriba solo crea la fila para ese dominio, asi que buscar en `alumnos`
+//      ya filtra el dominio solo, sin escribir ninguna comprobacion aca --.
+//   2. La fila EXISTE pero `auth_user_id` es `null`: alguien la registro --o
+//      es una fila historica-- y nunca llego a pedir el magic link, que es lo
+//      que rellena esa columna. Sin `auth_user_id` no hay a quien insertar en
+//      `staff_members`, cuyo `user_id` referencia `auth.users`.
+//   3. La fila y el `auth_user_id` existen, y el INSERT lo rechaza el motor:
+//      ya es personal, o -- carrera entre el SELECT de arriba y este INSERT,
+//      no un caso normal -- la cuenta desaparecio de `auth.users` justo en el
+//      medio. Los dos mensajes se traducen abajo en mensajeDeRechazoPersonal().
+export async function darDeAltaPersonal(correo: string, rol: RolStaff): Promise<ResultadoAdmin> {
+  const correoNormalizado = correo.trim().toLowerCase();
+
+  if (correoNormalizado === '') {
+    return { error: 'Escribe el correo completo de la persona.' };
+  }
+
+  const supabase = await createClient();
+
+  const { data: alumnos, error: errorAlumno } = await supabase
+    .from('alumnos')
+    .select('auth_user_id')
+    .eq('email', correoNormalizado);
+
+  if (errorAlumno) {
+    return { error: errorAlumno.message };
+  }
+
+  if (alumnos.length === 0) {
+    return {
+      error:
+        'No encontramos esa cuenta. O todavía no pidió nunca su enlace de acceso, o su correo no es @upc.edu.pe.',
+    };
+  }
+
+  const authUserId = alumnos[0].auth_user_id;
+
+  if (authUserId === null) {
+    return {
+      error:
+        'Esa cuenta existe pero todavía no entró nunca con su enlace de acceso. Pídele que entre al menos una vez antes de darla de alta.',
+    };
+  }
+
+  const { error: errorAlta } = await supabase
+    .from('staff_members')
+    .insert({ user_id: authUserId, role: rol })
+    .select();
+
+  if (errorAlta) {
+    return { error: mensajeDeRechazoPersonal(errorAlta.message) };
+  }
+
+  revalidatePath('/admin/personal');
+
+  return null;
+}
+
+// Cambia el rol de alguien que YA es personal (D-52: operator <-> admin, con
+// el mismo GRANT y la misma politica que la baja de abajo).
+//
+// PIDE LA FILA DE VUELTA CON `.select()` Y TRATA EL VACIO COMO ERROR. Motivo
+// MEDIDO: un PATCH de `staff_members` con un JWT de OPERADOR sobre la fila de
+// OTRO -- el operador no tiene politica de UPDATE sobre esa tabla -- devolvio
+// HTTP 200 con CUERPO VACIO `[]` y NINGUN ERROR. Sin este chequeo el fallo
+// seria silencioso, exactamente lo que se midio.
+export async function cambiarRolPersonal(userId: string, rol: RolStaff): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  // ESTO NO ES UN CONTROL, es VISIBILIDAD: quien de verdad decide si este
+  // PATCH puede tocar una fila es RLS, y RLS SI deja al admin tocar la SUYA
+  // propia -- medido: el admin desactivandose a si mismo da HTTP 200 CON LA
+  // FILA --. El chequeo existe porque, DESPUES de eso, no hay forma de
+  // revertirlo desde la aplicacion -- medido: ese mismo admin intentando
+  // reactivarse da HTTP 200 con `[]`, porque private.is_admin() exige
+  // `activo` y ya no lo esta --. Con un solo admin en produccion, ese clic
+  // deja a todo el personal sin panel. El agujero por SQL directo sigue
+  // abierto: esto no lo cierra, evita pisarlo desde esta pantalla.
+  const { data: claims } = await supabase.auth.getClaims();
+  const sub = claims?.claims.sub;
+
+  if (sub === userId) {
+    return { error: 'No puedes cambiar tu propio rol desde aquí.' };
+  }
+
+  // SIN mensajeDeRechazoPersonal() aca: esa traduccion es para el ALTA -- un
+  // INSERT --, y ni 23505 (`staff_members_pkey`) ni 23503
+  // (`staff_members_user_id_fkey`) son alcanzables desde un UPDATE de `role`
+  // sobre una fila que ya existe. El mensaje crudo es lo que corresponde,
+  // mismo criterio de siempre: texto propio SOLO para lo alcanzable.
+  const { data, error } = await supabase
+    .from('staff_members')
+    .update({ role: rol })
+    .eq('user_id', userId)
+    .select();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo cambiar el rol. Puede que esa persona ya no sea parte del personal.' };
+  }
+
+  revalidatePath('/admin/personal');
+
+  return null;
+}
+
+// Activa o desactiva a alguien que ya es personal. `activo=false` es la baja
+// de verdad, no un simulacro: `private.is_staff()` y
+// `private.current_staff_role()`
+// (supabase/migrations/20260805193357_private_helpers.sql:59-65 y :78-86)
+// exigen `activo` en su `where`, asi que desactivar corta el acceso al
+// mostrador y a la administracion sin ambiguedad, sin depender de esta
+// pantalla ni de ningun otro control del cliente.
+export async function cambiarActivoPersonal(userId: string, activo: boolean): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  // Misma VISIBILIDAD que cambiarRolPersonal(), y por el mismo motivo medido:
+  // RLS SI deja al admin desactivarse a si mismo, y despues no hay forma de
+  // revertirlo desde la aplicacion. No es un control -- por SQL directo el
+  // agujero sigue ahi --, es evitar el caso mas caro de pisar sin querer: con
+  // un solo admin en produccion, un clic asi deja a todo el personal sin
+  // panel y a nadie que pueda revertirlo desde la pantalla.
+  const { data: claims } = await supabase.auth.getClaims();
+  const sub = claims?.claims.sub;
+
+  if (sub === userId) {
+    return { error: 'No puedes cambiar tu propio acceso desde aquí.' };
+  }
+
+  // SIN mensajeDeRechazoPersonal() aca, mismo motivo que cambiarRolPersonal():
+  // esa traduccion es para el INSERT del alta, y ninguno de sus dos codigos es
+  // alcanzable desde este UPDATE.
+  const { data, error } = await supabase
+    .from('staff_members')
+    .update({ activo })
+    .eq('user_id', userId)
+    .select();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo cambiar el acceso. Puede que esa persona ya no sea parte del personal.' };
+  }
+
+  revalidatePath('/admin/personal');
+
+  return null;
+}
+
+// POR QUE ESTA PANTALLA NO OFRECE UNA BAJA DE VERDAD (DELETE), Y NO ES UN
+// OLVIDO: el privilegio esta concedido -- `grant insert, update, delete on
+// public.staff_members to authenticated`
+// (supabase/migrations/20260805194015_staff_policies.sql:14) --, y
+// `staff_admin_all` es `for all`, asi que el admin SI podria borrar una fila
+// por la API. No se ofrece a proposito, por dos motivos:
+//   1. `activo=false` ya corta el acceso de verdad -- ver el comentario de
+//      cambiarActivoPersonal() --, asi que borrar no gana nada que la baja no
+//      gane ya.
+//   2. Borrar NO ROMPE el historial -- y hay que decirlo con precision, no
+//      solo en general. `reservation_status_log.changed_by` e
+//      `inventory_unit_notes.created_by`
+//      (supabase/migrations/20260805030123_baseline.sql:485 y :460) son FK a
+//      `auth.users`, no a `staff_members`, y llevan `ON DELETE SET NULL`
+//      sobre `auth.users`. Borrar la fila de `staff_members` no toca esas
+//      columnas: el uuid se queda exactamente igual. `staff_members` tampoco
+//      guarda nombre ni correo -- sus columnas son `user_id`, `role`,
+//      `activo`, `created_at` y `updated_at`, que es justo por lo que existe
+//      cruzarPersonal() -- asi que esta pantalla nunca "resuelve" con ella el
+//      nombre de quien firmo una nota. Lo que SI se pierde al borrar es la
+//      UNICA constancia de que ese uuid fue parte del personal y con que rol.
+//      `activo=false` conserva esa constancia y corta el acceso igual (ver el
+//      comentario de cambiarActivoPersonal()), asi que borrar no gana nada y
+//      si pierde ese registro.

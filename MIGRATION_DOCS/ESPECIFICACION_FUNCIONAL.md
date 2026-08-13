@@ -313,6 +313,9 @@ Motivo explícito: poder auditar un equipo perdido.
   - `inventory_unit_notes.created_by = auth.uid()` en vez del `null` actual.
   - `disabled_days.created_by = auth.uid()`.
 - Las políticas RLS verifican pertenencia y rol; ninguna autorización queda en el cliente.
+- ⚠ **Ampliado el 2026-08-13** → **D-52**: **la pantalla de personal SÍ deja cambiar el rol** de alguien que ya es personal, entre operador y administrador. Es un `UPDATE` de la columna `role` con el mismo privilegio y la misma política que la baja, y está medido que funciona. Sin esa opción, un operador sería operador para siempre. Nadie puede cambiarse el rol a sí mismo, porque hay un solo administrador y degradarse sería irreversible desde la aplicación.
+- ⚠ **Ampliado el 2026-08-13** → **D-53**: **el alta de personal se hace escribiendo el correo completo**, no con un buscador ni trayendo todos los alumnos a la pantalla. Así ninguna lectura de la tabla `alumnos` queda expuesta como endpoint invocable desde el navegador. La lista de alumnos crece con cada acceso, y la pantalla explica las dos causas posibles cuando el correo no aparece —nunca pidió enlace, o correo no es `@upc.edu.pe`— porque la aplicación no puede distinguirlas.
+- ⚠ **Anotado el 2026-08-13**: dar de alta solo alcanza a quien ya pidió su enlace de acceso al menos una vez. La aplicación solo ve el identificador de cuenta a través de la ficha de alumno, y esa ficha nace al pedir el enlace y solo para correos `@upc.edu.pe`. **La baja es desactivar y nunca borrar:** desactivar corta el acceso de verdad, y borrar perdería la constancia de que esa persona fue personal y con qué rol.
 
 ### D-3 · Ventana de reserva móvil *(reemplaza BR-10)*
 
