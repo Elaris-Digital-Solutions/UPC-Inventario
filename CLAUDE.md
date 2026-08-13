@@ -101,11 +101,14 @@ comprobación previa **no** es que la fila exista sino que `email_confirmed_at` 
 
 ## Fase 2 en marcha
 
-**Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** ~~Cinco tandas~~ **seis desde el
-2026-08-08** *(D-34)*, un PR cada una *(D-27)*: **T0** cimientos, **T1** sesión, **T2A** el alumno que
-mira, **T2B** el alumno que reserva, **T3** personal, **T4** endurecimiento. Decisiones D-19 a D-34;
-cerrados Q-7, Q-11, Q-12 y **Q-15**; abierto Q-14; **Q-16 respondido y aplazado** —no dan acceso al tenant
-de Entra ID, así que Microsoft queda fuera—.
+**Diseño escrito el 2026-08-06: `MIGRATION_DOCS/FASE_2_DISENO.md`.** ~~Cinco tandas~~ ~~**seis desde el
+2026-08-08** *(D-34)*~~ **SIETE desde el 2026-08-11** *(D-37)*, un PR cada una *(D-27)*: **T0** cimientos,
+**T1** sesión, **T2A** el alumno que mira, **T2B** el alumno que reserva, ~~**T3** personal~~ **T3A** el
+mostrador, **T3B** la administración, **T4** endurecimiento. ~~Decisiones D-19 a D-34~~ **decisiones D-19 a
+D-54 al 2026-08-13**; cerrados Q-7, Q-11, Q-12, **Q-15**, **Q-17** y **Q-14** ~~abierto Q-14~~; **abiertos
+Q-18 y Q-19, los dos con destino la T4**; **Q-16 respondido y aplazado** —no dan acceso al tenant de Entra
+ID, así que Microsoft queda fuera—. ⚠ *Las tres cifras tachadas eran ciertas al escribirlas y se corrigen
+fechadas el 2026-08-13, no se borran: **seis de las siete tandas están cerradas**, y solo queda la T4.*
 
 **La T2 se partió al escribir su plan** *(D-34)*, que es donde el diseño decía que se decidiría: el
 desglose dio **16 tareas**. **Pero el corte no fue por tamaño: la T2A no escribe una sola fila en la base**
@@ -165,17 +168,61 @@ reserva de punta a punta: calendario, reserva, bloqueo por sanción, `/mi-panel`
 T3 se partió en T3A y T3B *(D-37)*; la T3A ya cerró, ver el párrafo siguiente.
 
 **T3A CERRADA el 2026-08-12.** Las 10 tareas cerradas. Nueve commits en `feature/fase-2-tanda-3a` al
-empezar la sesión de hoy, más el de los textos y el de esta documentación de cierre, sin empujar todavía.
+empezar la sesión de hoy, más el de los textos y el de esta documentación de cierre, ~~sin empujar
+todavía~~ ⚠ **empujado el 2026-08-12: PR #29, merge en `6b5dca2`, cuatro corridas de CI y las cuatro
+verdes**.
 El personal ya atiende el mostrador de punta a punta: tres columnas —«Por entregar», «Activas», «Por
 devolver»—, entregar, recibir, las dos faltas con confirmación y sanción real, anotaciones de unidad con su
 historial, y un filtro de fecha sobre «Por entregar». **Y la migración 23** *(D-38, cierra Q-17)*: la base
 pasa de 22 migraciones y 142 aserciones a **23 migraciones y 147 aserciones en 24 archivos**, medido con
-`npx supabase test db`, sin empujar al remoto. **Vitest de 43 pruebas en 3 archivos a 65 en 5.** El `build`
+`npx supabase test db`, ~~sin empujar al remoto~~ ⚠ **Corregido el 2026-08-12: la migración 23 YA ESTÁ en
+producción**, con las 23 en `local` y `remote` idénticas, y verificada por el efecto en `pg_proc.prosrc`.
+**Vitest de 43 pruebas en 3 archivos a 65 en 5.** El `build`
 pasó de **trece rutas a catorce**, con las mismas tres estáticas. Abierto **Q-18**: las notas de unidad las
 lee cualquier alumno con sesión —es **D-2**, la trazabilidad legible, no un fallo nuevo—, y esta es la
 primera tanda que escribe ahí desde una pantalla. Mitigado por texto en los dos diálogos que escriben
-notas; arreglarlo de verdad es RLS, y queda para la T4 o una migración propia. **Siguiente: la T3B, la
-administración.**
+notas; arreglarlo de verdad es RLS, y queda para la T4 o una migración propia. ~~**Siguiente: la T3B, la
+administración.**~~ ⚠ **Corregido el 2026-08-13: la T3B también cerró, ver el párrafo siguiente.**
+
+**T3B CERRADA el 2026-08-13. Las trece tareas, y con ella la aplicación entera menos el endurecimiento.**
+Dieciséis commits en `feature/fase-2-tanda-3b` sobre `develop` (`6b5dca2`), **sin empujar**. El
+administrador ya hace su trabajo completo: inventario en tres URL *(D-43)*, alta de producto con sus
+unidades, estado de unidad y baja como `retired`, imágenes con **subida firmada desde el servidor**,
+`/admin/reservas`, `/admin/dias`, `/admin/estadisticas`, `/admin/personal` y `/admin/ajustes`. El `build`
+pasó de **catorce rutas a 23**, tres estáticas, con **ocho colgando de `/admin/`**; Vitest de **65 pruebas
+en 5 archivos a 138 en 10**. **La base no se movió: 23 migraciones y 147 aserciones en 24 archivos**, y
+esta vez está comprobado al final con `db reset` y `supabase test db` — **D-41 cumplido**. **Cierra P0-4,
+el último defecto crítico de la auditoría, y Q-14.** **Catorce decisiones nuevas, D-41 a D-54**, todas
+tomadas antes de escribir el código que las aplica. **127 correcciones al plan** en
+`MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md`. **Siguiente: la T4, el endurecimiento**, que hereda **Q-18**
+—las notas de unidad legibles por cualquier alumno con sesión—, **Q-19** —que la base ate `opening_time` a
+`slot_minutes` por su cuenta—, **Q-13** y **Q-10**, el advisor **`auth_leaked_password_protection`**
+desactivado, **`supabase/setup-cli@v1` apuntando a Node.js 20**, ya deprecado, y **M-12**, la cancelación
+con antelación mínima.
+
+**Y P0-4 enseña algo que el registro no decía: desarmar una trampa no es construir el sustituto.** La Fase
+0 le quitó el prefijo `VITE_` a la variable y la fila quedó en «corregido» **ocho días, del 2026-08-04 al
+2026-08-12**. Lo que
+faltaba —el camino por el que se firma una subida sin exponer el secreto— lo construyó esta tanda. **Y ese
+handler es la única excepción del proyecto a «quien autoriza es RLS»:** todo lo demás habla con Postgres,
+así que autoriza una política y el cliente es comodidad; **ese archivo habla con Cloudinary y detrás no hay
+ninguna política**. Ahí sí, quitar la comprobación del servidor abre un agujero.
+
+**Tres cosas de la T3B que ninguna herramienta podía dar, y que valen para cualquier tanda futura.** La
+primera: **un `PATCH` de PostgREST sin filtro no se ejecuta** —`21000`, «UPDATE requires a WHERE clause»—,
+y **quien no tiene política recibe `200` con `[]` y ningún error**, así que toda escritura pide la fila con
+`.select()` y trata el vacío como fallo. La segunda: **una hora de apertura desalineada deja el calendario
+entero irreservable** *(D-54)* —35 franjas ofrecidas y las 35 rechazadas—, y **el contraejemplo acota la
+regla a esa sola columna**, porque con el cierre desalineado la última franja se reservó sin problema. La
+tercera: **React resetea un `<form action>` cuando la acción devuelve error**, así que un alta rechazada
+por una errata vaciaba el formulario entero, con los cuatro comandos en verde.
+
+**«No tiene política» es una convención de este proyecto, no siempre un hecho.** La frase aparece en
+`app/(personal)/admin/layout.tsx`, dos veces en `lib/admin/acciones.ts` y hasta en una migración de la Fase
+1. En tres de esos cuatro sitios **la política sí existe** y lo que es falso es su `USING`; solo en
+`final_satisfaction_surveys` es literalmente cierta. Los dos mecanismos dan el mismo fallo silencioso, así
+que **el código está bien y no se toca** — pero quien vaya alguna vez a «crear la política que falta», que
+la mire antes.
 
 **El `seed.sql` impedía entrar en local, y ya no.** Faltaban cuatro columnas de token en el `insert into
 auth.users` —`confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`—, y se
@@ -202,6 +249,28 @@ TRECE**, con el código funcionando en los trece.
 **Y desde la Task 13 el género se desplazó: los cuatro últimos son de ATRIBUCIÓN**, no de dato — el hecho
 es cierto y lo inventado es de dónde sale. **Comprobar el dato los confirma**, así que hay que verificar
 **el hecho Y la fuente**: son dos comprobaciones distintas y cuestan lo mismo.
+
+⚠ **Corregido el 2026-08-13, al cerrar la T3B: van TREINTA, y ya son OCHO géneros.** A los dos de
+arriba —dato inventado y fuente inventada— se sumaron: **sobre-afirmación de alcance** (el cuantificador
+estirado sobre un fondo cierto), **falsedad sobre la propia salvaguarda** (dice haber comprobado algo en un
+comentario que no lo comprueba), **leer mal el contador de una herramienta** (el `(20/20)` de «Generating
+static pages» **no es el número de rutas**), **relación invertida entre dos identificadores que existen**
+(«D-54 cierra Q-19», cuando Q-19 se abre), **falsedad sobre la propia acción** (informó de una corrección
+que no hizo, con cero llamadas a herramientas), y el último, **coordenadas inventadas sobre una acción que
+sí hizo**: cuatro ediciones correctas y los números de línea de dónde quedaron, inventados.
+
+**Así que hay que verificar SEIS cosas por separado, y cuestan lo mismo:** el hecho; la fuente; hasta dónde
+llega la afirmación; si el número salió del propio encargo; si la edición está de verdad en el archivo; y
+si las coordenadas que cita son ciertas. **La respuesta barata a la última es no pedirle coordenadas** —
+que pegue el contenido, y que los números de línea los busque quien verifica.
+
+**Y quien dicta tampoco está a salvo: van VEINTE errores de quien dictaba.** Salen todos de la misma
+pregunta al final de cada encargo —*qué no verificaste, y qué te pareció contradictorio*—, que es lo más
+barato que hay. Los géneros repetidos: **una contradicción numérica dentro del propio encargo**, que un
+subagente fiel copia al pie de la letra sin notar el choque; **un total dictado que no cuadra con la lista
+dictada al lado**; **la instrucción de formato pegada al dato en la misma frase**, que termina copiada
+dentro del documento en vez de ejecutarse; y **una predicción mal contada**, que hace acusar a la pantalla
+de un defecto que no tiene. **Revisar el encargo antes de mandarlo vale tanto como revisar lo que vuelve.**
 
 **Y quien dicta no está a salvo, que es lo que la T2B añade.** Pedirle al subagente que enumere lo que
 **no** verificó y si algo del encargo le pareció contradictorio ha destapado **cinco** cosas, y **tres

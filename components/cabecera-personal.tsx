@@ -39,29 +39,75 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
             <Link href="/mostrador">Mostrador</Link>
           </Button>
 
-          {/* NO hay enlaces a /admin/* todavia, aunque el plan de la Task 1
-              de esta tanda (FASE_2_TANDA_3A.md) lo pida. Correccion anotada
-              aqui, en el propio archivo: esas cinco pantallas -inventario,
-              reservas, dias, estadisticas, personal y ajustes- no existen
-              hasta la T3B, asi que un enlace a /admin/inventario hoy lleva a
-              un 404. Ofrecerle a un admin un enlace roto es peor que no
-              ofrecerle ninguno. Cuando la T3B las construya, van aca, y solo
-              bajo `role === "admin"` -el operador nunca las ve, ademas de que
-              private.is_admin() se las negaria igual si escribiera la URL a
-              mano.
-              Y el efecto que esto NO arregla, porque es preexistente:
-              lib/auth/destino.ts manda al admin a /admin/inventario nada mas
-              entrar, y esa ruta va a seguir dando 404 hasta la T3B. No lo
-              introduce esta tanda y no se arregla aca; queda dicho.
+          {/* HISTORIA DE ESTE HUECO, que ya no lo es.
+              Durante toda la T3A aca NO hubo ningun enlace a /admin/*: esas
+              pantallas no existian, y ofrecerle a un admin un enlace roto es
+              peor que no ofrecerle ninguno. La Task 1 de la T3B
+              (FASE_2_TANDA_3B.md) construye /admin/inventario, asi que el
+              enlace entra ahora.
 
-              Aca hubo una primera version con `{role === "admin" && null}`,
-              escrita para que ESLint no marcara `role` como prop sin usar. Se
-              quito: es codigo que no renderiza nada y existe solo para callar
-              a una herramienta, y un lector futuro no tiene forma de saber
-              que no hace falta. La regla del linter tenia razon -el prop no
-              se estaba usando-, y la respuesta correcta no era esquivarla
-              sino darle al prop un uso de verdad, que es el distintivo de
-              abajo. */}
+              CORRECCION al comentario que habia aca hasta hoy: decia "esas
+              cinco pantallas" y a continuacion enumeraba SEIS -inventario,
+              reservas, dias, estadisticas, personal y ajustes-. Son seis: la
+              sexta es /admin/ajustes, que el diseño de la fase no tenia -su
+              tabla de rutas y su arbol listan cinco- y que nace de D-39, para
+              poder cerrar Q-14. El numero estaba mal, la lista estaba bien.
+
+              CADA ENLACE ENTRA EN LA TAREA QUE CONSTRUYE SU PANTALLA, nunca
+              antes. El criterio no cambio: un enlace en la cabecera lo ve el
+              admin en TODAS las pantallas, asi que aca no se anticipa nada.
+              Dentro de una tabla si se anticipa -ver
+              components/admin/tabla-inventario.tsx-, porque ahi el enlace roto
+              solo lo alcanza quien esta mirando esa tabla y le faltan dos
+              commits de plazo, no una tanda.
+              /admin/reservas se suma en la Task 6, y HACIA FALTA MIRAR LA
+              PANTALLA PARA VERLO: los cuatro comandos estaban en verde con la
+              ruta construida, funcionando y sin una sola forma de llegar a
+              ella que no fuera teclear la URL. Ninguna herramienta comprueba
+              que una pantalla nueva este enlazada desde algun sitio.
+              /admin/dias se suma en la Task 7, por el mismo motivo: no se
+              deja para "despues" -- aca no hay despues, cada tarea enlaza la
+              suya. /admin/estadisticas se suma ahora, en la Task 8, por el
+              mismo motivo otra vez. /admin/personal se suma en la Task 9,
+              otra vez por el mismo motivo: sin este enlace, /admin/personal
+              quedaria construida, funcionando y solo alcanzable tecleando la
+              URL a mano -- exactamente el defecto que este comentario viene
+              anotando desde la Task 6. Y /admin/ajustes se suma en la Task
+              10, y CON ESTE ENLACE CIERRA LA LISTA DE SEIS que este
+              comentario viene enumerando desde la Task 1.
+
+              Y el 404 que esto SI arregla, y que era preexistente:
+              lib/auth/destino.ts manda al admin a /admin/inventario nada mas
+              entrar. Esa ruta dio 404 desde la T1 -verificado en pantalla el
+              2026-08-12 con sesion de admin- y desde esta Task 1 ya no.
+
+              `role` tiene ademas el uso de siempre, el distintivo de mas
+              abajo. Se deja dicho porque aca hubo una vez un
+              `{role === "admin" && null}` escrito solo para callar a ESLint,
+              y se quito: la regla tenia razon y la respuesta correcta no era
+              esquivarla. */}
+          {role === "admin" && (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/inventario">Inventario</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/reservas">Reservas</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/dias">Días</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/estadisticas">Estadísticas</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/personal">Personal</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/ajustes">Ajustes</Link>
+              </Button>
+            </>
+          )}
 
           {/* Con que cuenta se esta operando. Esto es VISIBILIDAD y no
               estetica: la misma persona puede tener fila de admin y estar

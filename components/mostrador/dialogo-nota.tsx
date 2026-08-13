@@ -63,9 +63,15 @@ type DialogoNotaProps = {
   // Se usa solo para el titulo.
   unidad: string;
   notas: NotaUnidad[];
+  // La ruta a revalidar tras guardar. Agregada por la Task 3 de la tanda 3B,
+  // que reutiliza este dialogo desde /admin/inventario/[id]: sin esto,
+  // anotar() refrescaria /mostrador -- una pantalla que el admin no esta
+  // mirando -- y dejaria rancia la que si. Con valor por defecto para que el
+  // mostrador siga llamandolo igual que en la T3A.
+  ruta?: string;
 };
 
-export function DialogoNota({ unidadId, unidad, notas }: DialogoNotaProps) {
+export function DialogoNota({ unidadId, unidad, notas, ruta }: DialogoNotaProps) {
   const [abierto, setAbierto] = useState(false);
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +87,7 @@ export function DialogoNota({ unidadId, unidad, notas }: DialogoNotaProps) {
   function confirmar() {
     setError(null);
     iniciarTransicion(async () => {
-      const resultado: ResultadoMostrador = await anotar(unidadId, nota);
+      const resultado: ResultadoMostrador = await anotar(unidadId, nota, ruta);
 
       if (resultado?.error) {
         setError(resultado.error);
