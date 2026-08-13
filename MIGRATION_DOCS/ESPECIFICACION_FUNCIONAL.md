@@ -205,6 +205,11 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
 Cinco indicadores: reservas registradas, préstamos esta semana, reservas activas ahora, completadas,
 canceladas. Más desgloses por día de la semana.
 
+- ⚠ **Corregido el 2026-08-13** → **D-48**: «Reservas activas ahora» cuenta el estado `active` y no mira el reloj, lo que incluye los préstamos cuyo fin ya venció y siguen sin devolver, porque ese equipo también está fuera. Corrige la fórmula del panel de Vite, que contaba `reserved` con el instante dentro de la franja.
+- ⚠ **Ampliado el 2026-08-13** → **D-49**: «Préstamos esta semana» es una ventana móvil hacia atrás: hoy y los seis días anteriores, en días civiles de Lima. Cuenta solo lo que se llegó a retirar — `active`, `completed` y `not_returned` — y deja fuera `cancelled` y `not_picked_up`, que nunca fueron un préstamo. La dirección es hacia atrás porque es una estadística y describe lo que ya pasó.
+- ⚠ **Ampliado el 2026-08-13** → **D-50**: el desglose por día de la semana va sobre todo el histórico y no sobre la semana del indicador anterior, porque responde «qué día se pide más equipo». Cuenta el mismo conjunto de estados que D-49, y por eso la pantalla lo titula «Préstamos por día de la semana»: la etiqueta dice qué conjunto es.
+- ⚠ **Ampliado el 2026-08-13** → **D-51**: el panel muestra ocho indicadores y no los cinco de este párrafo original — los seis estados, más el total de registradas, más los préstamos de la semana. Los seis estados suman exactamente el total, y eso se comprueba de un vistazo en la propia pantalla.
+
 ### F10 · Encuesta de satisfacción (`final_satisfaction_surveys`)
 
 - Se dispara automáticamente si el alumno tiene alguna reserva creada después del **2026-03-20** y aún no la respondió.

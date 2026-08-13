@@ -189,3 +189,80 @@ export async function listarReservas(): Promise<ReservaAdmin[]> {
 
   return (data ?? []).map(filaAReservaAdmin);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 8 · /admin/estadisticas (F9, ampliada por D-51)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// La forma que lib/admin/estadisticas.ts necesita para sus agregados:
+// exactamente los dos campos de ReservaContable, con nombres ya traducidos.
+// Encaja ESTRUCTURALMENTE con ReservaContable -no se importa ese tipo aca,
+// mismo reparto que ya hay entre ReservaViva (lib/admin/dias.ts) y
+// ReservaDelDia (lib/admin/filtros.ts)-: quien produce el dato declara su
+// propio tipo, y quien lo consume declara el suyo, y los dos coinciden
+// porque TypeScript compara estructura y no nombre.
+export type ReservaEstadistica = {
+  inicio: string; // `start_at`, ISO tal cual llega
+  estado: EstadoReserva;
+};
+
+type FilaEstadisticaCruda = {
+  start_at: string;
+  status: EstadoReserva;
+};
+
+function filaAReservaEstadistica(fila: FilaEstadisticaCruda): ReservaEstadistica {
+  return {
+    inicio: fila.start_at,
+    estado: fila.status,
+  };
+}
+
+/**
+ * Las reservas para /admin/estadisticas: SOLO `start_at` y `status`, la
+ * tabla entera y sin ningun filtro.
+ *
+ * ES UNA CONSULTA PROPIA Y NO listarReservas() REUTILIZADA, por dos motivos.
+ * Primero, el volumen: esta pide DOS columnas contra las DIECISEIS que traduce
+ * filaAReservaAdmin() con TRES embeds -`products`, `inventory_units` y su
+ * `campuses` anidado- que esta pantalla ni pinta ni necesita, porque
+ * calcularEstadisticas() (lib/admin/estadisticas.ts) solo lee `inicio` y
+ * `estado`. Segundo, el contrato: listarReservas() devuelve `ReservaAdmin`,
+ * un tipo con `alumno`, `producto` y demas campos que aca quedarian sin
+ * usar; pedir menos columnas es mas barato que traerlas todas y descartarlas
+ * en memoria.
+ *
+ * SIN `order`, al reves que listarReservas() y reservasVivas(): las
+ * pantallas de aquellas dos funciones PINTAN una lista, y el primer render
+ * sin `order` dependeria del orden en que el motor devuelva las filas. Los
+ * agregados de esta pantalla -contar por estado, sumar la ventana de 7 dias,
+ * repartir por dia de la semana- no dependen en absoluto del orden de
+ * llegada: contarPorEstado() suma, no posiciona.
+ *
+ * TRAE LA TABLA ENTERA, y el limite se dice por delante en vez de
+ * descubrirlo tarde -mismo criterio que ya dejo anotado listarReservas():
+ * produccion tiene CERO reservas hoy (medido) y la escala esperada es de
+ * decenas, asi que traerlas todas y agregarlas en memoria es correcto y
+ * barato. Con decenas de miles de reservas esto se convierte en una vista
+ * SQL que agregue en la base -exactamente el tipo de trabajo que D-41 deja
+ * fuera de esta tanda-, y no es deuda oculta si queda escrita aca.
+ *
+ * El error se PROPAGA con throw, mismo criterio que listarReservas() y
+ * reservasVivas() y por el mismo motivo: un array vacio por un fallo de red
+ * o de RLS se leeria exactamente igual que "no hay ninguna reserva" -que
+ * ademas es el estado REAL de produccion hoy, medido-, y el admin no podria
+ * distinguir una pantalla rota de una base sin reservas todavia.
+ */
+export async function reservasParaEstadisticas(): Promise<ReservaEstadistica[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('inventory_reservations').select('start_at, status');
+
+  if (error) {
+    throw new Error(
+      `reservasParaEstadisticas: fallo la consulta a inventory_reservations: ${error.message}`,
+    );
+  }
+
+  return (data ?? []).map(filaAReservaEstadistica);
+}
