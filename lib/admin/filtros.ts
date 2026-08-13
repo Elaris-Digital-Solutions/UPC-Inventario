@@ -3,6 +3,13 @@
 // lib/mostrador/columnas.ts -- se puede PROBAR sin montar nada, y "que reserva
 // pasa el filtro" se decide en UN SOLO SITIO.
 //
+// DESDE LA TASK 7 TAMBIEN SIRVE A F8 (/admin/dias): particionarPorDia(), al
+// final del archivo, reparte las reservas "vivas" del dia que el admin elige
+// en reservadas y activas, para que esa pantalla sepa cuantas reservas se
+// cancelarian y cuantos prestamos ya entregados seguirian vigentes, ANTES de
+// confirmar. Es la misma idea que el resto de este archivo -- una funcion
+// pura, probada aparte -- aplicada a otra pantalla.
+//
 // IMPORTS RELATIVOS y no `@/`: este modulo lo carga filtros.test.ts, y Vitest
 // no conoce el alias que declara tsconfig.json -- no hay vitest.config.ts --.
 // `typecheck` y `build` pasan en verde con el alias; solo `vitest run` se
@@ -259,3 +266,47 @@ export const ORDEN_ORDENES: readonly OrdenReservas[] = [
   'inicio_asc',
   'registro_desc',
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 7 · /admin/dias (F8, D-40)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Lo que particionarPorDia() necesita leer de una reserva "viva", y NADA MAS.
+// Se declara estructural, mismo criterio que ReservaFiltrable mas arriba: no
+// se importa el tipo de lib/admin/dias.ts para no acoplar este modulo -- que
+// Vitest carga -- a uno que trae el cliente de servidor.
+export type ReservaDelDia = { id: string; inicio: string; estado: EstadoReserva };
+
+/**
+ * Reparte las reservas "vivas" -- reserved y active -- de un dia entre las que
+ * se cancelarian (reservadas) y las que seguirian vigentes (activas), para que
+ * /admin/dias pueda mostrar los DOS numeros antes de inhabilitar un dia.
+ *
+ * LA PERTENENCIA AL DIA SE DECIDE CON `fechaEnLima()`, COMPARANDO TEXTO CONTRA
+ * TEXTO -- `fechaEnLima(new Date(r.inicio)) === fecha` --, igual que ya hace
+ * pasaFiltroFechaReservas() unas lineas mas arriba en este archivo. NO es un
+ * rango de instantes UTC, y la razon no es gusto: un rango obligaria a
+ * escribir a mano que Lima es UTC-5 para convertir el dia civil `fecha` en sus
+ * dos extremos, y fechaEnLima() (lib/reservas/rejilla.ts:21-24) ya tiene
+ * escrita la regla contraria -- verificada literal antes de citarla aca --:
+ * "Se usa Intl y no aritmetica de horas porque Intl SI conoce el calendario de
+ * la zona; hoy Peru no cambia de hora, pero una resta de cinco horas escrita a
+ * mano seria una suposicion sin nadie que la vigile." Comparar texto reutiliza
+ * esa misma funcion en vez de escribir una segunda version de la regla.
+ *
+ * GENERICA sobre `T extends ReservaDelDia`, mismo motivo que filtrarYOrdenar()
+ * mas arriba: devuelve el tipo COMPLETO que le entra -- `ReservaViva`, con su
+ * `id`, que la pantalla necesita para mandar la lista al servidor -- y no el
+ * recorte que esta funcion necesita leer.
+ */
+export function particionarPorDia<T extends ReservaDelDia>(
+  reservas: T[],
+  fecha: string,
+): { reservadas: T[]; activas: T[] } {
+  const delDia = reservas.filter((r) => fechaEnLima(new Date(r.inicio)) === fecha);
+
+  return {
+    reservadas: delDia.filter((r) => r.estado === 'reserved'),
+    activas: delDia.filter((r) => r.estado === 'active'),
+  };
+}

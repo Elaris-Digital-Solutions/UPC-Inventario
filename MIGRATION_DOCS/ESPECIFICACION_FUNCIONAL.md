@@ -196,6 +196,8 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
   retiradas** (`reserved`), con esa misma razón; los préstamos ya **`active`** siguen vivos, para que el
   alumno los devuelva normal. No toca SQL: es exactamente lo que el motor permite hoy. La ejecuta la
   **T3B**, que construye `/admin/dias`; la T3A no la implementa.
+  - ⚠ **Ampliado el 2026-08-12** → **D-46**: inhabilitar un día exige un motivo escrito. Las dos filas que existen hoy tienen el motivo en `NULL` y se siguen leyendo; lo obligatorio es lo nuevo.
+  - ⚠ **Ampliado el 2026-08-12** → **D-47**: la razón que se guarda en las reservas canceladas incluye el motivo del día — «Cancelado por la administración (Día inhabilitado: {motivo})» —, para que el alumno lea por qué y no solo que fue la administración.
 - Lista de días inhabilitados; los futuros se pueden revertir, los pasados quedan en gris.
 
 ### F9 · Estadísticas (`components/admin/ReservationStatsPanel.tsx`)

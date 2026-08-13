@@ -8,9 +8,11 @@ import { describe, expect, it } from 'vitest';
 import {
   filtrarYOrdenar,
   normalizar,
+  particionarPorDia,
   pasaBusqueda,
   pasaFiltroEstado,
   pasaFiltroFechaReservas,
+  type ReservaDelDia,
   type ReservaFiltrable,
 } from './filtros';
 
@@ -226,5 +228,56 @@ describe('filtrarYOrdenar', () => {
   it('devuelve vacio cuando ningun filtro casa, sin reventar', () => {
     const r = filtrarYOrdenar(todas, { ...SIN_FILTRO, busqueda: 'zzz', orden: 'inicio_desc' }, AHORA);
     expect(r).toEqual([]);
+  });
+});
+
+describe('particionarPorDia', () => {
+  function reservaDelDia(cambios: Partial<ReservaDelDia> = {}): ReservaDelDia {
+    return {
+      id: 'r1',
+      inicio: '2026-08-12T20:00:00Z',
+      estado: 'reserved',
+      ...cambios,
+    };
+  }
+
+  it('separa las reservadas de las activas del mismo dia', () => {
+    const reservada1 = reservaDelDia({ id: 'a' });
+    const reservada2 = reservaDelDia({ id: 'b' });
+    const activa = reservaDelDia({ id: 'c', estado: 'active' });
+
+    const { reservadas, activas } = particionarPorDia(
+      [reservada1, reservada2, activa],
+      '2026-08-12',
+    );
+
+    expect(reservadas.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(activas.map((r) => r.id)).toEqual(['c']);
+  });
+
+  it('descarta lo que no es de ese dia', () => {
+    const deOtroDia = reservaDelDia({ id: 'x', inicio: '2026-08-13T20:00:00Z' });
+    const { reservadas, activas } = particionarPorDia([deOtroDia], '2026-08-12');
+    expect(reservadas).toEqual([]);
+    expect(activas).toEqual([]);
+  });
+
+  it('ignora los otros cuatro estados -- reservasVivas() solo trae reserved y active, pero esta funcion no confia en eso', () => {
+    const completada = reservaDelDia({ id: 'y', estado: 'completed' });
+    const { reservadas, activas } = particionarPorDia([completada], '2026-08-12');
+    expect(reservadas).toEqual([]);
+    expect(activas).toEqual([]);
+  });
+
+  it('la FRONTERA de medianoche: un inicio que en UTC cae al dia siguiente sigue siendo HOY en Lima', () => {
+    // 2026-08-13T02:00:00Z son las 21:00 del 12 de agosto en Lima -- el mismo
+    // instante que AHORA en las pruebas de pasaFiltroFechaReservas mas arriba
+    // en este archivo. Un rango UTC mal escrito
+    // -[2026-08-12T00:00:00Z, 2026-08-13T00:00:00Z)- dejaria esta reserva
+    // fuera del dia 12; fechaEnLima() la deja dentro porque el dia CIVIL en
+    // Lima todavia es el 12. Es el caso que un rango a mano pierde.
+    const enLaFrontera = reservaDelDia({ id: 'frontera', inicio: '2026-08-13T02:00:00Z' });
+    const { reservadas } = particionarPorDia([enLaFrontera], '2026-08-12');
+    expect(reservadas.map((r) => r.id)).toEqual(['frontera']);
   });
 });

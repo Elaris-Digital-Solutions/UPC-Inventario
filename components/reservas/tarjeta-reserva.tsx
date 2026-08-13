@@ -95,10 +95,19 @@ export function TarjetaReserva({ reserva, grupo, ahora }: TarjetaReservaProps) {
         {/* El motivo de la CANCELACION va aparte del de uso y con su propia
             etiqueta, porque son dos datos distintos que la tabla guarda en
             dos columnas distintas -`purpose` y `cancellation_reason`- y
-            juntarlos bajo la palabra "Motivo" haria creer que la reserva se
-            cancelo por lo que el alumno iba a hacer con el equipo. */}
+            juntarlos bajo la palabra "Motivo" a secas haria creer que la
+            reserva se cancelo por lo que el alumno iba a hacer con el
+            equipo. Por eso la etiqueta no es "Motivo:" sino "Motivo de la
+            cancelacion:", que sigue nombrando la columna sin confundirla con
+            `purpose`.
+            Antes decia "Cancelada por:", y con un motivo escrito a mano
+            -"ya no lo necesito"- se leia bien. La Task 7 de la T3B
+            (/admin/dias) empezo a generar motivos que ya arrancan con
+            "Cancelado por la administracion (...)" (F8 de
+            ESPECIFICACION_FUNCIONAL.md), y la etiqueta duplicaba el texto:
+            "Cancelada por: Cancelado por la administracion (...)". */}
         {reserva.motivoCancelacion !== null && (
-          <p>Cancelada por: {reserva.motivoCancelacion}</p>
+          <p>Motivo de la cancelación: {reserva.motivoCancelacion}</p>
         )}
 
         {/* Una reserva que sigue en `reserved` pero cuya franja ya paso

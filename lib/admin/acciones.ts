@@ -11,6 +11,9 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { reservasVivas } from '@/lib/admin/dias';
+import { particionarPorDia } from '@/lib/admin/filtros';
+import { hoyEnLima } from '@/lib/reservas/rejilla';
 import { createClient } from '@/lib/supabase/server';
 
 export type ResultadoAdmin = { error: string } | null;
@@ -789,6 +792,212 @@ export async function cancelarReserva(
   }
 
   revalidatePath('/admin/reservas');
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 7 · /admin/dias (F8, D-40)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce el rechazo del INSERT de disabled_days que esta pantalla puede
+// provocar de verdad. Mismo criterio de siempre -- texto propio SOLO para lo
+// alcanzable, mensaje CRUDO para lo demas --.
+//
+// MEDIDO POR PostgREST el 2026-08-12, con un JWT de ADMIN firmado a mano
+// contra el stack local: un POST sobre una fecha YA inhabilitada devolvio
+// HTTP 409, code "23505", message 'duplicate key value violates unique
+// constraint "disabled_days_date_key"'.
+function mensajeDeRechazoDia(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('disabled_days_date_key')) {
+    return 'Ese día ya está inhabilitado.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// El texto de D-47: el motivo del dia viaja al `cancellation_reason` que lee
+// el alumno. Admite `motivo: string | null` porque asi es exactamente
+// `disabled_days.reason` en el esquema -- D-46 hace obligatorio lo que se
+// ESCRIBE desde hoy, pero el tipo sigue admitiendo `null` por las filas
+// HISTORICAS, las dos que hay hoy en produccion, medidas el 2026-08-10 con
+// `reason` en NULL --.
+//
+// LA RAMA VACIA ES INALCANZABLE DESDE inhabilitarDia(), mas abajo: el
+// `motivoRecortado` que le llega a esta funcion ya paso la barrera del Paso 1
+// -- `motivo.trim() === ''` devuelve un error ANTES de llegar aca --, asi que
+// nunca la invoca con cadena vacia ni con `null`. Se escribe tolerante igual
+// porque el nombre del parametro y su tipo describen la COLUMNA, no esta
+// unica llamada: si algun dia esta pantalla ofreciera re-generar el texto de
+// una fila HISTORICA con `reason = NULL`, esta es la rama que produciria el
+// texto de F8 a secas -la primera opcion del operador ternario de abajo, SIN
+// el motivo interpolado- en vez de fabricar un motivo que esa fila nunca tuvo.
+function textoCancelacionPorDiaInhabilitado(motivo: string | null): string {
+  const motivoLimpio = motivo?.trim() ?? '';
+
+  return motivoLimpio === ''
+    ? 'Cancelado por la administración (Día inhabilitado)'
+    : `Cancelado por la administración (Día inhabilitado: ${motivoLimpio})`;
+}
+
+// Inhabilita un dia (F8, corregida por D-40) y cancela solas las reservas
+// `reserved` de esa fecha. Las `active` -- equipo ya entregado -- se
+// respetan: `active -> cancelled` NO esta entre las transiciones validas de
+// `enforce_reservation_transition()`
+// (20260806005731_reservation_state_machine.sql, lineas 38-39), asi que
+// incluirlas en el UPDATE haria fallar la sentencia ENTERA por el trigger --
+// medido en el hecho 5 de esta pantalla: un PATCH sin `status=eq.reserved`
+// sobre un dia con 3 `reserved` y 1 `active` devolvio HTTP 400 y las CUATRO
+// filas quedaron SIN CAMBIO --.
+export async function inhabilitarDia(fecha: string, motivo: string): Promise<ResultadoAdmin> {
+  // Paso 1, D-46: el motivo es OBLIGATORIO desde hoy. Barrera de SERVIDOR,
+  // aunque la pantalla ya deje el boton deshabilitado con el motivo vacio
+  // tras `trim()`.
+  const motivoRecortado = motivo.trim();
+  if (motivoRecortado === '') {
+    return {
+      error:
+        'Explica por qué se inhabilita el día: el motivo es obligatorio y queda escrito en la reserva de cada alumno afectado.',
+    };
+  }
+
+  // Paso 2: solo fechas de HOY en adelante. NO ES UN CONTROL -- `disabled_days`
+  // no tiene ningun `check` sobre `date` en la base, asi que nada impide
+  // insertar un dia pasado por aca --. Es VISIBILIDAD: inhabilitar ayer no
+  // cancela nada util, porque las reservas de un dia que ya paso ya estan
+  // resueltas en algun otro estado. `hoyEnLima()` recibe `new Date()` DIRECTO
+  // y no un `ahora` por parametro -- al reves que las funciones puras de
+  // lib/reservas/rejilla.ts y lib/admin/filtros.ts --, y no es una
+  // inconsistencia: esta funcion es una Server Action, el borde real donde
+  // "ahora" tiene que ser el instante VERDADERO del envio, no el de cuando se
+  // pinto la pagina. Si el admin deja la pestaña abierta de un dia para otro,
+  // el `ahora` que baja a page.tsx por props quedaria viejo; esta
+  // comprobacion no puede usar ese valor.
+  const hoy = hoyEnLima(new Date());
+  if (fecha < hoy) {
+    return { error: 'No puedes inhabilitar un día que ya pasó.' };
+  }
+
+  const supabase = await createClient();
+
+  // Paso 3: el INSERT del dia PRIMERO, con columnas EXACTAS `(date, reason)`.
+  // `created_by` lo pone el DEFAULT auth.uid() y el GRANT de INSERT ni
+  // siquiera enumera esa columna -- se acoto en la migracion de trazabilidad,
+  // supabase/migrations/20260805195549_traceability.sql:31-32: `revoke insert
+  // on public.disabled_days from authenticated;` seguido de `grant insert
+  // (date, reason) on public.disabled_days to authenticated;` --. Mandar
+  // `created_by` a mano da HTTP 403 con 42501 "permission denied for table
+  // disabled_days", medido el 2026-08-12.
+  const { error: errorDia } = await supabase
+    .from('disabled_days')
+    .insert({ date: fecha, reason: motivoRecortado });
+
+  // Paso 4: si el INSERT fallo -- por ejemplo con el 23505 medido arriba --
+  // se traduce y se corta aca. Sin dia, no hay nada que cancelar.
+  if (errorDia) {
+    return { error: mensajeDeRechazoDia(errorDia.message) };
+  }
+
+  // Paso 5: las cancelaciones van DESPUES del dia, nunca antes. El ORDEN es
+  // una DECISION con su peor caso, no un detalle de implementacion:
+  //   - DIA PRIMERO (el elegido aca): si lo de abajo falla, queda un dia
+  //     inhabilitado con reservas vivas dentro. Acotado -- el dia ya no
+  //     admite reservas NUEVAS, `create_reservation` lo rechazaria por el
+  //     mismo `disabled_days` --, y las que quedan se ven y se cancelan a
+  //     mano desde /admin/reservas.
+  //   - AL REVES (cancelar primero): si el INSERT del dia fallara despues,
+  //     quedarian alumnos SIN reserva en un dia que SIGUE habilitado, sin
+  //     ningun rastro real de por que -- irreversible sin tocar la base a
+  //     mano --.
+  // Esto es RAZONAMIENTO sobre un fallo que no se provoco, no algo medido.
+  const vivas = await reservasVivas();
+  const { reservadas } = particionarPorDia(vivas, fecha);
+
+  if (reservadas.length > 0) {
+    // LA LISTA DE IDS LA CALCULA EL SERVIDOR, releyendo reservasVivas() y
+    // particionando de nuevo aca -- NO la que la pantalla ya calculo para
+    // enseñar el numero antes de confirmar. Quien se cancela no lo decide un
+    // array que viajo por el navegador: un cliente manipulado podria mandar
+    // cualquier lista de ids, y esta funcion ni siquiera la recibe como
+    // parametro.
+    //
+    // UNA SOLA sentencia y no un bucle de `cancel_reservation()`: el GRANT de
+    // columna es `update (status, cancellation_reason)` y
+    // `reservations_update_staff`
+    // (20260806005731_reservation_state_machine.sql:62-68) le aplica al
+    // admin, asi que las dos columnas viajan JUNTAS en un solo PATCH -- que es
+    // lo que exige que cancelar lleve motivo: el trigger las ve a la vez --.
+    // Un bucle dejaria "las tres primeras canceladas y la cuarta no" si algo
+    // fallara a mitad.
+    //
+    // EL `.eq('status', 'reserved')` ES DOBLEMENTE NECESARIO, y las dos
+    // razones estan escritas por separado porque las dos son ciertas a la
+    // vez:
+    //   - D-40: solo se cancela lo NO retirado. Una `active` no se toca, y
+    //     esta claro desde el filtro de `particionarPorDia()` de mas arriba.
+    //   - Y es el SEGURO contra la carrera -- medido en los hechos 5 y 7 de
+    //     esta pantalla --: si entre leer `reservasVivas()` y este PATCH
+    //     alguien entrega el equipo en el mostrador (`reserved -> active`),
+    //     esa reserva sale del resultado del UPDATE en vez de tumbar la
+    //     sentencia ENTERA. Sin este filtro -- hecho 5 --, una sola reserva ya
+    //     entregada dentro del `.in('id', ...)` hace fallar el PATCH completo,
+    //     y con el, las cancelaciones que si eran posibles.
+    const { error: errorCancelar } = await supabase
+      .from('inventory_reservations')
+      .update({
+        status: 'cancelled',
+        cancellation_reason: textoCancelacionPorDiaInhabilitado(motivoRecortado),
+      })
+      .in(
+        'id',
+        reservadas.map((r) => r.id),
+      )
+      .eq('status', 'reserved');
+
+    if (errorCancelar) {
+      return { error: errorCancelar.message };
+    }
+  }
+
+  revalidatePath('/admin/dias');
+  revalidatePath('/admin/reservas');
+  // Y /mi-panel: al alumno cuya reserva se acaba de cancelar le acaban de
+  // tocar la unica pantalla donde la ve.
+  revalidatePath('/mi-panel');
+
+  return null;
+}
+
+// Revierte un dia inhabilitado: el DELETE por `date` (F8: "los futuros se
+// pueden revertir").
+//
+// PIDE LA FILA DE VUELTA CON `.select()` Y TRATA EL VACIO COMO ERROR. Motivo
+// MEDIDO (hecho 9 de esta pantalla): un DELETE de `disabled_days` con un JWT
+// de OPERADOR -- que no tiene politica de DELETE sobre esa tabla -- devolvio
+// HTTP 200 con CUERPO VACIO `[]` y NINGUN ERROR. Sin este chequeo, un
+// operador pulsaria "Volver a habilitar", veria la pantalla contestar sin
+// ninguna queja -- PostgREST no le dio ningun motivo para pensar lo
+// contrario --, y el dia seguiria inhabilitado. Convertir ese silencio en un
+// mensaje es el punto entero de este chequeo.
+export async function habilitarDia(fecha: string): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('disabled_days').delete().eq('date', fecha).select();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo revertir el día. Puede que ya no exista, o que no tengas permiso para hacerlo.' };
+  }
+
+  // REVERTIR NO DESCANCELA NADA, y no es una limitacion de esta funcion: es
+  // que `cancelled` es TERMINAL en `enforce_reservation_transition()` --
+  // ningun estado sale de ahi --. Las reservas que este mismo dia cancelo
+  // inhabilitarDia() se quedan `cancelled` para siempre. La pantalla tiene
+  // que decir esto ANTES de que el admin pulse el boton, no solo el codigo.
+  revalidatePath('/admin/dias');
 
   return null;
 }

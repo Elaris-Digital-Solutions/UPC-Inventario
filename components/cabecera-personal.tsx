@@ -65,6 +65,9 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               ruta construida, funcionando y sin una sola forma de llegar a
               ella que no fuera teclear la URL. Ninguna herramienta comprueba
               que una pantalla nueva este enlazada desde algun sitio.
+              /admin/dias se suma ahora, en la Task 7, por el mismo motivo:
+              no se deja para "despues" -- aca no hay despues, cada tarea
+              enlaza la suya.
 
               Y el 404 que esto SI arregla, y que era preexistente:
               lib/auth/destino.ts manda al admin a /admin/inventario nada mas
@@ -83,6 +86,9 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/admin/reservas">Reservas</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/dias">Días</Link>
               </Button>
             </>
           )}
