@@ -602,3 +602,193 @@ export async function crearProductoAction(
     unidades,
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 6 · /admin/reservas (F6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que el CAMBIO DE ESTADO de una reserva puede producir.
+// Mismo criterio de siempre -- texto propio SOLO para lo alcanzable, crudo para
+// lo demas -- y mismo mensaje que ya escribe mensajeDeRechazoMostrador() en
+// lib/mostrador/acciones.ts, porque el rechazo es literalmente el mismo trigger
+// sobre la misma tabla.
+//
+// SE REPITE AQUI EN VEZ DE IMPORTARSE, y la razon no es descuido: esa funcion
+// es PRIVADA de lib/mostrador/acciones.ts -- no esta exportada --, y ese
+// archivo lleva 'use server', asi que exportarla convertiria una funcion de
+// traduccion de texto en una Server Action invocable desde el navegador. La
+// alternativa correcta el dia que haya un tercer consumidor es moverla a un
+// modulo propio sin 'use server'; con dos, copiar cinco lineas cuesta menos que
+// inventar esa capa.
+//
+// MEDIDO POR PostgREST el 2026-08-12, con un JWT de ADMIN firmado a mano contra
+// el stack local -- la T3A ya lo habia medido con un JWT de operador, y esto lo
+// confirma para el otro rol:
+//
+//   PATCH status=completed sobre una `reserved`
+//     -> HTTP 400, code "23514", "Transicion no permitida: reserved -> completed"
+//   PATCH status=active sobre una `reserved`
+//     -> HTTP 200, la fila vuelve con status "active"
+//   PATCH status=cancelled + cancellation_reason sobre una `active`
+//     -> HTTP 400, code "23514", "Transicion no permitida: active -> cancelled"
+//
+// Ese TERCER caso es el que importa dejar escrito: NADIE cancela una reserva
+// entregada, ni el admin ni por la RPC (ver cancelarReserva() mas abajo, donde
+// esta medido por la otra puerta). Es la limitacion exacta que D-40 asume para
+// el dia inhabilitado.
+function mensajeDeRechazoReserva(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.startsWith('Transicion no permitida:')) {
+    return 'Esta reserva ya cambió de estado, probablemente porque alguien la actualizó primero. Actualiza la página para ver su estado actual.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// El cambio de estado desde el desplegable de cada fila (F6).
+//
+// UPDATE DIRECTO y no una RPC, igual que moverEstado() en
+// lib/mostrador/acciones.ts y por el mismo motivo: `reservations_update_staff`
+// le aplica al admin (`private.is_staff()` incluye los dos roles, D-16) y el
+// GRANT de columna cubre `status`. No es que un UPDATE sea seguro en abstracto:
+// es que ACA hay una politica que le abre esa puerta a quien llama.
+//
+// EL TIPO ADMITE SOLO TRES VALORES, y los otros tres del enum quedan fuera a
+// proposito:
+//   - `cancelled` va por cancelarReserva(), abajo: exige motivo, y la RPC ya
+//     trae esa validacion escrita.
+//   - `not_returned` va por marcarNoDevuelta() (lib/mostrador/acciones.ts, con
+//     su parametro `ruta`): exige la nota obligatoria de F5 ANTES del cambio de
+//     estado, y esta funcion no tiene forma de garantizar esa precondicion. Es
+//     la misma razon por la que el tipo de moverEstado() tampoco lo admite.
+//   - `reserved` no es destino de ninguna transicion valida: la maquina de
+//     estados solo sale de el.
+export async function cambiarEstadoReserva(
+  reservationId: string,
+  estado: 'active' | 'completed' | 'not_picked_up',
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('inventory_reservations')
+    .update({ status: estado })
+    .eq('id', reservationId);
+
+  if (error) {
+    return { error: mensajeDeRechazoReserva(error.message) };
+  }
+
+  revalidatePath('/admin/reservas');
+
+  return null;
+}
+
+// Traduce los rechazos de `cancel_reservation` PARA EL ADMIN.
+//
+// NO REUTILIZA mensajeDeRechazoCancelacion() de lib/reservas/acciones.ts, y el
+// plan daba por hecho que si -- su Step 1 dice "ya existe
+// mensajeDeRechazoCancelacion() traduciendo sus rechazos" --. Dos motivos, y el
+// segundo es el que decide:
+//
+//   1. Es PRIVADA de ese archivo, que ademas lleva 'use server': exportarla
+//      convertiria una funcion de texto en una Server Action invocable desde el
+//      navegador.
+//   2. SUS TEXTOS ESTAN ESCRITOS PARA EL ALUMNO. El del caso 4 termina en
+//      "contacta con el personal", y aca el personal es justamente quien lo
+//      esta leyendo. Un mensaje que le dice al admin que hable consigo mismo no
+//      es reutilizacion: es un texto equivocado con el trabajo ya hecho.
+//
+// DE LOS CINCO RECHAZOS DE LA RPC, aca solo UNO es alcanzable, y por eso solo
+// uno lleva texto propio:
+//
+//   #1 motivo vacio      -> inalcanzable: el dialogo deshabilita el boton y
+//                           cancelarReserva() repite la comprobacion abajo.
+//   #2 inexistente       -> inalcanzable: el id sale de listarReservas().
+//   #3 ajena             -> inalcanzable PARA EL PERSONAL: la comprobacion de
+//                           propiedad esta guardada por `not private.is_staff()`.
+//   #4 estado != reserved-> ALCANZABLE. Es una carrera entre dos personas: el
+//                           admin tiene esta pantalla abierta, alguien entrega
+//                           el equipo en el mostrador, y el admin pulsa
+//                           cancelar sobre una reserva que ya paso a `active`.
+//   #5 ya empezo         -> inalcanzable PARA EL PERSONAL, guardado por el
+//                           mismo `not private.is_staff()`, y MEDIDO: la misma
+//                           reserva que la alumna dueña no pudo cancelar,
+//                           el admin la cancelo con HTTP 204.
+//
+// Empareja por PREFIJO y no por igualdad porque el motor interpola el estado
+// actual al final del mensaje. Y por TEXTO y no por SQLSTATE porque `23514` lo
+// comparten tres de los cinco rechazos.
+function mensajeDeRechazoCancelacionAdmin(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.startsWith('Solo se cancela una reserva en estado reserved (esta en ')) {
+    // DICE QUE SI SE PUEDE HACER, que es lo que distingue este texto del que
+    // lee el alumno: el admin tiene delante las otras dos salidas en la misma
+    // fila, asi que el mensaje lo lleva a ellas en vez de dejarlo parado.
+    return 'El equipo ya se entregó, y una reserva entregada no se puede cancelar: la base no admite ese cambio. Ciérrala desde esta misma fila como «Devuelta» o como «No se devolvió», según lo que haya pasado.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// La cancelacion con motivo (F6: "al pasar a `cancelled` se exige una razon por
+// dialogo").
+//
+// POR LA RPC `cancel_reservation` Y NO POR UN UPDATE DIRECTO, y la decision no
+// se reabre aca -- esta tomada en el Step 1 del plan --. Las dos puertas estan
+// abiertas para el personal: el GRANT de columna cubre `status` y
+// `cancellation_reason`, y las dos viajarian en un solo PATCH, asi que la
+// diferencia NO es la atomicidad. Es que la RPC ya trae escrita la validacion
+// del motivo, y reescribir esa misma regla en un UPDATE termina con las dos
+// copias separadas. (Los MENSAJES si se traducen aparte, arriba, y por que se
+// explica alli: los del alumno no le sirven al admin.)
+//
+// QUE LA RPC LE SIRVA AL PERSONAL SOBRE UNA RESERVA AJENA ESTA MEDIDO, y no
+// solo leido del SQL. El 2026-08-12, por PostgREST contra el stack local, sobre
+// LA MISMA reserva -- de Ana, en `reserved`, con el inicio YA PASADO:
+//
+//   JWT de la alumna DUEÑA -> HTTP 400, code "23514",
+//                             "No puedes cancelar una reserva que ya empezo"
+//   JWT de ADMIN           -> HTTP 204, cancelada
+//
+// El contraejemplo es lo que hace valida la medicion: sin el, el 204 del admin
+// no distinguiria "la regla existe y exime al personal" de "la regla no esta".
+// Las dos comprobaciones que la RPC salta para el personal -- la de propiedad y
+// la de D-38 -- estan guardadas por `not private.is_staff()`
+// (supabase/migrations/20260812053243_cancel_before_start.sql:46-49 y 59-61).
+//
+// LO QUE SIGUE SIN PODER NADIE es cancelar una reserva ya entregada, y esta
+// medido por las DOS puertas el mismo dia: por la RPC contesta HTTP 400 /
+// "Solo se cancela una reserva en estado reserved (esta en active)", y por
+// UPDATE directo contesta HTTP 400 / "Transicion no permitida: active ->
+// cancelled". Por eso el desplegable solo ofrece cancelar sobre `reserved`.
+export async function cancelarReserva(
+  reservationId: string,
+  motivo: string,
+): Promise<ResultadoAdmin> {
+  // Barrera de SERVIDOR, aunque el dialogo ya deje el boton deshabilitado con
+  // el motivo vacio tras `trim()`. La RPC tambien lo rechazaria por su cuenta
+  // -- `btrim`, paso 1 --, asi que esto no es la unica ni la ultima barrera:
+  // es la que da un mensaje util en vez del crudo del motor.
+  const motivoRecortado = motivo.trim();
+  if (motivoRecortado === '') {
+    return { error: 'Explica por qué se cancela: el alumno va a leer este motivo.' };
+  }
+
+  const supabase = await createClient();
+
+  // Se manda RECORTADO por el mismo motivo que cancelar() en
+  // lib/reservas/acciones.ts: el `update` final de la RPC guarda
+  // `cancellation_reason = p_reason` TAL CUAL -- `btrim` solo se usa para
+  // decidir el rechazo, dos lineas antes --, asi que sin este trim un espacio
+  // de mas se guardaria dentro y se veria al leerlo.
+  const { error } = await supabase.rpc('cancel_reservation', {
+    p_reservation_id: reservationId,
+    p_reason: motivoRecortado,
+  });
+
+  if (error) {
+    return { error: mensajeDeRechazoCancelacionAdmin(error.message) };
+  }
+
+  revalidatePath('/admin/reservas');
+
+  return null;
+}

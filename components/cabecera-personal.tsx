@@ -53,13 +53,18 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               tabla de rutas y su arbol listan cinco- y que nace de D-39, para
               poder cerrar Q-14. El numero estaba mal, la lista estaba bien.
 
-              SOLO ENTRA /admin/inventario, y las otras cinco se van sumando
-              en su propia tarea. El criterio es el mismo de antes y no
-              cambio: un enlace en la cabecera lo ve el admin en TODAS las
-              pantallas, asi que aca no se anticipa nada. Dentro de una tabla
-              si se anticipa -ver components/admin/tabla-inventario.tsx-,
-              porque ahi el enlace roto solo lo alcanza quien esta mirando esa
-              tabla y le faltan dos commits de plazo, no una tanda.
+              CADA ENLACE ENTRA EN LA TAREA QUE CONSTRUYE SU PANTALLA, nunca
+              antes. El criterio no cambio: un enlace en la cabecera lo ve el
+              admin en TODAS las pantallas, asi que aca no se anticipa nada.
+              Dentro de una tabla si se anticipa -ver
+              components/admin/tabla-inventario.tsx-, porque ahi el enlace roto
+              solo lo alcanza quien esta mirando esa tabla y le faltan dos
+              commits de plazo, no una tanda.
+              /admin/reservas se suma en la Task 6, y HACIA FALTA MIRAR LA
+              PANTALLA PARA VERLO: los cuatro comandos estaban en verde con la
+              ruta construida, funcionando y sin una sola forma de llegar a
+              ella que no fuera teclear la URL. Ninguna herramienta comprueba
+              que una pantalla nueva este enlazada desde algun sitio.
 
               Y el 404 que esto SI arregla, y que era preexistente:
               lib/auth/destino.ts manda al admin a /admin/inventario nada mas
@@ -72,9 +77,14 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               y se quito: la regla tenia razon y la respuesta correcta no era
               esquivarla. */}
           {role === "admin" && (
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/admin/inventario">Inventario</Link>
-            </Button>
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/inventario">Inventario</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/reservas">Reservas</Link>
+              </Button>
+            </>
           )}
 
           {/* Con que cuenta se esta operando. Esto es VISIBILIDAD y no

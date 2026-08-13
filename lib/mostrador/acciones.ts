@@ -302,10 +302,26 @@ async function insertarNota(
 // arriba de esta funcion. La Task 7 lo extrajo -ver su comentario para el
 // porque y el cuando-; esta funcion sigue haciendo EXACTAMENTE lo mismo que
 // hacia antes de la extraccion, solo que a traves del helper.
+//
+// `ruta` AGREGADA POR LA TASK 6 DE LA TANDA 3B, con valor por defecto para que
+// ningun llamador de la T3A tenga que cambiar. Es EXACTAMENTE el mismo caso que
+// resolvio anotar() mas abajo en este archivo, y por eso se resuelve igual:
+// /admin/reservas tambien marca esta falta -- decision de Alejandro del
+// 2026-08-12 al escribir la Task 6, porque un bloqueo PERMANENTE aplicado desde
+// un desplegable sin nota dejaria al alumno sancionado sin ningun rastro
+// escrito, que es el peor caso que el comentario de arriba ya describe --, y
+// desde alli `revalidatePath('/mostrador')` refrescaria una pantalla que el
+// admin no esta mirando mientras deja rancia la que si.
+//
+// SE PARAMETRIZA LA RUTA EN VEZ DE DUPLICAR LA ACCION: la nota obligatoria, el
+// orden entre las dos escrituras y la traduccion del rechazo son los mismos, y
+// una copia en lib/admin/acciones.ts habria duplicado tambien insertarNota()
+// para que las dos se separaran con el tiempo.
 export async function marcarNoDevuelta(
   reservationId: string,
   unidadId: string,
   nota: string,
+  ruta: string = '/mostrador',
 ): Promise<ResultadoMostrador> {
   const supabase = await createClient();
 
@@ -335,9 +351,9 @@ export async function marcarNoDevuelta(
     return { error: mensajeDeRechazoMostrador(errorEstado.message) };
   }
 
-  // Mismo motivo que moverEstado(): el personal YA esta en /mostrador, asi
-  // que revalidar y no redirigir.
-  revalidatePath('/mostrador');
+  // Mismo motivo que moverEstado(): quien marca la falta YA esta en la
+  // pantalla, asi que revalidar y no redirigir. Cual pantalla lo dice `ruta`.
+  revalidatePath(ruta);
 
   return null;
 }

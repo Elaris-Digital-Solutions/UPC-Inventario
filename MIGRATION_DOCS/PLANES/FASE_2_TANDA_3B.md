@@ -14,7 +14,7 @@
 | **3 · Estado de unidad y sus notas** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, sin cambios) y `build` (**17 rutas**, 3 estáticas) en verde, corridos **dos veces**. La baja como `retired` verificada **por su efecto en la pantalla del alumno**, con la línea base tomada antes |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, de 75 en 7) y `build` (**18 rutas**) en verde, corridos **dos veces**. **P0-4 verificado por el efecto**: cero coincidencias del secreto en los 39 archivos servidos al navegador, con control positivo que valida la sonda. Alumno con sesión → **403** |
 | **5 · Subida y gestión de imágenes** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, sin cambios) y `build` (**18 rutas**, sin cambios) en verde, corridos **dos veces**. **Cloudinary ACEPTÓ la firma**: dos subidas reales de punta a punta, con `cloudinary_public_id` guardado. Las cuatro acciones verificadas en pantalla y en la base |
-| **6 · `/admin/reservas`** | ⬜ Sin empezar |
+| **6 · `/admin/reservas`** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**107 en 9 archivos**, de 83 en 8) y `build` (**19 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cinco escrituras medidas por PostgREST antes de escribir, con contraejemplo. Los cuatro filtros verificados en pantalla contra una predicción escrita antes: **9 / 3 / 4 / 5** exactos. Base intacta: **24 archivos, 147 aserciones, PASS** |
 | **7 · `/admin/dias`, con D-40** | ⬜ Sin empezar |
 | **8 · `/admin/estadisticas`** | ⬜ Sin empezar |
 | **9 · `/admin/personal`** | ⬜ Sin empezar |
@@ -284,6 +284,105 @@
     `products/cubpwrrmuztxh6k9yeko`, dos PNG de 320×200 generados en el navegador. **Sus filas ya no están
     en la base**, así que no aparecen en ninguna pantalla. Borrarlas del panel de Cloudinary es una tarea
     manual de Alejandro; se deja anotado en vez de silenciado.
+
+### Task 6 · `/admin/reservas` *(2026-08-12)*
+
+43. **EL FILTRO DE FECHA ES RANGO CERRADO CON VENTANA MÓVIL, y eso contradice a las DOS referencias que
+    había, cada una por un lado distinto.** Decisión de Alejandro tomada antes de escribir una línea,
+    porque el plan no la cerraba. El panel de Vite —`git show legacy/vite-final:src/components/admin/ReservationsPanel.tsx`—
+    usaba rango cerrado pero con **«esta semana» de calendario, lunes a domingo**; y `pasaFiltroFecha()` del
+    mostrador *(T3A, Task 8)* usa ventana móvil pero **sin suelo**. **Ninguna de las dos sirve tal cual
+    acá, y el motivo del suelo es el que importa:** el techo sin suelo del mostrador existe para no
+    esconder las candidatas a «No se retiró», y ahí la consulta trae **solo reservas vivas**. Esta pantalla
+    trae la tabla **histórica con los seis estados**, así que sin suelo «Hoy» arrastraría todo el pasado y
+    el filtro no filtraría casi nada. **La misma forma de filtrar da resultados opuestos según el conjunto
+    sobre el que se aplique**, y por eso `pasaFiltroFechaReservas()` es una función nueva y no una
+    reutilización de la del mostrador.
+
+44. **`mensajeDeRechazoCancelacion()` NO SE PUEDE REUTILIZAR, contra lo que el Step 1 del plan da por
+    hecho.** Ese Step dice «ya existe `mensajeDeRechazoCancelacion()` en `lib/reservas/acciones.ts`
+    traduciendo sus rechazos», y el briefing de arranque lo repite como resuelto. **Dos cosas lo
+    impiden, y la segunda es la que decide:** es **privada** de ese archivo —sin `export`—, y ese archivo
+    lleva `'use server'`, así que exportarla convertiría una función de texto en una Server Action
+    invocable desde el navegador; y **sus textos están escritos para el ALUMNO**. El del caso 4 termina en
+    «contacta con el personal», y acá **el personal es justamente quien lo está leyendo**. Reutilizarlo
+    habría puesto en pantalla un mensaje que le dice al admin que hable consigo mismo. Nace
+    `mensajeDeRechazoCancelacionAdmin()`, con **un solo caso** —el único alcanzable— y un texto que además
+    dice qué SÍ se puede hacer, porque el admin tiene las otras dos salidas en la misma fila.
+
+45. **EL DESPLEGABLE PIDE NOTA PARA «No se devolvió», y F6 no lo pedía.** Decisión de Alejandro. F6 solo
+    exige diálogo para cancelar, pero esa transición **bloquea al alumno de forma permanente**
+    —`banned_until = 'infinity'`, sin condición— y F5 ya obliga a una anotación para marcarla en el
+    mostrador. Aplicarla desde un desplegable sin nota dejaría a esa persona **sancionada sin ningún rastro
+    escrito**, que es exactamente el peor caso que `marcarNoDevuelta()` ya tenía documentado y evitado.
+    **Se resolvió parametrizando `ruta` en `marcarNoDevuelta()`**, con valor por defecto, igual que la Task
+    3 hizo con `anotar()` y por el mismo motivo: la nota obligatoria, el orden entre las dos escrituras y
+    la traducción del rechazo son idénticos, y una copia en `lib/admin/acciones.ts` habría duplicado
+    también `insertarNota()`.
+
+46. **`dialogo-cancelar-admin.tsx` se llama `dialogo-estado-reserva.tsx`.** Con la corrección 45 son **dos**
+    los cambios de estado que exigen escribir algo antes, no uno, y un archivo llamado «cancelar» que
+    además marca faltas mentiría sobre lo que hace. Es un componente parametrizado por `modo`, mismo
+    criterio que `DialogoFalta` en la T3A: **dos casos reales desde el primer día**, no un segundo caso
+    adivinado.
+
+47. **QUE EL PERSONAL CANCELE UNA `reserved` YA EMPEZADA ESTÁ MEDIDO, y el contraejemplo es lo que hace
+    válida la medición.** El plan lo daba por cierto **leyendo el SQL**. Medido por PostgREST contra el
+    stack local, sobre **la misma reserva** —de Ana, en `reserved`, con el inicio ya pasado—:
+
+    | Quién | Resultado |
+    |---|---|
+    | JWT de la **alumna dueña** | **HTTP 400**, `23514`, «No puedes cancelar una reserva que ya empezo» |
+    | JWT de **admin** | **HTTP 204**, cancelada |
+
+    Sin el primero, el 204 del admin **no distinguiría** «la regla existe y exime al personal» de «la regla
+    no está». Es la misma forma que el `PATCH` de la Task 1 y que el control positivo de P0-4.
+
+48. **`active -> cancelled` NO EXISTE, y ahora está medido por las DOS puertas** —antes solo por una—. Por
+    la RPC contesta HTTP 400 / «Solo se cancela una reserva en estado reserved (esta en active)»; por
+    `UPDATE` directo con las dos columnas juntas contesta HTTP 400 / «Transicion no permitida: active ->
+    cancelled». **Nadie cancela una reserva entregada**, ni el admin. Es la limitación exacta que D-40
+    asume para el día inhabilitado, y por eso el desplegable solo ofrece cancelar sobre `reserved`.
+
+49. **DOS DEFECTOS QUE SOLO ENCONTRÓ MIRAR LA PANTALLA, con los cuatro comandos en verde y la ruta
+    funcionando.**
+    - **La cabecera no ofrecía «Reservas».** `/admin/reservas` existía, cargaba y no había **ninguna forma
+      de llegar** que no fuera teclear la URL. **Ninguna herramienta comprueba que una pantalla nueva esté
+      enlazada desde algún sitio**, y el `build` la lista igual entre sus 19 rutas. Es el mismo hueco que
+      la Task 1 tapó para `/admin/inventario`, reaparecido en la tarea siguiente.
+    - **«12 ago. 2026, 23:00 · hasta 01:00»**, o sea una franja que **termina antes de empezar**. El dato
+      era correcto —la reserva acaba el día 13—; lo que mentía era el texto. Arreglado escribiendo la fecha
+      entera solo cuando el fin cae en otro día civil de Lima, y el contraste se ve en la propia pantalla:
+      ocho filas con la hora sola y una con la fecha completa. Mismo género que «1 activas» de la Task 1 y
+      «11:41 p. m..» de la T2B.
+
+50. **UN CUARTO INSTRUMENTO MINTIENDO, y esta vez era el servidor de desarrollo.** La consola reportó
+    `ReferenceError: plural is not defined` en `components/admin/tabla-inventario.tsx` —un archivo de la
+    Task 1 que esta tarea no toca—. **Se dirimió midiendo, no suponiendo:** el `import` estaba en su línea
+    13, `git status` daba el archivo **sin cambios** respecto al commit, y `typecheck` y `build` estaban en
+    verde. Reiniciado el proceso, `/admin/inventario` pintó sus cuatro filas con «3 activas». Era el
+    proceso viejo degradándose por el HMR tras varios archivos nuevos —el mismo género que la T2B ya
+    registró con `Jest worker encountered ... exceeding retry limit`—. **Van cuatro instrumentos:**
+    `PGRST303` (epoch local), `PGRST102` (BOM), `$?` con stderr nativo, y este.
+
+51. **El `test` subió a 107 en 9 archivos y el plan predecía «~90 en 8».** La diferencia no es de la tarea:
+    el plan escribió su predicción sobre un contador de 75, y las Tasks 3 y 4 ya lo habían llevado a 83.
+    Los **24** de acá son los de `filtros.ts`, y sí estaban previstos.
+
+52. **LOS CUATRO FILTROS DE FECHA VERIFICADOS EN PANTALLA CONTRA UNA PREDICCIÓN ESCRITA ANTES DE MIRAR, y
+    los cuatro números exactos: 9 / 3 / 4 / 5.** Con un escenario de **nueve** reservas montado en local
+    —los seis estados, dos alumnos y fechas repartidas—, porque producción sigue con **cero**. También
+    «bruno» → **4** y «micrófono» → **2**, los dos predichos. La cancelación y la falta verificadas
+    **por su efecto en la base**: `banned_until = infinity` solo en la alumna afectada, la nota en el
+    historial de la unidad, `cancellation_reason` guardado y `reservation_status_log` con **una** fila por
+    cambio y el `changed_by` del admin.
+
+53. **LA BÚSQUEDA CON TILDE, PROBADA EN LOS DOS SENTIDOS, Y EL SEGUNDO HUBO QUE FABRICARLO.** El seed no
+    tiene ningún producto con tilde —se llama «Microfono Rode NTG4»—, así que buscar «micrófono» y
+    encontrarlo prueba **solo un lado**: el de normalizar la consulta. **Normalizar únicamente la consulta
+    habría pasado esa prueba igual.** Se renombró el producto a «Micrófono» en la base, se buscó
+    «microfono» sin tilde, salieron las mismas dos filas, y se restauró el seed. Es la lección de las
+    insignias «sin código» y «sin identificador de Cloudinary» aplicada a un filtro.
 
 ---
 
