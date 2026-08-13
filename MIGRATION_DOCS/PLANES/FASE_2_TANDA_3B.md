@@ -9,7 +9,7 @@
 | Task | Estado |
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada.** Las cuatro correcciones aplicadas y verificadas: `ESTADO_Y_PLAN.md` 35 y 751, `CLAUDE.md` 168 y 173. Dos filas nuevas de bitácora —el push de la migración 23 y la escritura de este plan—. Ninguna reescrita sin marca |
-| **1 · Andamio de `/admin` y listado de inventario** | ⬜ Sin empezar |
+| **1 · Andamio de `/admin` y listado de inventario** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**70 en 6 archivos**, de 65 en 5) y `build` (**15 rutas**, 3 estáticas) en verde, corridos **dos veces** —antes y después del arreglo de texto—. **Punto a verificar 1 resuelto: SÍ embebe.** Verificado en pantalla con sesión de admin y de operador de verdad |
 | **2 · Alta de producto con sus unidades** | ⬜ Sin empezar |
 | **3 · Estado de unidad y sus notas** | ⬜ Sin empezar |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ⬜ Sin empezar |
@@ -39,6 +39,50 @@
    Saltó al editar `ESTADO_Y_PLAN.md` y `CLAUDE.md`. `git diff` mostró que **el único cambio era el propio**:
    el aviso se dispara porque el archivo se había leído con `offset`/`limit` y no entero, no porque nadie
    más lo tocara. **Se comprobó midiendo en vez de suponiendo**, que es lo barato acá.
+
+### Task 1 · Andamio de `/admin` y listado de inventario *(2026-08-12)*
+
+4. **Punto a verificar 1 resuelto por el lado bueno: PostgREST SÍ embebe `inventory_units` y
+   `product_images` desde `products`.** Medido con un JWT de admin firmado a mano contra el stack local:
+   HTTP 200 con las dos colecciones pobladas. **Así que `listarInventario()` es UNA sola consulta**, no dos
+   con agrupación en TypeScript. **Hacía falta medirlo y no se podía deducir:** la T2A ya se topó con que
+   `product_availability` **no** se embebe desde `products` en ninguna de las dos direcciones (`PGRST200`),
+   y eso no predecía nada sobre estas dos — son otras FK, y encima en la dirección contraria (uno a muchos,
+   así que llegan como **array**, no como objeto).
+
+5. **El `test` NO siguió en 65 como predecía el plan: subió a 70 en 6 archivos**, y la causa es la
+   corrección siguiente. El plan decía «esta tarea no añade lógica pura», y era cierto **hasta que mirar la
+   pantalla obligó a añadirla**.
+
+6. **Un defecto de texto que solo encontró mirar la pantalla: «1 activas».** La tabla escribía
+   `{n} activas` sin concordancia, y el seed tiene un producto con **una sola** unidad activa. **Los cuatro
+   comandos estaban en verde con el defecto dentro**, porque ninguna herramienta sabe castellano. Es el
+   mismo género que «se entrego» y «11:41 p. m..» de la T2B y que «quedará bloqueado» de la T3A. Se arregló
+   con `lib/admin/plural.ts` y sus **5 pruebas**, extraído **con cuatro recuentos reales delante en esa
+   misma tabla** —dos de plural variable y dos invariables—, no adivinando un segundo caso: es justo la
+   condición que `dialogo-cancelar.tsx` (T2B) e `insertarNota()` (T3A) dejaron escrita para no
+   sobre-generalizar.
+
+7. **El comentario que la T3A dejó en `components/cabecera-personal.tsx` decía «esas cinco pantallas» y a
+   continuación enumeraba SEIS** —inventario, reservas, dias, estadisticas, personal y ajustes—. **El número
+   estaba mal y la lista bien:** son seis, porque `/admin/ajustes` existe desde D-39 aunque el diseño no lo
+   tenga *(corrección 1 de las del diseño)*. **Es una contradicción numérica dentro de un texto, el mismo
+   género que aportó tres de los cinco errores de quien dictaba en la T3A**, y esta vez estaba en un
+   comentario de código y no en un encargo. Corregido al activar el enlace.
+
+8. **La insignia «sin código» NO se puede ver con el seed, y verla obligó a fabricar el caso.** Las 8
+   unidades del seed tienen todas `asset_code`, así que ese `Badge` no se renderiza nunca en local —ni en
+   producción, donde son 38 de 92 pero el listado no se abre contra producción—. Se puso a `NULL` el
+   `asset_code` de `CAM-002` y a `retired` el estado de `CAM-003`, se comprobó que las **dos** insignias
+   aparecen —«2 activas · 1 retirada · 1 sin código»—, y se restauró el seed. **Es la lección de la Task 9
+   de la T3A aplicada por delante:** una predicción puede ser cierta y a la vez inobservable donde se dijo
+   que se vería, así que verificarla incluye comprobar que ese sitio es capaz de mostrarla.
+
+9. **El 404 de `/admin/inventario` está cerrado, verificado por el efecto.** Con sesión de admin de verdad,
+   el canje del magic link cayó en `/admin/inventario` **y pintó la tabla**. Y el control por el otro lado:
+   con sesión de operador, `destino()` lo llevó a `/mostrador`, escribir `/admin/inventario` a mano lo
+   **rebotó a `/mostrador`**, y su cabecera **no ofrece** el enlace. Consola con **0 errores y 0
+   advertencias**.
 
 ---
 
