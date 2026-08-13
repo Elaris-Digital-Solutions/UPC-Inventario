@@ -118,21 +118,22 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
 
   return (
     <header className="border-border/60 bg-background/95 sticky top-0 z-50 border-b backdrop-blur">
+      {/* DOS FILAS PARA EL ADMIN, y no una, decidido MIDIENDO el 2026-08-13
+          tras fusionar la T3B: con los siete enlaces en una sola barra la
+          navegacion pedia 1481px y se salia de la pagina -"Salir" quedaba
+          cortado por el borde derecho incluso a 1440-. Subir el punto de
+          ruptura no lo arregla: no hay pantalla donde quepan.
+          La primera fila es la identidad y lo que se usa a diario -mostrador,
+          con que cuenta estoy, salir-; la segunda son las secciones de
+          administracion, que es exactamente como se ordena un panel con seis
+          apartados. */}
       <div className="container flex h-20 items-center justify-between gap-4 sm:h-24">
         <Logotipo />
 
-        {/* El punto de ruptura de ESTA cabecera es `xl` y no `md` como el de
-            las otras dos, y es consecuencia directa de la T3B: un admin tiene
-            SIETE enlaces -Mostrador y las seis de administracion- mas el
-            distintivo de rol y el boton de salir. En versalitas espaciadas no
-            entran a 1024px. Por debajo de 1280 se pliegan todos en el panel,
-            que es exactamente para lo que existe. */}
-        <nav className="hidden items-center gap-6 xl:flex">
-          {enlaces.map((enlace) => (
-            <Button key={enlace.href} asChild variant="ghost" className={ENLACE_NAV}>
-              <Link href={enlace.href}>{enlace.texto}</Link>
-            </Button>
-          ))}
+        <nav className="hidden items-center gap-6 md:flex">
+          <Button asChild variant="ghost" className={ENLACE_NAV}>
+            <Link href="/mostrador">Mostrador</Link>
+          </Button>
 
           {distintivo}
 
@@ -146,13 +147,15 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
           </form>
         </nav>
 
-        {/* Por debajo de `xl` el distintivo de rol se queda FUERA del panel y
+        {/* Por debajo de `md` el distintivo de rol se queda FUERA del panel y
             visible en la barra, a diferencia de los enlaces. Es la unica cosa
             de esta cabecera que no es navegacion sino un aviso, y esconderlo
             detras de un menu que hay que abrir lo volveria inutil justo
             cuando mas hace falta: con el telefono en la mano, en el
-            mostrador, antes de marcar una falta. */}
-        <div className="flex items-center gap-2 xl:hidden">
+            mostrador, antes de marcar una falta.
+            El panel plegable lleva TODOS los enlaces -mostrador y las seis de
+            administracion-, porque abajo no hay segunda fila donde ponerlos. */}
+        <div className="flex items-center gap-2 md:hidden">
           {distintivo}
           <MenuMovil>
             {enlaces.map((enlace) => (
@@ -173,6 +176,33 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
           </MenuMovil>
         </div>
       </div>
+
+      {/* La segunda fila, SOLO para admin y SOLO desde `md`: por debajo, esos
+          seis ya viajan dentro del panel plegable de arriba y repetirlos aqui
+          los pondria dos veces en el mismo arbol.
+          `overflow-x-auto` en vez de envolver en dos lineas: en una tableta
+          estrecha la fila se desplaza en horizontal, que es el mismo recurso
+          que ya usan los filtros del mostrador, y asi la cabecera conserva
+          una altura fija -es `sticky`, y una que crece de alto empuja el
+          contenido de la pagina al reflowear. */}
+      {esAdmin && (
+        <nav
+          aria-label="Administración"
+          className="border-border/60 hidden border-t md:block"
+        >
+          <div className="container flex gap-6 overflow-x-auto py-3">
+            {ENLACES_ADMIN.map((enlace) => (
+              <Link
+                key={enlace.href}
+                href={enlace.href}
+                className={`${ENLACE_NAV} shrink-0 py-1 transition-colors`}
+              >
+                {enlace.texto}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

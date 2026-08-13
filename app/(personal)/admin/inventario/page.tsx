@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TablaInventario } from "@/components/admin/tabla-inventario";
 import { Button } from "@/components/ui/button";
 import { listarInventario } from "@/lib/admin/consultas";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/inventario, Task 1 de la tanda 3B.
 //
@@ -32,7 +33,8 @@ export default async function InventarioPage() {
     <main className="container py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold">Inventario</h1>
+          <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Inventario</TituloSeccion>
           {/* Los dos totales, dichos y no dejados a que alguien cuente filas.
               Con el catalogo real son 34 productos y 92 unidades; con el seed
               local, 4 y 8. Que la cifra este a la vista es lo que delata de un

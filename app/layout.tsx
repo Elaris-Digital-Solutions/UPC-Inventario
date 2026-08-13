@@ -27,8 +27,14 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
+// El nombre del producto es "Reserva UPC · Sistema de Prestamos", decidido el
+// 2026-08-13. "UPC-Inventario" era el nombre del REPOSITORIO colado a la
+// interfaz, y aparecia en tres sitios que se contradecian con el rotulo de la
+// cabecera en cuanto esta recupero el original: aqui, en la metadata de la
+// FAQ y en el pie. Los tres se corrigen a la vez, que es la unica forma de
+// que un cambio de nombre no deje mitad y mitad.
 export const metadata: Metadata = {
-  title: "UPC-Inventario",
+  title: "Reserva UPC · Sistema de Préstamos",
   description:
     "Reserva y prestamo de equipamiento tecnologico para alumnos UPC.",
 };

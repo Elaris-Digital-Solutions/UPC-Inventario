@@ -28,7 +28,7 @@ export function Pie() {
         <div className="flex items-center gap-3">
           <Logotipo tamano="pie" />
           <p className="text-muted-foreground">
-            UPC-Inventario · Préstamo de equipamiento para alumnos
+            Reserva UPC · Sistema de Préstamos
           </p>
         </div>
         <Link

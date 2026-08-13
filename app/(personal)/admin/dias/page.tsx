@@ -1,5 +1,6 @@
 import { PanelDias } from "@/components/admin/panel-dias";
 import { listarDiasInhabilitados, reservasVivas } from "@/lib/admin/dias";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/dias, Task 7 de la tanda 3B (F8 de ESPECIFICACION_FUNCIONAL.md,
 // corregida por D-40).
@@ -20,7 +21,8 @@ export default async function DiasPage() {
   return (
     <main className="container py-8">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold">Días inhabilitados</h1>
+        <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Días inhabilitados</TituloSeccion>
         <p className="text-muted-foreground text-sm">
           Marca feriados o días sin atención. Al inhabilitar un día se cancelan solas las reservas
           que todavía no se retiraron; los préstamos ya entregados siguen su curso normal.

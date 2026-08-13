@@ -52,7 +52,7 @@ export default async function DetalleProductoPage({
         <Link href="/admin/inventario" className="text-muted-foreground text-sm hover:underline">
           ← Volver al inventario
         </Link>
-        <h1 className="font-display mt-2 text-2xl font-bold">{producto.nombre}</h1>
+        <h1 className="font-display mt-2 text-3xl font-bold sm:text-4xl">{producto.nombre}</h1>
       </div>
 
       <section className="mb-10">

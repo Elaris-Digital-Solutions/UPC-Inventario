@@ -1,5 +1,6 @@
 import { FormularioAjustes } from "@/components/admin/formulario-ajustes";
 import { leerAjustes, productosConBuffer } from "@/lib/admin/configuracion";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/ajustes, Task 10 de la tanda 3B (D-39 trae esta pantalla y con ella
 // la segunda mitad de Q-14; D-54 añade la comprobacion de la apertura y DEJA
@@ -29,7 +30,8 @@ export default async function AjustesPage() {
   return (
     <main className="container py-8">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold">Ajustes</h1>
+        <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Ajustes</TituloSeccion>
         <p className="text-muted-foreground text-sm">
           Los seis valores globales que gobiernan la reserva: la ventana de días, la hora de
           apertura, la hora de cierre, el tamaño del bloque horario, la duración mínima de una
