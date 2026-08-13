@@ -14,7 +14,7 @@
 | **3 · Estado de unidad y sus notas** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, sin cambios) y `build` (**17 rutas**, 3 estáticas) en verde, corridos **dos veces**. La baja como `retired` verificada **por su efecto en la pantalla del alumno**, con la línea base tomada antes |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, de 75 en 7) y `build` (**18 rutas**) en verde, corridos **dos veces**. **P0-4 verificado por el efecto**: cero coincidencias del secreto en los 39 archivos servidos al navegador, con control positivo que valida la sonda. Alumno con sesión → **403** |
 | **5 · Subida y gestión de imágenes** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, sin cambios) y `build` (**18 rutas**, sin cambios) en verde, corridos **dos veces**. **Cloudinary ACEPTÓ la firma**: dos subidas reales de punta a punta, con `cloudinary_public_id` guardado. Las cuatro acciones verificadas en pantalla y en la base |
-| **6 · `/admin/reservas`** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**107 en 9 archivos**, de 83 en 8) y `build` (**19 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cinco escrituras medidas por PostgREST antes de escribir, con contraejemplo. Los cuatro filtros verificados en pantalla contra una predicción escrita antes: **9 / 3 / 4 / 5** exactos. Base intacta: **24 archivos, 147 aserciones, PASS** |
+| **6 · `/admin/reservas`** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**107 en 9 archivos**, de 83 en 8) y `build` (**19 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cinco escrituras medidas por PostgREST antes de escribir, con contraejemplo. Los cuatro filtros verificados en pantalla contra una predicción escrita antes: **9 / 3 / 4 / 5** exactos. Base intacta: **24 archivos, 147 aserciones, PASS**. **D-44 y D-45**, las dos anotadas en `ESPECIFICACION_FUNCIONAL.md` bajo F6 |
 | **7 · `/admin/dias`, con D-40** | ⬜ Sin empezar |
 | **8 · `/admin/estadisticas`** | ⬜ Sin empezar |
 | **9 · `/admin/personal`** | ⬜ Sin empezar |
@@ -289,7 +289,8 @@
 
 43. **EL FILTRO DE FECHA ES RANGO CERRADO CON VENTANA MÓVIL, y eso contradice a las DOS referencias que
     había, cada una por un lado distinto.** Decisión de Alejandro tomada antes de escribir una línea,
-    porque el plan no la cerraba. El panel de Vite —`git show legacy/vite-final:src/components/admin/ReservationsPanel.tsx`—
+    porque el plan no la cerraba. **Es D-44**, y queda anotada fechada en `ESPECIFICACION_FUNCIONAL.md`
+    bajo F6, porque precisa un comportamiento observable que la especificación dejaba abierto. El panel de Vite —`git show legacy/vite-final:src/components/admin/ReservationsPanel.tsx`—
     usaba rango cerrado pero con **«esta semana» de calendario, lunes a domingo**; y `pasaFiltroFecha()` del
     mostrador *(T3A, Task 8)* usa ventana móvil pero **sin suelo**. **Ninguna de las dos sirve tal cual
     acá, y el motivo del suelo es el que importa:** el techo sin suelo del mostrador existe para no
@@ -310,7 +311,9 @@
     `mensajeDeRechazoCancelacionAdmin()`, con **un solo caso** —el único alcanzable— y un texto que además
     dice qué SÍ se puede hacer, porque el admin tiene las otras dos salidas en la misma fila.
 
-45. **EL DESPLEGABLE PIDE NOTA PARA «No se devolvió», y F6 no lo pedía.** Decisión de Alejandro. F6 solo
+45. **EL DESPLEGABLE PIDE NOTA PARA «No se devolvió», y F6 no lo pedía.** Decisión de Alejandro. **Es
+    D-45**, anotada fechada en `ESPECIFICACION_FUNCIONAL.md` como **ampliación** de F6 —no como corrección:
+    F6 no decía nada contrario, decía de menos—. F6 solo
     exige diálogo para cancelar, pero esa transición **bloquea al alumno de forma permanente**
     —`banned_until = 'infinity'`, sin condición— y F5 ya obliga a una anotación para marcarla en el
     mostrador. Aplicarla desde un desplegable sin nota dejaría a esa persona **sancionada sin ningún rastro
@@ -383,6 +386,15 @@
     habría pasado esa prueba igual.** Se renombró el producto a «Micrófono» en la base, se buscó
     «microfono» sin tilde, salieron las mismas dos filas, y se restauró el seed. Es la lección de las
     insignias «sin código» y «sin identificador de Cloudinary» aplicada a un filtro.
+
+54. **D-41, D-42 y D-43 NUNCA LLEGARON A LA TABLA DE DECISIONES, y llevaban ahí un día entero.** Se
+    encontró **revisando la redacción al cerrar la Task 6**, no ejecutándola: la tabla de `ESTADO_Y_PLAN.md`
+    terminaba en **D-40**, y las tres decisiones de esta tanda vivían solo en este plan y narradas dentro de
+    una celda de bitácora. **Narrar una decisión no es registrarla:** la tabla es donde se busca «qué se
+    decidió y cuándo», y quien la leyera habría concluido que la T3B no tomó ninguna. Añadidas las tres con
+    su fecha original y una nota de cuándo se anotaron, más D-44 y D-45 de esta tarea. **El aviso que vale
+    para las seis tareas que quedan:** cerrar una tarea incluye comprobar que lo escrito llegó **al
+    documento donde se busca**, no solo a alguno.
 
 ---
 

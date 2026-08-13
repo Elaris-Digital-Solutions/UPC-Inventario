@@ -147,8 +147,26 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
 - Tabla completa de reservas con join a producto, unidad y alumno.
 - Filtros: texto libre (solicitante, correo, producto, categoría, código de unidad, activo fijo), rango de
   fecha, estado, y tres órdenes.
+  - ⚠ **Precisado el 2026-08-12, al construirlo (Task 6 de la T3B):** el **rango de fecha** compara el
+    **inicio** de la reserva y es un **rango cerrado con ventana móvil** *(D-44)* — «Hoy» son solo las de
+    hoy, «Próximos 3 días» son hoy y los dos siguientes, «Esta semana» son hoy y los seis siguientes. **Con
+    suelo**, al revés que el filtro del mostrador (F5), porque aquí la tabla es histórica y sin suelo «Hoy»
+    arrastraría todo el pasado. Los **tres órdenes** son inicio descendente, inicio ascendente y registro
+    descendente. El **filtro de estado ofrece los seis** del enum; el panel de Vite ofrecía cinco y le
+    faltaba `not_picked_up`, que hoy el mostrador escribe de verdad. La búsqueda **normaliza tildes en los
+    dos lados**.
 - Cambio de estado directo desde un desplegable en cada fila.
+  - ⚠ **Precisado el 2026-08-12:** el desplegable ofrece **solo las transiciones que la base admite desde
+    el estado de esa fila** — `reserved → active | not_picked_up | cancelled` y
+    `active → completed | not_returned` —, no los seis estados. Los otros cuatro son **terminales** y su
+    fila lo dice en texto. No es un control: `enforce_reservation_transition()` rechaza igual cualquier
+    otra, medido por PostgREST. En particular **nadie cancela una reserva ya entregada**, ni el admin:
+    `active → cancelled` no existe, medido por las dos puertas —la RPC y el `UPDATE` directo—.
 - Al pasar a `cancelled` se **exige una razón** por diálogo.
+  - ⚠ **Ampliado el 2026-08-12** → **D-45**: pasar a **`not_returned`** exige también, por diálogo, la
+    **anotación** que F5 ya obliga a escribir en el mostrador. F6 no lo pedía, pero esa transición bloquea
+    al alumno de forma **permanente** (`banned_until = 'infinity'`), y aplicarla desde un desplegable sin
+    nota lo dejaría sancionado sin ningún rastro escrito del motivo.
 - Fila expandible con fecha de registro, estado de la unidad, duración en minutos, propósito y razón de cancelación.
 
 ### F7 · Inventario (`pages/Admin.tsx`, `pages/AdminUnits.tsx`)
