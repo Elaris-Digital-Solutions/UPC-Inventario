@@ -27,6 +27,7 @@
 // marcado mas abajo, pero no los construye aca: DialogoFalta trae su propio
 // boton disparador, y esta tarjeta solo le pasa los datos que ya tiene.
 import { useState, useTransition } from "react";
+import { CalendarDays, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,20 +146,49 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
   }
 
   return (
+    // JERARQUIA DE MOSTRADOR, reordenada el 2026-08-13. Los tres datos iban
+    // en tres parrafos del mismo tamano y el mismo gris: sede y unidad
+    // primero, luego el horario, y el alumno al final. Ese orden es el de la
+    // consulta, no el del trabajo.
+    //
+    // Quien atiende tiene delante a una persona y una hora, y con eso decide.
+    // Asi que ahora manda la FRANJA -en cifras tabulares, arriba a la derecha,
+    // que es contra lo que se compara- y el NOMBRE en tinta plena; la sede, el
+    // dia y el codigo de unidad bajan a una linea secundaria. El codigo va en
+    // monoespaciada porque es lo que se lee contra la pegatina del equipo, y
+    // una serie tipo LAP-001 se coteja mejor con cifras de ancho fijo.
+    //
+    // Ni un dato nuevo ni uno menos: exactamente los mismos cuatro, con otro
+    // peso.
     <Card>
       <CardHeader>
-        <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+          <span className="text-foreground shrink-0 font-mono text-sm tabular-nums">
+            {FORMATO_HORA.format(new Date(reserva.inicio))}
+            {" – "}
+            {FORMATO_HORA.format(new Date(reserva.fin))}
+          </span>
+        </div>
       </CardHeader>
-      <CardContent className="text-muted-foreground space-y-1 text-sm">
-        <p>
-          {reserva.sede} · Unidad {reserva.unidad}
+      <CardContent className="space-y-1 text-sm">
+        <p className="text-foreground flex items-center gap-1.5 font-medium">
+          <User className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+          {textoAlumno(reserva.alumno)}
         </p>
-        <p>
-          {FORMATO_DIA.format(new Date(reserva.inicio))}, {FORMATO_HORA.format(new Date(reserva.inicio))}
-          {" – "}
-          {FORMATO_HORA.format(new Date(reserva.fin))}
+        <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+          <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
+          {FORMATO_DIA.format(new Date(reserva.inicio))}
+          <span aria-hidden="true">·</span>
+          {reserva.sede}
+          <span aria-hidden="true">·</span>
+          {/* La palabra "Unidad" se CONSERVA aunque el codigo ya se lea solo:
+              los textos de interfaz no se recortan desde la capa visual. Lo
+              unico que cambia es que el codigo va en monoespaciada. */}
+          <span>
+            Unidad <span className="font-mono">{reserva.unidad}</span>
+          </span>
         </p>
-        <p>{textoAlumno(reserva.alumno)}</p>
 
         {error && (
           <p

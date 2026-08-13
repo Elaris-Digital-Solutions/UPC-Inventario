@@ -119,11 +119,50 @@ export default async function MostradorPage() {
         // FIJA del flujo de trabajo del mostrador (F5): que "Activas" este
         // vacia es informacion util para quien esta de turno -"no tengo
         // nada afuera ahora mismo"-, no un tramo que no aplique.
-        <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        // Las tres columnas como CARRILES y no como tres listas sueltas.
+        // Antes eran un <h2> y tarjetas flotando sobre el fondo de la pagina,
+        // asi que "Por devolver" vacia se leia como un hueco en blanco y no
+        // como una columna sin nada. Ahora cada una tiene su plano, su regla
+        // roja de cabecera y su contador.
+        //
+        // "Por devolver" ademas lleva acento de aviso: es la unica de las
+        // tres cuyo contenido significa que algo se paso de hora. Que se vea
+        // igual que las otras dos era plano en el sentido malo -toda la
+        // pantalla con el mismo peso, y la urgencia enterrada.
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-3">
           {COLUMNAS.map((columna) => (
-            <section key={columna}>
-              <h2 className="font-display text-xl">{TITULOS[columna]}</h2>
-              <div className="mt-4 space-y-4">
+            <section
+              key={columna}
+              className={
+                columna === "por_devolver"
+                  ? "border-destructive/30 bg-destructive/5 rounded-xl border"
+                  : "border-border bg-card rounded-xl border"
+              }
+            >
+              <div className="border-border/60 flex items-center justify-between gap-3 border-b px-4 py-3">
+                <h2 className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] uppercase">
+                  <span
+                    aria-hidden="true"
+                    className={
+                      columna === "por_devolver"
+                        ? "bg-destructive h-3.5 w-0.5"
+                        : "bg-primary h-3.5 w-0.5"
+                    }
+                  />
+                  {TITULOS[columna]}
+                </h2>
+                {/* El contador SOLO en las dos columnas que no se filtran. En
+                    "Por entregar" el numero lo pinta FiltroPorEntregar, que es
+                    quien sabe cuantas quedan tras el filtro: ponerlo aca daria
+                    el total y contradiria a la lista de debajo -un "3" con una
+                    sola tarjeta a la vista-. */}
+                {columna !== "por_entregar" && (
+                  <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                    {columnas[columna].length}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-4 p-4">
                 {columna === "por_entregar" ? (
                   // La UNICA columna con el filtro de fecha (F5, Task 8 de
                   // la tanda 3A). "Activas" y "Por devolver" NO cambian: se
