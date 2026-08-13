@@ -172,19 +172,55 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
 ### F7 · Inventario (`pages/Admin.tsx`, `pages/AdminUnits.tsx`)
 
 **Alta de producto con unidades** — en un solo formulario:
-- Nombre, categoría (14 predefinidas + las ya existentes), descripción, cantidad.
+- Nombre, ~~categoría (14 predefinidas + las ya existentes)~~, descripción, cantidad.
+  - ⚠ **Corregido el 2026-08-13** → **D-42**: **las categorías se leen de la base, no de una lista fija.**
+    En producción hay **diez**, así que las catorce metían cuatro opciones sin un solo producto detrás. El
+    desplegable se llena consultando las que ya existen, más un campo para escribir una nueva: **no hay
+    lista que se quede vieja.** Es la corrección directa de un error que el `seed.sql` provocó tres veces
+    en esta fase, y la regla que sale de ahí es la que importa: **el código no debe afirmar sobre los datos
+    lo que solo los datos pueden decir.**
 - Una fila por unidad: código, sede, anotación inicial. Valida que no haya códigos repetidos.
-- Carga múltiple de imágenes a **Cloudinary** (preset sin firmar), con selección de imagen principal.
+- Carga múltiple de imágenes a **Cloudinary** ~~(preset sin firmar)~~, con selección de imagen principal.
+  - ⚠ **Corregido el 2026-08-13, al cerrar P0-4 en la tanda 3B: la subida va FIRMADA desde el servidor.**
+    El preset sin firmar deja subir a cualquiera que conozca el nombre del preset. Hoy el navegador pide
+    una firma a `/api/cloudinary/firma`, un route handler que **no lee nada del cliente**, comprueba que
+    quien llama es administrador y devuelve la firma sin el secreto. **Es la única puerta del proyecto que
+    no habla con Postgres**, así que es también la única donde la comprobación del servidor no la respalda
+    ninguna política de RLS: quitarla abriría un agujero de verdad, al revés que en los layouts. Medido:
+    alumna **403**, operador **403** —ser personal no basta—, administrador **200 con firma**.
+  - ⚠ **Ampliado el 2026-08-13:** las subidas van **en serie y no en paralelo**. La acción cuenta las filas
+    que ya hay para decidir cuál es la principal y en qué orden va cada una; en paralelo todas leerían el
+    mismo conteo y sobre un producto vacío **todas se marcarían principales**.
 - Persiste producto → `product_images` → `inventory_units` → `inventory_unit_notes`.
 
 **Gestión de unidades:**
 - Alta individual (código, sede, anotación); rechaza códigos duplicados dentro del producto.
 - Cambio de estado: `active` / `maintenance` / `retired`.
 - Anotaciones: alta y baja, con historial por unidad.
-- **Borrado forzado en cascada manual:** notas → reservas → unidad. Si era la última unidad, **también elimina
-  el producto**.
+- ~~**Borrado forzado en cascada manual:** notas → reservas → unidad. Si era la última unidad, **también elimina
+  el producto**.~~
+  - ⚠ **Corregido el 2026-08-13, al construir la pantalla en la tanda 3B: eso NO se replica, y la baja es
+    `retired`.** Verificado sobre el código de administración: **no existe ni un solo borrado de
+    `products`, `inventory_units` ni `inventory_unit_notes`** — lo único que la aplicación borra son filas
+    de `product_images` y días inhabilitados. **El motivo es de dominio y no de comodidad:** borrar una
+    unidad se lleva por delante las reservas que la usaron, y con ellas el historial de quién tuvo ese
+    equipo y qué pasó con él, que es **D-2**, la trazabilidad completa. Una unidad que se rompe o se da de
+    baja pasa a `retired`, desaparece del catálogo del alumno y **deja su rastro intacto**. Comprobado por
+    el efecto: al retirar la última unidad de un producto, ese producto desapareció del catálogo del
+    alumno sin que se borrara ninguna fila.
 
-**Gestión de imágenes:** reordenar (arrastrar), fijar principal, eliminar (borra la fila; no borra de Cloudinary).
+**Gestión de imágenes:** ~~reordenar (arrastrar)~~ reordenar con dos botones, fijar principal, eliminar (borra la fila; no borra de Cloudinary).
+
+- ⚠ **Corregido el 2026-08-13:** el arrastre no se replicó. Dos botones hacen lo mismo, y elegir entre uno
+  y otro es estética; **el orden resultante es idéntico**.
+- ⚠ **Ampliado el 2026-08-13:** «una sola imagen principal» **no lo defiende la base** — medido, acepta dos
+  a la vez con HTTP 201—, es lógica de la aplicación y son dos escrituras sin transacción. Entre los dos
+  órdenes posibles se eligió aquel **cuyo fallo se ve**: apagar todas y luego encender deja «sin
+  principal», que se nota, en vez de «dos principales», que no.
+- ⚠ **Y lo de «no borra de Cloudinary» sigue siendo cierto, ahora con su consecuencia medida:** la
+  aplicación **no puede** borrar allí, ni siquiera queriendo, porque la firma que emite es solo de subida.
+  Las imágenes de prueba que la tanda 3B dejó en la cuenta real hay que borrarlas a mano desde el panel de
+  Cloudinary.
 
 ### F8 · Días inhabilitados (`components/admin/AdminDisabledDays.tsx`)
 
