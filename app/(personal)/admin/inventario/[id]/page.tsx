@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 
 import { DialogoAgregarUnidad } from "@/components/admin/dialogo-agregar-unidad";
 import { FormularioEditarProducto } from "@/components/admin/formulario-editar-producto";
+import { GaleriaAdmin } from "@/components/admin/galeria-admin";
 import { PanelUnidades } from "@/components/admin/panel-unidades";
+import { SubidaImagenes } from "@/components/admin/subida-imagenes";
 import { multiplosDeSlot } from "@/lib/admin/ajustes";
 import { leerProducto, leerSlotMinutes, listarCategorias, listarSedes } from "@/lib/admin/consultas";
 import { notasPorUnidad } from "@/lib/mostrador/notas";
@@ -63,7 +65,7 @@ export default async function DetalleProductoPage({
         />
       </section>
 
-      <section>
+      <section className="mb-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <h2 className="font-display text-lg font-semibold">
             Unidades ({producto.unidades.length})
@@ -76,6 +78,16 @@ export default async function DetalleProductoPage({
           unidades={producto.unidades}
           notasPorUnidad={notas}
         />
+      </section>
+
+      <section>
+        <h2 className="font-display mb-4 text-lg font-semibold">
+          Imágenes ({producto.imagenes.length})
+        </h2>
+        <div className="mb-6">
+          <SubidaImagenes productoId={producto.id} />
+        </div>
+        <GaleriaAdmin productoId={producto.id} imagenes={producto.imagenes} />
       </section>
     </main>
   );

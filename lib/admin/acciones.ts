@@ -345,6 +345,192 @@ export async function editarProducto(
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// IMAGENES (Task 5). F7: carga multiple, imagen principal, reordenar, eliminar.
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// EL ARCHIVO NUNCA PASA POR ESTE SERVIDOR. El navegador pide la firma a
+// /api/cloudinary/firma, sube DIRECTO a Cloudinary con ella, y solo entonces
+// llama a registrarImagen() con lo que Cloudinary devolvio. Por eso ninguna de
+// estas acciones recibe un binario.
+
+// Los datos que Cloudinary devuelve tras una subida y que se guardan tal cual.
+export type ImagenSubida = {
+  publicId: string;
+  secureUrl: string;
+  format: string | null;
+  width: number | null;
+  height: number | null;
+  bytes: number | null;
+};
+
+// Guarda la fila DESPUES de que Cloudinary confirme la subida.
+//
+// GUARDA `cloudinary_public_id`, Y ESO ES LO QUE HOY FALTA EN PRODUCCION: las
+// 34 imagenes reales tienen esa columna en NULL -- consultado el 2026-08-12 --,
+// asi que estan en Cloudinary y NADIE PUEDE IDENTIFICARLAS alli. Las que pasen
+// por aca si se pueden.
+//
+// `is_main` se decide contando: la primera imagen de un producto nace
+// principal, y las siguientes no. Sin esto, un producto recien creado se
+// quedaria SIN principal y el catalogo tendria que adivinar cual mostrar.
+export async function registrarImagen(
+  productoId: string,
+  imagen: ImagenSubida,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { count, error: errorConteo } = await supabase
+    .from('product_images')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productoId);
+
+  if (errorConteo) {
+    return { error: errorConteo.message };
+  }
+
+  const yaHabia = count ?? 0;
+
+  const { error } = await supabase.from('product_images').insert({
+    product_id: productoId,
+    secure_url: imagen.secureUrl,
+    cloudinary_public_id: imagen.publicId,
+    format: imagen.format,
+    width: imagen.width,
+    height: imagen.height,
+    bytes: imagen.bytes,
+    is_main: yaHabia === 0,
+    sort_order: yaHabia,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
+// Marca UNA imagen como principal.
+//
+// SON DOS ESCRITURAS Y NO HAY TRANSACCION ENTRE ELLAS, porque "una sola
+// principal por producto" NO LA DEFIENDE LA BASE. Medido el 2026-08-12: se
+// insertaron dos imagenes del mismo producto con `is_main: true` las dos y
+// PostgREST contesto **HTTP 201** con las dos filas dentro. `product_images`
+// solo tiene `PRIMARY KEY (id)` y `UNIQUE (cloudinary_public_id)`: ninguna
+// restriccion sobre `is_main`.
+//
+// EL ORDEN, POR SU PEOR CASO -- primero apagar todas, despues encender la
+// elegida:
+//   - Con este orden, si la segunda escritura falla el producto queda SIN
+//     principal. El catalogo cae en la primera por `sort_order`, que es una
+//     degradacion VISIBLE y recuperable pulsando otra vez.
+//   - Al reves quedarian DOS principales, que es un dato incoherente y
+//     SILENCIOSO: nadie lo nota hasta que el catalogo elige la que no era.
+// Mismo criterio que ya aplicaron marcarNoDevuelta() (T3A) y
+// cambiarEstadoUnidad(): entre dos escrituras sin transaccion, se elige el
+// orden cuyo fallo se ve.
+//
+// El apagado es UNA sentencia con filtro -- `is_main=eq.true` sobre el
+// producto --, no un bucle: medido, PATCH devolvio HTTP 200 y apago las dos de
+// golpe.
+export async function fijarPrincipal(
+  productoId: string,
+  imagenId: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { error: errorApagar } = await supabase
+    .from('product_images')
+    .update({ is_main: false })
+    .eq('product_id', productoId)
+    .eq('is_main', true);
+
+  if (errorApagar) {
+    return { error: errorApagar.message };
+  }
+
+  const { error: errorEncender } = await supabase
+    .from('product_images')
+    .update({ is_main: true })
+    .eq('id', imagenId);
+
+  if (errorEncender) {
+    return { error: errorEncender.message };
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
+// Reordena las imagenes de un producto.
+//
+// RECIBE EL ORDEN COMPLETO Y NO "sube esta una posicion": asi la pantalla
+// manda el estado final que quiere, y no una secuencia de movimientos que
+// podria aplicarse sobre un orden distinto del que el admin estaba viendo.
+//
+// SIN `upsert`: haria falta mandar TODAS las columnas NOT NULL de cada fila
+// -- `secure_url` entre ellas --, y esta funcion no las tiene ni tiene por que
+// leerlas. Son `UPDATE` por id, uno por imagen. Con una imagen por producto en
+// el catalogo real -- y ninguna galeria de mas de un puñado --, el costo es
+// irrelevante; si algun dia hubiera decenas, esto pide una RPC, que es SQL.
+export async function reordenarImagenes(
+  productoId: string,
+  idsEnOrden: string[],
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  for (const [indice, id] of idsEnOrden.entries()) {
+    const { error } = await supabase
+      .from('product_images')
+      .update({ sort_order: indice })
+      .eq('id', id);
+
+    // Se corta al primer fallo en vez de seguir: continuar dejaria un orden a
+    // medias que nadie pidio, y el admin no sabria cual de las dos mitades
+    // esta viendo.
+    if (error) {
+      return { error: error.message };
+    }
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+
+  return null;
+}
+
+// Borra la FILA de la imagen. NO borra nada en Cloudinary.
+//
+// Y NO ES UNA OMISION: F7 dice literalmente "eliminar (borra la fila; no borra
+// de Cloudinary)". Ademas seria IMPOSIBLE para las 34 imagenes reales, que no
+// guardan `cloudinary_public_id` y por tanto no se pueden nombrar alli.
+//
+// El DELETE esta concedido y la politica lo permite -- `product_images_admin_all`
+// es `for all` --, medido: como admin devuelve la fila borrada con HTTP 200, y
+// con un JWT de ALUMNO devuelve `[]` con HTTP 200, cero filas SIN ERROR. El
+// modo de fallo silencioso de siempre.
+export async function borrarImagen(
+  productoId: string,
+  imagenId: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from('product_images').delete().eq('id', imagenId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/inventario/${productoId}`);
+  revalidatePath('/admin/inventario');
+
+  return null;
+}
+
 // El adaptador que consume useActionState desde el formulario, con la misma
 // forma que reservar() en lib/reservas/acciones.ts: (estadoPrevio, formData).
 // crearProducto() de arriba se queda como el nucleo TIPADO -- recibe datos ya

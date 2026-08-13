@@ -132,6 +132,21 @@ export type UnidadDetalle = {
   sede: string;
 };
 
+// Una imagen de `product_images` para la galeria de administracion.
+//
+// `cloudinaryPublicId` es `| null` y NO por precaucion: en el catalogo REAL las
+// **34** imagenes lo tienen en `NULL` -- consultado el 2026-08-12 --. Estan en
+// Cloudinary y nadie puede identificarlas alli. Las que suba esta pantalla si
+// lo guardan, asi que la galeria convive con las dos poblaciones y tiene que
+// poder decirlo.
+export type ImagenProducto = {
+  id: string;
+  url: string;
+  cloudinaryPublicId: string | null;
+  esPrincipal: boolean;
+  orden: number;
+};
+
 export type ProductoDetalle = {
   id: string;
   nombre: string;
@@ -140,6 +155,7 @@ export type ProductoDetalle = {
   maxDuracionHoras: number;
   bufferMinutos: number;
   unidades: UnidadDetalle[];
+  imagenes: ImagenProducto[];
 };
 
 // El detalle de UN producto con sus unidades, para /admin/inventario/[id].
@@ -158,7 +174,7 @@ export async function leerProducto(id: string): Promise<ProductoDetalle | null> 
   const { data, error } = await supabase
     .from('products')
     .select(
-      'id,name,category,description,max_duration_hours,buffer_minutes,inventory_units(id,unit_code,asset_code,status,campuses(name))',
+      'id,name,category,description,max_duration_hours,buffer_minutes,inventory_units(id,unit_code,asset_code,status,campuses(name)),product_images(id,secure_url,cloudinary_public_id,is_main,sort_order)',
     )
     .eq('id', id)
     .maybeSingle();
@@ -199,6 +215,19 @@ export async function leerProducto(id: string): Promise<ProductoDetalle | null> 
       // embebida por una columna suya con `.order()` de nivel superior, y son
       // pocas unidades por producto -- 3 como mucho en el catalogo real.
       .sort((a, b) => a.unitCode.localeCompare(b.unitCode, 'es')),
+    imagenes: data.product_images
+      .map((i) => ({
+        id: i.id,
+        url: i.secure_url,
+        cloudinaryPublicId: i.cloudinary_public_id,
+        esPrincipal: i.is_main,
+        orden: i.sort_order,
+      }))
+      // Por `sort_order`, y con el `id` como desempate. Sin el desempate, dos
+      // imagenes con el mismo `sort_order` -- que la base permite, no hay
+      // restriccion -- se pintarian en un orden que puede cambiar entre dos
+      // cargas, y el admin veria la galeria "moverse sola" al recargar.
+      .sort((a, b) => a.orden - b.orden || a.id.localeCompare(b.id)),
   };
 }
 

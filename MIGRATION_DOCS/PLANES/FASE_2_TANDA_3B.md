@@ -13,7 +13,7 @@
 | **2 · Alta de producto con sus unidades** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, de 70 en 6) y `build` (**16 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cuatro escrituras medidas por PostgREST antes de escribir. **Q-14 primera mitad verificada en pantalla:** el desplegable ofrece 17 buffers y **no ofrece 45** |
 | **3 · Estado de unidad y sus notas** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, sin cambios) y `build` (**17 rutas**, 3 estáticas) en verde, corridos **dos veces**. La baja como `retired` verificada **por su efecto en la pantalla del alumno**, con la línea base tomada antes |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, de 75 en 7) y `build` (**18 rutas**) en verde, corridos **dos veces**. **P0-4 verificado por el efecto**: cero coincidencias del secreto en los 39 archivos servidos al navegador, con control positivo que valida la sonda. Alumno con sesión → **403** |
-| **5 · Subida y gestión de imágenes** | ⬜ Sin empezar |
+| **5 · Subida y gestión de imágenes** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, sin cambios) y `build` (**18 rutas**, sin cambios) en verde, corridos **dos veces**. **Cloudinary ACEPTÓ la firma**: dos subidas reales de punta a punta, con `cloudinary_public_id` guardado. Las cuatro acciones verificadas en pantalla y en la base |
 | **6 · `/admin/reservas`** | ⬜ Sin empezar |
 | **7 · `/admin/dias`, con D-40** | ⬜ Sin empezar |
 | **8 · `/admin/estadisticas`** | ⬜ Sin empezar |
@@ -228,6 +228,62 @@
     Verificarlo exige una subida real contra la cuenta de la universidad, y eso es la Task 5. Acá está
     medido que el cálculo es correcto contra un vector fijo y que el endpoint autoriza bien; **una firma
     bien formada y equivocada se vería igual desde acá**.
+
+### Task 5 · Subida y gestión de imágenes *(2026-08-12)*
+
+33. **CLOUDINARY ACEPTÓ LA FIRMA, y eso cierra lo que la Task 4 dejó abierto por escrito.** Dos subidas
+    reales desde el navegador contra la cuenta de la universidad, de punta a punta. Las filas quedaron con
+    `cloudinary_public_id` **no nulo** —`products/z6hce2eqoyd3cvwlfnip` y `products/cubpwrrmuztxh6k9yeko`—,
+    `format`, `width`, `height` y `bytes` poblados, y la carpeta `products/` aplicada. **La corrección 32
+    predijo exactamente el hueco que esta tarea cierra:** una firma bien formada y equivocada se habría
+    visto igual desde la Task 4.
+
+34. **La base acepta DOS imágenes principales a la vez, medido y no solo leído.** Se insertaron dos con
+    `is_main: true` del mismo producto: **HTTP 201 y las dos dentro**. Confirma que «una sola principal» es
+    **lógica de la aplicación** y que la base no la va a defender. Por eso `fijarPrincipal()` apaga primero
+    y enciende después: si falla la segunda escritura queda **sin principal** —visible y recuperable— y no
+    con dos, que es incoherente y silencioso. Verificado en pantalla y en la base: tras fijar la segunda,
+    **exactamente una**.
+
+35. **La subida va EN SERIE y no en paralelo, por una carrera real que el plan no menciona.**
+    `registrarImagen()` cuenta las imágenes existentes para decidir `is_main` y `sort_order`; con varias
+    subidas resolviéndose a la vez, todas leerían el **mismo** conteo, saldrían con el mismo `sort_order` y
+    —sobre un producto vacío— **todas se marcarían principales**. En serie la carrera no existe.
+
+36. **Borrar la fila NO borra el archivo, verificado con control positivo Y negativo.** Tras quitar una
+    imagen, su URL de Cloudinary sigue respondiendo **HTTP 200** con los mismos 5666 bytes que la columna
+    `bytes` había guardado; y un `public_id` inventado da **404**. Sin ese 404, el 200 no distinguiría
+    «sigue ahí» de «Cloudinary responde 200 a cualquier cosa». Es lo que manda F7.
+
+37. **CUARTA VEZ QUE EL SEED CONTRADICE A PRODUCCIÓN, y esta vez al revés de lo que uno esperaría.** Las 2
+    imágenes del seed **SÍ** tienen `cloudinary_public_id` —`seed/cam-001`, `seed/lap-001`—, mientras las
+    **34 de producción lo tienen en `NULL`**. Así que la insignia «Sin identificador de Cloudinary» **no se
+    renderiza nunca en local** y en producción va a estar en **todas**. Se fabricó el caso —poniendo el
+    `public_id` de una imagen del seed a `NULL`— y se comprobó que sale junto a «Principal». **Misma
+    lección que la insignia «sin código» de la Task 1**, y el mismo remedio.
+
+38. **El linter volvió a tener razón, y van dos en la tanda.** Marcó un `Button` importado y no usado en
+    `subida-imagenes.tsx` —el componente usa un `<input type="file">` directo—. Se quitó el import en vez
+    de inventarle un uso.
+
+39. **El manejo del error de la firma NO asume que la respuesta sea JSON**, y es consecuencia directa de la
+    corrección 25: sin sesión el proxy contesta **307 hacia una pantalla HTML**, así que un
+    `await respuesta.json()` a secas reventaría con un error de parseo que no explicaría nada. Se intenta
+    leer el JSON y se cae a un texto propio —«tu sesión caducó»—.
+
+40. **Reordenar se hace con dos botones y no arrastrando.** F7 dice «reordenar (arrastrar)»; arrastrar es
+    **estética** —subir y bajar hace exactamente lo mismo— y además los botones funcionan con teclado sin
+    trabajo extra. La fase visual decidirá si el arrastre vale la pena.
+
+41. **`reordenarImagenes()` recibe el orden COMPLETO y no «sube esta una posición».** Así la pantalla manda
+    el estado final que el admin está viendo, en vez de una instrucción que podría aplicarse sobre un orden
+    distinto — el mismo riesgo que la corrección 15 de la T2B midió con el `router.push()` a la misma ruta.
+
+42. **Quedan DOS IMÁGENES DE PRUEBA en la cuenta real de Cloudinary**, y la aplicación **no puede
+    borrarlas** porque a propósito no borra nada allí (F7). Son `products/z6hce2eqoyd3cvwlfnip` y
+    `products/cubpwrrmuztxh6k9yeko`, dos PNG de 320×200 generados en el navegador. **Sus filas ya no están
+    en la base**, así que no aparecen en ninguna pantalla. Borrarlas del panel de Cloudinary es una tarea
+    manual de Alejandro; se deja anotado en vez de silenciado.
 
 ---
 
