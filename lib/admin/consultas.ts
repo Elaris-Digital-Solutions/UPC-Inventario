@@ -122,3 +122,80 @@ export async function listarInventario(): Promise<FilaInventario[]> {
 
   return (data ?? []).map(filaAInventario);
 }
+
+// Las categorias que YA EXISTEN en el catalogo, para el desplegable del alta.
+//
+// D-42, y es la correccion directa de un error que este proyecto ya pago tres
+// veces. F7 manda "14 predefinidas + las ya existentes", y en el catalogo real
+// -consultado el 2026-08-12- hay DIEZ: Tablets, Cables, Celulares, VR,
+// Camaras, Perifericos, Audio, Proyectores, Otros y Monitores/TV. Una lista
+// fija de catorce metería cuatro opciones sin un solo producto detras, y
+// habria que recuperarla del tag legacy/vite-final.
+//
+// Leyendolas de la base no hay lista que se quede vieja: si mañana hay doce,
+// salen doce. Es la misma regla que el seed enseño por las malas -- `featured`
+// en la 2A, las imagenes en la 2B, los buffers en la 3A --: el codigo no debe
+// afirmar sobre los datos lo que solo los datos pueden decir.
+//
+// SIN `distinct` de PostgREST, que no lo ofrece sobre una columna suelta: se
+// leen las categorias y se deduplican aca. Con 34 productos es gratis, y el
+// limite se dice por delante -- con decenas de miles habria que pedirle al
+// motor una vista.
+export async function listarCategorias(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('products').select('category');
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const vistas = new Set<string>();
+  for (const fila of data ?? []) {
+    // `category` es NULLABLE: un producto sin categoria no aporta ninguna
+    // opcion al desplegable, y `null` no es una categoria llamada "null".
+    if (fila.category !== null && fila.category.trim() !== '') {
+      vistas.add(fila.category);
+    }
+  }
+
+  // `localeCompare` y no el orden por defecto: con tildes y mayusculas, el
+  // orden binario pone "Camaras" y "Ámbar" en sitios que nadie espera.
+  return [...vistas].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+// Las sedes, para el desplegable de cada unidad. Son dos en produccion
+// -- San Miguel y Monterrico, 46 unidades cada una --, y se leen igual que las
+// categorias en vez de escribirlas a mano por el mismo motivo.
+export async function listarSedes(): Promise<{ id: string; nombre: string }[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('campuses')
+    .select('id,name')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((c) => ({ id: c.id, nombre: c.name }));
+}
+
+// La fila de configuracion, de la que el formulario de alta necesita
+// `slot_minutes` para ofrecer solo buffers multiplos (Q-14, primera mitad).
+//
+// `app_settings` es una fila unica -- clave primaria booleana con
+// `check (id)`, supabase/migrations/20260806002459_reservation_settings.sql:34-50 --,
+// asi que `.single()` es correcto y no una suposicion: no puede haber dos.
+export async function leerSlotMinutes(): Promise<number> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('app_settings').select('slot_minutes').single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.slot_minutes;
+}

@@ -10,7 +10,7 @@
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada.** Las cuatro correcciones aplicadas y verificadas: `ESTADO_Y_PLAN.md` 35 y 751, `CLAUDE.md` 168 y 173. Dos filas nuevas de bitácora —el push de la migración 23 y la escritura de este plan—. Ninguna reescrita sin marca |
 | **1 · Andamio de `/admin` y listado de inventario** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**70 en 6 archivos**, de 65 en 5) y `build` (**15 rutas**, 3 estáticas) en verde, corridos **dos veces** —antes y después del arreglo de texto—. **Punto a verificar 1 resuelto: SÍ embebe.** Verificado en pantalla con sesión de admin y de operador de verdad |
-| **2 · Alta de producto con sus unidades** | ⬜ Sin empezar |
+| **2 · Alta de producto con sus unidades** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, de 70 en 6) y `build` (**16 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cuatro escrituras medidas por PostgREST antes de escribir. **Q-14 primera mitad verificada en pantalla:** el desplegable ofrece 17 buffers y **no ofrece 45** |
 | **3 · Estado de unidad y sus notas** | ⬜ Sin empezar |
 | **4 · `/api/cloudinary/firma`, cierra P0-4** | ⬜ Sin empezar |
 | **5 · Subida y gestión de imágenes** | ⬜ Sin empezar |
@@ -83,6 +83,56 @@
    con sesión de operador, `destino()` lo llevó a `/mostrador`, escribir `/admin/inventario` a mano lo
    **rebotó a `/mostrador`**, y su cabecera **no ofrece** el enlace. Consola con **0 errores y 0
    advertencias**.
+
+### Task 2 · Alta de producto con sus unidades *(2026-08-12)*
+
+10. **REACT RESETEA EL FORMULARIO CUANDO LA ACCIÓN DEVUELVE UN ERROR, y eso obligó a rehacer una decisión
+    de diseño de esta misma tarea.** La primera versión guardaba los valores de las filas de unidad **en el
+    DOM** y los recogía con `getAll()`, con el argumento —escrito en el propio archivo— de no mantener dos
+    copias del mismo dato. **Medido en pantalla:** se envió un alta con dos códigos repetidos, la acción
+    contestó con su rechazo, y **el campo «Nombre» y todas las filas quedaron vacíos**. Un `<form action>`
+    de React se resetea al terminar la acción, **también cuando la acción falla**. Con diez unidades
+    escritas, eso es perder el trabajo entero por un código repetido. **Arreglado pasando todos los campos
+    a controlados**, y el contraste se midió por delante y por detrás: antes, seis campos en blanco tras el
+    rechazo; después, los seis intactos. **Los cuatro comandos estaban en verde con el defecto dentro** —es
+    comportamiento de React en el navegador, no una propiedad del texto del programa—.
+
+11. **`PGRST102` TIENE MÁS DE UNA CAUSA, y la segunda apareció acá.** En la T3A ese código fue el síntoma
+    del **BOM** en el cuerpo JSON (`Set-Content -Encoding utf8`). Midiendo el `INSERT` múltiple de unidades
+    salió otra vez, con otra causa completamente distinta: **`"All object keys must match"`**, HTTP 400.
+    PostgREST **rechaza un INSERT múltiple cuyos objetos no coincidan en el juego de claves**, y el caso lo
+    produce el formulario sin esfuerzo —una unidad con `asset_code` y otra sin él—. **Se arregla mandando
+    `asset_code` siempre presente, con `null` explícito, en vez de omitir la clave.** Es la lección del
+    instrumento otra vez, en su forma incómoda: **reconocer el síntoma no valida la explicación de la vez
+    anterior.**
+
+12. **El `INSERT` con array es ATÓMICO, medido y no supuesto.** Se mandaron tres unidades con dos códigos
+    repetidos: `23505`, **HTTP 409 —no 400—**, y **cero unidades** quedaron en la tabla, no una. Eso
+    confirma la decisión del plan de usar una sentencia y no un bucle: un bucle habría dejado «las dos
+    primeras sí y la tercera no».
+
+13. **La unicidad por producto, medida con su contraejemplo.** El mismo `unit_code` en **otro** producto se
+    aceptó con HTTP 201. Sin ese contraejemplo, «es único por producto» no se distingue de «es único y
+    nadie repitió todavía» — la misma forma que la T2B usó con la reserva ajena en `/mi-panel`.
+
+14. **El código repetido se comprueba TAMBIÉN en la acción, y no es duplicación ociosa:** el `23505` del
+    motor **no dice cuál** código se repitió, y el mensaje de pantalla sí lo nombra. La barrera real sigue
+    siendo la base —borrar esa comprobación no permitiría crear duplicados—.
+
+15. **`guardarAjustes()` NO puede vivir en `lib/admin/ajustes.ts`, contra lo que decía el plan.** Ese
+    archivo lo carga un test, y una Server Action necesita importar el cliente de servidor por el alias
+    `@/`, que Vitest no resuelve. **La regla general que sale, y vale para el resto de la tanda: un módulo
+    que un test carga no puede contener una Server Action.** `guardarAjustes()` va en `lib/admin/acciones.ts`
+    en la Task 10; `ajustes.ts` se queda con lo puro.
+
+16. **El `test` volvió a subir por encima de lo previsto: 75 en 7 archivos.** El plan predecía «65 → 70»
+    para esta tarea, pero la Task 1 ya había llevado el contador a 70 por `plural.ts`. Los 5 de acá son los
+    de `multiplosDeSlot()`, que sí estaban previstos.
+
+17. **`shadcn add select`: el `--dry-run` acertó exacto y D-30 no se repitió.** Predijo «1 file, +1 new» y
+    eso fue: `components/ui/select.tsx` creado, cero modificaciones. **Y se sabe por el hash, no porque el
+    build siguiera verde:** `globals.css` y `package.json` con SHA-256 idéntico antes y después. Sin
+    dependencia nueva, porque el proyecto usa el paquete unificado `radix-ui`.
 
 ---
 
