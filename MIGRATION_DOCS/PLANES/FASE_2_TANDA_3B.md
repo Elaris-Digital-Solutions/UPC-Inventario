@@ -12,7 +12,7 @@
 | **1 · Andamio de `/admin` y listado de inventario** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**70 en 6 archivos**, de 65 en 5) y `build` (**15 rutas**, 3 estáticas) en verde, corridos **dos veces** —antes y después del arreglo de texto—. **Punto a verificar 1 resuelto: SÍ embebe.** Verificado en pantalla con sesión de admin y de operador de verdad |
 | **2 · Alta de producto con sus unidades** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, de 70 en 6) y `build` (**16 rutas**, 3 estáticas) en verde, corridos **dos veces**. Las cuatro escrituras medidas por PostgREST antes de escribir. **Q-14 primera mitad verificada en pantalla:** el desplegable ofrece 17 buffers y **no ofrece 45** |
 | **3 · Estado de unidad y sus notas** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**75 en 7 archivos**, sin cambios) y `build` (**17 rutas**, 3 estáticas) en verde, corridos **dos veces**. La baja como `retired` verificada **por su efecto en la pantalla del alumno**, con la línea base tomada antes |
-| **4 · `/api/cloudinary/firma`, cierra P0-4** | ⬜ Sin empezar |
+| **4 · `/api/cloudinary/firma`, cierra P0-4** | ✅ **Cerrada.** `typecheck`, `lint`, `test` (**83 en 8 archivos**, de 75 en 7) y `build` (**18 rutas**) en verde, corridos **dos veces**. **P0-4 verificado por el efecto**: cero coincidencias del secreto en los 39 archivos servidos al navegador, con control positivo que valida la sonda. Alumno con sesión → **403** |
 | **5 · Subida y gestión de imágenes** | ⬜ Sin empezar |
 | **6 · `/admin/reservas`** | ⬜ Sin empezar |
 | **7 · `/admin/dias`, con D-40** | ⬜ Sin empezar |
@@ -178,6 +178,56 @@
 24. **El motivo obligatorio, medido con los dos casos:** con **seis espacios** el botón sigue
     deshabilitado —`trim()` del cliente—, y con texto se habilita. La misma regla la repite
     `cambiarEstadoUnidad()` del lado del servidor.
+
+### Task 4 · `/api/cloudinary/firma`, cierra P0-4 *(2026-08-12)*
+
+25. **La rama 401 es INALCANZABLE desde fuera, y no se arregla.** El plan predecía «sin sesión → 401».
+    **Medido: sin sesión llega un 307 a `/login`**, con y sin cabecera `Origin`. `proxy.ts` usa **lista
+    blanca** —se declara lo público y todo lo demás pide sesión, T1— y esta ruta no está declarada, así que
+    el proxy corta **antes de que el handler exista**. **No se mete `/api` en la lista blanca:** la única
+    alternativa sería que el proxy deje pasar lo no declarado, que es justo la propiedad que la T1 compró,
+    y la T2A ya aceptó exactamente este costo con su 404 propio. La rama se deja escrita como defensa en
+    profundidad, con su motivo en el archivo.
+
+26. **P0-4 verificado POR EL EFECTO, y con el control positivo que hace válida la medición.** Cero
+    coincidencias del secreto en los **39** archivos servidos al navegador, cero de la API key, y ninguna
+    variable `NEXT_PUBLIC_*SECRET`. **Pero cero es también lo que devuelve una sonda rota**, así que se
+    buscó algo que **sí** tiene que estar: la clave publicable de Supabase, **1 coincidencia**. Sin ese
+    control, «cero» no distinguiría «el secreto no está» de «la búsqueda no funciona» — la misma forma que
+    el contraejemplo del `PATCH` de admin en la Task 1.
+
+27. **Un matiz de `NEXT_PUBLIC_` que contradice cómo suele contarse: el prefijo no inlinea, la REFERENCIA
+    inlinea.** `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` da **0 coincidencias** en el bundle pese a llevar el
+    prefijo, porque en esta tarea **ningún componente de cliente lo usa todavía**. Importa para no leer mal
+    la comprobación de P0-4 en el futuro: que una variable pública no aparezca hoy **no prueba** que no vaya
+    a aparecer cuando alguien la referencie.
+
+28. **Los tres caminos, medidos con la herramienta que manda lo que manda un navegador.** Sin sesión →
+    **307**; alumno con sesión → **403**; admin → **200**. Los dos con sesión se dispararon con `fetch()`
+    **desde la página**, que manda cookies **y** cabecera `Origin` — `curl` no manda `Origin`, y esa
+    diferencia costó ocho tareas en la T1. **El 403 con sesión de alumno legítima es el que cierra P0-4**;
+    los otros dos son control.
+
+29. **La respuesta trae cinco claves y ninguna se llama nada parecido a «secret»**, comprobado por forma y
+    no por vista: firma SHA-1 de 40 hex, `timestamp` en **segundos** —no milisegundos— con **0 segundos** de
+    desfase con el reloj.
+
+30. **El linter marcó `request` sin usar y TENÍA RAZÓN.** Se quitó el parámetro en vez de esquivar la regla
+    —la T3A ya retiró un `{role === "admin" && null}` escrito solo para callar a ESLint—. **Y al quitarlo
+    quedó a la vista una propiedad de seguridad que conviene tener escrita: este handler no lee NADA del
+    cliente.** El `timestamp` sale del reloj del servidor y el `folder` del entorno, así que el navegador no
+    puede pedir una firma para otra carpeta ni para un `public_id` elegido por él.
+
+31. **El vector fijo de la firma se CALCULÓ, no se citó.** El borrador del plan traía un comentario que lo
+    presentaba como «el ejemplo de la documentación de Cloudinary». Los parámetros salen de ahí, pero el
+    secreto —y por tanto el hash— son de esta medición: presentarlo como ajeno habría sido **una fuente
+    inventada sobre un hecho cierto**, que es el género que la T2B y la T3A persiguen. La prueba fija
+    además que el secreto va **pegado sin separador**, cosa que un `/^[0-9a-f]{40}$/` no diría.
+
+32. **Lo que esta tarea NO prueba, dicho por delante:** que la firma sea **aceptada por Cloudinary**.
+    Verificarlo exige una subida real contra la cuenta de la universidad, y eso es la Task 5. Acá está
+    medido que el cálculo es correcto contra un vector fijo y que el endpoint autoriza bien; **una firma
+    bien formada y equivocada se vería igual desde acá**.
 
 ---
 
