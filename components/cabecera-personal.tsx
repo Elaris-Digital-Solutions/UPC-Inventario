@@ -2,6 +2,14 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Logotipo } from "@/components/logotipo";
+import { MenuMovil } from "@/components/menu-movil";
+import {
+  ACCION_NAV,
+  ACCION_NAV_MOVIL,
+  ENLACE_NAV,
+  ENLACE_NAV_MOVIL,
+} from "@/components/estilos-nav";
 import type { Database } from "@/lib/database.types";
 
 // La cabecera del grupo (personal). NO reutiliza CabeceraSesion: esa esta
@@ -24,18 +32,31 @@ type CabeceraPersonalProps = {
 };
 
 export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
+  // Con que cuenta se esta operando. Esto es VISIBILIDAD y no estetica: la
+  // misma persona puede tener fila de admin y estar atendiendo el mostrador,
+  // y lo que marque como "no se retiro" sanciona a un alumno de verdad. Saber
+  // con que rol se esta trabajando antes de pulsar ese boton no es
+  // decoracion. No decide nada -RLS decide-, solo lo dice.
+  //
+  // Se calcula UNA vez y se pinta en los dos sitios -barra y panel movil-: si
+  // se plegara solo en la barra de escritorio, en un telefono desapareceria
+  // justo el aviso de con que cuenta se esta sancionando.
+  const distintivo = (
+    <Badge variant="secondary">
+      {role === "admin" ? "Administrador" : "Operador"}
+    </Badge>
+  );
+
   return (
     <header className="border-border/60 bg-background/95 sticky top-0 z-50 border-b backdrop-blur">
-      <div className="container flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="font-display text-upc-red text-xl font-bold">
-          UPC-Inventario
-        </Link>
+      <div className="container flex h-20 items-center justify-between gap-4 sm:h-24">
+        <Logotipo />
 
-        <nav className="flex items-center gap-1">
+        <nav className="hidden items-center gap-8 md:flex">
           {/* /mostrador siempre, para los dos roles (D-16): quien esta en el
               mostrador es quien sabe si el equipo se entrego, y eso vale
               igual para el admin que para el operador. */}
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" className={ENLACE_NAV}>
             <Link href="/mostrador">Mostrador</Link>
           </Button>
 
@@ -53,35 +74,41 @@ export function CabeceraPersonal({ role }: CabeceraPersonalProps) {
               lib/auth/destino.ts manda al admin a /admin/inventario nada mas
               entrar, y esa ruta va a seguir dando 404 hasta la T3B. No lo
               introduce esta tanda y no se arregla aca; queda dicho.
+              Verificado otra vez en un navegador el 2026-08-13: sigue siendo
+              404, y por eso el mostrador se prueba entrando con operador@ y
+              no con admin@. */}
 
-              Aca hubo una primera version con `{role === "admin" && null}`,
-              escrita para que ESLint no marcara `role` como prop sin usar. Se
-              quito: es codigo que no renderiza nada y existe solo para callar
-              a una herramienta, y un lector futuro no tiene forma de saber
-              que no hace falta. La regla del linter tenia razon -el prop no
-              se estaba usando-, y la respuesta correcta no era esquivarla
-              sino darle al prop un uso de verdad, que es el distintivo de
-              abajo. */}
-
-          {/* Con que cuenta se esta operando. Esto es VISIBILIDAD y no
-              estetica: la misma persona puede tener fila de admin y estar
-              atendiendo el mostrador, y lo que marque como "no se retiro"
-              sanciona a un alumno de verdad. Saber con que rol se esta
-              trabajando antes de pulsar ese boton no es decoracion.
-              No decide nada -RLS decide-, solo lo dice. */}
-          <Badge variant="secondary">
-            {role === "admin" ? "Administrador" : "Operador"}
-          </Badge>
+          {distintivo}
 
           {/* Salir es un POST y no un enlace, igual que en cabecera-sesion.tsx:
               /auth/signout no exporta GET y responde 405 a proposito, asi que
               un <a> aca seria un boton que falla. */}
           <form action="/auth/signout" method="post">
-            <Button type="submit" variant="outline" size="sm">
+            <Button type="submit" variant="outline" className={ACCION_NAV}>
               Salir
             </Button>
           </form>
         </nav>
+
+        {/* Por debajo de `md` el distintivo de rol se queda FUERA del panel y
+            visible en la barra, a diferencia de los enlaces. Es la unica cosa
+            de esta cabecera que no es navegacion sino un aviso, y esconderlo
+            detras de un menu que hay que abrir lo volveria inutil justo
+            cuando mas hace falta: con el telefono en la mano, en el
+            mostrador, antes de marcar una falta. */}
+        <div className="flex items-center gap-2 md:hidden">
+          {distintivo}
+          <MenuMovil>
+            <Button asChild variant="ghost" className={ENLACE_NAV_MOVIL}>
+              <Link href="/mostrador">Mostrador</Link>
+            </Button>
+            <form action="/auth/signout" method="post" className="contents">
+              <Button type="submit" variant="outline" className={ACCION_NAV_MOVIL}>
+                Salir
+              </Button>
+            </form>
+          </MenuMovil>
+        </div>
       </div>
     </header>
   );

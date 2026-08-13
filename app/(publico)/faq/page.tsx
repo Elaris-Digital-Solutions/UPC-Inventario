@@ -23,9 +23,16 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Heroe,
+  HeroeAntetitulo,
+  HeroeBajada,
+  HeroeTitular,
+} from "@/components/heroe";
 
 export const metadata: Metadata = {
   title: "Preguntas frecuentes · UPC-Inventario",
@@ -158,29 +165,54 @@ const SECCIONES: SeccionFaq[] = [
 
 export default function FaqPage() {
   return (
-    <main className="container flex-1 py-16 sm:py-24">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="font-display text-4xl sm:text-5xl">
-          Preguntas frecuentes
-        </h1>
-        <p className="text-muted-foreground mt-4 max-w-prose text-lg">
+    <main className="flex-1">
+      {/* Heroe de seccion, recuperado el 2026-08-13. El Vite le daba a la FAQ
+          el MISMO dispositivo que a la portada -franja con `bg-gradient-hero`,
+          halo radial, antetitulo en versalitas y titular en Playfair
+          (MIGRATION_GUIDE/src/pages/FAQ.tsx:42-55)-, o sea que era un patron
+          de pagina y no un adorno de la landing. Aqui abria con texto negro
+          sobre el gris de siempre. */}
+      <Heroe variante="seccion">
+        <HeroeAntetitulo>Soporte y ayuda</HeroeAntetitulo>
+        <HeroeTitular>Preguntas frecuentes</HeroeTitular>
+        <HeroeBajada>
           Todo lo que necesitas saber antes de tu primera reserva.
-        </p>
+        </HeroeBajada>
+      </Heroe>
 
+      <div className="container py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl">
         {SECCIONES.map((seccion, index) => (
-          <section key={seccion.titulo} className="mt-12">
+          <section key={seccion.titulo} className={index > 0 ? "mt-12" : ""}>
             {index > 0 && <Separator className="mb-12" />}
-            <h2 className="font-display text-2xl sm:text-3xl">
+            <h2 className="font-display text-2xl font-bold sm:text-3xl">
               {seccion.titulo}
             </h2>
-            <div className="mt-6 space-y-6">
+
+            {/* ACORDEON, recuperado el 2026-08-13. El Vite plegaba las
+                preguntas (MIGRATION_GUIDE/src/pages/FAQ.tsx:60) y aqui se
+                volcaban todas las respuestas abiertas: en el mismo alto de
+                pantalla entraban TRES preguntas donde el original ensenaba
+                SIETE. No es solo estetica, es poder recorrer la lista.
+                Va con <details> y no con el Accordion de Radix porque ese
+                exige estado de cliente, y anadir "use client" a esta pagina
+                la sacaria del prerender estatico -es una de las tres rutas
+                que `next build` marca como estaticas-. <details> es HTML
+                puro: se pliega sin JavaScript y es accesible por teclado. */}
+            <div className="border-border mt-6 divide-y rounded-xl border">
               {seccion.preguntas.map((item) => (
-                <div key={item.pregunta}>
-                  <h3 className="text-lg font-semibold">{item.pregunta}</h3>
-                  <p className="text-muted-foreground mt-1">
+                <details key={item.pregunta} className="group/faq">
+                  <summary className="marker:content-none hover:text-primary flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                    {item.pregunta}
+                    <ChevronDown
+                      className="text-muted-foreground size-4 shrink-0 transition-transform group-open/faq:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <p className="text-muted-foreground px-5 pb-5 leading-relaxed">
                     {item.respuesta}
                   </p>
-                </div>
+                </details>
               ))}
             </div>
           </section>
@@ -209,6 +241,7 @@ export default function FaqPage() {
             </Link>
           </p>
         </section>
+      </div>
       </div>
     </main>
   );

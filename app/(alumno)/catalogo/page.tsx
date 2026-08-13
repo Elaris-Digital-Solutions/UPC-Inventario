@@ -14,6 +14,7 @@ import Link from "next/link";
 
 import { FiltrosCatalogo } from "@/components/catalogo/filtros";
 import { productosConStock, sedesActivas } from "@/lib/catalogo/consultas";
+import { EncabezadoSeccion } from "@/components/antetitulo";
 
 // Next.js 16: `searchParams` llega como Promise y hay que esperarla antes de
 // leer sus propiedades. Escribirlo como un objeto sincrono -como en
@@ -33,7 +34,11 @@ export default async function CatalogoPage({
     // pantalla rota ni una rejilla vacia sin explicacion.
     return (
       <main className="container flex-1 py-12">
-        <h1 className="font-display text-upc-red text-4xl">Catálogo</h1>
+        <EncabezadoSeccion
+          antetitulo="Inventario UPC"
+          titulo="Catálogo"
+          como="h1"
+        />
         <p className="text-muted-foreground border-border mt-8 rounded-lg border border-dashed py-12 text-center">
           No hay sedes activas en este momento.
         </p>
@@ -53,7 +58,17 @@ export default async function CatalogoPage({
 
   return (
     <main className="container flex-1 py-12">
-      <h1 className="font-display text-upc-red text-4xl">Catálogo</h1>
+      {/* Encabezado con antetitulo, el patron del Vite. El titulo suelto en
+          rojo no existia en el original: alli el rojo era del heroe y de las
+          reglas, y los titulos de pantalla iban en negro con su antetitulo
+          encima (MIGRATION_GUIDE/src/pages/Index.tsx:116). Un h1 rojo sin
+          contexto encima es lo que hacia que cada pantalla con sesion
+          arrancara igual y sin jerarquia. */}
+      <EncabezadoSeccion
+        antetitulo="Inventario UPC"
+        titulo="Catálogo"
+        como="h1"
+      />
 
       {/* Pestañas de sede como enlaces y no como un desplegable de cliente:
           el cambio de sede se renderiza en el servidor -esta misma pagina

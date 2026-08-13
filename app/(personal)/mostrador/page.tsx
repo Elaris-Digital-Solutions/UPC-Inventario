@@ -13,6 +13,7 @@ import { TarjetaMostrador } from "@/components/mostrador/tarjeta-mostrador";
 import { columnaDeReserva, type Columna } from "@/lib/mostrador/columnas";
 import { reservasMostrador, type ReservaMostrador } from "@/lib/mostrador/consultas";
 import { notasPorUnidad } from "@/lib/mostrador/notas";
+import { EncabezadoSeccion } from "@/components/antetitulo";
 
 const TITULOS: Record<Columna, string> = {
   por_entregar: "Por entregar",
@@ -88,7 +89,11 @@ export default async function MostradorPage() {
 
   return (
     <main className="container flex-1 py-12">
-      <h1 className="font-display text-upc-red text-4xl">Mostrador</h1>
+      <EncabezadoSeccion
+        antetitulo="Atención al público"
+        titulo="Mostrador"
+        como="h1"
+      />
 
       {reservas.length === 0 ? (
         // Estado vacio DISEÑADO y no improvisado: el proyecto real tiene

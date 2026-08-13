@@ -8,13 +8,18 @@
 // correccion 4 del plan de esta tanda, MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md).
 import { FormularioEncuesta } from "@/components/reservas/formulario-encuesta";
 import { miEncuesta } from "@/lib/reservas/consultas";
+import { EncabezadoSeccion } from "@/components/antetitulo";
 
 export default async function EncuestaPage() {
   const encuesta = await miEncuesta();
 
   return (
     <main className="container flex-1 py-12">
-      <h1 className="font-display text-upc-red text-4xl">Encuesta de satisfacción</h1>
+      <EncabezadoSeccion
+        antetitulo="Tu opinión"
+        titulo="Encuesta de satisfacción"
+        como="h1"
+      />
 
       <p className="text-muted-foreground mt-3 max-w-2xl text-sm">
         Cuéntanos cómo fue tu experiencia con el sistema de reservas. Tu respuesta nos ayuda a mejorar el

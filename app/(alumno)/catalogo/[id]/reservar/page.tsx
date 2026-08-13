@@ -107,7 +107,7 @@ export default async function ReservarPage({
           ← Volver a {producto.name}
         </Link>
 
-        <h1 className="font-display text-upc-red mt-4 text-3xl sm:text-4xl">
+        <h1 className="font-display mt-4 text-3xl leading-tight font-bold text-balance sm:text-4xl">
           Reservar {producto.name}
         </h1>
 
@@ -160,7 +160,7 @@ export default async function ReservarPage({
         ← Volver a {producto.name}
       </Link>
 
-      <h1 className="font-display text-upc-red mt-4 text-3xl sm:text-4xl">
+      <h1 className="font-display mt-4 text-3xl leading-tight font-bold text-balance sm:text-4xl">
         Reservar {producto.name}
       </h1>
 

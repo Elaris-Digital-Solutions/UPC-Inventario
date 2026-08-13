@@ -11,6 +11,7 @@
 // ve el usuario sale del servidor, que es la unica fuente de verdad.
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -68,11 +69,33 @@ export default function LoginPage() {
 
   return (
     <main className="container flex flex-1 flex-col items-center justify-center py-16">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="font-display text-upc-red text-2xl">
-            Entrar
-          </CardTitle>
+      {/* La tarjeta de acceso, recuperada el 2026-08-13. El Vite ponia la
+          llama de la UPC DENTRO de la tarjeta, con el titulo y la bajada
+          centrados debajo (MIGRATION_GUIDE/src/pages/Login.tsx:63-67). Aqui
+          era un titulo rojo alineado a la izquierda sin ninguna marca, en una
+          tarjeta que ademas flotaba sin peso.
+          `[--card-spacing:--spacing(8)]`: el Vite le daba `p-8` a esta
+          tarjeta en concreto -mas aire que a las del catalogo-, y con el
+          token se cambia el relleno de cabecera y contenido a la vez en vez
+          de parchear cada hijo. */}
+      <Card className="w-full max-w-md [--card-spacing:--spacing(8)]">
+        {/* `justify-items-center` y no `items-center`: CardHeader es un grid,
+            asi que `items-center` alinea en el eje de bloque -vertical- y deja
+            el logo pegado a la izquierda. El eje en linea es `justify-items`. */}
+        <CardHeader className="justify-items-center text-center">
+          <Image
+            src="/upc-logo.png"
+            alt=""
+            width={600}
+            height={600}
+            priority
+            className="mb-2 h-14 w-auto"
+          />
+          {/* Sin `font-display`: el titulo de la tarjeta de acceso iba en
+              Montserrat en el original -`text-2xl font-bold`,
+              MIGRATION_GUIDE/src/pages/Login.tsx:65-, no en Playfair. La
+              serif es de los titulos de pagina y de seccion. */}
+          <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
           <CardDescription>
             Se entra con el correo institucional: sin contraseña, con un
             enlace de acceso que llega a tu correo.

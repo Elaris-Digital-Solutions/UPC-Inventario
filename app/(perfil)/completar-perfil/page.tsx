@@ -14,8 +14,19 @@ import { guardarPerfil } from "./actions";
 // Clases del select nativo calcadas de components/ui/input.tsx -mismo borde,
 // radio, alto, padding y foco- para que no desentone al lado de los <Input>
 // de este mismo formulario.
+//
+// CORREGIDO el 2026-08-13: la copia estaba clavada a `h-8 px-2.5` y se quedo
+// atras cuando el <Input> recupero la escala del Vite -h-10 px-3-, asi que el
+// desplegable de carrera salia OCHO PIXELES mas bajo que los dos campos de
+// encima. Es justo el defecto que tiene copiar clases a mano en vez de
+// compartir el componente: las dos copias no fallan a la vez, se
+// desincronizan en silencio y compilan igual.
+//
+// Se deja como copia y no se crea un primitivo <Select> todavia: seria el
+// unico sitio que lo usaria, y un componente con un solo consumidor es peor
+// que la copia mientras no haya un segundo. Si aparece, este es el candidato.
 const CLASES_SELECT =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
+  "h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
 export default async function CompletarPerfilPage() {
   const supabase = await createClient();
@@ -44,7 +55,7 @@ export default async function CompletarPerfilPage() {
     <main className="container flex flex-1 flex-col items-center justify-center py-16">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="font-display text-upc-red text-2xl">
+          <CardTitle className="text-2xl font-bold">
             Completá tu perfil
           </CardTitle>
           <CardDescription>
