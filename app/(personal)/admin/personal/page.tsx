@@ -1,6 +1,7 @@
 import { TablaPersonal } from "@/components/admin/tabla-personal";
 import { listarPersonal } from "@/lib/admin/personal";
 import { createClient } from "@/lib/supabase/server";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/personal, Task 9 de la tanda 3B (D-52, D-53).
 //
@@ -34,7 +35,8 @@ export default async function PersonalPage() {
   return (
     <main className="container py-8">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold">Personal</h1>
+        <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Personal</TituloSeccion>
         <p className="text-muted-foreground text-sm">
           Quién tiene acceso al mostrador y a la administración. Da de alta a alguien nuevo, cambia su rol
           o desactiva su acceso.

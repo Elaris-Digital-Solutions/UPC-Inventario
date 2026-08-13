@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TarjetaReserva } from "@/components/reservas/tarjeta-reserva";
 import { grupoDeReserva, type Grupo } from "@/lib/reservas/agrupar";
 import { miEncuesta, misReservas, type ReservaDelAlumno } from "@/lib/reservas/consultas";
+import { EncabezadoSeccion } from "@/components/antetitulo";
 
 // Una sola pasada agrupando, en vez de tres `.filter()` -uno por seccion-
 // que cada uno volveria a llamar grupoDeReserva() para cada reserva. Con las
@@ -47,7 +48,11 @@ export default async function MiPanelPage() {
 
   return (
     <main className="container flex-1 py-12">
-      <h1 className="font-display text-upc-red text-4xl">Mis reservas</h1>
+      <EncabezadoSeccion
+        antetitulo="Tu actividad"
+        titulo="Mis reservas"
+        como="h1"
+      />
 
       {/* La invitacion a la encuesta (BR-18), Task 14 de la tanda 2B.
           Aparece SOLO si el alumno no la contesto todavia Y tiene al menos

@@ -1,5 +1,6 @@
 import { FiltrosReservas } from "@/components/admin/filtros-reservas";
 import { listarReservas } from "@/lib/admin/reservas";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/reservas, Task 6 de la tanda 3B (F6 de ESPECIFICACION_FUNCIONAL.md).
 //
@@ -23,7 +24,8 @@ export default async function ReservasPage() {
   return (
     <main className="container py-8">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold">Reservas</h1>
+        <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Reservas</TituloSeccion>
         <p className="text-muted-foreground text-sm">
           Todas las reservas del sistema, en cualquier estado. Desde aquí se cambia el estado de una
           reserva y se cancela con un motivo.

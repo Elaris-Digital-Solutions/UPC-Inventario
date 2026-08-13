@@ -1,6 +1,7 @@
 import { PanelEstadisticas } from "@/components/admin/panel-estadisticas";
 import { calcularEstadisticas } from "@/lib/admin/estadisticas";
 import { reservasParaEstadisticas } from "@/lib/admin/reservas";
+import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
 // /admin/estadisticas, Task 8 de la tanda 3B (F9 de
 // ESPECIFICACION_FUNCIONAL.md, ampliada por D-51: ocho indicadores en vez de
@@ -27,7 +28,8 @@ export default async function EstadisticasPage() {
   return (
     <main className="container py-8">
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold">Estadísticas</h1>
+        <Antetitulo>Administración</Antetitulo>
+          <TituloSeccion como="h1">Estadísticas</TituloSeccion>
         <p className="text-muted-foreground text-sm">
           Los préstamos se cuentan por el día en que empieza la reserva, en hora de Lima.
         </p>

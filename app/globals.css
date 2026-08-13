@@ -73,6 +73,16 @@
   --sidebar-border: hsl(0 0% 88%);
   --sidebar-ring: hsl(356 95% 45%);
 
+  /* El fondo de las secciones alternas de la landing. El Vite lo escribia a
+   * mano como `bg-[#f7f7f7]` (MIGRATION_GUIDE/src/pages/Index.tsx:173 y
+   * FAQ.tsx:38), o sea 0 0% 97%, y no coincide con ningun token que ya
+   * hubiera: --secondary es 95% y --muted 93%, los dos MAS oscuros. Usar
+   * `bg-secondary` para esto se veia como un bloque gris en vez de como un
+   * cambio de plano apenas perceptible, que es lo que separaba las secciones
+   * en el original. Se anade como token en vez de repetir el hexadecimal para
+   * que el modo oscuro tambien pueda decidirlo. */
+  --seccion-alterna: hsl(0 0% 97%);
+
   /* Tokens propios de UPC */
   --upc-red: hsl(356 95% 45%);
   --upc-red-dark: hsl(356 95% 35%);
@@ -115,6 +125,10 @@
   --border: hsl(0 0% 20%);
   --input: hsl(0 0% 20%);
   --ring: hsl(356 95% 50%);
+
+  /* En oscuro la alternancia se invierte: la seccion alterna es un plano
+   * MAS CLARO que el fondo -0 0% 8%-, no mas oscuro, o desapareceria. */
+  --seccion-alterna: hsl(0 0% 12%);
 
   --sidebar: hsl(0 0% 11%);
   --sidebar-foreground: hsl(0 0% 95%);
@@ -169,6 +183,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --color-seccion-alterna: var(--seccion-alterna);
+
   --color-upc-red: var(--upc-red);
   --color-upc-red-dark: var(--upc-red-dark);
   --color-upc-red-light: var(--upc-red-light);
@@ -217,11 +233,45 @@
   }
 }
 
-/* El container centrado del Vite. En Tailwind 4 no se configura, se declara. */
+/* El container centrado del Vite. En Tailwind 4 no se configura, se declara.
+ *
+ * CORREGIDO el 2026-08-13, y la traduccion original se habia desviado en las
+ * DOS direcciones a la vez:
+ *
+ *   - `max-width` era 1400px. El Vite centraba en `max-w-7xl` -1280px- en
+ *     todas sus pantallas (Catalog.tsx:41, Index.tsx:77, UserDashboard.tsx:290).
+ *     Los 120px de mas alargan la linea de texto por encima de lo comodo, y
+ *     ademas dejan el heroe de la landing con media pantalla vacia a la
+ *     derecha en un monitor de 1440.
+ *   - `padding-inline` era 2rem SIN condicion de tamano. El Vite usaba `px-4`
+ *     en movil y `sm:px-6` a partir de 640px. 32px fijos en un telefono de
+ *     375px dejan 311px utiles, y la rejilla del catalogo ahi es de dos
+ *     columnas.
+ *
+ * El `1400px` de shadcn no se hereda por descuido de nadie: el
+ * tailwind.config.ts del Vite declaraba `container.screens.2xl = 1400px`, que
+ * es OTRA cosa -el ancho de la PANTALLA a partir del cual el container deja
+ * de crecer- y no el ancho del contenido. El contenido lo fijaba `max-w-7xl`
+ * en cada pagina.
+ *
+ * SEGUNDA CORRECCION, el 2026-08-13 y a peticion explicita: 1536px y 1.5rem
+ * de relleno, no 1280 y 2rem. Y esto SE APARTA A PROPOSITO del original, que
+ * centraba en 1280: en un monitor ancho, 1280 centrados dejan mas de 300px
+ * muertos a cada lado y la pagina se lee "muy al centro". Queda dicho para
+ * que no se lea como un desliz al comparar las dos versiones: el resto de la
+ * tipografia y el color si estan medidos contra el Vite; este numero es una
+ * decision nueva.
+ */
 @utility container {
   margin-inline: auto;
-  padding-inline: 2rem;
-  max-width: 1400px;
+  padding-inline: 1rem;
+  max-width: 1536px;
+}
+
+@media (width >= 40rem) {
+  .container {
+    padding-inline: 1.5rem;
+  }
 }
 
 @layer base {

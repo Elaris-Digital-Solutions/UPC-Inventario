@@ -48,7 +48,7 @@ export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
     <main className="container flex flex-1 flex-col items-center justify-center py-16">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="font-display text-upc-red text-2xl">
+          <CardTitle className="text-2xl font-bold">
             No pudimos entrarte
           </CardTitle>
           <CardDescription>{texto}</CardDescription>
