@@ -4,14 +4,11 @@
 
 ## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
 
-*(Vacío al escribir el plan, el 2026-08-12. Aquí va lo que la ejecución desmienta, fechado y sin borrar
-lo original — el criterio del proyecto desde la T0.)*
-
 ### Estado de la ejecución *(al 2026-08-12)*
 
 | Task | Estado |
 |---|---|
-| **0 · La deuda documental** | ⬜ Sin empezar |
+| **0 · La deuda documental** | ✅ **Cerrada.** Las cuatro correcciones aplicadas y verificadas: `ESTADO_Y_PLAN.md` 35 y 751, `CLAUDE.md` 168 y 173. Dos filas nuevas de bitácora —el push de la migración 23 y la escritura de este plan—. Ninguna reescrita sin marca |
 | **1 · Andamio de `/admin` y listado de inventario** | ⬜ Sin empezar |
 | **2 · Alta de producto con sus unidades** | ⬜ Sin empezar |
 | **3 · Estado de unidad y sus notas** | ⬜ Sin empezar |
@@ -24,6 +21,24 @@ lo original — el criterio del proyecto desde la T0.)*
 | **10 · `/admin/ajustes`, cierra Q-14** | ⬜ Sin empezar |
 | **11 · Verificación de punta a punta** | ⬜ Sin empezar |
 | **12 · Cierre y documentación** | ⬜ Sin empezar |
+
+### Task 0 · La deuda documental *(2026-08-12)*
+
+1. **El Step 1 predijo «cuatro coincidencias» y salieron NUEVE.** El plan escribió que
+   `Select-String -Pattern 'sin empuj'` daría las cuatro líneas a corregir, más dos legítimas que no se
+   tocan. **Lo medido:** seis en `ESTADO_Y_PLAN.md` y tres en `CLAUDE.md`. Las cinco que sobran son
+   **entradas históricas de bitácora** sobre las tandas 2A y 2B —`ESTADO_Y_PLAN.md` 741, 750, 751 y 752, y
+   `CLAUDE.md:159`—, correctas como hechos fechados. **El defecto del plan no es el número, es el criterio
+   que se deduce de él:** «cuatro coincidencias» invita a corregir todo lo que salga, y **la mayoría de lo
+   que sale no hay que tocarlo**. El criterio bueno es el que ya estaba en la tabla de la tarea: se corrige
+   lo que afirma algo falso **sobre hoy**, y se deja lo que solo describe una fecha pasada. Verificado
+   después con un `grep -v "~~"`, que deja ver de un vistazo qué quedó sin tachar y por qué.
+2. **Los cuatro números de línea del briefing eran exactos**, comprobados antes de editar y no usados a
+   ciegas: 35 y 751 en `ESTADO_Y_PLAN.md`, 168 y 173 en `CLAUDE.md`.
+3. **Un aviso de «el archivo cambió en disco» que era falso, y conviene no confundirlo con un conflicto.**
+   Saltó al editar `ESTADO_Y_PLAN.md` y `CLAUDE.md`. `git diff` mostró que **el único cambio era el propio**:
+   el aviso se dispara porque el archivo se había leído con `offset`/`limit` y no entero, no porque nadie
+   más lo tocara. **Se comprobó midiendo en vez de suponiendo**, que es lo barato acá.
 
 ---
 

@@ -165,12 +165,16 @@ reserva de punta a punta: calendario, reserva, bloqueo por sanción, `/mi-panel`
 T3 se partió en T3A y T3B *(D-37)*; la T3A ya cerró, ver el párrafo siguiente.
 
 **T3A CERRADA el 2026-08-12.** Las 10 tareas cerradas. Nueve commits en `feature/fase-2-tanda-3a` al
-empezar la sesión de hoy, más el de los textos y el de esta documentación de cierre, sin empujar todavía.
+empezar la sesión de hoy, más el de los textos y el de esta documentación de cierre, ~~sin empujar
+todavía~~ ⚠ **empujado el 2026-08-12: PR #29, merge en `6b5dca2`, cuatro corridas de CI y las cuatro
+verdes**.
 El personal ya atiende el mostrador de punta a punta: tres columnas —«Por entregar», «Activas», «Por
 devolver»—, entregar, recibir, las dos faltas con confirmación y sanción real, anotaciones de unidad con su
 historial, y un filtro de fecha sobre «Por entregar». **Y la migración 23** *(D-38, cierra Q-17)*: la base
 pasa de 22 migraciones y 142 aserciones a **23 migraciones y 147 aserciones en 24 archivos**, medido con
-`npx supabase test db`, sin empujar al remoto. **Vitest de 43 pruebas en 3 archivos a 65 en 5.** El `build`
+`npx supabase test db`, ~~sin empujar al remoto~~ ⚠ **Corregido el 2026-08-12: la migración 23 YA ESTÁ en
+producción**, con las 23 en `local` y `remote` idénticas, y verificada por el efecto en `pg_proc.prosrc`.
+**Vitest de 43 pruebas en 3 archivos a 65 en 5.** El `build`
 pasó de **trece rutas a catorce**, con las mismas tres estáticas. Abierto **Q-18**: las notas de unidad las
 lee cualquier alumno con sesión —es **D-2**, la trazabilidad legible, no un fallo nuevo—, y esta es la
 primera tanda que escribe ahí desde una pantalla. Mitigado por texto en los dos diálogos que escriben
