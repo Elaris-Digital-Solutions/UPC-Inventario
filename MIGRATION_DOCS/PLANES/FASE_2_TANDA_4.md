@@ -14,7 +14,7 @@
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
 | **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
-| **2 · Las cabeceras de seguridad** | 🟡 **Código cerrado el 2026-08-13; verificación en navegador pendiente.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **PV-3, PV-4, PV-6 y PV-7 resueltos midiendo la respuesta real; PV-5 queda ABIERTO porque `curl` no aplica CSP.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Catorce correcciones** y el **error 24 de quien dicta**. **Los Steps 5 y 6 no se cerraron: esta sesión no tuvo navegador** |
+| **2 · Las cabeceras de seguridad** | ✅ **Cerrada el 2026-08-13, los siete Steps.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **Los cinco puntos de verificación resueltos midiendo**, PV-5 incluido —y su predicción escrita era incorrecta—. **Cero violaciones de CSP en DIEZ pantallas y los tres perfiles, en modo producción, con control positivo validado.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Veintitrés correcciones** y el **error 24 de quien dicta** |
 | **3 · Playwright y el flujo de entrada** | ⬜ pendiente |
 | **4 · Los cuatro flujos restantes** | ⬜ pendiente |
 | **5 · La auditoría bloqueante (Q-10)** | ⬜ pendiente |
@@ -213,6 +213,64 @@
 14. **EL MODO PRODUCCIÓN LOCAL NO HABLA CON LA BASE REAL, comprobado y no supuesto.** `next start` carga
     `.env.local` igual que `next dev`, y la CSP servida lo demuestra sola: su `connect-src` lleva
     `127.0.0.1:54321`. **La cabecera sirvió de sonda del entorno**, que no era para lo que se escribió.
+15. **PV-5 RESUELTO EN NAVEGADOR, Y LA PREDICCIÓN ESCRITA DEL PLAN ERA INCORRECTA.** El plan predecía que
+    `upgrade-insecure-requests` **rompe** el desarrollo local y por eso mandaba condicionarla a producción.
+    **No rompe:** con la directiva puesta, la landing cargó por `http://127.0.0.1:3000` y **las veinticuatro
+    peticiones salieron por `http`, ninguna intentó `https`**. El motivo es que los navegadores tratan
+    `127.0.0.1` como origen confiable y lo excluyen del ascenso. **La decisión de condicionarla a producción
+    se mantiene igual**, porque su motivo verdadero era otro —no dejar que un navegador recuerde un HSTS
+    para `127.0.0.1`—, pero **la razón que el plan le daba era falsa** y conviene no heredarla.
+16. **EL PRIMER CONTROL POSITIVO ESTABA MAL DISEÑADO, Y NINGUNA HERRAMIENTA LO DIJO.** Se inyectó un
+    `<script>` externo desde el depurador esperando una violación de `script-src`, **y no hubo ninguna**:
+    el bloqueo que apareció era de **CORB**, no de CSP. La causa es que **el código que ejecuta el depurador
+    corre en un contexto privilegiado que no está sujeto a la CSP de la página**. Un cero de violaciones ahí
+    no significaba «la política funciona», significaba «la sonda no puede violarla». **Lo delató que el
+    mensaje citara CORB y no CSP**, y que la petición llegara a hacerse.
+17. **Y LA DISTINCIÓN QUE LO ARREGLA ESTÁ MEDIDA, NO SUPUESTA: no todas las directivas se comportan igual
+    frente al depurador.** Un `<script>` inyectado desde él **no** dispara `script-src`, pero **una imagen
+    con `src` externo sí dispara `img-src`, y un `fetch` a un host no permitido sí dispara `connect-src`** —
+    las dos capturadas con el evento `securitypolicyviolation`, que es la sonda oficial y no la consola.
+    **La regla práctica: el control positivo hay que hacerlo con una directiva de recurso, no con
+    `script-src`.**
+18. **CERO VIOLACIONES EN OCHO PANTALLAS, y esta vez el cero vale.** Landing, `/login`, `/admin/inventario`,
+    `/admin/reservas`, `/admin/ajustes`, `/admin/estadisticas`, `/mostrador` y `/completar-perfil`, todas en
+    **modo producción**, que es donde `style-src` va con nonce y donde el modo desarrollo no prueba nada.
+    En las ocho: **ningún script sin nonce** y **la hoja de estilos con sus 145 reglas accesibles**, o sea
+    que el CSS no está bloqueado. El flujo de entrada completo funcionó con la CSP puesta —magic link
+    pedido, correo leído de Mailpit **por el cuerpo y no por el listado**, enlace `pkce_` canjeado en el
+    mismo navegador que lo pidió, y reparto a `/admin/inventario`—.
+19. **EL STEP 6 SE CERRÓ SIN SUBIR NINGUNA IMAGEN, y con control positivo en la misma medición.** Lo que la
+    CSP gobierna en esa pantalla es una sola cosa: si el navegador puede hablar con `api.cloudinary.com`.
+    Medido con las dos puntas: **`example.com` queda bloqueado por `connect-src`** —el control, sin el cual
+    lo otro no prueba nada— y **`api.cloudinary.com` pasa, con HTTP 400 devuelto por el propio Cloudinary**,
+    que es lo que demuestra que la petición salió. Que la firma sea válida **ya se probó en la T3B con dos
+    subidas reales** y la CSP no toca esa lógica, así que subir una tercera solo habría añadido otra imagen
+    huérfana a la cuenta real.
+20. **DOS `404` EN LA LANDING QUE NO SON DE LA CSP, y distinguirlo importa.** Son las imágenes del seed, que
+    apuntan a `res.cloudinary.com/demo/...` —una cuenta de demostración que no las tiene—, y la aplicación
+    cae en su `placeholder.svg`. **Si la CSP las bloqueara no habría petición ni respuesta**, y lo que hay es
+    un 404 del servidor: son dos fallos con la misma apariencia en la consola y causas distintas. **Quinta
+    vez en la fase que el `seed.sql` contradice a producción**, ahora por el lado de las URL de imagen.
+21. **EL DOM TIENE MÁS ATRIBUTOS `style` QUE EL HTML SERVIDO.** Contados sobre el HTML de la landing salían
+    **ocho**; contados en el DOM ya hidratado salen **nueve**. La diferencia la añade el propio cliente
+    después de hidratar. No cambia ninguna decisión —`style-src-attr` los cubre a todos—, pero **afina el
+    punto de la corrección 6**: ni el código fuente ni el HTML servido son la última palabra sobre lo que
+    la CSP acaba evaluando.
+22. **EL RECORRIDO ACABÓ EN DIEZ PANTALLAS Y LOS TRES PERFILES, no en ocho.** La corrección 18 se escribió
+    con ocho y **era cierta al escribirla**; caducó en la misma tarea, al continuar con el perfil que
+    faltaba. El Step 5 pide «los tres perfiles» y con las ocho primeras solo estaban cubiertos **dos**:
+    faltaba el alumno, que es justo quien usa **el catálogo con imágenes remotas y el calendario de
+    reserva**, la pantalla con más JavaScript del proyecto. Se entró como alumna por su propio magic link,
+    y `/catalogo` y `/catalogo/[id]/reservar` dieron lo mismo que las otras ocho: **cero violaciones, ningún
+    script sin nonce, las 145 reglas de CSS accesibles** y las **21 franjas** del calendario pintadas. **Diez
+    pantallas, cero violaciones, con el control positivo validado antes y después.**
+23. **`/auth/signout` DEVUELVE 405 A UN `GET` Y ESTUVO A PUNTO DE PARECER UN DEFECTO DE LA CSP.** Navegar
+    ahí con el navegador dio una página de error de Chrome, justo en mitad de la verificación de una tanda
+    que toca cabeceras. **No es un defecto y no es de esta tanda:** el handler declara `export async
+    function POST()` y nada más, así que el `GET` da **405** y el `POST` da **303**, medido por las dos
+    puntas. **Es el diseño correcto** —un cierre de sesión por `GET` lo dispararía cualquier prefetch o
+    cualquier `<img>`—. Lo dirimió medir el endpoint y abrir el archivo **antes** de escribir que algo
+    fallaba, que es la misma regla de siempre: verificar la propia sonda antes de acusar a la pantalla.
 
 ---
 
