@@ -76,3 +76,8 @@ supabase/.branches
 !San Miguel.xlsx
 !Inventario_Unificado.xlsx
 !Inventario_2026_CC_ISW_V1 1.xlsx
+
+# Artefactos de una corrida de Playwright: reporte HTML, trazas y capturas.
+# Son de la corrida, no del proyecto.
+test-results/
+playwright-report/

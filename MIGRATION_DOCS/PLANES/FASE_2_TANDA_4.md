@@ -8,14 +8,14 @@
 > se anota acá con su fecha; el plan de abajo **no se reescribe**. Van 145 correcciones en la T3B, 127 en
 > la T3A y 57 en la T2B, y ninguna se perdió por haber corregido el original en silencio.
 
-### Estado de la ejecución *(al 2026-08-13)*
+### Estado de la ejecución *(al 2026-08-14)*
 
 | Task | Estado |
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
 | **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
 | **2 · Las cabeceras de seguridad** | ✅ **Cerrada el 2026-08-13, los siete Steps.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **Los cinco puntos de verificación resueltos midiendo**, PV-5 incluido —y su predicción escrita era incorrecta—. **Cero violaciones de CSP en DIEZ pantallas y los tres perfiles, en modo producción, con control positivo validado.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Veintitrés correcciones** y el **error 24 de quien dicta** |
-| **3 · Playwright y el flujo de entrada** | ⬜ pendiente |
+| **3 · Playwright y el flujo de entrada** | ✅ **Cerrada el 2026-08-14, los siete Steps.** Playwright instalado, el cortafuegos de entorno, el arnés de magic link por Mailpit y las dos pruebas del flujo de entrada, contraejemplo incluido. **PV-8 y PV-9 resueltos midiendo**: el enlace pedido por la aplicación se canjea donde se pidió, y Playwright añade cuatro paquetes y **cero vulnerabilidades**. **El cortafuegos llegaba tarde** —el `webServer` arranca antes que el `globalSetup`—, medido por las dos formas y arreglado. **Vitest necesitó un `exclude` que el plan no preveía.** Ninguna cifra se movió: 23 rutas, 0 estáticas, 152 pruebas en 11 archivos. **Doce correcciones**, el **hecho falso 32** y las decisiones **D-60 y D-61** |
 | **4 · Los cuatro flujos restantes** | ⬜ pendiente |
 | **5 · La auditoría bloqueante (Q-10)** | ⬜ pendiente |
 | **6 · Q-13, con el código que ya consulta** | ⬜ pendiente |
@@ -271,6 +271,88 @@
     puntas. **Es el diseño correcto** —un cierre de sesión por `GET` lo dispararía cualquier prefetch o
     cualquier `<img>`—. Lo dirimió medir el endpoint y abrir el archivo **antes** de escribir que algo
     fallaba, que es la misma regla de siempre: verificar la propia sonda antes de acusar a la pantalla.
+
+### Task 3 · Playwright y el flujo de entrada *(2026-08-14)*
+
+1. **EL CORTAFUEGOS LLEGABA TARDE, y es un defecto de ORDEN que ningún comando puede ver.** Playwright
+   levanta el `webServer` **antes** de correr el `globalSetup`, así que engancharlo solo ahí no protege
+   nada. Medido apuntando el arnés a producción a propósito: la corrida tardó **unos treinta segundos** en
+   abortar —el tiempo de `npm run build`— y la salida traía una línea `[WebServer]` con **la propia
+   aplicación consultando producción** y recibiendo `Invalid API key`. **La aplicación se compiló, arrancó
+   y emitió tráfico hacia la base equivocada antes de que el guardia dijera nada**, y lo único que impidió
+   que hablara de verdad fue que la clave del `.env.local` no sirve allí: **suerte, no diseño**. Se arregló
+   llamando al cortafuegos en el **ámbito del módulo** de `playwright.config.ts`, que Playwright tiene que
+   evaluar para saber qué servidor levantar. Remedido sobre el código definitivo: **seis segundos y cero
+   líneas `[WebServer]`**.
+2. **Y EL COMENTARIO AFIRMABA LA PROPIEDAD QUE EL CÓDIGO NO TENÍA: hecho falso 32.** Decía que el
+   cortafuegos «lanza una excepcion **ANTES de que arranque el webServer**». Es el género de la **falsedad
+   sobre la propia salvaguarda** —el mismo del hecho falso 26—, y este es el peor sitio donde puede
+   aparecer: **una advertencia que promete un orden que no se cumple es peor que no tenerla**, porque el
+   próximo lector deja de comprobarlo. Ninguna herramienta puede verlo: vive dentro de un `//`, el código
+   compila igual y los cuatro comandos siguen en verde. **Lo destapó ejercitar la salvaguarda en vez de
+   leerla** — y no basta con preguntar *si* aborta, hay que medir **cuándo**: el guardia abortaba con el
+   mensaje correcto, así que quien mirara solo el resultado lo habría dado por bueno.
+3. **VITEST SE TRAGA LOS `.spec.ts`, Y EL PLAN NO LO PREVEÍA.** Su Step 6 pedía un script `test:e2e`
+   «separado de `test`», y **eso no basta**: no existía `vitest.config.ts`, así que Vitest corría con su
+   patrón por defecto —`**/*.{test,spec}.?(c|m)[jt]s?(x)`, leído del paquete instalado—, que **incluye los
+   specs de Playwright**. Sin arreglarlo, `npm test` los habría ejecutado con el runner equivocado.
+   **Medido con contraejemplo antes de escribir una línea**: un `.spec.ts` de sonda dentro de `e2e/` hizo
+   subir el recuento de Vitest, y al borrarlo volvió al de antes. Hizo falta un archivo de configuración
+   nuevo que **extiende** `configDefaults.exclude` en vez de pisarlo.
+4. **PLAYWRIGHT NO VE `.env.local`, y el cortafuegos habría leído `undefined`.** Next carga ese archivo por
+   su cuenta; el proceso que corre las pruebas, no. Un guardia que lee `process.env` a pelo recibe
+   `undefined`, y según cómo esté escrita la comparación **o aborta siempre o pasa siempre** — ninguno de
+   los dos es el comportamiento pedido. Se resolvió con `loadEnvConfig` de `@next/env`, que es el mismo
+   cargador que usa Next y respeta la misma precedencia. **Así el guardia mira exactamente lo que mira la
+   aplicación**, que es la única forma de que su respuesta signifique algo. Estaba en el árbol solo como
+   transitiva de Next; se declaró en `devDependencies` con la versión exacta para no depender de un
+   hoisting accidental en un `npm ci` limpio.
+5. **PV-9 RESUELTO, Y LA CIFRA BASE DEL PLAN NO ES REPRODUCIBLE CON ESTA SONDA.** El plan escribe «hoy
+   **708 paquetes**»; `npm audit --json` da **805** antes de instalar Playwright y **809** después. **Lo
+   que importa no es cuál de las dos es la buena, sino que las dos puntas de la comparación usen la misma
+   sonda** — y el plan no decía cuál era, que es justo lo que hace inútil un número base. Con la sonda
+   fijada: **Playwright añade cuatro paquetes y cero vulnerabilidades**. La única alta sigue siendo
+   `nanoid`, la misma de antes, así que **la Task 5 no hereda ninguna deuda de esta**.
+6. **PV-8 CONFIRMADO POR EL EFECTO Y POR LAS DOS PUNTAS.** El enlace pedido desde el propio navegador de
+   Playwright se canjeó en ese mismo contexto y la alumna cayó en `/catalogo`. Y quedó medida la otra
+   punta al preparar el terreno: el enlace pedido con un `POST` directo a `/auth/v1/otp` llega con un token
+   **sin** el prefijo `pkce_`, mientras que el de la aplicación sí lo lleva. **Son dos enlaces distintos
+   para el mismo correo**, y solo uno sirve para el arnés.
+7. **EL SEÑUELO NO PODÍA RESPONDER LO QUE SE LE PREGUNTABA, y darlo por bueno habría acusado al arnés de un
+   defecto que no tiene.** Se dejó a propósito un magic link válido y sin usar en la bandeja, para ver si
+   el arnés leía un correo ajeno y pasaba en verde sin ejercitar el suyo. Al terminar la corrida ese token
+   daba **403**, y la lectura inmediata —«lo consumió el arnés»— era **falsa**: **pedir un enlace nuevo
+   para el mismo correo invalida el anterior**, así que el 403 **no distingue** una causa de la otra. La
+   sonda no separaba las dos hipótesis que existía para separar. **Lo dirimió otra**: vaciar Mailpit y
+   correr con la bandeja en cero. Pasó, y dejó **exactamente un correo, el suyo**. Cuarta vez en la sesión
+   que verificar la propia sonda evita un diagnóstico falso.
+8. **LA FORMA DE LA API DE MAILPIT SE MIDIÓ, NO SE DEDUJO, y de paso se explicó un instrumento viejo.** El
+   listado devuelve los mensajes bajo `messages`, cada uno con `ID`, `Created` y un **`To` que es un
+   arreglo de objetos** `{Name, Address}` — de ahí viene que `$_.To.Address` mintiera en su día: se le
+   pedía un campo a una lista. El mensaje completo trae `Text` y `HTML`. **Y los dos cuerpos no son
+   equivalentes:** el `HTML` lleva el enlace con `&amp;type=magiclink` **escapado**, y el `Text` lo lleva
+   con `&` limpio. El arnés lee el `HTML` y desescapa, que es correcto — pero **el aviso que se dictó
+   («desescapá siempre») solo vale para uno de los dos campos**, y se dictó antes de poder medirlo.
+9. **LA ARITMÉTICA DEL DIFF CUADRÓ, CON UN DESCUADRE QUE TENÍA DUEÑO.** `package.json` traía **una línea
+   insertada más** de las que el subagente escribió: la cuarta era la entrada de `@playwright/test`,
+   instalada por quien verifica **antes** de dictar el encargo y todavía sin comitear. **Un descuadre
+   pequeño no es «casi bien», es «pasó algo que no sabés qué es»** — y este se explicó antes de darlo por
+   bueno, no después.
+10. **`.gitignore` VERIFICADO POR EFECTO Y CON CONTRAEJEMPLO**, igual que en la Task 0. `test-results/` y
+    `playwright-report/` quedan ignorados **por las reglas nuevas**, nombradas por `git check-ignore -v`; y
+    **`e2e/entrar.spec.ts` NO queda ignorado**, que es lo que prueba que la regla no se pasó de ancha. Que
+    algo quede ignorado no dice nada por sí solo: una regla `*` lo haría igual.
+11. **DOS DECISIONES NUEVAS, D-60 y D-61**, las dos de Alejandro y tomadas antes de escribir el código.
+    **D-60:** el `webServer` **compila siempre** —`npm run build && npm run start`, sin reusar ningún
+    servidor—, y se paga la compilación en cada corrida a propósito: el servidor de desarrollo de este
+    proyecto ya mintió dos veces y el árbitro es el `build`. **D-61:** el flujo de entrada usa
+    `alumno.a@upc.edu.pe`, del seed, en vez de un correo nuevo por corrida: escenario estable y sin dejar
+    filas huérfanas. **Las dos se llevan a `ESTADO_Y_PLAN.md` en la Task 9.**
+12. **NINGUNA CIFRA SE MOVIÓ, y era la predicción escrita.** El `build` sigue en **23 rutas y cero
+    estáticas**; Vitest sigue en **11 archivos y 152 pruebas**, que es lo que prueba que el `exclude`
+    funciona sin recortar de más. **Las tres corridas de E2E terminaron en verde**, la tercera con la
+    bandeja vacía. Los dos `404` de `res.cloudinary.com/demo/...` aparecen en la salida del servidor y
+    **siguen sin ser de esta tanda**: son las imágenes del seed, ya registradas al cerrar la Task 2.
 
 ---
 
