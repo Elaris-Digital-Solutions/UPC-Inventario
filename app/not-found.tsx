@@ -17,12 +17,18 @@
 // que si envuelva a not-found.tsx, no dejar de llamar a Cabecera/Pie aqui.
 
 import Link from "next/link";
+import { connection } from "next/server";
 
 import { Button } from "@/components/ui/button";
 import { Cabecera } from "@/components/cabecera";
 import { Pie } from "@/components/pie";
 
-export default function NotFound() {
+export default async function NotFound() {
+  // Dinamica por la CSP con nonce: el nonce se genera por peticion en
+  // proxy.ts, y esta pagina se generaba en el prerender, cuando no habia
+  // ninguna peticion -sus scripts quedaban sin nonce y la CSP los bloqueaba-.
+  await connection();
+
   return (
     <>
       <Cabecera />

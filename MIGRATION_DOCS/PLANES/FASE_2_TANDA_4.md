@@ -14,7 +14,7 @@
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
 | **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
-| **2 · Las cabeceras de seguridad** | ⬜ pendiente |
+| **2 · Las cabeceras de seguridad** | 🟡 **Código cerrado el 2026-08-13; verificación en navegador pendiente.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **PV-3, PV-4, PV-6 y PV-7 resueltos midiendo la respuesta real; PV-5 queda ABIERTO porque `curl` no aplica CSP.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Catorce correcciones** y el **error 24 de quien dicta**. **Los Steps 5 y 6 no se cerraron: esta sesión no tuvo navegador** |
 | **3 · Playwright y el flujo de entrada** | ⬜ pendiente |
 | **4 · Los cuatro flujos restantes** | ⬜ pendiente |
 | **5 · La auditoría bloqueante (Q-10)** | ⬜ pendiente |
@@ -137,6 +137,82 @@
     primera cifra se escribió al planificar y la segunda al ejecutar la Task 0. **Se deja el enunciado
     original y se corrige acá fechado**, como todo lo demás. Es el mismo defecto que la T3B encontró en
     `ESTADO_Y_PLAN.md`: **un documento largo se contradice a sí mismo antes de quedarse obsoleto.**
+
+### Task 2 · Las cabeceras de seguridad *(2026-08-13)*
+
+1. **PV-4 RESUELTO, Y LA SONDA QUE LO PRUEBA NO ES LA OBVIA.** Que la cabecera lleve un nonce no dice nada
+   por sí solo: lo que decide es si Next se lo pone a los scripts. Se midió pidiendo **una sola petición** y
+   comparando su cabecera con su cuerpo — el nonce de las dos es **el mismo**, y de las etiquetas `<script>`
+   del HTML **no queda ni una sin nonce**, ni en la FAQ ni en la landing. Con la cabecera puesta y los
+   scripts sin nonce, la aplicación se habría roto entera con los cuatro comandos en verde, que es
+   exactamente lo que el plan avisaba.
+2. **PV-3 RESUELTO, Y EL PLAN SE EQUIVOCABA SOBRE EL TERRENO.** Daba por hecho que `/_not-found` «la genera
+   Next» y por eso dejaba abierto si se podía forzar. **`app/not-found.tsx` existe y es del proyecto**
+   —hay otro más en `(alumno)`—, así que basta con volverlo `async` con `await connection()`. **Las
+   estáticas quedan en 0, no en 1**, y no hubo que decidir nada de lo que el punto de verificación temía.
+3. **EL STEP 4 MANDABA EDITAR UN ARCHIVO QUE NO PUEDE HACER LO QUE SE LE PIDE.** Decía `await connection()`
+   en `app/(auth)/login/page.tsx`, y esa página es **`'use client'`**: un componente de cliente no puede
+   llamar a `connection()`, que es una API de servidor, y las configuraciones de segmento tampoco se le
+   aplican. Se resolvió en **`app/(auth)/layout.tsx`**, que sí es Server Component: **un layout dinámico
+   arrastra a toda su rama**, incluida una página de cliente que por sí sola no tiene forma de declararse
+   dinámica. **La ruta del plan era correcta y el archivo era el equivocado**, que es un grado más fino que
+   el error 21 —allí la ruta no existía; acá existe y no sirve—.
+4. **LA DOCUMENTACIÓN DE NEXT 16 CONTRADICE AL PLAN EN DOS DIRECTIVAS, Y LAS DOS ROMPEN EL DESARROLLO.**
+   `script-src` necesita **`'unsafe-eval'` en desarrollo** —React usa `eval` ahí para reconstruir los stacks
+   de error del servidor— y `style-src` necesita **`'unsafe-inline'` en desarrollo en vez del nonce**. El
+   plan no mencionaba ninguna de las dos. **Leerla es obligación de `AGENTS.md` y esta vez se cobró sola:**
+   sin esas dos excepciones, el entorno local queda sin estilos y sin depuración, y eso en esta tanda es
+   funcionalidad, no estética.
+5. **D-59, Y EL DEFECTO QUE LA OBLIGA: `next/image` GENERA ATRIBUTOS `style` Y AL NONCE NO LE LLEGAN.**
+   Medido sobre el HTML de producción: **ocho en la landing**, tres en `/login`, dos en la FAQ. Siete son
+   `color:transparent` y **uno no es cosmético** —`position:absolute;height:100%;width:100%;…`, que es lo
+   que Next emite para una imagen con `fill` y lo que hace que ocupe su contenedor—. Un atributo `style` lo
+   gobierna **`style-src-attr`**, que hereda de `style-src` si no se declara, y **el nonce solo vale para
+   elementos `<style>` y `<script>`**. Decisión de Alejandro: `style-src-attr 'unsafe-inline'`, en los dos
+   modos y sin condicional, para que desarrollo y producción no difieran. Los elementos `<style>` siguen
+   exigiendo nonce.
+6. **«CERO `style={{...}}` EN TODO EL ÁRBOL» ES CIERTO Y ENGAÑOSO, y es el punto de método de esta tarea.**
+   Esa medición del plan es correcta sobre los archivos `.tsx` y **no predice el HTML**: las librerías
+   generan los suyos. **La pregunta no era qué escribe el proyecto, era qué sale por el cable.** Se midió
+   contando `<script>`, `<style>` y atributos `style` en la respuesta servida, y solo ahí apareció.
+7. **PV-5 NO SE PUEDE RESOLVER CON `curl`, Y ESTUVO A PUNTO DE DARSE POR RESUELTO.** El servidor de
+   producción contesta **200** con `upgrade-insecure-requests` puesta, y eso invita a concluir que no rompe.
+   **No prueba nada: `curl` no aplica CSP.** Es D-33 por la otra puerta —allí la herramienta era más
+   *privilegiada* que el navegador, acá es más *permisiva*—. **PV-5 queda abierto y solo lo cierra un
+   navegador.** La directiva se condicionó a producción igualmente, que era la decisión correcta con o sin
+   la medición.
+8. **PV-6 Y PV-7 RESUELTOS LEYENDO LA RESPUESTA.** `connect-src` llega con **`http://127.0.0.1:54321`**, la
+   URL local leída del entorno y no escrita a mano, que es lo que evita romper el desarrollo en silencio. Y
+   `Strict-Transport-Security` **está en la respuesta de producción y ausente en la de desarrollo**, que es
+   todo lo que se puede afirmar sin despliegue: **se verificó leyéndola, no por su efecto**, y así se dice.
+9. **HSTS SOLO EN PRODUCCIÓN: desvío del plan, con motivo y asimétrico.** El plan no lo pedía. El navegador
+   ignora HSTS sobre `http`, así que mandarla en local no haría daño **hoy**; pero un HSTS con
+   `includeSubDomains` que un navegador llegue a recordar para `127.0.0.1` deja la máquina sin poder abrir
+   nada local por http, y se arregla a mano. **No mandarla en desarrollo no cuesta nada.**
+10. **ERROR 24 DE QUIEN DICTA, y lo destapó leer el comentario que yo mismo había encargado.** Mandé copiar
+    la CSP al `redirect` **por analogía con el `Cache-Control`**, y la analogía no se sostiene: el
+    `Cache-Control` importa de verdad en un 307 —un CDN puede cachearlo con la cookie dentro— y **la CSP
+    no protege el destino**, porque un 307 no lleva documento y el navegador hace una petición **nueva** a
+    `/login` que recibe su propia política. El código es inocuo y se queda; **lo falso era el porqué**, y
+    lo escribió el subagente porque yo se lo dicté.
+11. **DOS DE CINCO SUBAGENTES INCUMPLIERON LA PROHIBICIÓN DE DAR CIFRAS**, con la prohibición escrita y
+    motivada en los cinco encargos. Sus números **se descartaron sin comprobarlos** y se remidió, que
+    cuesta menos. Sumado a la Task 0, la sesión va **siete de diez cumpliendo**. Sigue valiendo lo de
+    siempre: **prohibirlo ayuda, no garantiza, y no puede ser la salvaguarda.**
+12. **UN SUBAGENTE CAZÓ UN COMENTARIO CADUCADO QUE EL ENCARGO NO LE PEDÍA MIRAR.** La cabecera de
+    `faq/page.tsx` decía «**ESTÁTICA a propósito … Server Component normal, sin async, para que se sirva
+    desde el prerender**», y acababa de volverse falsa por su propio cambio. **Lo encontró porque el
+    encargo le mandaba conservar los comentarios existentes**, y al conservarlos los leyó. Tercer caso de
+    la fase en que un subagente encuentra algo antes de que haga daño.
+13. **LOS STEPS 5 Y 6 NO SE CERRARON, y se dice en vez de disimularlo.** Esta sesión **no tiene ninguna
+    herramienta de navegador disponible**, así que ni el recorrido con la consola abierta ni la subida real
+    a Cloudinary se hicieron. Lo que sí se hizo es **todo lo que el navegador habría comprobado y se puede
+    comprobar por HTTP** —las cuatro cabeceras, el nonce por petición, el reparto de nonces en el HTML—, y
+    lo que queda es exactamente lo que solo se ve en pantalla: violaciones en consola y una subida de punta
+    a punta. **Quedan como entrega a Alejandro, con su control positivo escrito.**
+14. **EL MODO PRODUCCIÓN LOCAL NO HABLA CON LA BASE REAL, comprobado y no supuesto.** `next start` carga
+    `.env.local` igual que `next dev`, y la CSP servida lo demuestra sola: su `connect-src` lleva
+    `127.0.0.1:54321`. **La cabecera sirvió de sonda del entorno**, que no era para lo que se escribió.
 
 ---
 

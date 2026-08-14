@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/proxy'
+import { construirCSP } from '@/lib/seguridad/csp'
 
 // Este proxy hace EXACTAMENTE DOS COSAS: refrescar la cookie de sesion (via
 // updateSession) y redirigir de forma optimista al login cuando no hay
@@ -25,7 +26,40 @@ import { updateSession } from '@/lib/supabase/proxy'
 const RUTAS_PUBLICAS = ['/', '/login', '/auth', '/faq']
 
 export async function proxy(request: NextRequest) {
-  const { response, claims } = await updateSession(request)
+  // El nonce se genera por peticion, siguiendo el patron de la documentacion
+  // de Next.js 16 en
+  // node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md.
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const csp = construirCSP({
+    nonce,
+    esDesarrollo: process.env.NODE_ENV === 'development',
+    urlSupabase: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  })
+
+  // La cabecera Content-Security-Policy va por los DOS lados, y no es
+  // redundancia.
+  //
+  // Al REQUEST (aca, dentro de las cabecerasExtra que recibe updateSession):
+  // porque Next.js lee la cabecera Content-Security-Policy DEL REQUEST
+  // durante el renderizado para extraer el nonce con el patron
+  // 'nonce-{valor}' y aplicarlo el mismo a los scripts que genera -scripts
+  // de React, del runtime de Next, los bundles de cada pagina-, segun explica
+  // la seccion "How nonces work in Next.js" de la documentacion citada arriba.
+  //
+  // Al RESPONSE (mas abajo, con response.headers.set): porque es la cabecera
+  // que el navegador tiene que recibir para aplicar la politica. El
+  // navegador nunca ve el request, asi que sin esta segunda copia la CSP no
+  // se aplicaria nunca del lado del cliente.
+  //
+  // Si solo se pusiera en el response, las paginas llegarian con la cabecera
+  // correcta pero los scripts SIN nonce -Next no tendria de donde leerlo al
+  // renderizar-, y la CSP los bloquearia a todos: la aplicacion se rompe
+  // entera, con el build en verde.
+  const { response, claims } = await updateSession(request, {
+    'x-nonce': nonce,
+    'Content-Security-Policy': csp,
+  })
+  response.headers.set('Content-Security-Policy', csp)
 
   const pathname = request.nextUrl.pathname
 
@@ -51,6 +85,15 @@ export async function proxy(request: NextRequest) {
     response.cookies.getAll().forEach(({ name, value, ...options }) =>
       redirect.cookies.set(name, value, options))
     redirect.headers.set('Cache-Control', 'private, no-store')
+    // La CSP se copia tambien, pero su efecto aca NO es el mismo que el del
+    // Cache-Control de arriba y conviene no confundirlos. El Cache-Control
+    // importa de verdad en esta respuesta: un CDN podria cachear el 307 con
+    // la cookie dentro. La CSP, en cambio, no protege la pantalla de /login:
+    // un 307 no lleva documento, y el navegador va a hacer una peticion NUEVA
+    // a /login que pasa otra vez por este proxy y recibe su propia politica
+    // con su propio nonce. Se copia porque una respuesta sin CSP es una
+    // excepcion que habria que justificar, no porque el destino la necesite.
+    redirect.headers.set('Content-Security-Policy', csp)
 
     return redirect
   }
