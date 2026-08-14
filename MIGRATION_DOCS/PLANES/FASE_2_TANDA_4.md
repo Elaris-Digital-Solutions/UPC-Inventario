@@ -13,7 +13,7 @@
 | Task | Estado |
 |---|---|
 | **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
-| **1 · Migración 24: Q-19** | ⬜ pendiente |
+| **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
 | **2 · Las cabeceras de seguridad** | ⬜ pendiente |
 | **3 · Playwright y el flujo de entrada** | ⬜ pendiente |
 | **4 · Los cuatro flujos restantes** | ⬜ pendiente |
@@ -73,6 +73,70 @@
    reescribió idéntica y git no la cuenta**, que es justo el tipo de descuadre que hay que saber explicar
    antes de darlo por bueno. El desglose se había deducido restando del total; `--numstat` lo confirmó, y
    **restar del total es una inferencia, no una medición**.
+
+### Task 1 · Migración 24, la apertura cae en un bloque *(2026-08-13)*
+
+1. **PV-1 y PV-2 resueltos, los dos midiendo y ninguno deduciendo.** La expresión
+   `extract(epoch from opening_time)::int % (slot_minutes * 60) = 0` **es inmutable**: no se dedujo de la
+   documentación, se le preguntó a Postgres montando el `CHECK` dentro de una transacción y revirtiéndola.
+   Y **producción pasa**: abre a las 08:00 con bloques de 30, igual que local, así que la migración 24 no
+   fallará en el `db push`. Las dos comprobaciones costaron un comando cada una.
+2. **LA DIVISIÓN POR CERO ERA IMPOSIBLE DESDE EL PRINCIPIO, y no por suerte.** El plan no lo consideraba, y
+   un `%` con un divisor que valga 0 aborta la sentencia. No puede pasar: `app_settings_slot_minutes_check`
+   **ya acota `slot_minutes` entre 5 y 60**. El riesgo se descartó leyendo las restricciones que ya
+   existían, no suponiendo que no lo había.
+3. **EL TERCER CASO DE PRUEBA DEL PLAN NO SE PUEDE MONTAR DESDE LA FILA REAL, y el motivo es otra
+   restricción vieja.** `app_settings_slot_divisor` obliga a que el bloque divida a 60, así que los únicos
+   valores posibles son **5, 6, 10, 12, 15, 20, 30 y 60** — y **los ocho dividen a 3600**. Desde la apertura
+   por defecto de las 08:00, o desde cualquier hora en punto, **ningún `slot_minutes` válido la desalinea**.
+   La aserción 3 tuvo que mover antes la apertura a 08:30. Escrita como la dictaba el plan, habría pasado en
+   verde **sin probar nada**.
+4. **LA BARRERA DE LA APLICACIÓN Y LA RESTRICCIÓN DE LA BASE RECHAZAN EL MISMO CONJUNTO, y son equivalentes
+   por una TERCERA restricción.** `aperturaDesalineada()` comprueba `minutos % slotMinutos !== 0 ||
+   segundos !== 0`, que **ignora las horas**; el `CHECK` cuenta los segundos desde medianoche, que **no las
+   ignora**. Coinciden únicamente porque `slot_divisor` garantiza que `60 · h` sea siempre múltiplo del
+   bloque. **Si algún día se relajara esa restricción, las dos barreras divergirían en silencio**: con
+   bloque de 45, la apertura de las 10:00 la aceptaría la aplicación y la rechazaría la base.
+5. **`mensajeDeRechazoAjustes()` NO TRADUCE LA RESTRICCIÓN NUEVA, y su caso por defecto devuelve el mensaje
+   crudo del motor.** Traduce cuatro —ventana, horario, duración mínima y límite diario— y el resto cae en
+   `return mensajeDelMotor`, así que el admin leería `violates check constraint
+   "app_settings_apertura_alineada"` en pantalla. **Hoy es inalcanzable**, porque la barrera de servidor de
+   `guardarAjustes()` corta antes con su mensaje en castellano. **No se toca** —el Step 5 manda no tocarlo—,
+   pero se anota: el día que alguien cambie `aperturaDesalineada()` o `slot_divisor`, la jerga aparece.
+6. **DÉCIMO INSTRUMENTO MINTIENDO, y es una herramienta de lectura.** La salida de `Grep` con contexto
+   mostró `\` donde el archivo tiene `/`: tres líneas de comentario aparecían empezando por `\ ` en vez de
+   `// `, y un `crearProducto()/editarProducto()` salía con barra invertida. **Habría sido TypeScript
+   inválido**, y por un momento pareció un archivo roto que el CI había dejado pasar. **Lo dirimió leer el
+   mismo rango con `Read`**, que es otra herramienta. La causa no se determinó y no se finge. Van diez:
+   `PGRST303`, `PGRST102`, `$?` con stderr nativo, el servidor de desarrollo degradado, `$_.To.Address` de
+   Mailpit, la máquina entera con su UTC−5, la sonda de texto sobre HTML de React,
+   `browser_console_messages`, `npm audit` con el mismo lockfile, y este.
+7. **ERROR 23 DE QUIEN DICTA, y es del género más incómodo: contradice un hallazgo propio de veinte minutos
+   antes.** Al escribir el control positivo predije que la apertura de las 09:00 con bloque de 20 daría
+   **400**, y da **200**: 32400 % 1200 = 0. Es exactamente el hecho de la corrección 3 —desde una hora en
+   punto ningún bloque válido desalinea—, medido por mí y olvidado al escribir la sonda siguiente. **La
+   propiedad quedó probada igual**, porque la aserción 3 del test la cubre y pasó en verde, y porque el caso
+   correcto —apertura 08:30 y bloque a 20— dio el 400 esperado al medirlo bien. **Medir algo no vacuna
+   contra contradecirlo después.**
+8. **UN DEFECTO DE PROSA DEL SUBAGENTE, DEL GÉNERO DE LA RELACIÓN INVERTIDA.** El comentario del test decía
+   «08:30 no divide a 3600», cuando lo cierto es lo contrario: **3600 no divide a 30600**. El fondo era
+   correcto y la frase que lo justificaba estaba del revés. **Ninguna herramienta del proyecto puede verlo**
+   —vive dentro de un `--` y el test pasa igual—, así que lo encontró leer. Corregido antes de comitear.
+9. **LOS CINCO SERVICIOS PARADOS DEL STACK LOCAL NO SON UN FALLO.** `supabase status` los lista como
+   «Stopped» y `supabase start` no los levanta, lo cual parecía chocar con la regla de CLAUDE.md de que
+   `db reset` exige el stack completo. **Están deshabilitados a propósito en `config.toml`** —`[storage]`,
+   `[analytics]` y `[db.pooler]` con `enabled = false`—, que es distinto de arrancar con `-x`. **El
+   `db reset` funcionó con ellos parados**, así que la preocupación se disolvió midiendo.
+10. **LA PREDICCIÓN DEL STEP 4 SE CUMPLIÓ EXACTA:** 24 migraciones aplicadas y `Files=25, Tests=150, PASS`,
+    desde 23 y 147 en 24. Y de paso resolvió la única duda que el subagente declaró no haber verificado
+    —que `throws_ok` acepte `null` como tercer parámetro en esta instalación de pgTAP—: **sí lo acepta**,
+    confirmado por el efecto y no por el precedente de `20_settings.sql` del que lo copió.
+11. **EL PLAN SE CONTRADICE A SÍ MISMO SOBRE LOS SUBAGENTES, en dos sitios separados por su propia
+    ejecución.** Su cierre dice «de cuatro subagentes con la prohibición explícita, uno la cumplió y tres
+    no»; la corrección 8 de la Task 0, en el mismo archivo, dice **«cuatro de cinco cumpliendo»**. La
+    primera cifra se escribió al planificar y la segunda al ejecutar la Task 0. **Se deja el enunciado
+    original y se corrige acá fechado**, como todo lo demás. Es el mismo defecto que la T3B encontró en
+    `ESTADO_Y_PLAN.md`: **un documento largo se contradice a sí mismo antes de quedarse obsoleto.**
 
 ---
 
