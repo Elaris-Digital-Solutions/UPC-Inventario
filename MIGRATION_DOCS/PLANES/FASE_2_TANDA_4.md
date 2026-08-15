@@ -8,7 +8,7 @@
 > se anota acá con su fecha; el plan de abajo **no se reescribe**. Van 145 correcciones en la T3B, 127 en
 > la T3A y 57 en la T2B, y ninguna se perdió por haber corregido el original en silencio.
 
-### Estado de la ejecución *(al 2026-08-14)*
+### Estado de la ejecución *(al 2026-08-15)*
 
 | Task | Estado |
 |---|---|
@@ -17,7 +17,7 @@
 | **2 · Las cabeceras de seguridad** | ✅ **Cerrada el 2026-08-13, los siete Steps.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **Los cinco puntos de verificación resueltos midiendo**, PV-5 incluido —y su predicción escrita era incorrecta—. **Cero violaciones de CSP en DIEZ pantallas y los tres perfiles, en modo producción, con control positivo validado.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Veintitrés correcciones** y el **error 24 de quien dicta** |
 | **3 · Playwright y el flujo de entrada** | ✅ **Cerrada el 2026-08-14, los siete Steps.** Playwright instalado, el cortafuegos de entorno, el arnés de magic link por Mailpit y las dos pruebas del flujo de entrada, contraejemplo incluido. **PV-8 y PV-9 resueltos midiendo**: el enlace pedido por la aplicación se canjea donde se pidió, y Playwright añade cuatro paquetes y **cero vulnerabilidades**. **El cortafuegos llegaba tarde** —el `webServer` arranca antes que el `globalSetup`—, medido por las dos formas y arreglado. **Vitest necesitó un `exclude` que el plan no preveía.** Ninguna cifra se movió: 23 rutas, 0 estáticas, 152 pruebas en 11 archivos. **Doce correcciones**, el **hecho falso 32** y las decisiones **D-60 y D-61** |
 | **4 · Los cuatro flujos restantes** | ✅ **Cerrada el 2026-08-14, los seis Steps.** Los tres specs y el ayudante de escenario: el E2E pasa de dos pruebas en un spec a **seis en cuatro**, con **cuatro corridas en verde** —tres sobre el histórico acumulado y una sobre la base reseteada—. **D-62**: el arnés no escribe nunca directo en la base, así que el contraejemplo de cancelar es una reserva ya entregada. **La primera corrida en verde escondía un defecto de repetibilidad** que solo destapó la segunda. **Ninguna otra cifra se movió y las cuatro predicciones se cumplieron exactas.** **Dieciséis correcciones**, el **hecho falso 33** con tres instancias, y los **errores 27 y 28 de quien dicta** |
-| **5 · La auditoría bloqueante (Q-10)** | ⬜ pendiente |
+| **5 · La auditoría bloqueante (Q-10)** | ✅ **Cerrada el 2026-08-15, los cinco Steps.** `npm audit --audit-level=high` pasa a **bloqueante**, y **el interruptor se movió sobre un árbol verde y no rojo**: `nanoid` de 3.3.17 a 3.3.18 —tres líneas de `package-lock.json`, un parche dentro del rango que `postcss` ya pedía— y la auditoría local **de código 1 a código 0**. El Step 1 no hizo falta como estaba escrito: **había parche**, así que qué conteste el servicio de avisos dejó de decidir nada. **D-63**: el E2E entra en un **workflow propio**, `e2e.yml`, y **sin `continue-on-error`**, porque `develop` **no tiene protección de rama** —404, «Branch not protected»— y un rojo hoy solo avisa. **La hipótesis del entorno se confirmó midiendo, con control negativo**, y apareció de paso que en el runner **no hay ningún archivo de entorno**. **Diecinueve correcciones** y el **decimoquinto instrumento que miente**, que esta vez fue el informe del subagente |
 | **6 · Q-13, con el código que ya consulta** | ⬜ pendiente |
 | **7 · Los pendientes menores** | ⬜ pendiente |
 | **8 · Verificación de punta a punta** | ⬜ pendiente |
@@ -481,6 +481,117 @@
     diferencia de que acá no afirma nada falso. **No se cambió**: cada verificación cuesta una corrida
     completa de casi dos minutos y el escenario es hipotético, así que se registra con su costo por delante
     en vez de arreglarlo sin poder medirlo. **Candidato de la Task 8.**
+
+### Task 5 · La auditoría bloqueante *(2026-08-15)*
+
+1. **EL STEP 1 NO HACÍA FALTA COMO ESTABA ESCRITO, PORQUE HABÍA PARCHE.** El plan mandaba relanzar a mano
+   el paso de auditoría en el CI —tarea de Alejandro— para dirimir la contradicción entre el código 1 de
+   local y el `found 0` del CI. Remedido hoy, local **sigue saliendo con código 1** por `nanoid`. Pero la
+   sonda que faltaba era otra: **`npm audit fix` cambia exactamente un paquete**, `nanoid` de 3.3.17 a
+   3.3.18, **un parche dentro del rango que `postcss` ya pedía** —`^3.3.16` y `^3.3.17`—, y deja la
+   auditoría en **código 0**. Con el paquete parcheado, **qué conteste hoy el servicio de avisos deja de
+   decidir nada**. Y la pregunta que sí importa —¿pasa la auditoría bloqueante en el CI?— **la mide gratis
+   la primera corrida de esta rama**, que además la mide de verdad en vez de por analogía.
+2. **LAS «99 PACKAGES» DEL `--dry-run` NO EXISTEN.** `npm audit fix --dry-run` anuncia «added 99
+   packages», y **el lockfile ya las contenía**: son binarios de otras plataformas —`lightningcss-linux-*`,
+   `@unrs/resolver-binding-*`, `@tailwindcss/oxide-*`— que el `--dry-run` cuenta porque no están en el
+   `node_modules` de esta máquina, que es Windows. **El diff real son tres líneas** —`version`, `resolved`
+   e `integrity` de `nanoid`— y **`package.json` no se toca**. Creerle al anuncio de la herramienta habría
+   hecho abortar un arreglo de tres líneas por miedo a uno de noventa y nueve paquetes.
+3. **EL `found 0` DEL CI ESTÁ MEDIDO, no heredado del plan.** La corrida del 2026-08-13 a las 12:47 UTC
+   —la del merge del PR #32 en `develop`— imprime `found 0 vulnerabilities` en el paso «Auditoría de
+   dependencias», leído del log con `gh run view --log`; y el `npm ci` de esa misma corrida imprime lo
+   mismo. **La contradicción del plan era real y seguía viva**, así que parchear el paquete no es
+   cosmético: sin eso, cuál de las dos puntas manda seguía sin estar decidido.
+4. **`develop` NO TIENE PROTECCIÓN DE RAMA, y eso es lo que decide el Step 4.** La API de GitHub responde
+   **404, «Branch not protected»** —es Q-5, abierto desde antes de la Fase 2—. Así que hoy «bloqueante» no
+   significa que impida un merge: significa que **el workflow se pone rojo y alguien lo mira**. Eso
+   **abarata la opción estricta y encarece la conservadora**: un `continue-on-error` compra exactamente el
+   modo de fallo que D-7 dejó podrido durante tres tandas, y a cambio no evita ningún bloqueo, porque no
+   hay ninguno que evitar. **La opción conservadora del plan se consideró y se descartó con motivo**, que
+   es lo que el Step pedía.
+5. **D-63, decisión de Alejandro: el E2E va en un workflow PROPIO, `e2e.yml`, y sin `continue-on-error`.**
+   La estructura de archivos del plan decía `ci.yml`, y el desvío va con su motivo: `ci.yml` tarda **un
+   minuto** y el E2E le sumaría levantar Supabase entero, instalar Chromium y compilar la aplicación antes
+   de la primera aserción. Metido ahí dentro, **una intermitencia del E2E enrojecería también el aviso de
+   `typecheck` y de `build`**, que no tienen la culpa. **El precedente está escrito en el propio
+   repositorio**: `db.yml` existe porque «va aquí y no en ci.yml porque este workflow ya tiene la base en
+   pie».
+6. **LA HIPÓTESIS DEL BRIEFING SE CONFIRMÓ, Y EL CONTROL NEGATIVO ES LO QUE LA HACE VALER.**
+   `loadEnvConfig` de `@next/env` **no pisa lo que ya está en `process.env`**: con la variable exportada
+   gana lo exportado, **incluso contra un `.env` que dice lo contrario**; sin exportar nada, gana el
+   archivo. Medido con una sonda desechable sobre una raíz falsa, **las dos puntas**. Sin la segunda, una
+   sonda que dijera siempre «gana lo exportado» habría dado el mismo resultado y no habría probado nada.
+7. **Y EL TERRENO DEL CI ES MÁS SEGURO DE LO QUE SUPONÍA EL PROPIO BRIEFING: allí no hay NINGÚN archivo de
+   entorno.** `.gitignore` ignora `.env*`, así que **ni `.env` ni `.env.local` están versionados**
+   —comprobado con `git ls-files` y `git check-ignore`, no por el nombre—. La consecuencia buena: **las
+   credenciales de producción no existen en el runner**, así que el escenario que el cortafuegos teme no se
+   puede montar allí por accidente. La operativa: **hay que exportar las dos variables o el E2E no
+   arranca**, porque el cortafuegos leería `undefined` y abortaría. **El briefing daba por sentado que el
+   `.env` llegaba al runner y no llega.**
+8. **LAS CLAVES SE LEEN DEL STACK, NO SE PEGAN.** `supabase status -o env` emite `API_URL` y
+   `PUBLISHABLE_KEY` en formato asignable por el shell. La clave publicable del stack local **coincide
+   exactamente** con la del `.env.local` —es la constante de demostración del stack, no un secreto—, así
+   que pegarla habría funcionado igual; **leerla sobrevive a que el CLI cambie el formato de la clave y una
+   constante pegada no**.
+9. **MI PROPIO GREP DE VERIFICACIÓN ESTABA MAL DISEÑADO Y DIO UN FALSO POSITIVO.** Buscar «la frase vieja»
+   con `grep -c "continue-on-error"` devolvió **1** sobre el `ci.yml` ya corregido. No era un resto: **el
+   comentario nuevo nombra la bandera vieja a propósito**, para decir que devolvérsela no es el arreglo.
+   **Una búsqueda de la frase vieja falla cuando el texto nuevo la cita**, y hay que anclarla a la forma
+   que importa —`^\s*continue-on-error:`, la directiva— en vez de al texto. Quinta vez en la fase que
+   verificar la propia sonda evita un diagnóstico falso.
+10. **DECIMOQUINTO INSTRUMENTO QUE MIENTE, Y ES EL INFORME DEL SUBAGENTE.** Devolvió el contenido de
+    `e2e.yml` con **`&gt;&gt;` donde el archivo tiene `>>`** y `&amp;&amp;` donde tiene `&&`: entidades HTML
+    metidas al renderizar el informe, no escritas en el disco. **Un `>>` escapado habría roto el paso del
+    shell que exporta las variables**, así que la lectura obvia era un defecto grave. Se dirimió **abriendo
+    el archivo**: cero entidades HTML, cero doble codificación, y `diff` y `sha256sum` **idénticos** contra
+    el original del scratchpad. **Creerle al informe habría hecho «arreglar» un defecto que no existe** —el
+    error simétrico del que este proyecto persigue, y el primero de esa dirección en la fase.
+11. **LA ARITMÉTICA DEL DIFF CUADRÓ EXACTA CONTRA LA PREDICCIÓN ESCRITA**: **17 líneas añadidas y 8
+    borradas** en `ci.yml`. Las dos del step —`- name:` y `run:`— son idénticas antes y después, así que
+    git las toma como contexto y solo cuenta el comentario viejo más el `continue-on-error`. Predecir el
+    reparto **antes** de mirar es lo que convierte el número en una comprobación y no en una lectura.
+12. **EL YAML SE VALIDÓ PARSEÁNDOLO, NO LEYÉNDOLO.** Los tres workflows cargan con `js-yaml`: `ci.yml` con
+    ocho pasos, `e2e.yml` con nueve y `db.yml` con cinco, y **cero pasos con `continue-on-error` en los
+    tres**. Un YAML mal indentado es exactamente el género de defecto que **se ve bien al leerlo y falla en
+    el runner**, y este proyecto no tiene forma de correr Actions en local.
+13. **EL SUBAGENTE CUMPLIÓ LA PROHIBICIÓN DE DAR CIFRAS, y sus dos respuestas finales no destaparon nada.**
+    Dijo que el bloque a reemplazar coincidía carácter por carácter con lo dictado y que no tuvo que tomar
+    ninguna decisión propia. **Se verificó igual sin depender del informe** — y menos mal, porque el
+    informe traía lo del punto 10.
+14. **LOS CUATRO COMANDOS Y EL E2E SE CORRIERON POR EL CAMBIO DE `nanoid`, no por los workflows.**
+    `typecheck` y `lint` limpios, **152 pruebas en 11 archivos**, **23 rutas y 0 estáticas**, y **las seis
+    pruebas de E2E en verde** en una corrida completa de 1,3 minutos. **Las cuatro predicciones, escritas
+    antes de mirar, se cumplieron exactas.** Un cambio en `.github/` no puede mover ninguna de esas cifras
+    —ni `eslint .` ni el `build` leen esa carpeta—, así que **no se volvieron a correr después**, salvo el
+    `lint`, que sí se repitió sobre el árbol final. Se dice de dónde sale cada número en vez de dejar creer
+    que se remidieron todos.
+15. **LA SESIÓN CRUZÓ LA MEDIANOCHE, y se dice.** El trabajo empezó el **2026-08-14 a las 23:31** y estas
+    correcciones se escriben ya el **2026-08-15**. Los comentarios de los dos workflows llevan fecha
+    **2026-08-14**, que es la de la sesión y la de la decisión D-63. Queda dicho acá en vez de dejar que la
+    fecha del commit lo contradiga en silencio.
+16. **UN AVISO NUEVO QUE NO ES DE ESTA TAREA Y QUEDA ANOTADO.** `npm test` imprime que `vitest.config.ts`
+    usa sintaxis ESM en un archivo cargado como CommonJS, y que el cargador nativo —que será el de por
+    defecto en una versión mayor futura de Vite— no lo soporta. **Hoy es un aviso y las 152 pruebas pasan.**
+    Nació con el archivo que creó la Task 3. **Candidato de la Task 7**, junto al `setup-cli` deprecado.
+17. **Y LA TASK 7 HEREDA UN SITIO MÁS DEL QUE CREÍA.** Su Step 1 manda actualizar `supabase/setup-cli@v1`
+    en `db.yml`; desde esta tarea **la misma acción se usa también en `e2e.yml`**, fijada a la misma versión
+    a propósito. **Son dos sitios que hay que tocar juntos**, y se anota acá para que el Step no se cierre
+    creyendo que era uno.
+18. **LA DECISIÓN ESTRICTA TIENE UN MARGEN QUE YA ESTABA PUESTO, y conviene decirlo: `retries: 2`.**
+    `playwright.config.ts` reintenta dos veces cuando `CI=true` —que GitHub Actions define— y ninguna en
+    local, decidido así en la Task 3. Con el workflow bloqueante eso pesa en la balanza: **una intermitencia
+    suelta no debería poner el workflow en rojo**, porque Playwright la marca `flaky` y la corrida sigue.
+    **Eso abarata todavía más la opción estricta**, y el precio que deja es el simétrico: **un fallo que
+    solo desaparece con reintento pasa disimulado**, y solo se ve abriendo el informe que guarda el último
+    paso. **Leído de la configuración, no medido:** que el proceso salga con código 0 tras un reintento
+    exitoso se comprueba en la primera corrida real del CI, y hasta entonces no se afirma.
+19. **A `ESTADO_Y_PLAN.md` NO LE FALTAN TRES DECISIONES: LE FALTAN NUEVE.** El Step 1 de la Task 9 manda
+    registrar «D-55 a D-58», y el briefing de esta sesión daba por pendientes D-60, D-61 y D-62. **Medido
+    contra el documento, la última decisión que tiene escrita es la D-54**, así que lo que falta es **D-55 a
+    D-63 entero** — con la **D-59** incluida, que es de la Task 2 y no figuraba en ninguna de las dos
+    cuentas. **Ni el plan ni el briefing tenían el número bien**, y los dos erraban por defecto. Es
+    exactamente el género que el Step 4 de esa misma tarea manda vigilar, aplicado a su Step 1.
 
 ---
 
