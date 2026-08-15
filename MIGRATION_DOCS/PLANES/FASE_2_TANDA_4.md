@@ -19,7 +19,7 @@
 | **4 · Los cuatro flujos restantes** | ✅ **Cerrada el 2026-08-14, los seis Steps.** Los tres specs y el ayudante de escenario: el E2E pasa de dos pruebas en un spec a **seis en cuatro**, con **cuatro corridas en verde** —tres sobre el histórico acumulado y una sobre la base reseteada—. **D-62**: el arnés no escribe nunca directo en la base, así que el contraejemplo de cancelar es una reserva ya entregada. **La primera corrida en verde escondía un defecto de repetibilidad** que solo destapó la segunda. **Ninguna otra cifra se movió y las cuatro predicciones se cumplieron exactas.** **Dieciséis correcciones**, el **hecho falso 33** con tres instancias, y los **errores 27 y 28 de quien dicta** |
 | **5 · La auditoría bloqueante (Q-10)** | ✅ **Cerrada el 2026-08-15, los cinco Steps.** `npm audit --audit-level=high` pasa a **bloqueante**, y **el interruptor se movió sobre un árbol verde y no rojo**: `nanoid` de 3.3.17 a 3.3.18 —tres líneas de `package-lock.json`, un parche dentro del rango que `postcss` ya pedía— y la auditoría local **de código 1 a código 0**. El Step 1 no hizo falta como estaba escrito: **había parche**, así que qué conteste el servicio de avisos dejó de decidir nada. **D-63**: el E2E entra en un **workflow propio**, `e2e.yml`, y **sin `continue-on-error`**, porque `develop` **no tiene protección de rama** —404, «Branch not protected»— y un rojo hoy solo avisa. **La hipótesis del entorno se confirmó midiendo, con control negativo**, y apareció de paso que en el runner **no hay ningún archivo de entorno**. **Diecinueve correcciones** y el **decimoquinto instrumento que miente**, que esta vez fue el informe del subagente |
 | **6 · Q-13, con el código que ya consulta** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** Los advisors de rendimiento pasan de **22 avisos a 18**: los índices sin usar bajan de 7 a 3, y los otros dos bloques —6 claves foráneas sin índice y 9 políticas permisivas múltiples— **no se movieron ni podían moverse**, porque ninguna migración posterior al 2026-08-05 toca índices, políticas ni claves foráneas. **La premisa de Q-13 ya es falsa** —cuatro índices sí se usan, uno de ellos 1087 veces— **y su conclusión aguanta por un motivo mejor y nuevo**: la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin estadísticas y «índice usado» no mide utilidad. **Ningún aviso cambió de naturaleza y no se crea ningún índice**, así que no hay desvío de D-55: Q-13 **se cierra como decisión consciente**, con la condición escrita de que la reevaluación tras el despliegue empiece por un `ANALYZE`. **Diez correcciones**, y **la predicción escrita falló en un bloque de tres** |
-| **7 · Los pendientes menores** | ⬜ pendiente |
+| **7 · Los pendientes menores** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** `supabase/setup-cli` de **v1 a v3** en los **dos** sitios —`db.yml` y `e2e.yml`—, con el `using: node20` de la v1 **leído de su manifiesto y no supuesto**; el comentario que prometía «la misma versión que se usa en local» **corregido** *(D-65)*, porque el CI usa 2.111.0 y local 2.114.0; `vitest.config.ts` renombrado a **`.mts`**, que apaga el aviso de ESM sin tocar `package.json`; y el comentario de `lib/mostrador/filtro.ts` con su **premisa caducada** corregida. **El Step 2 no se puede cumplir como está escrito** —la protección de contraseñas filtradas **requiere plan Pro** y la organización está en `free`, medido— **y lo cierra un motivo de producto**: el sistema no tiene contraseñas porque el cliente lo pidió así *(D-66)*. **El Step 3 ya lo había hecho la Task 0.** **Ninguna cifra se movió** —152 pruebas en 11 archivos, 23 rutas y 0 estáticas— y **las cuatro predicciones se cumplieron exactas**. **Dieciocho correcciones**, **tres decisiones nuevas —D-64, D-65 y D-66—** y **un falso negativo de mi propio grep** |
 | **8 · Verificación de punta a punta** | ⬜ pendiente |
 | **9 · Cierre y documentación** | ⬜ pendiente |
 
@@ -669,6 +669,112 @@
     «D-55 a D-58» cuando lo que falta es **D-55 a D-63 entero**. Ahora hay que sumarle **el cierre de
     Q-13**, que no figura en su lista —solo están Q-10 y Q-19—. **Un plan escrito antes no sabe lo que sus
     propias tareas van a cerrar**, que es literalmente lo que su Step 4 manda vigilar.
+
+### Task 7 · Los pendientes menores *(2026-08-15)*
+
+1. **EL PENDIENTE ERAN DOS SITIOS Y EL STEP DECÍA UNO, confirmado y acotado.** La Task 5 ya lo había
+   anotado; medido acá con un barrido sobre `.github/`, los sitios son exactamente **dos** —`db.yml` y
+   `e2e.yml`— **y no hay un tercero**. Saber que no hay más vale tanto como saber que hay dos: el Step
+   podría haberse cerrado creyendo que quedaba algo suelto.
+
+2. **LA v1 DECLARA `using: node20`, Y ESO SE LEYÓ EN SU MANIFIESTO.** No se dedujo del aviso de
+   deprecación ni se heredó del enunciado del pendiente: se abrió el `action.yml` de la v1 por la API de
+   GitHub y ahí está. **El pendiente era cierto**, que es lo primero que había que comprobar antes de
+   gastar una tarea en él.
+
+3. **`v1` Y `v2` SON RAMAS; `v3` ES UN TAG. Y esto podría haber roto los dos workflows a la vez.**
+   `git/ref/tags/v1` y `git/ref/tags/v2` responden **404**, y la lista de ramas del repositorio trae `v1`
+   y `v2`. El único alias móvil publicado **como tag** es `v3`. **Escribir `@v2` habría funcionado por
+   casualidad** —porque existe la rama—, y escribir un alias inexistente rompe el workflow **en su primer
+   paso**, en los dos archivos, sin que ningún comando local lo vea antes.
+
+4. **LAS DOS ALTERNATIVAS ARREGLABAN EL PROBLEMA, ASÍ QUE SE ELIGIÓ POR OTRA COSA.** La v2 y la v3 son
+   las dos `using: composite`, o sea que **cualquiera de las dos quita el `node20`**. **D-64 elige la v3**
+   porque es la única que sigue moviéndose —su último commit es del **2026-07-07**, contra el
+   **2026-05-21** de v1 y de v2— y porque su propia release la llama «the moving major-version alias».
+   **Cuando dos opciones resuelven el problema, el criterio ya no es el problema.**
+
+5. **LA v3 CAMBIA DE DÓNDE SALE LA CLI, Y ESO SE COMPROBÓ ANTES DE CAMBIAR NADA.** Instala desde **npm**
+   en vez de desde las releases de GitHub. `npm view supabase@2.111.0` devuelve la versión, así que **el
+   pin sobrevive al cambio de fuente**. Si esa versión no existiera en npm, el CI se rompería en el primer
+   paso de **dos** workflows y el diagnóstico sería «actualizamos la acción y todo dejó de andar».
+
+6. **UN COMENTARIO QUE PROMETÍA UNA IGUALDAD YA IMPOSIBLE — D-65.** Los dos workflows decían que la CLI
+   estaba «fijada a la misma version que se usa en local». Medido: el CI usa **2.111.0** y
+   `npx supabase --version` en local da **2.114.0**. **La promesa no era falsa por descuido, era
+   insostenible por construcción**: en local no hay versión fijada en ninguna parte —`npx` baja la última—
+   así que la igualdad se rompe sola cada vez que alguien corre un comando. Se deja el pin, que sí compra
+   reproducibilidad, y el comentario pasa a decir lo que el pin hace de verdad.
+
+7. **Y MI PROPIO GREP DIO UN FALSO NEGATIVO BUSCANDO JUSTAMENTE ESO.** Buscar `misma version` en
+   `.github/` devolvió **un** sitio, y son **dos**: `e2e.yml` lo escribe **«Misma version»**, con
+   mayúscula inicial. **Lo salvó tener el archivo ya leído, no la sonda.** Misma familia que el grep de
+   `continue-on-error` de la Task 5: **una búsqueda mal anclada devuelve un cero que parece una
+   respuesta.** Y hubo un segundo caso el mismo día: un `grep -c` que cuenta **cero** sale con código 1,
+   así que el `&&` siguiente **no llegó a ejecutarse** y el comando de verificación quedó sin correr sin
+   que nada lo dijera.
+
+8. **EL AVISO DE ESM LO ARREGLA LA EXTENSIÓN, Y EL PROPIO AVISO DICTA LAS DOS OPCIONES.** Su texto
+   literal: «Use a `.mjs` extension or set `"type": "module"` in the closest package.json». La segunda
+   **arrastraría a `next.config.ts` y a los demás archivos de raíz**, así que se tomó la primera en su
+   forma TypeScript: **`vitest.config.mts`**. **`tsconfig.json` ya incluye `**/*.mts`, comprobado antes de
+   renombrar**, así que el archivo no se cae del `typecheck` — que era el único riesgo real del cambio.
+
+9. **Y EL RENOMBRE TRAE SU PROPIO CONTROL, QUE NO HUBO QUE FABRICAR.** Si Vitest dejara de leer el
+   config, los `.spec.ts` de `e2e/` volverían a entrar y el recuento cambiaría. **Se midió justo después
+   de renombrar**: el aviso desapareció y siguen **152 pruebas en 11 archivos**. El control ya estaba
+   puesto desde la Task 3; solo había que acordarse de leerlo.
+
+10. **EL STEP 3 YA ESTABA CUMPLIDO POR LA TASK 0, y comprobarlo costó un comando.** La media apertura de
+    M-12 está escrita en la especificación, con **D-38** y **D-55** citados. **Un plan escrito antes no
+    sabe lo que sus propias tareas ya hicieron** —es el Step 4 de la Task 9 aplicado por adelantado—, y
+    dictarlo habría dejado dos filas diciendo lo mismo con fechas distintas.
+
+11. **EL STEP 2 NO SE PUEDE CUMPLIR COMO ESTÁ ESCRITO: EL INTERRUPTOR NO EXISTE EN ESTA CUENTA.** Dice
+    «se activa en el panel de Supabase y es tarea manual de Alejandro». **La documentación de Supabase
+    dice que la protección de contraseñas filtradas está disponible desde el plan Pro**, y la organización
+    de este proyecto está en **`free`**, medido contra la API. **El plan daba por hecho un interruptor que
+    la cuenta no tiene**, y eso no se ve leyendo el advisor: el advisor solo dice que está desactivada.
+
+12. **PERO LO QUE DE VERDAD LO CIERRA ES UN MOTIVO DE PRODUCTO, NO DE PLAN — D-66.** Alejandro:
+    **el sistema no tiene contraseñas porque el cliente lo pidió así**; se entra solo por magic link. Un
+    advisor que protege contraseñas **no protege nada acá**, y eso vale con cualquier plan. El límite del
+    plan Free queda como motivo secundario y medido, no como el principal. **El pendiente llevaba abierto
+    desde el 2026-08-12 por falta de esta frase, no por falta de trabajo.**
+
+13. **AUNQUE LA BASE SÍ GUARDA UN HASH DE CONTRASEÑA, y se anota sin perseguirlo.** `auth.users` tiene
+    **un solo usuario** —el admin sembrado el 2026-08-08— y su `encrypted_password` **no está vacío**.
+    **De dónde salió no se determinó y no se finge.** Decisión de Alejandro: se anota y no se investiga,
+    porque medir si esa vía esquiva el enganche de dominio *(D-32)* es alcance nuevo dentro de una tarea
+    de pendientes menores. **La afirmación de producto y la medición conviven**: la aplicación no ofrece
+    contraseña en ninguna pantalla, y la base guarda una igual.
+
+14. **LOS TRES DIFF CUADRARON EXACTOS CONTRA LA PREDICCIÓN, y cada número tiene su desglose.** `db.yml`
+    **17 y 3**, `e2e.yml` **8 y 3**, `filtro.ts` **13 y 5**. En los dos YAML las líneas `- name:`,
+    `with:` y `version:` son idénticas antes y después, así que git las toma como contexto y solo cuenta
+    el comentario nuevo más el `uses:`. **Predecir el reparto antes de mirar es lo que convierte el número
+    en una comprobación.**
+
+15. **LOS TRES WORKFLOWS SE VALIDARON PARSEÁNDOLOS, no leyéndolos.** `ci.yml` ocho pasos, `db.yml` cinco
+    y `e2e.yml` nueve —**los mismos que midió la Task 5**, que es lo que prueba que la edición no movió
+    ninguna estructura— y **cero pasos con `continue-on-error` en los tres**.
+
+16. **NINGUNA CIFRA SE MOVIÓ, Y ERA LA PREDICCIÓN ESCRITA ANTES DE CORRER NADA.** `typecheck` y `lint`
+    limpios, **152 pruebas en 11 archivos** y el `build` en **23 rutas y cero estáticas**. Lo que esta
+    tarea toca —dos YAML, un comentario y la extensión de un archivo de configuración— no puede mover
+    ninguna de esas cifras, y por eso la predicción era barata y aun así valía la pena escribirla.
+
+17. **`CLAUDE.md` QUEDA AFIRMANDO ALGO QUE YA ES FALSO, y se deja para la Task 9 a propósito.** Dice que
+    la T4 hereda «`supabase/setup-cli@v1` apuntando a Node.js 20, ya deprecado». **El Step 3 de la Task 9
+    cubre ese archivo**, y tocarlo por partes es exactamente lo que en la T3B metió tres duplicados con
+    fechas distintas en las mismas filas. **Y la cuenta de decisiones pendientes de registrar sube de
+    nueve a DOCE**: D-55 a D-66.
+
+18. **EL SUBAGENTE CUMPLIÓ LA PROHIBICIÓN DE CIFRAS, y su respuesta final fue del tipo útil.** Declaró
+    que **no comprobó ninguna de las afirmaciones que copió** —que la v3 exista, que `supabase@2.111.0`
+    esté en npm, que `tsconfig.json` incluya `**/*.mts`—. **Es la respuesta correcta y no un hallazgo**:
+    las tres las midió quien dictaba, **antes** de dictar. Un subagente que declara lo que no verificó
+    deja ver dónde apoyarse y dónde no.
 
 ---
 

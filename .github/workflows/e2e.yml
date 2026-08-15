@@ -56,10 +56,15 @@ jobs:
       - name: Instalar Chromium
         run: npx playwright install --with-deps chromium
 
-      # Misma version que en db.yml y que en local, para que un cambio de
-      # comportamiento del CLI no aparezca primero aca.
+      # Misma version fijada que en db.yml, y por el mismo motivo: que el CI sea
+      # REPRODUCIBLE. NO es la de local -alla `npx supabase` baja la ultima- y
+      # el comentario que prometia esa igualdad se corrigio en D-65.
+      #
+      # v3 y no v1 por lo mismo que en db.yml: la v1 declara `using: node20`, un
+      # runtime que el runner ya no soporta, y la v3 es composite (D-64). Los
+      # dos workflows se tocaron juntos a proposito: eran dos sitios, no uno.
       - name: Instalar la CLI de Supabase
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.111.0
 
