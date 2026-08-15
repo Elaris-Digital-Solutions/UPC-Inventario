@@ -72,6 +72,15 @@ Playwright.
    explícito**: se apoya en la etiqueta del campo, «¿Qué pasó con el equipo?». Es el texto que el plan
    dicta literal, es internamente consistente —«Queda» tiene el mismo sujeto tácito— y se deja como está,
    pero queda anotado por si la revisión visual quiere afinarlo.
+10. **La migración 26 comprueba `if not found` al leer `app_settings`, y el plan no lo pedía.** El Step 3
+    escribía `select s.min_cancel_minutes into v_margen from public.app_settings s where s.id;` y seguía
+    de largo. **Sin la comprobación, una fila de configuración ausente dejaría `v_margen` en `NULL`, la
+    comparación daría `NULL`, y un `NULL` dentro de un `if` NO DISPARA:** la regla de M-12 se apagaría
+    **en silencio** justo cuando la base está mal. Es el mismo género que «falta de política deja el
+    `UPDATE` en cero filas sin error», que este proyecto ya persigue desde la Fase 1. **Lo decidió el
+    patrón vecino, no el gusto:** las otras dos funciones que leen esa misma tabla —`create_reservation`
+    y la de `duration_slot_multiple`— ya hacen exactamente esto, con este mismo mensaje, así que la
+    migración se alinea con ellas y de paso pierde el `where s.id`, que ninguna de las dos usa.
 
 ---
 
