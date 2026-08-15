@@ -26,13 +26,21 @@
 // que usa lib/mostrador/consultas.ts para el mismo cruce de carpetas
 // (`@/lib/reservas/consultas`). La diferencia no es un descuido: consultas.ts
 // nunca lo carga Vitest -no existe consultas.test.ts-, mientras que ESTE
-// archivo si lo carga filtro.test.ts. El proyecto no tiene
-// `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
-// conoce el alias `@/*` que declara `tsconfig.json` -el mismo motivo por el
-// que columnas.test.ts y rejilla.test.ts importan con ruta relativa en vez
-// de alias-. Con el alias, `tsc` y `next build` lo resuelven igual y no
+// archivo si lo carga filtro.test.ts. El proyecto SI tiene configuracion de
+// Vitest desde la T4 -`vitest.config.mts`-, pero ahi dentro solo se declara el
+// `exclude` de los specs de Playwright: NO declara el alias `@/*` que si
+// declara `tsconfig.json`, asi que Vitest sigue sin conocerlo -el mismo motivo
+// por el que columnas.test.ts y rejilla.test.ts importan con ruta relativa en
+// vez de alias-. Con el alias, `tsc` y `next build` lo resuelven igual y no
 // habria fallado ninguno de los dos; solo `vitest run` se rompe, y solo
 // porque este archivo es el sujeto de una prueba.
+//
+// La premisa vieja de este parrafo -«el proyecto no tiene vitest.config.ts»-
+// era cierta cuando se escribio y caduco al crear ese archivo la Task 3 de la
+// T4. La CONCLUSION nunca dejo de ser cierta, y se comprobo abriendo el
+// archivo en vez de darla por buena: una conclusion correcta sostenida por una
+// premisa falsa es de los defectos que ninguna herramienta de este proyecto
+// puede ver, porque vive dentro de un comentario y todo compila igual.
 import { fechaEnLima, sumarDias } from '../reservas/rejilla';
 
 export type FiltroFecha = 'hoy' | 'tres_dias' | 'semana' | 'todas';

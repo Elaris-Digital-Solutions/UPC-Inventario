@@ -1,6 +1,12 @@
-// Pagina de preguntas frecuentes. ESTATICA a proposito: no hace ninguna
-// consulta a la base, ni siquiera a la configuracion. Server Component
-// normal, sin async, para que se sirva desde el prerender.
+// Pagina de preguntas frecuentes. No hace ninguna consulta a la base, ni
+// siquiera a la configuracion.
+//
+// Fue ESTATICA a proposito hasta el 2026-08-13 -Server Component sin async,
+// servido desde el prerender-. Dejo de serlo con la CSP por nonce de la tanda
+// 4: el nonce se genera por peticion, y una pagina generada en el build no
+// puede tener ninguno, asi que sus scripts llegarian sin nonce y la CSP los
+// bloquearia. Lo que cambio es DONDE se renderiza, no que datos usa: sigue
+// sin consultar nada.
 //
 // Los numeros de aqui abajo estan escritos a mano, medidos contra la
 // configuracion real el 2026-08-08: ~~horario 08:00-22:00 hora de Lima,~~
@@ -31,6 +37,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -178,7 +185,12 @@ const SECCIONES: SeccionFaq[] = [
   },
 ];
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  // Dinamica por la CSP con nonce: el nonce se genera por peticion en
+  // proxy.ts, y esta pagina se generaba en el prerender, cuando no habia
+  // ninguna peticion -sus scripts quedaban sin nonce y la CSP los bloqueaba-.
+  await connection();
+
   return (
     <main className="flex-1">
       {/* Heroe de seccion, recuperado el 2026-08-13. El Vite le daba a la FAQ

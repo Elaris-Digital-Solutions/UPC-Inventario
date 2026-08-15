@@ -17,8 +17,28 @@ interface UpdateSessionResult {
   claims: Claims | null
 }
 
-export async function updateSession(request: NextRequest): Promise<UpdateSessionResult> {
-  let response = NextResponse.next({ request })
+export async function updateSession(
+  request: NextRequest,
+  cabecerasExtra: Record<string, string> = {},
+): Promise<UpdateSessionResult> {
+  // Construye los headers del request DE NUEVO cada vez que se llama, no una
+  // sola vez guardada en una variable. Dentro de `setAll`, unas lineas mas
+  // abajo, se hace `request.cookies.set(...)` ANTES de reconstruir la
+  // respuesta, y eso actualiza la cabecera `cookie` del propio `request`. Si
+  // aca se copiaran los headers una unica vez al principio, esa copia seria
+  // anterior a las cookies nuevas y se perderia la propagacion de la sesion
+  // refrescada al request -justo lo que el comentario de `setAll` de mas
+  // abajo dice que no puede pasar-. Al ser una funcion que se invoca en cada
+  // uso, `new Headers(request.headers)` siempre lee el estado del momento.
+  const cabecerasDelRequest = () => {
+    const cabeceras = new Headers(request.headers)
+    for (const [clave, valor] of Object.entries(cabecerasExtra)) {
+      cabeceras.set(clave, valor)
+    }
+    return cabeceras
+  }
+
+  let response = NextResponse.next({ request: { headers: cabecerasDelRequest() } })
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +56,7 @@ export async function updateSession(request: NextRequest): Promise<UpdateSession
           // el navegador las reciba en el viaje de vuelta. Falta cualquiera
           // de los dos lados y la sesion se desincroniza.
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
+          response = NextResponse.next({ request: { headers: cabecerasDelRequest() } })
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options))
         },

@@ -1,3 +1,5 @@
+import { connection } from "next/server";
+
 import { Cabecera } from "@/components/cabecera";
 import { Pie } from "@/components/pie";
 
@@ -15,11 +17,19 @@ import { Pie } from "@/components/pie";
 // Tipo a mano y no LayoutProps<...>: los layouts de grupo no ocupan segmento
 // de URL, asi que Next no los genera en LayoutRoutes (correccion 37 de la
 // tanda 1).
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Dinamica por la CSP con nonce: el nonce se genera por peticion en
+  // proxy.ts, y este layout se generaba en el prerender, cuando no habia
+  // ninguna peticion. Va aca y no en app/(auth)/login/page.tsx porque esa
+  // pagina es 'use client', y un componente de cliente no puede llamar
+  // connection() -es una API de servidor-. Un layout dinamico fuerza dinamica
+  // a toda su rama, incluida una pagina de cliente.
+  await connection();
+
   return (
     <>
       <Cabecera variante="minima" />

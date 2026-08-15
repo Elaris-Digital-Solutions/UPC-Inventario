@@ -69,7 +69,9 @@ migraciones, 135 aserciones en 22 archivos**, las 13 tablas con RLS y políticas
 2026-08-07:** la tanda 1 añadió **una migración más, la 22** *(D-32, el enganche de dominio)*, así que hoy
 son **22 migraciones y 142 aserciones en 23 archivos**. ⚠ **Corregido otra vez el 2026-08-12:** la T3A
 añadió la **migración 23** *(D-38, cierra Q-17)*, así que hoy son **23 migraciones y 147 aserciones en 24
-archivos**. Diseño en
+archivos**. ⚠ **Corregido otra vez el 2026-08-15:** la T4 añadió la **migración 24** *(D-55, cierra Q-19)*,
+así que hoy son **24 migraciones y 150 aserciones en 25 archivos**, y la 24 **ya está en producción**.
+Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
 | Tanda | Contenido | Estado |
@@ -83,14 +85,24 @@ archivos**. Diseño en
 `Local` y `Remote` idénticos, el catálogo sobrevivió intacto —34 productos, 92 unidades— y `app_settings`
 llegó con su fila. Los tres avisos originales del linter desaparecieron.
 
-**Los advisors, ya con señal limpia, dejaron esto** (verificado tras el arreglo: bajaron de 11 avisos a 5):
+**Los advisors, ya con señal limpia, dejaron esto** (verificado tras el arreglo: bajaron de 11 avisos a 5; ⚠ **al 2026-08-15 son siete**, ver abajo):
 
 - ✅ **Seis funciones de trigger estaban expuestas como RPC** en `/rest/v1/rpc/...`, porque `PUBLIC` recibe
   `EXECUTE` por defecto y solo se le revocó a las cinco RPC de verdad. **Cerrado** revocándoselo a las seis.
-- **Quedan 5 avisos, y se quedan a propósito:** que `authenticated` pueda ejecutar `create_reservation`,
-  `cancel_reservation`, `available_units` y las dos `admin_set_*` es el diseño entero. Cada una comprueba la
-  autorización por dentro.
-- **22 avisos de rendimiento**, todos prematuros: la base nunca ha servido una consulta. Ver Q-13.
+- ~~**Quedan 5 avisos, y se quedan a propósito:**~~ ⚠ **Corregido el 2026-08-15: son SIETE.** Los seis
+  intencionales son las RPC que `authenticated` puede ejecutar —`create_reservation`, `cancel_reservation`,
+  `available_units`, `available_slots` y las dos `admin_set_*`—, y eso es el diseño entero: cada una
+  comprueba la autorización por dentro. **El séptimo es `auth_leaked_password_protection`**, desactivado, y
+  **se cierra por producto y no por configuración** *(D-66)*: el sistema no tiene contraseñas porque el
+  cliente lo pidió así, se entra solo por magic link. El interruptor además **no existe en esta cuenta**,
+  que está en plan `free`.
+- ~~**22 avisos de rendimiento**, todos prematuros: la base nunca ha servido una consulta.~~ ⚠ **Corregido
+  el 2026-08-15: son 18, y las dos mitades de la frase eran falsas.** Bajaron solos —los «índice sin usar»
+  de siete a tres— y **la base sí ha servido consultas**: `idx_product_images_product_id` lleva 1087 usos.
+  **Q-13 se cerró igual, como decisión consciente y sin crear ningún índice**, por un motivo nuevo y mejor:
+  la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin
+  estadísticas y «índice usado» no mide utilidad. **La reevaluación tras el despliegue empieza por correr un
+  `ANALYZE`**, y solo después se miran los advisors.
 
 ~~**Sembrar el primer admin es tarea de la Fase 2, no de ahora.** `auth.users` está vacío porque nada usa
 Supabase Auth todavía; se conecta en la tarea 2.4. Antes de eso, el `insert ... select` no encontraría a
@@ -109,6 +121,10 @@ D-54 al 2026-08-13**; cerrados Q-7, Q-11, Q-12, **Q-15**, **Q-17** y **Q-14** ~~
 Q-18 y Q-19, los dos con destino la T4**; **Q-16 respondido y aplazado** —no dan acceso al tenant de Entra
 ID, así que Microsoft queda fuera—. ⚠ *Las tres cifras tachadas eran ciertas al escribirlas y se corrigen
 fechadas el 2026-08-13, no se borran: **seis de las siete tandas están cerradas**, y solo queda la T4.*
+⚠ **Corregido otra vez el 2026-08-15, al cerrar la T4: las SIETE tandas están cerradas y la Fase 2 está
+completa.** Las decisiones van de **D-19 a D-68**. Cerrados además **Q-10, Q-13 y Q-19**. **Q-18 sigue
+abierto y ya no tiene destino la T4**: pasa a una tanda propia *(D-55)*, porque recortar la lectura de
+notas obliga a reverificar la T3A entera.
 
 **La T2 se partió al escribir su plan** *(D-34)*, que es donde el diseño decía que se decidiría: el
 desglose dio **16 tareas**. **Pero el corte no fue por tamaño: la T2A no escribe una sola fila en la base**
@@ -134,7 +150,10 @@ de la T0:** la frase se corrige fechada al cerrar la tanda, no se borra.
 Next.js 16 en pie: App Router, TypeScript **estricto**, Tailwind 4, shadcn 4 sobre Radix, tipos generados,
 CI adaptado. Las dos últimas migraciones del proyecto *(D-19, D-20)*: **21 migraciones y 135 aserciones
 pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde el 2026-08-07:** D-32 añadió
-la migración 22, con la decisión tomada y el costo dicho por delante. Correcciones en
+la migración 22, con la decisión tomada y el costo dicho por delante. ⚠ **Y falso tres veces más:** la T3A
+añadió la **23** *(D-38)* el 2026-08-12, y la T4 la **24** *(D-55)* el 2026-08-13. **Van cuatro
+desmentidos y la frase sigue sin borrarse**, porque lo que registra no es un hecho sino una intención, y
+las tres decisiones que la desmintieron traían el costo dicho por delante. Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.
 
 **T1 CERRADA y mergeada el 2026-08-08.** PR #21, merge en `895e1625`, **cuatro corridas de CI y las cuatro
@@ -193,12 +212,42 @@ pasó de **catorce rutas a 23**, tres estáticas, con **ocho colgando de `/admin
 en 5 archivos a 138 en 10**. **La base no se movió: 23 migraciones y 147 aserciones en 24 archivos**, y
 esta vez está comprobado al final con `db reset` y `supabase test db` — **D-41 cumplido**. **Cierra P0-4,
 el último defecto crítico de la auditoría, y Q-14.** **Catorce decisiones nuevas, D-41 a D-54**, todas
-tomadas antes de escribir el código que las aplica. **127 correcciones al plan** en
-`MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md`. **Siguiente: la T4, el endurecimiento**, que hereda **Q-18**
+tomadas antes de escribir el código que las aplica. ~~**127 correcciones al plan**~~ ⚠ **Corregido el
+2026-08-13: son 145**, en `MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md`. El 127 era el recuento de la Task 11
+y la Task 12 añadió dieciocho más, así que la frase nació cierta y caducó el mismo día. ~~**Siguiente: la T4, el endurecimiento**, que hereda **Q-18**
 —las notas de unidad legibles por cualquier alumno con sesión—, **Q-19** —que la base ate `opening_time` a
 `slot_minutes` por su cuenta—, **Q-13** y **Q-10**, el advisor **`auth_leaked_password_protection`**
 desactivado, **`supabase/setup-cli@v1` apuntando a Node.js 20**, ya deprecado, y **M-12**, la cancelación
-con antelación mínima.
+con antelación mínima.~~ ⚠ **Corregido el 2026-08-15: la T4 cerró, ver el párrafo siguiente.** De esa lista
+quedan **Q-18** y **M-12**; los demás se cerraron, y **`setup-cli` ya no apunta a Node.js 20** — los dos
+workflows usan **`@v3`** desde el 2026-08-15 *(D-64)*.
+
+**T4 CERRADA el 2026-08-15, y con ella la Fase 2 entera: las siete tandas.** Diez tareas, 0 a 9, en
+`feature/fase-2-tanda-4` sobre `develop` (`42b26af`), **sin empujar**. **Cierra las tareas 2.10 y 2.11 y
+los tres pendientes que heredaba: Q-10, Q-13 y Q-19.** **Catorce decisiones nuevas, D-55 a D-68.** Cabeceras
+con **CSP por nonce** *(D-56)* —que cuesta las tres rutas estáticas: el `build` queda en **23 rutas y
+cero estáticas**—, la **migración 24** *(D-55)* ya en producción, `npm audit --audit-level=high`
+**bloqueante** *(D-57)*, y el E2E de los **cinco flujos críticos** *(D-58)* en **6 pruebas y 4 specs**, en
+un workflow propio `e2e.yml` *(D-63)*. Vitest de 138 pruebas en 10 archivos a **152 en 11**; la base en
+**24 migraciones y 150 aserciones en 25 archivos**. **Lo que la tanda deja sin hacer, dicho y no
+disimulado:** **Q-18** va a una tanda propia, **M-12** es SQL y la tanda tenía una sola migración, **HSTS
+se escribió sin poder verificarse por su efecto** porque no hay despliegue, y quedan **dos imágenes de
+prueba en la cuenta real de Cloudinary** que la aplicación no puede borrar *(F7)*.
+
+**Y la T4 deja tres cosas de método que valen para cualquier tanda futura.** La primera: **una tarea de
+verificación que no encuentra nada es sospechosa.** Los dos defectos de la Task 8 aparecieron por **correr**
+las cosas, no por leerlas, y en una tarea cuyo plan decía que no escribía código. La segunda: **una prueba
+puede pasar por una propiedad del reloj, y cuatro corridas verdes no lo delatan.** El E2E fallaba tres de
+seis por una carrera con la navegación *(D-67)*; las cuatro corridas de la Task 4 **variaban el estado de la
+base y corrieron todas a la misma hora** — se estaba variando la variable equivocada. La tercera:
+**`.gitignore` y la lista de ignorados de ESLint son dos listas y hay que mantener las dos** *(D-68)*, y que
+git sí cubriera `playwright-report/` es justo lo que hacía invisibles sus 3031 problemas de `lint`.
+
+**Y un instrumento nuevo que miente, del género de D-33:** `cmd | tail` devuelve el código de salida de
+`tail`, no el de `cmd`. Imprimió `EXIT = 0` con tres pruebas en rojo, se cazó, se anotó **y se repitió
+idéntico quince minutos después** con el `lint`. **La cura no es prestar más atención, es cambiar el
+comando:** el código de salida por redirección a archivo, y los conteos con símbolos no ASCII con `node` y
+no con `grep`.
 
 **Y P0-4 enseña algo que el registro no decía: desarmar una trampa no es construir el sustituto.** La Fase
 0 le quitó el prefijo `VITE_` a la variable y la fila quedó en «corregido» **ocho días, del 2026-08-04 al

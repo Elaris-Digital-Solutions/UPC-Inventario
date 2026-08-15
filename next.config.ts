@@ -44,6 +44,46 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // Tres cabeceras de seguridad que NO dependen de la peticion -a diferencia
+  // de la CSP con nonce, que si depende de cada peticion y por eso vive en
+  // proxy.ts y no aca-.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Sin `preload`: esa lista solo se sale con meses de espera, y este
+          // proyecto todavia no tiene dominio ni despliegue. Comprometerse
+          // antes de tenerlo es firmar por otro.
+          //
+          // Solo en produccion: el entorno local se prueba por
+          // http://127.0.0.1:3000 y el navegador ignora HSTS sobre http, asi
+          // que mandarla en desarrollo no haria dano directo -pero un HSTS
+          // con includeSubDomains que un navegador llegue a recordar para
+          // 127.0.0.1 deja la maquina sin poder abrir NADA local por http, y
+          // eso se arregla a mano en la configuracion del navegador. Riesgo
+          // asimetrico: no mandarla en desarrollo no cuesta nada, y mandarla
+          // puede costar caro.
+          //
+          // Esta cabecera NO se pudo verificar por su efecto en este
+          // proyecto, porque no hay despliegue ni https todavia. Se verifica
+          // leyendo la respuesta con las herramientas del navegador el dia
+          // que haya un entorno con TLS real, no antes.
+          ...(process.env.NODE_ENV === "production"
+            ? [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains",
+                },
+              ]
+            : []),
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

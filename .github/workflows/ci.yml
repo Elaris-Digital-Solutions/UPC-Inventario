@@ -54,13 +54,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      # SIGUE NO BLOQUEANTE, hasta la tanda 4.
-      # El árbol de Vite traía 15 vulnerabilidades (1 crítica en vitest, 9 altas
-      # en vite, postcss, undici, ws, lodash…). El de Next.js reporta **0**,
-      # medido el 2026-08-06 tras instalarlo. Se deja sin bloquear un poco más
-      # a propósito: el árbol acaba de nacer y conviene ver qué reporta cuando
-      # las tandas 1 a 3 le añadan dependencias, antes de frenar con ello.
-      # Ver Q-10 en MIGRATION_DOCS/ESTADO_Y_PLAN.md.
+      # BLOQUEANTE desde la tanda 4 de la Fase 2 (2026-08-14). Es D-57, y el
+      # precio va dicho por delante: algún día esto se pondrá rojo sin que
+      # nadie haya tocado el código. No es un defecto que haya que «arreglar»
+      # devolviéndole el continue-on-error, es lo que se aceptó al decidirlo;
+      # se arregla actualizando el paquete que el aviso señala.
+      #
+      # Por qué puede pasar eso, medido y no supuesto: el 2026-08-13, sobre el
+      # mismo commit, este paso dijo «found 0 vulnerabilities» mientras el
+      # mismo comando en local salía con código 1 por nanoid. Los árboles no
+      # diferían —lockfile y disco decían los dos nanoid@3.3.17—. `npm audit`
+      # no consulta una base local: le pregunta a un servicio de avisos, y las
+      # dos puntas pueden estar mirando fotos distintas del mismo árbol.
+      #
+      # El interruptor se movió sobre un árbol verde y no rojo: nanoid subió
+      # de 3.3.17 a 3.3.18 —un parche dentro del rango que postcss ya pedía,
+      # tres líneas de package-lock.json— y la auditoría local pasó a código
+      # 0. Cierra Q-10.
       - name: Auditoría de dependencias
         run: npm audit --audit-level=high
-        continue-on-error: true

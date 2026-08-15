@@ -274,6 +274,14 @@ Pantalla de administración que edita seis valores de `app_settings`: ventana de
 
 **La hora de apertura tiene que caer en un bloque, y si no, la pantalla no deja guardar** *(D-54)*. Es la única de las seis con esa restricción.
 
+⚠ **Ampliado el 2026-08-15 por la T4: ahora la base tampoco la deja guardar.** La **migración 24**
+*(D-55, cierra Q-19)* añade a `app_settings` un `CHECK` que ata las dos columnas. Hasta entonces la regla
+vivía **solo en la aplicación**, así que por SQL directo el agujero seguía abierto; desde ahora la pantalla
+**adelanta** un rechazo que el motor ya daría por su cuenta. **Lo que estaba en juego está medido, no
+supuesto:** una hora de apertura desalineada deja el calendario entero irreservable —35 franjas ofrecidas y
+las 35 rechazadas una por una— y **no se ve desde ninguna pantalla**; el alumno solo vería un calendario
+que no le deja reservar.
+
 ---
 
 ## 6. Reglas de negocio consolidadas
@@ -377,19 +385,39 @@ Motivo explícito: poder auditar un equipo perdido.
 
 ## 9. Mejoras propuestas
 
-| # | Mejora | Por qué |
-|---|---|---|
-| M-1 | **Constraint de exclusión** `EXCLUDE USING gist` sobre `(unit_id, tstzrange(start_at, end_at))` | Elimina la doble reserva por diseño, no por chequeo previo |
-| M-2 | **Máquina de estados explícita** con transiciones válidas y trigger que puebla `reservation_status_log` | La tabla de auditoría ya existe y nadie la escribe; hoy el admin puede saltar de cualquier estado a cualquier otro |
-| M-3 | **Toda la lógica de sanciones en un único trigger** | Hoy vive en el cliente y en un trigger, con criterios distintos |
-| M-4 | **Validar `disabled_days` en la RPC** | Hoy basta con llamar a la API directamente para reservar un feriado |
-| M-5 | **Stock derivado** (vista o columna generada) en vez de `stock`/`in_stock` | Evita inventarios que no cuadran |
-| M-6 | **Usar la tabla `campuses`** en vez de strings hardcodeados | Agregar una sede hoy exige tocar código y RPCs |
-| M-7 | **Fijar `America/Lima`** en todo el cálculo de franjas | Hoy se usa la zona del navegador; un alumno de viaje ve horarios corridos |
-| M-8 | **Corregir el `SKIP LOCKED`**: si la unidad elegida está bloqueada, probar la siguiente | Hoy aborta con «no hay unidades disponibles» aunque queden libres |
-| M-9 | **Rol de operador** además del admin único | Varias personas comparten una sola cuenta; no hay trazabilidad de quién entregó qué |
-| M-10 | **Notificaciones por correo** (confirmación, recordatorio, vencimiento) | Hoy no existe ninguna; el alumno depende de recordar su franja |
-| M-11 | **Borrado lógico** en lugar del borrado en cascada manual de unidades | Hoy borrar una unidad destruye su historial de reservas |
-| M-12 | **Cancelación con antelación mínima** | Hoy se puede cancelar un minuto antes sin consecuencia |
+> ⚠ **Corregido el 2026-08-13, en la Task 0 de la tanda 4: DIEZ de las doce ya están hechas, y esta tabla
+> llevaba meses diciendo lo contrario.** La columna «Por qué» conserva el enunciado original **en presente**
+> —«hoy borrar una unidad destruye su historial», «hoy aborta aunque queden libres»—, y eso describía el
+> sistema de la auditoría, no el de ahora. **No se reescribe: se le añade la columna «Estado»**, porque el
+> enunciado es el registro de dónde se partía y borrarlo perdería la mitad del valor de la tabla.
+>
+> **El caso que obliga a verificar por el efecto y no por el nombre es M-8.** Su «Por qué» dice que el
+> sistema aborta aunque queden unidades libres, y la RPC vigente recorre las unidades de menos usada a más
+> usada con un `continue` en la ocupada — **y el propio SQL cita el identificador**:
+> `-- 8 · rotacion justa (M-8, BR-12)`. Lo mismo con M-7, citada como `(C-7, M-7)`. **La tabla llevaba meses
+> contradiciendo a un código que la nombra.**
+>
+> **Cómo se verificó cada fila:** abriendo la migración o el archivo y comprobando la propiedad, no
+> buscando el identificador. Encontrar el texto no es encontrar la propiedad: M-8 tenía el `SKIP LOCKED`
+> desde el principio y aun así estaba mal hasta que se añadió el bucle.
 
-Las mejoras M-1 a M-8 corrigen defectos. M-9 a M-12 son decisiones de producto que requieren tu criterio.
+| # | Mejora | Por qué | Estado *(2026-08-13)* |
+|---|---|---|---|
+| M-1 | **Constraint de exclusión** `EXCLUDE USING gist` sobre `(unit_id, tstzrange(start_at, end_at))` | Elimina la doble reserva por diseño, no por chequeo previo | ✅ **Hecha** *(Fase 1)*. `exclude using gist (unit_id ... with =, blocked_range with &&) where (status in ('reserved','active'))`. Sobre una columna `blocked_range` poblada por trigger y no sobre la expresión directa: incluye el buffer, y esa expresión no es inmutable |
+| M-2 | **Máquina de estados explícita** con transiciones válidas y trigger que puebla `reservation_status_log` | La tabla de auditoría ya existe y nadie la escribe; hoy el admin puede saltar de cualquier estado a cualquier otro | ✅ **Hecha** *(Fase 1)*. `enforce_reservation_transition()` con su trigger, y `log_reservation_status` poblando la auditoría |
+| M-3 | **Toda la lógica de sanciones en un único trigger** | Hoy vive en el cliente y en un trigger, con criterios distintos | ✅ **Hecha** *(Fase 1)*. `apply_penalties`, con los dos escalones. `admin_set_ban` no es una segunda lógica: es la puerta del admin para levantar o poner una sanción a mano |
+| M-4 | **Validar `disabled_days` en la RPC** | Hoy basta con llamar a la API directamente para reservar un feriado | ✅ **Hecha** *(Fase 1)*. `create_reservation` lanza «Ese dia no hay atencion», con la fecha convertida a `America/Lima` antes de comparar |
+| M-5 | **Stock derivado** (vista o columna generada) en vez de `stock`/`in_stock` | Evita inventarios que no cuadran | ✅ **Hecha** *(Fase 1)*. `in_stock` y `active_units` viven en la **vista** `product_availability`; en la tabla `products` ya no existe ninguna de las dos columnas |
+| M-6 | **Usar la tabla `campuses`** en vez de strings hardcodeados | Agregar una sede hoy exige tocar código y RPCs | ✅ **Hecha en la lógica** *(Fase 1)*: la RPC y el catálogo trabajan con `campus_id`. **Queda un residuo con motivo en la landing**, que lista las dos sedes a mano porque **empareja cada una con una imagen de `public/` que la base no guarda**. Verificado que **no miente**: los nombres coinciden con los de la tabla real —Monterrico y San Miguel— y las dos imágenes existen |
+| M-7 | **Fijar `America/Lima`** en todo el cálculo de franjas | Hoy se usa la zona del navegador; un alumno de viaje ve horarios corridos | ✅ **Hecha** *(Fase 1)*. Citada en el propio SQL como `(C-7, M-7)` |
+| M-8 | **Corregir el `SKIP LOCKED`**: si la unidad elegida está bloqueada, probar la siguiente | Hoy aborta con «no hay unidades disponibles» aunque queden libres | ✅ **Hecha** *(Fase 1)*. Recorre las unidades de menos usada a más usada con `continue` en la ocupada, y desempata por `unit_code` para que la elección sea determinista y por tanto comprobable. Citada en el propio SQL como `(M-8, BR-12)` |
+| M-9 | **Rol de operador** además del admin único | Varias personas comparten una sola cuenta; no hay trazabilidad de quién entregó qué | ✅ **Hecha** *(Fase 1)*. `staff_members` con el enum `staff_role`: `admin` y `operator`. La pantalla que los gestiona es `/admin/personal`, de la T3B |
+| M-10 | **Notificaciones por correo** (confirmación, recordatorio, vencimiento) | Hoy no existe ninguna; el alumno depende de recordar su franja | ⬜ **Sigue propuesta.** Es **Q-4**, sin decidir |
+| M-11 | **Borrado lógico** en lugar del borrado en cascada manual de unidades | Hoy borrar una unidad destruye su historial de reservas | ✅ **Hecha por la T3B** *(2026-08-13)*. La baja es `retired`, y **no hay un solo `delete` sobre `products`, `inventory_units` ni `inventory_unit_notes`**. El motivo es de dominio: borrar una unidad se lleva por delante el historial de quién tuvo ese equipo, que es **D-2** |
+| M-12 | **Cancelación con antelación mínima** | Hoy se puede cancelar un minuto antes sin consecuencia | ⚠ **Hecha a medias.** **D-38** cerró la mitad —no se cancela una reserva que **ya empezó**, migración 23— y **falta la otra**: un margen mínimo *antes* de empezar. La T4 no la construye *(D-55: una sola migración esta tanda)* |
+
+~~Las mejoras M-1 a M-8 corrigen defectos. M-9 a M-12 son decisiones de producto que requieren tu
+criterio.~~ ⚠ **Corregido el 2026-08-13:** ese reparto ya se resolvió. **Las ocho primeras se corrigieron
+en la Fase 1**, y de las cuatro de producto **se decidieron tres** —M-9 en la Fase 1, M-11 en la T3B y
+media M-12 con D-38—. **La única que sigue esperando criterio es M-10**, que es Q-4. Una frase de cierre
+envejece igual que una celda, y esta llevaba caducada desde la Fase 1.

@@ -19,10 +19,24 @@ jobs:
       - name: Clonar el repositorio
         uses: actions/checkout@v7
 
-      # Fijada a la misma version que se usa en local, para que un cambio de
-      # comportamiento del CLI no aparezca primero en CI.
+      # v3 y no v1 (D-64, 2026-08-15). La v1 declara `using: node20` en su
+      # manifiesto -leido de su action.yml, no supuesto- y el runner ya no
+      # soporta ese runtime: es el mismo caso que checkout y setup-node, que
+      # subieron a v7 por esto mismo. La v3 es `using: composite`, o sea que no
+      # declara ningun runtime de accion y el problema desaparece de raiz en vez
+      # de aplazarse a la siguiente mayor.
+      #
+      # La v3 instala la CLI desde npm en vez de desde las releases de GitHub.
+      # COMPROBADO ANTES DE CAMBIARLO: `supabase@2.111.0` existe en npm, que es
+      # de donde la baja ahora.
+      #
+      # Y la version se fija para que el CI sea REPRODUCIBLE, no para igualar la
+      # de local (D-65). El comentario anterior prometia esa igualdad y habia
+      # caducado: en local se corre con `npx supabase`, que baja la ultima
+      # siempre, y el dia que se midio eran 2.111.0 aca y 2.114.0 alla. Una
+      # promesa que depende de que nadie actualice nada envejece sola.
       - name: Instalar la CLI de Supabase
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.111.0
 

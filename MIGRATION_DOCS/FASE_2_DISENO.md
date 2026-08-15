@@ -18,10 +18,10 @@
 | **P0-2** · el `if (isAdmin)` que quedaba en el cliente | El cliente deja de decidir. Oculta por comodidad; quien autoriza es RLS *(§2)* |
 | **P0-4** · el secreto de Cloudinary | La subida se firma en un route handler; el secreto nunca sale del servidor *(tanda 3)* |
 | **P1-8** · `Number()` sobre un UUID rompe el flujo de reserva | El código donde vive se borra en el primer commit *(D-6)* |
-| **Q-10** · 15 vulnerabilidades de dependencias | Casi todas son `devDependencies` de Vite. El árbol se reemplaza entero; la auditoría pasa a bloqueante en la tanda 4 |
+| **Q-10** · 15 vulnerabilidades de dependencias | Casi todas son `devDependencies` de Vite. El árbol se reemplaza entero; la auditoría pasa a bloqueante en la tanda 4 · ✅ **Cumplido el 2026-08-13** *(D-57)*, y el árbol nuevo llegó a la T4 con una sola vulnerabilidad alta, parcheada antes de mover el interruptor |
 | **Q-11** · `min_duration_minutes` = 15 contra `slot_minutes` = 30 | *(D-19)*: la duración tiene que ser **múltiplo del bloque** |
 | **Q-12** · cinco documentos de la raíz que describen una arquitectura muerta | Se van con el código Vite, en el mismo commit *(D-6)* |
-| **Q-13** · 22 avisos de rendimiento prematuros | Se revisan en la tanda 4, con tráfico real y no antes |
+| **Q-13** · 22 avisos de rendimiento prematuros | Se revisan en la tanda 4, con tráfico real y no antes · ✅ **Revisados el 2026-08-15, y quedan en 18.** Se cierra **sin crear ningún índice**, porque el tráfico real llegó y **las estadísticas no**: la base de producción nunca ha corrido `ANALYZE` ni autovacuum, así que «índice sin usar» no mide utilidad. La reevaluación empieza por un `ANALYZE` |
 | **D-18** · «sin sesión, sin stock» dejaba abierto qué hace la landing | *(D-21)*: la landing muestra catálogo, no disponibilidad. Cero cambios en la base |
 
 **Lo que la Fase 2 *no* resuelve, y conviene decirlo:** la autorización. Ya está resuelta. Esta fase
@@ -639,9 +639,9 @@ autorización viva en la base: cada tanda se puede probar contra el perfil real,
 |---|---|---|---|
 | **T0 · Cimientos** | Borrar Vite y los documentos muertos. Next.js 16 + App Router + Tailwind con los tokens + shadcn. Los tipos generados. El CI adaptado. ~~**La última migración: D-19 y D-20**~~ → **las dos penúltimas**: la última es la 22 *(D-32)*, ver la nota de abajo | 2.1, 2.2, 2.3 · D-6 · Q-12 | El stack respira. Sin pantallas reales |
 | **T1 · Sesión** | `@supabase/ssr`, `proxy.ts`, magic link ~~y Microsoft~~ *(Q-16: no hay tenant)*, `/completar-perfil`, cierre de sesión. Sembrar el primer admin. **Y la migración 22** *(D-32)*, ver la nota | 2.4, 2.4-bis | **Cierra P0-3.** Se entra y se sale |
-| **T2 · Alumno** | ~~Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta~~ → partida *(D-34)* en **T2A** —landing, FAQ, catálogo, detalle; **cerrada el 2026-08-10**— y **T2B** —el calendario, reserva, sanción, panel, cancelación, encuesta; pendiente— | 2.5, 2.6 | Un alumno reserva de punta a punta |
+| **T2 · Alumno** | ~~Landing, FAQ, catálogo, detalle, **el calendario**, reserva, panel, cancelación, encuesta~~ → partida *(D-34)* en **T2A** —landing, FAQ, catálogo, detalle; **cerrada el 2026-08-10**— y **T2B** —el calendario, reserva, sanción, panel, cancelación, encuesta; ~~pendiente~~ ⚠ **cerrada el 2026-08-11**— | 2.5, 2.6 | Un alumno reserva de punta a punta |
 | **T3 · Personal** | Mostrador (operador y admin), inventario, imágenes con firma, reservas, días, estadísticas, personal | 2.7, 2.8, 2.9 | **Cierra P0-4.** El ciclo de préstamo se cierra |
-| **T4 · Endurecimiento** | Cabeceras de seguridad, E2E de Playwright, lint y auditoría bloqueantes, Q-10, Q-13 | 2.10, 2.11 | Desplegable |
+| **T4 · Endurecimiento** | Cabeceras de seguridad, E2E de Playwright, lint y auditoría bloqueantes, Q-10, Q-13. **Y la migración 24** *(D-55)*, que el diseño no preveía | 2.10, 2.11 | ✅ **Cerrada el 2026-08-15.** Desplegable, con la salvedad dicha: **HSTS se escribió sin poder verificarse por su efecto**, porque no hay despliegue |
 
 **Por qué la migración de D-19 y D-20 va en T0 y no en T2**, que es donde se usa: para que ~~**ninguna otra
 tanda toque SQL**. Es la última migración del proyecto;~~ agrupada con los cimientos, deja T1 a T4 como
@@ -656,6 +656,13 @@ trabajo puramente de aplicación, y hace que los tipos que genera T0 salgan ya d
 > función en `private`—. **Lo que la promesa enseñó es de método:** una intención escrita en presente se lee
 > después como un hecho, y son los documentos los que hay que fechar, no las intenciones las que hay que
 > evitar.
+
+> ⚠ **Corregido dos veces más, el 2026-08-12 y el 2026-08-15, y con eso van cuatro desmentidos.** La
+> **T3A** añadió la **migración 23** *(D-38, cierra Q-17)* y la **T4** la **24** *(D-55, cierra Q-19)*.
+> **Lo que la cuarta añade a la lección de la primera:** esta vez la contradicción estaba **presupuestada
+> antes de escribir el plan**, con el alcance acotado por delante —una sola migración, y solo para Q-19— y
+> con **Q-18 apartado a una tanda propia** por un motivo escrito. **Una intención en presente se lee
+> después como un hecho; una intención con su excepción acotada por delante, no.**
 
 **Riesgo anotado: T2 es la tanda grande.** El calendario solo puede llevarse media tanda. Si al escribir su
 plan pasa de unas quince tareas, se parte en dos —«catálogo y detalle» y «reserva y panel»— y son seis PR
@@ -692,9 +699,9 @@ Tres arneses, y cada uno responde una pregunta distinta:
 
 | Arnés | Qué prueba | Dónde |
 |---|---|---|
-| **pgTAP** *(D-14)* | Las reglas y RLS. **Se queda entero**: 124 aserciones que sobreviven a la migración porque no dependen del toolchain | `supabase/tests/` |
+| **pgTAP** *(D-14)* | Las reglas y RLS. **Se queda entero**: ~~124 aserciones~~ ⚠ **150 en 25 archivos al 2026-08-15**, que sobreviven a la migración porque no dependen del toolchain | `supabase/tests/` |
 | **Vitest** | Lógica pura del cliente: construcción de la rejilla, formato de fechas en `America/Lima`, derivaciones del panel | Junto al código |
-| **Playwright** *(2.11)* | Los flujos, con sesión real: entrar, reservar, cancelar, entregar, recibir | `e2e/` |
+| **Playwright** *(2.11)* | Los flujos, con sesión real: entrar, reservar, cancelar, entregar, recibir. ✅ **Construido por la T4** *(D-58)*: los cinco flujos en **seis pruebas y cuatro specs**, con arnés de magic link por Mailpit, un cortafuegos que aborta si el entorno apunta a producción, y **D-62**: el arnés nunca escribe directo en la base. Corre en el CI en su **workflow propio** *(D-63)* | `e2e/` |
 
 **Aserciones nuevas en pgTAP, todas de la tanda 0:**
 
