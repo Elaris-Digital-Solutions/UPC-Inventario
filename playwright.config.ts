@@ -18,12 +18,19 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/apoyo/entorno.ts',
 
-  // En CI se reintenta y se corre con un solo worker, para no mezclar
-  // corridas concurrentes contra el mismo stack local. En local, sin
-  // reintentos: un fallo que solo desaparece con retry esconde un problema
-  // real y no conviene taparlo.
+  // En CI se reintenta. En local, sin reintentos: un fallo que solo
+  // desaparece con retry esconde un problema real y no conviene taparlo.
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+
+  // UN SOLO worker siempre, no solo en CI: hay UN UNICO stack local de
+  // Supabase que comparten todos los specs, no uno por worker, y dos specs
+  // corriendo en paralelo contra ese mismo stack se pisan entre si de dos
+  // formas distintas: el limite diario por producto vale 1, asi que dos
+  // specs que reserven el mismo producto el mismo dia chocan; y pedir un
+  // magic link nuevo para un correo invalida el anterior en Supabase Auth,
+  // asi que dos specs que inicien sesion con el mismo correo a la vez pueden
+  // terminar canjeando el enlace equivocado.
+  workers: 1,
 
   reporter: [['html', { open: 'never' }]],
 

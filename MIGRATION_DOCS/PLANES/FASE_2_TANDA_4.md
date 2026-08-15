@@ -16,7 +16,7 @@
 | **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
 | **2 · Las cabeceras de seguridad** | ✅ **Cerrada el 2026-08-13, los siete Steps.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **Los cinco puntos de verificación resueltos midiendo**, PV-5 incluido —y su predicción escrita era incorrecta—. **Cero violaciones de CSP en DIEZ pantallas y los tres perfiles, en modo producción, con control positivo validado.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Veintitrés correcciones** y el **error 24 de quien dicta** |
 | **3 · Playwright y el flujo de entrada** | ✅ **Cerrada el 2026-08-14, los siete Steps.** Playwright instalado, el cortafuegos de entorno, el arnés de magic link por Mailpit y las dos pruebas del flujo de entrada, contraejemplo incluido. **PV-8 y PV-9 resueltos midiendo**: el enlace pedido por la aplicación se canjea donde se pidió, y Playwright añade cuatro paquetes y **cero vulnerabilidades**. **El cortafuegos llegaba tarde** —el `webServer` arranca antes que el `globalSetup`—, medido por las dos formas y arreglado. **Vitest necesitó un `exclude` que el plan no preveía.** Ninguna cifra se movió: 23 rutas, 0 estáticas, 152 pruebas en 11 archivos. **Doce correcciones**, el **hecho falso 32** y las decisiones **D-60 y D-61** |
-| **4 · Los cuatro flujos restantes** | ⬜ pendiente |
+| **4 · Los cuatro flujos restantes** | ✅ **Cerrada el 2026-08-14, los seis Steps.** Los tres specs y el ayudante de escenario: el E2E pasa de dos pruebas en un spec a **seis en cuatro**, con **cuatro corridas en verde** —tres sobre el histórico acumulado y una sobre la base reseteada—. **D-62**: el arnés no escribe nunca directo en la base, así que el contraejemplo de cancelar es una reserva ya entregada. **La primera corrida en verde escondía un defecto de repetibilidad** que solo destapó la segunda. **Ninguna otra cifra se movió y las cuatro predicciones se cumplieron exactas.** **Dieciséis correcciones**, el **hecho falso 33** con tres instancias, y los **errores 27 y 28 de quien dicta** |
 | **5 · La auditoría bloqueante (Q-10)** | ⬜ pendiente |
 | **6 · Q-13, con el código que ya consulta** | ⬜ pendiente |
 | **7 · Los pendientes menores** | ⬜ pendiente |
@@ -353,6 +353,134 @@
     funciona sin recortar de más. **Las tres corridas de E2E terminaron en verde**, la tercera con la
     bandeja vacía. Los dos `404` de `res.cloudinary.com/demo/...` aparecen en la salida del servidor y
     **siguen sin ser de esta tanda**: son las imágenes del seed, ya registradas al cerrar la Task 2.
+
+### Task 4 · Los cuatro flujos restantes *(2026-08-14)*
+
+1. **EL CORTAFUEGOS SE REMIDIÓ ANTES DEL PRIMER SPEC QUE ESCRIBE, Y APARECIÓ UNA TERCERA VÍA DE
+   COMPROBARLO.** La Task 3 lo dejó verificado por dos: **cinco o seis segundos** hasta abortar y **cero
+   líneas `[WebServer]`**. Las dos son indirectas —miden el reloj y una ausencia—. La tercera es
+   estructural y salió sola al remedirlo: la **traza de pila** del error sitúa la excepción dentro de
+   `loadConfigFromFile`, **antes de `runTests`**. Ya no hay que inferir el orden desde el tiempo: la propia
+   pila lo dice. Remedido apuntando el entorno a producción a propósito, con `.env.local` renombrado y
+   restaurado en el mismo comando: **exit 1, cinco segundos, ninguna línea `[WebServer]`**.
+
+2. **«DEJAR LA BASE SIN NADA VIVO» NO ES «DEJARLA COMO SE ENCONTRÓ», Y LA PRIMERA CORRIDA EN VERDE LO
+   ESCONDIÓ.** Se midió que `daily_limit_per_product` y el `EXCLUDE` anti-solape **solo cuentan `reserved` y
+   `active`**, así que una reserva `cancelled` o `completed` libera el cupo y la franja. Eso es cierto y
+   está comprobado por el efecto: **las cuatro reservas de una corrida tomaron la misma franja del mismo
+   producto**, imposible si cada una no liberase la suya. **Pero libera la capacidad de CREAR, no la de
+   IDENTIFICAR.** Las filas terminales se acumulan y `/mi-panel` las pinta todas bajo «Anteriores», así
+   que un localizador que busque por nombre de producto encuentra una por cada corrida anterior: la
+   **segunda** corrida falló con `strict mode violation` **resolviendo a cinco elementos**, y la tercera a
+   nueve. **La primera corrida en verde no probaba la repetibilidad**, que es justo lo que el Step 4 de la
+   Task 8 pide comprobar corriendo dos veces.
+
+3. **ERROR 28 DE QUIEN DICTA, y es del género de la sobre-afirmación de alcance.** De medir que el cupo y
+   el solape se liberan concluí por escrito que **«el E2E es repetible sin limpieza»**, y lo dicté como
+   hecho medido en dos encargos. Lo medido cubría **la mitad**: nada de aquello decía nada sobre poder
+   volver a encontrar la fila. **La medición era correcta y la inferencia se pasó de largo** — y encima la
+   primera corrida en verde la confirmó falsamente. Se arregla identificando la reserva por un **motivo de
+   cancelación único por corrida**, que la prueba ya escribe y la tarjeta ya pinta; de paso la prueba gana
+   una aserción que antes no tenía: que el motivo escrito **llegó a la base y volvió a la pantalla**.
+
+4. **«HOY» NO ES UN DÍA VÁLIDO PARA UNA PRUEBA DE RESERVA, y depende de la hora a la que se corra.** Medido
+   a las 21:47 de Lima con cierre a las 22:00: `available_slots` devuelve **cero filas para hoy y
+   veintiocho para mañana**. La pantalla de reserva **abre en «hoy» por defecto** *(contrato de
+   `diasDeLaVentana()`)*, así que un spec que confíe en el día por defecto **pasa por la mañana y falla por
+   la noche**. Los tres specs eligen el botón de índice 1 y **afirman antes que está habilitado**, con un
+   mensaje que explica la asunción para que un día inhabilitado no se lea como un timeout ciego.
+
+5. **AUTO-ESPERAR NO ES ESPERAR A LA NAVEGACIÓN, y es un grado más fino que lo que se dictó.** El encargo
+   avisaba de que `page.url()` no reintenta. El defecto real fue otro: `locator('h1').textContent()`
+   **sí auto-espera**, pero auto-esperar solo garantiza que el elemento **exista** — y un `<h1>` existe
+   también en `/catalogo`, cuyo texto es «Catálogo». La espera se satisfizo al instante con el título de la
+   pantalla de partida, y la prueba terminó buscando una tarjeta llamada «Catálogo». **El flujo entero
+   había funcionado**: la reserva quedó escrita en la base, comprobada por consulta directa. Lo único roto
+   era la aserción. **La regla que se lleva: cuando el selector casa en las dos pantallas, la espera del
+   localizador no protege nada** — hay que esperar la URL de destino, que sí reintenta.
+
+6. **D-62, decisión de Alejandro tomada antes de escribir una línea: el arnés no escribe nunca directo en
+   la base.** El Step 2 pide probar que una reserva **ya empezada** no se cancela *(D-38)*, y esa fila **no
+   la puede crear ninguna pantalla**: la RPC solo crea reservas futuras. La alternativa era meter la clave
+   `service_role` en el árbol, detrás del cortafuegos. Se descartó: el contraejemplo pasa a ser una reserva
+   **ya entregada**, que sí se monta por pantalla —el operador la entrega y el botón «Cancelar reserva»
+   desaparece del panel del alumno—. **Se anota lo que eso NO prueba**, y está escrito en el propio spec:
+   cubre la **primera** de las tres condiciones de `seOfreceCancelar()`, no D-38, que ya lo prueban la
+   migración 23 en pgTAP y el test de Vitest de esa misma función.
+
+7. **`workers: 1` SIEMPRE, no solo en el CI, y el motivo no es el que decía el comentario.** El config
+   heredado ponía un worker **solo en CI**, «para no mezclar corridas concurrentes». La razón verdadera no
+   depende del CI: **hay un único stack local que comparten todos los specs**, el cupo diario por producto
+   vale 1 —así que dos specs que reserven el mismo producto el mismo día chocan— y **pedir un magic link
+   nuevo para un correo invalida el anterior**, así que dos specs que entren con el mismo usuario a la vez
+   pueden canjear el enlace equivocado. En local Playwright usaba varios workers por defecto.
+
+8. **HECHO FALSO 33, y tenía TRES instancias en un solo archivo.** Un comentario justificaba acotar la
+   búsqueda a la sección «Próximas» *«para no confundirla con una reserva pasada del mismo producto que ya
+   estuviera en el seed»*. **`supabase/seed.sql` no siembra ninguna reserva**, y lo dice explícitamente en
+   su última línea, con su motivo: una reserva sembrada rompe una prueba pgTAP de `14_rls_alumnos.sql`. El
+   fondo era correcto —acotar por sección está bien— y **lo falso era el motivo**, que además existía y era
+   mejor: quien deja una reserva anterior del mismo producto es **una corrida previa de esta misma prueba**.
+   Al corregir la primera apareció una segunda con la misma premisa, y **la tercera solo apareció al barrer
+   el archivo entero**. Dos menciones más al seed resultaron **ciertas** y se dejaron intactas: comprobar
+   una por una es lo que separa el barrido de la sustitución a ciegas.
+
+9. **ERROR 27 DE QUIEN DICTA, y es una reincidencia exacta del error 10 de la fase.** El encargo de la
+   corrección decía **«son DOS arreglos y nada más»**. El subagente hizo los dos, encontró **un tercer
+   comentario de la misma familia** y **no lo tocó, porque el encargo se lo prohibía** — y lo dijo en la
+   pregunta final. Es literalmente el error 10 —«UN SOLO archivo», que prohibió el barrido que habría
+   encontrado una cita caducada— cometido otra vez con otra forma. **Cerrar un encargo con un número exacto
+   de arreglos compra precisión y paga con el barrido.** El encargo siguiente pidió el barrido de la
+   familia entera y encontró la tercera. **Cuarta vez en la fase que un subagente caza algo antes de que
+   haga daño, y las cuatro por la misma pregunta.**
+
+10. **LA COMPROBACIÓN «EN LA BASE» DEL STEP 1, SIN `service_role`, ES UNA SEGUNDA SUPERFICIE — y se dice lo
+    que es y lo que no.** El Step 1 pide comprobar en la base «no solo en la pantalla», porque una prueba
+    que solo lee la interfaz afirma que la interfaz dice algo. Con D-62 no hay lectura directa posible, así
+    que la evidencia es otra: la reserva que crea **la sesión de la alumna** la encuentra **la sesión del
+    operador**, en otra pantalla, por otra consulta y **bajo otra política de RLS**. Si la fila no existiera,
+    no aparecería ahí. **Es sustancialmente más fuerte que releer la misma pantalla y no es una lectura de
+    la base**, y así queda escrito en `mostrador.spec.ts` en vez de dejarlo creer.
+
+11. **EL STEP 4 NO SE PUEDE CUMPLIR AL PIE DE LA LETRA, y se cumple su intención.** Dice que «cada spec
+    monta su escenario» porque el seed es una fixture de valores convenientes. Montar los **datos maestros**
+    —producto y unidades— exigiría darlos de alta como admin, y **la baja del proyecto es lógica** *(M-11)*:
+    cada corrida dejaría un producto `retired` imborrable en la base. Lo que se hizo es lo que el Step
+    protege de verdad: **ningún spec lleva escrito un UUID ni un nombre de producto**. Toman la primera
+    tarjeta del catálogo y leen su nombre de la pantalla. Lo que la prueba monta es **la reserva**, que es
+    su escenario; el catálogo es terreno, no escenario.
+
+12. **UN COMENTARIO CADUCADO FUERA DE ESTA TAREA, y se anota en vez de tocarlo.** `lib/mostrador/filtro.ts`
+    dice **«El proyecto no tiene `vitest.config.ts`»** para justificar por qué importa con ruta relativa en
+    vez del alias `@/`. **La Task 3 creó ese archivo.** La conclusión sigue siendo cierta —ese config no
+    declara el alias, comprobado— pero **la premisa ya es falsa**. Es una frase, toca `lib/` y el alcance de
+    esta tarea son los specs: se registra acá y se decide al cerrar.
+
+13. **LAS CUATRO PREDICCIONES ESCRITAS ANTES DE MIRAR SE CUMPLIERON EXACTAS.** Vitest **152 pruebas en 11
+    archivos**, sin moverse, que es lo que prueba que el `exclude` de la Task 3 sigue sin recortar de más;
+    el `build` en **23 rutas y cero estáticas**; la base en **24 migraciones y 150 aserciones en 25
+    archivos**, medida con `db reset` y `supabase test db`; y el E2E de **dos pruebas en un spec a seis en
+    cuatro**. Y una confirmación de paso del hecho falso 21: el **`(22/22)`** de «Generating static pages»
+    **no es el número de rutas** —son 22 páginas contra 23 rutas, porque `/api/cloudinary/firma` es un route
+    handler y no genera página—.
+
+14. **CUATRO CORRIDAS EN VERDE TRAS EL ARREGLO, Y A PROPÓSITO EN LOS DOS EXTREMOS.** Tres seguidas **sobre
+    el histórico ya acumulado** —el escenario que rompía, creciendo en cada una— y una **sobre la base
+    recién reseteada**. Probar solo en limpio habría vuelto a esconder el defecto, que es exactamente lo que
+    pasó la primera vez.
+
+15. **DE CINCO SUBAGENTES CON LA PROHIBICIÓN EXPLÍCITA DE DAR CIFRAS, CUATRO CUMPLIERON.** Las del quinto
+    —números de línea— **se descartaron sin comprobarlas** y se remidió por cuenta propia; el hecho de fondo
+    resultó cierto igual, que es justo por lo que descartarlas cuesta menos que verificarlas. Sigue
+    valiendo lo de siempre: **prohibirlo ayuda, no garantiza, y no puede ser la salvaguarda.**
+
+16. **UN RIESGO CONOCIDO QUE SE DECLARA EN VEZ DE ARREGLARSE: la limpieza del contraejemplo vive en un
+    `finally`.** Si ese test fallara **antes** de que el operador entregue, la limpieza buscaría la tarjeta
+    en «Activas», no la encontraría, y **el error reportado sería el suyo y no el original**. Es el mismo
+    género que el hecho falso 32 —una salvaguarda que estorba el diagnóstico que pretende facilitar—, con la
+    diferencia de que acá no afirma nada falso. **No se cambió**: cada verificación cuesta una corrida
+    completa de casi dos minutos y el escenario es hipotético, así que se registra con su costo por delante
+    en vez de arreglarlo sin poder medirlo. **Candidato de la Task 8.**
 
 ---
 

@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import type { Browser } from '@playwright/test';
 
 const MAILPIT_URL = 'http://127.0.0.1:54324';
 
@@ -94,4 +95,40 @@ export async function iniciarSesionComo(page: Page, email: string): Promise<void
   // token del magic link llega con prefijo pkce_ y Supabase solo lo canjea
   // en el mismo navegador que lo pidio. Medido dos veces en este proyecto.
   await page.goto(enlace);
+}
+
+// Segunda sesion en paralelo, para las pruebas que necesitan a la alumna y
+// al operador A LA VEZ -por ejemplo, la alumna deja una reserva creada y el
+// operador la atiende desde el mostrador mientras la sesion de la alumna
+// sigue abierta y se usa despues para comprobar el resultado-.
+//
+// Un CONTEXTO nuevo, y no otra pestana del mismo contexto: el comentario de
+// iniciarSesionComo() de arriba ya deja anotado, medido dos veces en este
+// proyecto, que el token del magic link llega con prefijo pkce_ y que
+// Supabase solo lo canjea en el MISMO navegador que lo pidio. Dos pestanas
+// del mismo contexto COMPARTEN el almacenamiento del navegador que las abre
+// -cookies, el verifier de PKCE incluido-, asi que pedir un segundo magic
+// link desde otra pestana del mismo contexto pisaria el estado que la
+// primera sesion todavia necesita para canjear el suyo. Un
+// `browser.newContext()` aparte le da a cada sesion su propio
+// almacenamiento, como si fueran dos navegadores distintos.
+//
+// `baseURL` se RECIBE por parametro y no se escribe a mano aca dentro:
+// `browser.newContext()` NO hereda el `baseURL` del bloque `use` de
+// playwright.config.ts -eso solo lo aplica el `page` que Playwright ya arma
+// para cada test-, asi que un contexto creado a mano sin este parametro
+// dejaria a `page` navegando con `goto('/algo')` sin ningun origen delante y
+// fallando. Quien llama a este ayudante lo saca del fixture `baseURL` que
+// Playwright ya inyecta en la firma del test -`async ({ page, browser,
+// baseURL }) => ...`-, no de una constante propia escrita en el spec.
+export async function paginaConSesion(
+  browser: Browser,
+  baseURL: string | undefined,
+  email: string,
+): Promise<{ page: Page; cerrar: () => Promise<void> }> {
+  const contexto = await browser.newContext({ baseURL });
+  const page = await contexto.newPage();
+  await iniciarSesionComo(page, email);
+
+  return { page, cerrar: () => contexto.close() };
 }
