@@ -40,6 +40,38 @@ Playwright.
    `unit_notes_select_auth`, y ese nombre pasaría a afirmar algo falso: `_auth` significa «cualquiera con
    sesión», que es justo lo que deja de ser cierto. Mismo criterio que **D-65**, donde un comentario se
    corrigió para decir lo que la cosa hace. Ningún código del árbol nombra la política, sólo comentarios.
+5. **Los comentarios que explican Q-18 son CUATRO, no cinco.** El Step 6 de la Task 2 manda actualizar
+   «los comentarios de los **cinco** archivos que hoy explican Q-18 como un pendiente abierto», y medido
+   con `grep` antes de tocar nada sólo lo mencionan cuatro: `dialogo-nota.tsx`, `dialogo-falta.tsx`,
+   `dialogo-estado-unidad.tsx` y `dialogo-agregar-unidad.tsx`. En `dialogo-estado-reserva.tsx` el aviso
+   vive **suelto dentro de la cadena `ayuda`**, sin ningún comentario al lado que explique de dónde sale.
+   Ahí el comentario se **crea**, y es el único de los cinco que gana líneas en vez de reescribirlas.
+6. **El comentario de `dialogo-estado-unidad.tsx` no mentía: citaba fielmente una decisión revocada.**
+   Decía que Q-18 estaba «aparcado a la T4 por D-41», y **D-41 dice exactamente eso** —verificado en
+   `ESTADO_Y_PLAN.md:320`—. Lo que pasó es que **D-55 la revocó el 2026-08-13** —`ESTADO_Y_PLAN.md:334`:
+   «Q-18 NO entra… pasa a una tanda propia»— y el comentario se quedó atrás. **El género importa y es
+   nuevo:** no es una atribución inventada —el defecto que este proyecto persigue en los subagentes— sino
+   una cita exacta a una decisión que dejó de valer. **No hay nada mal escrito que un revisor pudiera
+   cazar leyendo el archivo**; sólo se ve cruzando el comentario con la tabla de decisiones.
+7. **Error de quien dicta, y van 21.** El encargo del subagente predijo «cinco coincidencias» para
+   `grep "leen el personal del mostrador"`, y dio **cuatro**: en `dialogo-nota.tsx` la frase quedó
+   **partida en dos líneas de JSX** —«…La leen el / personal del mostrador…»— por el propio bloque que el
+   encargo dictaba, así que un `grep` de línea única no podía verla. El texto estaba entero en el disco.
+   **Lo cazó el subagente, no quien dictaba.** Es la misma lección que esta tanda ya tenía anotada —medir
+   el archivo antes de describirlo en un encargo— cometida esta vez sobre un archivo **recién escrito por
+   quien la escribió**.
+8. **La salida del `build` trae TRES números y sólo uno es el de rutas.** Un filtro por el símbolo `ƒ`
+   da **25**, porque se lleva por delante `ƒ Proxy (Middleware)` y la línea de leyenda
+   `ƒ (Dynamic) server-rendered on demand`. El «Generating static pages» dice **(22/22)**. La tabla real
+   tiene **23**. Es el mismo género que el `(20/20)` de la T3B, con un agravante: **esta vez el que contó
+   de más fue un `node` escrito a propósito para no fiarse del `grep`**. Cambiar de herramienta no
+   arregla un ancla mal elegida: hay que anclar a la tabla, no al símbolo.
+9. **Los cinco textos nuevos usan dos pronombres distintos, y el quinto es el más flojo.** «La» donde el
+   antecedente es «la nota» —`dialogo-nota`, `dialogo-falta`, `dialogo-agregar-unidad`— y «Lo» donde es
+   «el motivo» —`dialogo-estado-unidad`—. En `dialogo-estado-reserva` el «lo» **no tiene antecedente
+   explícito**: se apoya en la etiqueta del campo, «¿Qué pasó con el equipo?». Es el texto que el plan
+   dicta literal, es internamente consistente —«Queda» tiene el mismo sujeto tácito— y se deja como está,
+   pero queda anotado por si la revisión visual quiere afinarlo.
 
 ---
 

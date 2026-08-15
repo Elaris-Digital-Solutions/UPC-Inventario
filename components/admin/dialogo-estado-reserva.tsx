@@ -70,8 +70,17 @@ const TEXTOS: Record<
     descripcion:
       "Esto bloquea al alumno de forma permanente, sin fecha de fin, y solo un administrador puede levantarlo después. La nota queda en el historial del equipo.",
     etiqueta: "¿Qué pasó con el equipo?",
+    // EL AVISO CAMBIO EL 2026-08-15, y este comentario no existia antes: el
+    // aviso vivia suelto en la cadena, sin nada al lado que explicara de donde
+    // salia. Decia que la nota la leia cualquiera con sesion, que era cierto
+    // -- Q-18, `unit_notes_select_auth` con `using (true)` -- y dejo de serlo
+    // con la migracion 25
+    // (supabase/migrations/20260815190010_unit_notes_staff_only.sql, D-69).
+    // Se va la mitad de privacidad y se queda la de trazabilidad: la nota es
+    // permanente y va con el nombre de quien la escribe, y eso es lo que hace
+    // pensar antes de escribirla.
     ayuda:
-      "Obligatorio. Cualquier persona con sesión puede leer esta nota, así que no escribas datos personales del alumno.",
+      "Obligatorio. Queda en el historial del equipo y lo leen el personal del mostrador y los administradores.",
     confirmar: "Marcar como no devuelta",
   },
 };

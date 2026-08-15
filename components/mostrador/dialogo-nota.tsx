@@ -113,20 +113,25 @@ export function DialogoNota({ unidadId, unidad, notas, ruta }: DialogoNotaProps)
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Notas de {unidad}</DialogTitle>
-          {/* Este aviso NO es decorativo: esta MEDIDO que un JWT de alumno
-              leyendo `inventory_unit_notes` recibe HTTP 200 con las notas,
-              porque la politica `unit_notes_select_auth` es
+          {/* EL AVISO CAMBIO EL 2026-08-15, y lo que lo hizo cambiar fue una
+              migracion, no una opinion. Hasta esa fecha estaba MEDIDO que un
+              JWT de alumno leyendo `inventory_unit_notes` recibia HTTP 200
+              con las notas, porque la politica `unit_notes_select_auth` era
               `for select to authenticated using (true)`
               (supabase/migrations/20260805195549_traceability.sql:37-38) -
-              sin ningun recorte por rol ni por unidad. Un alumno no tiene
-              hoy forma de LLEGAR a esta pantalla -`/mostrador` vive detras
-              del layout de `app/(personal)/`, que exige `staff_members`-,
-              pero el dato en si no esta protegido por RLS mas alla de
-              "tener sesion", asi que el aviso tiene que decirlo con esa
-              fuerza y no como una formalidad. */}
+              sin ningun recorte por rol ni por unidad-. Eso era Q-18, y lo
+              cerro la migracion 25
+              (supabase/migrations/20260815190010_unit_notes_staff_only.sql)
+              con D-69: hoy la politica se llama `unit_notes_select_staff` y
+              su USING es `(select private.is_staff())`.
+              POR ESO SE VA LA MITAD DE PRIVACIDAD Y SE QUEDA LA DE
+              TRAZABILIDAD. Prometer que la lee cualquiera con sesion seria
+              hoy FALSO. Pero la nota sigue siendo permanente y atada a la
+              unidad -D-2 quedo ACOTADO, no revocado-, y esa mitad es la que
+              hace que el operador piense antes de escribir. */}
           <DialogDescription>
-            Queda en el historial del equipo, con la fecha. Cualquier persona con sesión puede leer
-            esta nota, así que no escribas datos personales de un alumno.
+            Queda en el historial del equipo, con la fecha, y no se puede deshacer. La leen el
+            personal del mostrador y los administradores.
           </DialogDescription>
         </DialogHeader>
 
