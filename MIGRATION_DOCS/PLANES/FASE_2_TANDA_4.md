@@ -18,7 +18,7 @@
 | **3 · Playwright y el flujo de entrada** | ✅ **Cerrada el 2026-08-14, los siete Steps.** Playwright instalado, el cortafuegos de entorno, el arnés de magic link por Mailpit y las dos pruebas del flujo de entrada, contraejemplo incluido. **PV-8 y PV-9 resueltos midiendo**: el enlace pedido por la aplicación se canjea donde se pidió, y Playwright añade cuatro paquetes y **cero vulnerabilidades**. **El cortafuegos llegaba tarde** —el `webServer` arranca antes que el `globalSetup`—, medido por las dos formas y arreglado. **Vitest necesitó un `exclude` que el plan no preveía.** Ninguna cifra se movió: 23 rutas, 0 estáticas, 152 pruebas en 11 archivos. **Doce correcciones**, el **hecho falso 32** y las decisiones **D-60 y D-61** |
 | **4 · Los cuatro flujos restantes** | ✅ **Cerrada el 2026-08-14, los seis Steps.** Los tres specs y el ayudante de escenario: el E2E pasa de dos pruebas en un spec a **seis en cuatro**, con **cuatro corridas en verde** —tres sobre el histórico acumulado y una sobre la base reseteada—. **D-62**: el arnés no escribe nunca directo en la base, así que el contraejemplo de cancelar es una reserva ya entregada. **La primera corrida en verde escondía un defecto de repetibilidad** que solo destapó la segunda. **Ninguna otra cifra se movió y las cuatro predicciones se cumplieron exactas.** **Dieciséis correcciones**, el **hecho falso 33** con tres instancias, y los **errores 27 y 28 de quien dicta** |
 | **5 · La auditoría bloqueante (Q-10)** | ✅ **Cerrada el 2026-08-15, los cinco Steps.** `npm audit --audit-level=high` pasa a **bloqueante**, y **el interruptor se movió sobre un árbol verde y no rojo**: `nanoid` de 3.3.17 a 3.3.18 —tres líneas de `package-lock.json`, un parche dentro del rango que `postcss` ya pedía— y la auditoría local **de código 1 a código 0**. El Step 1 no hizo falta como estaba escrito: **había parche**, así que qué conteste el servicio de avisos dejó de decidir nada. **D-63**: el E2E entra en un **workflow propio**, `e2e.yml`, y **sin `continue-on-error`**, porque `develop` **no tiene protección de rama** —404, «Branch not protected»— y un rojo hoy solo avisa. **La hipótesis del entorno se confirmó midiendo, con control negativo**, y apareció de paso que en el runner **no hay ningún archivo de entorno**. **Diecinueve correcciones** y el **decimoquinto instrumento que miente**, que esta vez fue el informe del subagente |
-| **6 · Q-13, con el código que ya consulta** | ⬜ pendiente |
+| **6 · Q-13, con el código que ya consulta** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** Los advisors de rendimiento pasan de **22 avisos a 18**: los índices sin usar bajan de 7 a 3, y los otros dos bloques —6 claves foráneas sin índice y 9 políticas permisivas múltiples— **no se movieron ni podían moverse**, porque ninguna migración posterior al 2026-08-05 toca índices, políticas ni claves foráneas. **La premisa de Q-13 ya es falsa** —cuatro índices sí se usan, uno de ellos 1087 veces— **y su conclusión aguanta por un motivo mejor y nuevo**: la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin estadísticas y «índice usado» no mide utilidad. **Ningún aviso cambió de naturaleza y no se crea ningún índice**, así que no hay desvío de D-55: Q-13 **se cierra como decisión consciente**, con la condición escrita de que la reevaluación tras el despliegue empiece por un `ANALYZE`. **Diez correcciones**, y **la predicción escrita falló en un bloque de tres** |
 | **7 · Los pendientes menores** | ⬜ pendiente |
 | **8 · Verificación de punta a punta** | ⬜ pendiente |
 | **9 · Cierre y documentación** | ⬜ pendiente |
@@ -592,6 +592,83 @@
     D-63 entero** — con la **D-59** incluida, que es de la Task 2 y no figuraba en ninguna de las dos
     cuentas. **Ni el plan ni el briefing tenían el número bien**, y los dos erraban por defecto. Es
     exactamente el género que el Step 4 de esa misma tarea manda vigilar, aplicado a su Step 1.
+
+### Task 6 · Q-13, con el código que ya consulta *(2026-08-15)*
+
+1. **EL CUADRO SÍ CAMBIÓ, Y LA PREDICCIÓN ESCRITA FALLÓ EN UN BLOQUE DE LOS TRES.** Los advisors de
+   rendimiento pasan de **22 avisos a 18**, y el reparto de **7 índices sin usar, 6 claves foráneas sin
+   índice y 9 políticas permisivas múltiples** pasa a **3, 6 y 9**. La predicción escrita antes de mirar
+   decía **7, 6 y 9**: acertó los dos bloques estructurales, acertó que el de índices era **el único que
+   podía moverse** y que si se movía sería **hacia abajo**, y acertó dos de los cuatro índices que se
+   fueron —`idx_inventory_units_product_id` e `idx_product_images_product_id`—. **Falló el número**, que
+   se comprometió con «sigue en 7» y son 3, y **falló el motivo**: predecía que el tamaño de las tablas
+   impediría que el planificador los eligiera.
+
+2. **LOS DOS BLOQUES QUE NO SE MOVIERON NO PODÍAN MOVERSE, y eso se midió ANTES de mirar el resultado.**
+   Las cinco migraciones posteriores a la medición del 2026-08-05 —la 20 `duration_slot_multiple`, la 21
+   `available_slots`, la 22 `signup_domain_hook`, la 23 `cancel_before_start` y la 24
+   `opening_time_aligned`— tienen **cero** `create index`, `create policy`, `create table`, `drop policy`,
+   `alter policy`, `drop index`, `add constraint … foreign key` y `add column` **entre las cinco**. El
+   conjunto de índices, políticas y claves foráneas es **idéntico** al de entonces. **Una predicción con un
+   mecanismo detrás vale más que una con corazonada:** los dos bloques acertados lo estaban por
+   construcción, y el que falló era justo el que dependía de algo que no está en el repositorio.
+
+3. **LA PREMISA DE Q-13 YA ES FALSA, Y SU CONCLUSIÓN AGUANTA POR OTRO MOTIVO.** Su enunciado dice «la base
+   nunca ha servido una consulta, así que "sin usar" significa "sin tráfico"». Hoy
+   `idx_product_images_product_id` lleva **1087** usos, `idx_inventory_units_product_id` **92**,
+   `idx_reservations_start_at` **16** e `idx_reservations_alumno_id` **7**. **Es una conclusión correcta
+   sostenida por una premisa caducada** — exactamente el género que este proyecto persigue en los
+   subagentes, encontrado esta vez en su propio registro.
+
+4. **EL INSTRUMENTO SE VERIFICÓ POR LAS DOS PUNTAS EN VEZ DE CREERLE.** `pg_stat_user_indexes` concuerda
+   exacto con el advisor: los **tres** índices que el aviso nombra tienen `idx_scan = 0`, y los **cuatro**
+   ausentes tienen 1087, 92, 16 y 7. **Control positivo y control negativo en la misma consulta.** Y
+   `pg_stat_database.stats_reset` es **`null`**: las estadísticas **nunca se reiniciaron**, así que «sin
+   usar» significa «nunca desde que existe la base» y no «no últimamente» — sin esa segunda comprobación,
+   cualquiera de los dos números sería una ventana de duración desconocida.
+
+5. **EL HALLAZGO QUE CAMBIA EL CIERRE: LA BASE DE PRODUCCIÓN DECIDE SIN ESTADÍSTICAS.** En las cinco tablas
+   medidas —`products`, `inventory_units`, `product_images`, `inventory_reservations` e
+   `inventory_unit_notes`— `last_analyze`, `last_autoanalyze` y `last_autovacuum` están **en `null`**:
+   **nunca ha corrido ninguno de los tres**. Y dos de ellas, `product_images` e `inventory_reservations`,
+   tienen **`reltuples = -1` y `relpages = 0`**, o sea **ninguna estadística en absoluto**. Postgres elige
+   entre recorrer la tabla y usar el índice **comparando costos estimados**, y sin estadísticas no puede
+   estimar el recorrido. **Así que «índice usado» e «índice sin usar» hoy no miden utilidad: miden a qué se
+   inclina un planificador que no puede calcular la alternativa.** Los cuatro avisos que desaparecieron
+   **pueden volver con un solo `ANALYZE`**.
+
+6. **Y LA EXPLICACIÓN ES PLAUSIBLE, NO MEDIDA, ASÍ QUE SE DICE.** Las dos tablas sin estadísticas son las
+   dueñas de los índices más usados, y las tres con `relpages` de 1 o 2 —donde recorrer la tabla entera
+   cuesta casi nada— concentran los que siguen sin usarse. **Encaja, y tiene dos excepciones:**
+   `idx_inventory_units_product_id` se usa 92 veces sobre una tabla que **sí** tiene estadísticas, y
+   `idx_reservations_unit_status_dates` no se usa **nunca** sobre una que no las tiene. **La causa exacta
+   no se determinó y no se finge.** Tampoco hacía falta para decidir: que no haya estadísticas basta, y
+   perseguir el plan de cada consulta habría sido alcance nuevo sin efecto sobre el desenlace.
+
+7. **NINGÚN AVISO CAMBIÓ DE NATURALEZA, que es lo que pregunta el Step 3.** Las dos claves foráneas que el
+   enunciado de Q-13 señala como las únicas que valdrán la pena con datos —`reservation_status_log.
+   reservation_id` e `inventory_reservations.product_id`— **siguen las dos en la lista y siguen sin
+   datos**: **3** filas en el log de estados y **8** reservas, contadas y no citadas. **No se crea ningún
+   índice, así que la tanda sigue con una sola migración y no hay desvío de D-55.**
+
+8. **EL VOLUMEN SE CONTÓ EN VEZ DE CITARSE, y tres tablas no las declaraba ningún documento.**
+   `inventory_units` **92** y `products` **34** coinciden con lo que `CLAUDE.md` dice desde el 2026-08-05.
+   Pero en producción hay además **59 filas en `inventory_unit_notes`**, **8 reservas** y **5 alumnos**, y
+   ninguna de esas tres cifras está declarada en ninguna parte. **No se afirma qué son** —el pendiente de
+   borrar los datos de demostración del proyecto real ya existe y es manual—, se afirma que existen y que
+   el registro no las tenía.
+
+9. **LA DECISIÓN, CON SU CONDICIÓN ESCRITA: Q-13 SE CIERRA COMO DECISIÓN CONSCIENTE.** Se reevalúa **tras
+   el despliegue**, y **la reevaluación empieza por correr un `ANALYZE`**: sin eso, volver a leer los
+   advisors mediría lo mismo que hoy. Decisión de Alejandro el 2026-08-15, tomada sobre las dos
+   alternativas —abrir el hallazgo del planificador como pendiente propio, o dejarlo pegado al cierre de
+   Q-13—. **Va pegado a Q-13 porque es la condición para reevaluarlo**, y un pendiente aparte se leería
+   como trabajo independiente que no lo es.
+
+10. **EL STEP 1 DE LA TASK 9 SE QUEDA CORTO POR TERCERA VEZ.** Ya estaba anotado que manda registrar
+    «D-55 a D-58» cuando lo que falta es **D-55 a D-63 entero**. Ahora hay que sumarle **el cierre de
+    Q-13**, que no figura en su lista —solo están Q-10 y Q-19—. **Un plan escrito antes no sabe lo que sus
+    propias tareas van a cerrar**, que es literalmente lo que su Step 4 manda vigilar.
 
 ---
 
