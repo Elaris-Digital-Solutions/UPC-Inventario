@@ -20,7 +20,7 @@
 | **5 · La auditoría bloqueante (Q-10)** | ✅ **Cerrada el 2026-08-15, los cinco Steps.** `npm audit --audit-level=high` pasa a **bloqueante**, y **el interruptor se movió sobre un árbol verde y no rojo**: `nanoid` de 3.3.17 a 3.3.18 —tres líneas de `package-lock.json`, un parche dentro del rango que `postcss` ya pedía— y la auditoría local **de código 1 a código 0**. El Step 1 no hizo falta como estaba escrito: **había parche**, así que qué conteste el servicio de avisos dejó de decidir nada. **D-63**: el E2E entra en un **workflow propio**, `e2e.yml`, y **sin `continue-on-error`**, porque `develop` **no tiene protección de rama** —404, «Branch not protected»— y un rojo hoy solo avisa. **La hipótesis del entorno se confirmó midiendo, con control negativo**, y apareció de paso que en el runner **no hay ningún archivo de entorno**. **Diecinueve correcciones** y el **decimoquinto instrumento que miente**, que esta vez fue el informe del subagente |
 | **6 · Q-13, con el código que ya consulta** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** Los advisors de rendimiento pasan de **22 avisos a 18**: los índices sin usar bajan de 7 a 3, y los otros dos bloques —6 claves foráneas sin índice y 9 políticas permisivas múltiples— **no se movieron ni podían moverse**, porque ninguna migración posterior al 2026-08-05 toca índices, políticas ni claves foráneas. **La premisa de Q-13 ya es falsa** —cuatro índices sí se usan, uno de ellos 1087 veces— **y su conclusión aguanta por un motivo mejor y nuevo**: la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin estadísticas y «índice usado» no mide utilidad. **Ningún aviso cambió de naturaleza y no se crea ningún índice**, así que no hay desvío de D-55: Q-13 **se cierra como decisión consciente**, con la condición escrita de que la reevaluación tras el despliegue empiece por un `ANALYZE`. **Diez correcciones**, y **la predicción escrita falló en un bloque de tres** |
 | **7 · Los pendientes menores** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** `supabase/setup-cli` de **v1 a v3** en los **dos** sitios —`db.yml` y `e2e.yml`—, con el `using: node20` de la v1 **leído de su manifiesto y no supuesto**; el comentario que prometía «la misma versión que se usa en local» **corregido** *(D-65)*, porque el CI usa 2.111.0 y local 2.114.0; `vitest.config.ts` renombrado a **`.mts`**, que apaga el aviso de ESM sin tocar `package.json`; y el comentario de `lib/mostrador/filtro.ts` con su **premisa caducada** corregida. **El Step 2 no se puede cumplir como está escrito** —la protección de contraseñas filtradas **requiere plan Pro** y la organización está en `free`, medido— **y lo cierra un motivo de producto**: el sistema no tiene contraseñas porque el cliente lo pidió así *(D-66)*. **El Step 3 ya lo había hecho la Task 0.** **Ninguna cifra se movió** —152 pruebas en 11 archivos, 23 rutas y 0 estáticas— y **las cuatro predicciones se cumplieron exactas**. **Dieciocho correcciones**, **tres decisiones nuevas —D-64, D-65 y D-66—** y **un falso negativo de mi propio grep** |
-| **8 · Verificación de punta a punta** | ⬜ pendiente |
+| **8 · Verificación de punta a punta** | ✅ **Cerrada el 2026-08-15, los seis Steps.** **El E2E NO estaba en verde:** tres de seis pruebas fallaban —las tres que reservan— por una **carrera con la navegación**, y la Task 4 no podía verla porque sus cuatro corridas verdes variaban el estado de la base y **corrieron todas a la misma hora**. La prueba pasaba por una propiedad **del reloj**: a las 21:47 «hoy» no ofrece franjas y el localizador se veía obligado a esperar; a las 02:43 sí las ofrece, se clica una franja del día viejo y el re-montaje la descarta. **Y el Step 2 cobró su redundancia**, que nadie estaba buscando: los cuatro comandos **dos veces** destaparon que **ESLint no ignora lo que Playwright genera** —`lint` limpio antes del E2E y en 3031 problemas después, todos de `playwright-report/`—, un hueco que la Task 3 dejó al instalar Playwright y que **el propio `eslint.config.mjs` predecía en su comentario**. **Dos desvíos declarados del «no escribe código»**, los dos aprobados antes de tocar nada y **los dos verificados con control positivo**. Todo lo demás salió **exacto contra la predicción escrita**: **15 pantallas y los tres perfiles con cero violaciones de CSP**, las cuatro cabeceras con **nonce distinto en dos peticiones** y coincidiendo con el de los trece atributos del HTML, la firma en **403 / 403 / 200**, **24 migraciones y 150 aserciones en 25 archivos**, **152 pruebas en 11 archivos** y **23 rutas con 0 estáticas**. **Veinte correcciones** y **cuatro fallos de mi propia sonda, dos de ellos el mismo error repetido** |
 | **9 · Cierre y documentación** | ⬜ pendiente |
 
 ### Task 0 · La deuda documental *(2026-08-13)*
@@ -775,6 +775,144 @@
     esté en npm, que `tsconfig.json` incluya `**/*.mts`—. **Es la respuesta correcta y no un hallazgo**:
     las tres las midió quien dictaba, **antes** de dictar. Un subagente que declara lo que no verificó
     deja ver dónde apoyarse y dónde no.
+
+### Task 8 · Verificación de punta a punta *(2026-08-15)*
+
+1. **EL E2E NO ESTABA EN VERDE, Y ESTA TAREA EXISTE PARA ESO.** La primera corrida dio **tres pruebas
+   fallidas de seis**, y las tres fallidas eran exactamente **las tres que reservan** —`reservar.spec.ts`,
+   `mostrador.spec.ts` y el segundo test de `cancelar.spec.ts`—. Las tres morían en el mismo punto: el
+   botón «Confirmar reserva» deshabilitado. **La Task 4 lo había dejado con cuatro corridas en verde**, así
+   que el rojo no venía de un cambio de código: ninguna de las Tasks 5, 6 y 7 tocó los specs ni la
+   aplicación.
+
+2. **LA CAUSA ES UNA CARRERA CON LA NAVEGACIÓN, Y ESTÁ MEDIDA POR EL DOM.** Elegir un día **empuja la
+   URL** a `...&dia=<AAAA-MM-DD>&duracion=<n>`. Medido inmediatamente después del click, sin esperar: la
+   URL **todavía no había cambiado** y el DOM **seguía trayendo las franjas del día anterior**. El
+   localizador `ul button[aria-pressed]` resuelve al instante contra una de esas franjas viejas, se la
+   clica, llega la navegación, el componente se re-monta y **la selección se descarta**. El botón nunca se
+   habilita y el fallo aparece tres pasos más adelante, lejos de su causa.
+
+3. **LA PISTA LA DIO EL LOG, NO LA HIPÓTESIS.** `mostrador.spec.ts` registró la secuencia exacta: el botón
+   resuelto **habilitado**, después `element was detached from the DOM, retrying`, y al re-resolverlo
+   **deshabilitado**. Un botón que se habilita y luego se deshabilita **no es una franja que falte: es una
+   selección que se pierde**. Sin esa línea, la lectura obvia habría sido «no hay franjas» y el diagnóstico
+   habría ido al lado contrario.
+
+4. **Y ESTO ES LO QUE VALE PARA TODA PRUEBA FUTURA: LA PRUEBA PASABA POR UNA PROPIEDAD DE LA HORA, NO DEL
+   CÓDIGO.** La Task 4 midió a las **21:47**, y a esa hora «hoy» ofrece **cero** franjas. Con cero franjas
+   viejas en el DOM, el localizador **no tenía nada que clicar y se veía OBLIGADO a esperar**: la carrera se
+   ganaba sola. A las **02:43** «hoy» ya trae la rejilla entera —28 franjas—, la carrera se pierde, y las
+   tres pruebas caen. **Las cuatro corridas verdes de la Task 4 variaban a propósito el estado de la base
+   —tres sobre el histórico acumulado y una sobre la base reseteada— y las cuatro corrieron a la misma
+   hora. Se estaba variando la variable equivocada.**
+
+5. **MI PROPIA SONDA FALLÓ CUATRO VECES, Y DOS FUERON EL MISMO ERROR REPETIDO A CONCIENCIA.** El grave:
+   `npm run test:e2e | tail` imprimió `EXIT = 0` **con tres pruebas rojas**, porque en una tubería `$?`
+   devuelve el código de **`tail`** y no el de `npm` — y la notificación de fondo dijo «exit code 0» por lo
+   mismo. Lo delató el **texto** de la salida, no el código. **Se cazó, se anotó, y quince minutos después
+   se repitió idéntico con el `lint`.** Los otros dos: un `bc` que no existe en este shell dejó una suma sin
+   calcular saliendo con código 127, y un `grep` del símbolo `ƒ` de la tabla del `build` devolvió **cero**
+   sobre una tabla que lo tiene en las 23 filas, por la codificación multibyte —la misma tabla que se ve
+   bien al imprimirla—. **La lección no es prestar más atención: es cambiar el comando.** Desde acá el
+   código de salida se captura redirigiendo a un archivo, nunca detrás de una tubería, y los conteos con
+   símbolos no ASCII se hacen con `node` y no con `grep`. Es la hermana en Bash de la Global Constraint que
+   el plan ya escribió para PowerShell — y el recordatorio de que **verificar la propia sonda antes de
+   acusar a nadie** vale también cuando la sonda es la que trae la buena noticia.
+
+6. **EL STEP 2 COBRÓ SU REDUNDANCIA, Y NADIE LA ESTABA BUSCANDO.** Pedir los cuatro comandos **dos veces**
+   parecía burocracia. La primera pasada dio el `lint` limpio; la segunda, **3031 problemas —257 errores y
+   2774 avisos—**. La diferencia entre las dos pasadas **era la tarea misma**: correr el E2E. Un defecto que
+   ninguna de las dos pasadas por separado podía mostrar.
+
+7. **ESLINT NO LEE `.gitignore`, Y SON DOS LISTAS QUE HAY QUE MANTENER POR SEPARADO.** Los 3031 problemas
+   salían **todos** de `playwright-report/`, en siete archivos: es el reporte HTML de Playwright, con
+   JavaScript minificado dentro, y el script es `eslint .`. **`.gitignore` sí lo cubría desde la Task 3**
+   —`git status` estaba limpio— y eso es justo lo que hacía el defecto invisible: la carpeta no aparece en
+   `git status`, así que nada la delata hasta que el `lint` la recorre.
+
+8. **EL PROPIO ARCHIVO PREDECÍA ESTE DEFECTO, ESCRITO ANTES DE QUE PLAYWRIGHT EXISTIERA EN EL PROYECTO.**
+   El comentario del `globalIgnores` dice literalmente que sin los ignores «el lint recorre cosas que no son
+   codigo de la aplicacion y reporta errores que nadie puede arreglar», y que **«un ignore que falte no es
+   ruido, es un PR que no entra»**. La Task 3 instaló Playwright, lo agregó al `.gitignore` **y no al
+   `eslint.config.mjs`**. *Una advertencia escrita en el sitio correcto no impidió el defecto que describe.*
+
+9. **EL ALCANCE DEL DEFECTO DEL LINT, DICHO SIN ESTIRARLO.** **Hoy el CI no se rompe por esto**, y se midió
+   leyendo los dos workflows: `ci.yml` corre `lint` pero **no** el E2E, así que en su runner
+   `playwright-report/` no existe; `e2e.yml` corre el E2E y sube el reporte como artefacto, pero **no**
+   lintea. La separación lo protege, **pero es como quedaron repartidos los workflows y no una protección
+   deliberada**. Donde sí rompía hoy es en local, y ahí bloqueaba el Step 2.
+
+10. **EL ARREGLO DEL LINT SE VERIFICÓ CON CONTROL POSITIVO, Y ESA ERA LA PARTE FÁCIL DE ARRUINAR.** El
+    `lint` se volvió a correr **con `playwright-report/` y `test-results/` todavía en disco**, tres entradas
+    cada una. **Borrar las carpetas habría dado el mismo verde sin probar nada.** Antes: 3031 problemas con
+    esas carpetas presentes. Después: cero, con las mismas carpetas presentes. La única variable que cambió
+    es el ignore.
+
+11. **DOS DESVÍOS DECLARADOS DEL «NO ESCRIBE CÓDIGO», los dos aprobados por Alejandro antes de tocar
+    nada.** La tarea dice que si al terminar el árbol no está limpio, algo se coló — y acá se coló a
+    propósito y con motivo escrito. El primero: la espera de navegación en `e2e/reservar.spec.ts` y
+    `e2e/apoyo/reserva.ts`, **los dos sitios que repiten el recorrido a propósito** *(el propio ayudante
+    explica por qué está duplicado)*. El segundo: los dos ignores en `eslint.config.mjs`. **Sin el primero,
+    `e2e.yml` —que es bloqueante desde D-63— pondría el PR rojo o verde según la hora a la que corriera el
+    CI.**
+
+12. **EL ARREGLO ES EL PATRÓN QUE EL PROPIO SPEC YA USABA TRES LÍNEAS ANTES.** `await
+    expect(page).toHaveURL(...)`, exactamente como el spec ya esperaba la navegación al detalle, con su
+    comentario ya escrito explicando que **auto-esperar garantiza que el elemento EXISTA, no que sea el de
+    la pantalla nueva**. **El defecto no era desconocer la regla: era no haberla aplicado en el segundo
+    sitio donde hacía falta.** `expect` ya estaba importado en los dos archivos, comprobado antes de editar.
+
+13. **UN 404 EN CONSOLA QUE NO ES UN DEFECTO, Y CONFIRMADO POR DOS INSTRUMENTOS.** El recorrido dejó un
+    `404` de `/_next/image` sobre `res.cloudinary.com/demo/.../seed/cam-001.jpg`. **Medido en la fuente: esa
+    URL da 404 en Cloudinary mismo**, igual que `lap-001.jpg`. Salen de `supabase/seed.sql`, que las escribe
+    contra la cuenta `demo` de Cloudinary: **son URL de fixture que nunca existieron**. La aplicación se
+    comporta bien —propaga el 404 de un recurso ausente— y **no es de esta tanda**. Lo confirmó de forma
+    independiente el `[WebServer]` de Playwright, que reporta el mismo `upstream image response failed`.
+    *Es otra cara de lo que ya está escrito: el `seed.sql` no es una muestra de los datos reales.*
+
+14. **EL NONCE SE VERIFICÓ CONTRA EL HTML, QUE ES LO QUE EL STEP 5 NO PEDÍA Y PV-4 SÍ TEMÍA.** Los dos
+    nonces de dos peticiones seguidas son distintos, que es lo que el Step exige. Pero **PV-4 advierte de un
+    fallo distinto y silencioso**: que la cabecera lleve un nonce y los scripts otro rompe la aplicación
+    entera con el `build` en verde. Medido: el nonce de la cabecera coincide **exacto** con el de los trece
+    atributos `nonce` del HTML —**once `<script>` y dos `<link>`**, contados y explicados en vez de dejar el
+    número suelto—, y las once etiquetas `<script>` lo llevan todas.
+
+15. **EL MODO PRODUCCIÓN NO SE SUPUSO: SE CONFIRMÓ POR TRES SEÑALES INDEPENDIENTES.** HSTS presente,
+    `upgrade-insecure-requests` al final, y `style-src` con nonce en vez de `'unsafe-inline'` —más la
+    ausencia de `'unsafe-eval'`—. Las tres dependen de que `NODE_ENV` sea `production`, y se leyeron del
+    código **antes** de medir, para no medir en el modo equivocado y darlo por bueno.
+
+16. **LAS TRES RESPUESTAS DE LA FIRMA, CON TRES CONTROLES QUE EL STEP NO PEDÍA.** Alumna **403**, operador
+    **403**, admin **200 con firma**, medidas con `fetch()` desde el navegador y no con un JWT, porque el
+    handler lee la sesión de cookies. Se comprobó además que la firma tiene **cuarenta caracteres** —el
+    largo de un SHA-1—, que el `timestamp` es entero y está **en segundos** *(la trampa del epoch que ya
+    costó un PGRST303)*, y que la respuesta **no filtra el secreto**. **Un 403 y un 200 dicen quién entra;
+    no dicen que lo que sale sea una firma.**
+
+17. **EL CERO DE VIOLACIONES DE CSP SE MIDIÓ CON CONTROL POSITIVO Y CON LA SONDA OFICIAL.** Quince
+    pantallas y los tres perfiles, cero violaciones. El capturador se instaló con `initScript` **antes de
+    que corriera ningún script de la página**, que es la única forma de no perderse las violaciones de la
+    carga. Y el control positivo: una imagen de un host externo hizo pasar la sonda **de cero a uno**,
+    capturando `img-src`. **Sin eso, un cero y una sonda muerta se ven igual.**
+
+18. **EL ORDEN QUE EL PLAN CORRIGIÓ ERA EL CORRECTO, Y ESTA VEZ SE PUDO SEGUIR.** El Step 1 manda el
+    recorrido primero y el `db reset` al final, porque el plan de la T3B se equivocó justo ahí. Se cumplió,
+    y **el reset hizo de limpieza además de comprobación**: el recorrido y las dos corridas de E2E se
+    hicieron sobre la base con el histórico acumulado, que es el escenario que en la Task 4 escondía
+    defectos.
+
+19. **EL INFORME DEL SUBAGENTE VOLVIÓ A METER ENTIDADES HTML, Y VAN TRES VECES CONFIRMADAS.** Devolvió
+    `&lt;id&gt;` y `[?&amp;]` donde el disco tiene `<id>` y `[?&]`. **El disco estaba perfecto las tres
+    veces**, comprobado con `grep` de entidades, `grep` de doble codificación y `diff` byte a byte contra el
+    original del scratchpad. Las tres ediciones cuadraron exactas contra la predicción escrita —**18/0, 9/0
+    y 11/0**—. *Creerle al informe habría hecho «arreglar» un defecto que no existe, que es exactamente lo
+    que la Task 5 ya dejó anotado.*
+
+20. **LOS SUBAGENTES CUMPLIERON LA PROHIBICIÓN DE CIFRAS Y CONTESTARON LAS DOS PREGUNTAS CON PRECISIÓN.**
+    El primero declaró que **no había corrido Playwright**, así que no sabía si su aserción resolvía la
+    carrera ni si el regex casaba con la URL real — las dos cosas ciertas, y las dos las midió quien
+    verifica. **Un subagente que declara bien lo que no comprobó vale más que uno que acierta por
+    casualidad.** Se le coló una sola coordenada («la línea 1» del import), menor y verificada aparte.
 
 ---
 

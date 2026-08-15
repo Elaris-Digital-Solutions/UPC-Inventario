@@ -72,6 +72,24 @@ test.describe('reservar un equipo', () => {
     ).toBeEnabled();
     await diaSiguiente.click();
 
+    // Espera explicita a la navegacion que dispara el click de arriba, y NO
+    // es opcional: elegir un dia empuja la URL a
+    // ...?sede=<id>&dia=<AAAA-MM-DD>&duracion=<n>, y hasta que esa navegacion
+    // no ocurre el DOM sigue trayendo las franjas del dia ANTERIOR. El
+    // localizador de mas abajo resuelve al instante contra esas franjas
+    // viejas, se clica una, y el re-montaje posterior descarta la seleccion:
+    // "Confirmar reserva" se queda deshabilitado y el fallo aparece recien
+    // tres pasos mas adelante, lejos de su causa.
+    //
+    // Medido el 2026-08-15 a las 02:43 de Lima. Esta prueba venia pasando en
+    // verde por una propiedad de LA HORA y no del codigo: corrida a las 21:47,
+    // "hoy" no ofrece ninguna franja, asi que no habia nada viejo que clicar y
+    // el localizador se veia OBLIGADO a esperar. De madrugada "hoy" ya trae la
+    // rejilla entera y la carrera se pierde. Es el mismo defecto que describe
+    // el comentario del <h1> mas arriba: auto-esperar garantiza que el
+    // elemento EXISTA, no que sea el de la pantalla nueva.
+    await expect(page).toHaveURL(/[?&]dia=\d{4}-\d{2}-\d{2}/);
+
     // Las franjas libres son <button aria-pressed> dentro de un <ul>
     // (components/reservas/calendario.tsx); las ocupadas son <li> sin
     // boton, asi que no hace falta filtrar por "Ocupado" en el texto. El

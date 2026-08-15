@@ -71,6 +71,15 @@ export async function reservarParaManana(page: Page): Promise<string> {
   ).toBeEnabled();
   await diaSiguiente.click();
 
+  // Espera explicita a la navegacion del click de arriba: mismo defecto y
+  // misma cura que en e2e/reservar.spec.ts. Elegir un dia empuja la URL a
+  // &dia=<AAAA-MM-DD>, y hasta entonces el DOM sigue trayendo las franjas del
+  // dia anterior; sin esta linea el localizador de abajo clica una franja
+  // vieja, el re-montaje la descarta y "Confirmar reserva" nunca se habilita.
+  // Medido el 2026-08-15: pasaba de noche -cuando "hoy" no ofrece franjas- y
+  // fallaba de madrugada -cuando si las ofrece-.
+  await expect(page).toHaveURL(/[?&]dia=\d{4}-\d{2}-\d{2}/);
+
   // Franjas libres: <button aria-pressed> dentro de un <ul>. El scope por
   // <ul> importa porque el selector de duracion TAMBIEN usa aria-pressed,
   // pero vive en un <div role="group">, no en un <ul>.
