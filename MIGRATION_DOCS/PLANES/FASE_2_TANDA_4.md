@@ -21,7 +21,7 @@
 | **6 · Q-13, con el código que ya consulta** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** Los advisors de rendimiento pasan de **22 avisos a 18**: los índices sin usar bajan de 7 a 3, y los otros dos bloques —6 claves foráneas sin índice y 9 políticas permisivas múltiples— **no se movieron ni podían moverse**, porque ninguna migración posterior al 2026-08-05 toca índices, políticas ni claves foráneas. **La premisa de Q-13 ya es falsa** —cuatro índices sí se usan, uno de ellos 1087 veces— **y su conclusión aguanta por un motivo mejor y nuevo**: la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin estadísticas y «índice usado» no mide utilidad. **Ningún aviso cambió de naturaleza y no se crea ningún índice**, así que no hay desvío de D-55: Q-13 **se cierra como decisión consciente**, con la condición escrita de que la reevaluación tras el despliegue empiece por un `ANALYZE`. **Diez correcciones**, y **la predicción escrita falló en un bloque de tres** |
 | **7 · Los pendientes menores** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** `supabase/setup-cli` de **v1 a v3** en los **dos** sitios —`db.yml` y `e2e.yml`—, con el `using: node20` de la v1 **leído de su manifiesto y no supuesto**; el comentario que prometía «la misma versión que se usa en local» **corregido** *(D-65)*, porque el CI usa 2.111.0 y local 2.114.0; `vitest.config.ts` renombrado a **`.mts`**, que apaga el aviso de ESM sin tocar `package.json`; y el comentario de `lib/mostrador/filtro.ts` con su **premisa caducada** corregida. **El Step 2 no se puede cumplir como está escrito** —la protección de contraseñas filtradas **requiere plan Pro** y la organización está en `free`, medido— **y lo cierra un motivo de producto**: el sistema no tiene contraseñas porque el cliente lo pidió así *(D-66)*. **El Step 3 ya lo había hecho la Task 0.** **Ninguna cifra se movió** —152 pruebas en 11 archivos, 23 rutas y 0 estáticas— y **las cuatro predicciones se cumplieron exactas**. **Dieciocho correcciones**, **tres decisiones nuevas —D-64, D-65 y D-66—** y **un falso negativo de mi propio grep** |
 | **8 · Verificación de punta a punta** | ✅ **Cerrada el 2026-08-15, los seis Steps.** **El E2E NO estaba en verde:** tres de seis pruebas fallaban —las tres que reservan— por una **carrera con la navegación**, y la Task 4 no podía verla porque sus cuatro corridas verdes variaban el estado de la base y **corrieron todas a la misma hora**. La prueba pasaba por una propiedad **del reloj**: a las 21:47 «hoy» no ofrece franjas y el localizador se veía obligado a esperar; a las 02:43 sí las ofrece, se clica una franja del día viejo y el re-montaje la descarta. **Y el Step 2 cobró su redundancia**, que nadie estaba buscando: los cuatro comandos **dos veces** destaparon que **ESLint no ignora lo que Playwright genera** —`lint` limpio antes del E2E y en 3031 problemas después, todos de `playwright-report/`—, un hueco que la Task 3 dejó al instalar Playwright y que **el propio `eslint.config.mjs` predecía en su comentario**. **Dos desvíos declarados del «no escribe código»**, los dos aprobados antes de tocar nada y **los dos verificados con control positivo**. Todo lo demás salió **exacto contra la predicción escrita**: **15 pantallas y los tres perfiles con cero violaciones de CSP**, las cuatro cabeceras con **nonce distinto en dos peticiones** y coincidiendo con el de los trece atributos del HTML, la firma en **403 / 403 / 200**, **24 migraciones y 150 aserciones en 25 archivos**, **152 pruebas en 11 archivos** y **23 rutas con 0 estáticas**. **Veinte correcciones** y **cuatro fallos de mi propia sonda, dos de ellos el mismo error repetido** |
-| **9 · Cierre y documentación** | ⬜ pendiente |
+| **9 · Cierre y documentación** | ✅ **Cerrada el 2026-08-15, los seis Steps.** **El Step 4 se hizo primero, y esta vez encontró algo distinto de un duplicado:** de lo que pide el Step 1 **no había nada hecho**, pero las dos filas de advisors caducadas **no estaban donde el briefing decía** —viven en el cuadro de cierre de la Fase 1, junto a «19 migraciones» y «124 aserciones», igual de caducadas y sin tocar en cinco tandas—, así que corregir dentro lo habría dejado mitad histórico y mitad actual. Se resolvió con **una nota fechada debajo**, decisión de Alejandro. **Y el Step 4 sí evitó el duplicado que buscaba:** la fila de M-12 en la especificación ya decía lo correcto desde el 2026-08-13 y no se tocó. **El Step 1 se quedó corto por diez:** pedía «D-55 a D-58» y las decisiones pendientes eran **catorce**, D-55 a D-68, con **D-67 y D-68 decididas en esta misma tarea**; no nombraba **Q-13**, que la Task 6 cerró; y pedía «la fila de bitácora» en singular cuando hacían falta **seis**, porque la bitácora **no tenía ni una línea de la T4**. **Los dos números caducados se remidieron contra el proyecto real en vez de citarse** —7 de seguridad y 18 de rendimiento, exacto contra la predicción escrita— y **Q-19 se verificó en producción por el efecto**, no por el registro de migraciones. **Catorce correcciones**, **dos falsos de mi propia sonda** y el **informe del subagente metiendo entidades HTML por CUARTA vez** |
 
 ### Task 0 · La deuda documental *(2026-08-13)*
 
@@ -913,6 +913,83 @@
     carrera ni si el regex casaba con la URL real — las dos cosas ciertas, y las dos las midió quien
     verifica. **Un subagente que declara bien lo que no comprobó vale más que uno que acierta por
     casualidad.** Se le coló una sola coordenada («la línea 1» del import), menor y verificada aparte.
+
+### Task 9 · Cierre y documentación *(2026-08-15)*
+
+1. **EL STEP 1 SE QUEDÓ CORTO POR DIEZ, Y ES LA CUARTA VEZ QUE SE MIDE CORTO.** Pedía registrar «D-55 a
+   D-58». La tabla de `ESTADO_Y_PLAN.md` terminaba en **D-54**, así que lo pendiente era **D-55 a D-66**
+   —doce— y **D-67 y D-68 se decidieron en esta misma tarea**, con lo que son **catorce**. Las Tasks 5, 6 y
+   7 ya lo habían anotado corto tres veces, cada una con un número distinto y todas por defecto. **Un Step
+   escrito antes no puede saber cuántas decisiones van a tomarse después de él**, así que lo que hay que
+   leer no es su lista sino la última fila de la tabla real.
+2. **Y NO NOMBRABA Q-13, QUE ERA UNO DE LOS TRES CIERRES.** Su lista decía «Q-10 y Q-19»; la Task 6 cerró
+   **Q-13** el mismo día. Son tres pendientes cerrados, no dos.
+3. **«LA FILA DE BITÁCORA» ERA SINGULAR Y HACÍAN FALTA SEIS.** La bitácora se cortaba el **2026-08-13** con
+   el cierre de la T3B: **no tenía ni una línea de la T4**, ni del plan, ni de las nueve tareas. Un cierre
+   que añadiera una sola fila habría dejado nueve tareas sin registro, incluidas las dos que encontraron
+   defectos reales.
+4. **EL STEP 4 ENCONTRÓ ALGO, PERO NO UN DUPLICADO: UN ERROR DE UBICACIÓN.** De lo que pide el Step 1 **no
+   había nada hecho** —las dos casillas sin marcar, la fila de la T4 en «pendiente», los tres pendientes
+   abiertos—. Lo que sí destapó es que **las dos filas de advisors caducadas no están en el inventario de
+   hoy**: viven en el **cuadro de cierre de la Fase 1**, y sus vecinas dicen «19 migraciones» y «124
+   aserciones», igual de caducadas y **sin que nadie las tocara en cinco tandas**. Se leen como registro
+   fechado, no como estado. **Corregir solo las de advisors habría dejado el cuadro mitad histórico y mitad
+   actual.** Decisión de Alejandro: **una nota fechada debajo**, con las cuatro cifras de hoy y el motivo
+   por el que el cuadro no se reescribe. *La regla que sale de acá: antes de corregir una celda caducada
+   hay que mirar qué describe la tabla entera, no solo la celda.*
+5. **Y EL STEP 4 SÍ EVITÓ EL DUPLICADO QUE BUSCABA, en el otro documento.** La fila de **M-12** en
+   `ESPECIFICACION_FUNCIONAL.md` ya decía «La T4 no la construye *(D-55: una sola migración esta tanda)*»,
+   escrito el 2026-08-13 y **todavía cierto**. No se tocó. **Comprobarlo costó un comando y evitó una
+   segunda frase con otra fecha diciendo lo mismo.**
+6. **D-67 Y D-68, SOBRE UNA PREGUNTA QUE EL PLAN NO HACE.** Los dos arreglos de la Task 8 fueron desvíos
+   declarados del «esta tarea no escribe código», aprobados antes de tocar nada, y quedaba abierto si
+   merecían número. **Decisión de Alejandro: sí.** El argumento que decide no es que el arreglo fuera
+   difícil sino que **lo decidido fue el desvío de alcance**, y el propio plan ya manda registrar los
+   desvíos con número — **D-55 lo dice por escrito para el SQL**. La alternativa considerada era dejarlas
+   solo como correcciones del plan, por no diluir una tabla que gobierna el sistema con arreglos de prueba.
+7. **LOS DOS NÚMEROS CADUCADOS SE REMIDIERON EN VEZ DE CITARSE, y salieron exactos contra la predicción
+   escrita antes de mirar.** **7 avisos de seguridad** —las seis RPC de `authenticated` más
+   `auth_leaked_password_protection`— y **18 de rendimiento** —3 índices sin usar, 6 claves foráneas sin
+   índice y 9 políticas permisivas múltiples—. El briefing los daba por 7 y 18 y **acertaba**; medirlos
+   igual costó dos llamadas.
+8. **Q-19 SE VERIFICÓ EN PRODUCCIÓN POR EL EFECTO, NO POR EL REGISTRO DE MIGRACIONES.** Que una migración
+   figure aplicada no dice que la regla exista: se consultó `pg_constraint` sobre `app_settings` y está
+   **`app_settings_apertura_alineada`**, con `((extract(epoch from opening_time))::integer % (slot_minutes *
+   60)) = 0`. La tabla pasa de **ocho restricciones a nueve**. Es la misma disciplina con la que se verificó
+   la migración 23 en la T3A.
+9. **UNA DECISIÓN LLEVA FECHA DISTINTA A LA DE SU COMMIT, Y SE DICE.** **D-63** se registra con fecha
+   **2026-08-14** aunque el commit de la Task 5 sea del **2026-08-15 a las 00:18**: la sesión cruzó la
+   medianoche y los comentarios de los dos workflows llevan esa fecha. **La fecha se toma del artefacto y
+   no del commit**, y se anota entre paréntesis en la propia fila para que nadie lo lea como un descuido.
+10. **DOS FALSOS DE MI PROPIA SONDA, LOS DOS DE FORMA Y NINGUNO DE CONTENIDO.** (a) Un `grep -cF "$s"` con
+    un anclaje que **empieza por `-`** lo tomó por una opción: devolvió el uso de `grep` y **una salida
+    vacía, no un cero** — un cero habría parecido una respuesta. (b) Un regex con un **espacio parásito** en
+    la segunda alternativa cortó la lista de decisiones en **D-59**, haciendo parecer que faltaban nueve.
+    **Lo que salvó a los dos fue la forma del resultado y no la atención**, que es la misma cura que la
+    Task 8 anotó para `cmd | tail`: cambiar el comando, no mirar más fuerte.
+11. **UN DESCUADRE DE UNA LÍNEA EN LA ARITMÉTICA DEL DIFF, Y EL ERROR ERA DE QUIEN PREDICE.** La predicción
+    escrita daba **14 inserciones** en `FASE_2_DISENO.md` y fueron **13**: había contado siete líneas de
+    cita donde el bloque tiene seis. **Perseguirlo costó un comando y confirmó el archivo en vez de
+    acusarlo.** *Un descuadre pequeño sigue siendo «pasó algo que no sabés qué es» — y a veces lo que pasó
+    es que la predicción estaba mal.* Las otras tres mediciones salieron exactas: **17/3** y **50/4** en
+    `ESTADO_Y_PLAN.md` y **8/0** en la especificación.
+12. **EL INFORME DEL SUBAGENTE VOLVIÓ A METER ENTIDADES HTML: VAN CUATRO VECES CONFIRMADAS** —Tasks 5, 7,
+    8 y esta—. Devolvió `&gt;` donde el archivo tiene el `>` de las citas de Markdown. **El disco estuvo
+    perfecto las cuatro veces**, comprobado con `grep` de entidades, `grep` de doble codificación, `grep`
+    de contaminación del scratchpad y `diff` byte a byte contra el original. **Es un defecto del renderizado
+    del informe, no del archivo**, y el género ya está anotado desde la Task 5: **este inventa un defecto
+    que no existe**, y creerle habría hecho «arreglar» seis líneas sanas.
+13. **UNA CORRECCIÓN QUE NINGÚN STEP PEDÍA, del mismo género que las cuatro de la Task 12 de la T3B.** La
+    fila de la **T2** en `FASE_2_DISENO.md` decía «**T2B** —…; pendiente—» y **llevaba caducada desde el
+    2026-08-11**. Se corrigió tachada y fechada. **Aparece por leer la tabla entera al ir a tocar la fila
+    vecina**, que es exactamente lo que el Step 4 obliga a hacer.
+14. **EL STEP 5 SE CUMPLE Y SE DICE DE DÓNDE SALEN LAS CIFRAS.** Esta tarea **no escribe una línea de
+    código** —los archivos tocados son todos `.md`, comprobado con `git diff --name-only`—, así que **los
+    cuatro comandos no se volvieron a correr**. Las cifras que entran en los documentos —**152 pruebas en
+    11 archivos**, **23 rutas y cero estáticas**, **24 migraciones y 150 aserciones en 25 archivos** y las
+    **6 pruebas de E2E en 4 specs**— son las que midió la **Task 8 el 2026-08-15**, y se citan diciéndolo
+    en vez de dejar creer que se remidieron. **Los dos números de advisor son la excepción**, y por eso se
+    midieron: no dependen del árbol sino del proyecto real, que puede cambiar sin que nadie toque el código.
 
 ---
 

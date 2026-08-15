@@ -274,6 +274,14 @@ Pantalla de administración que edita seis valores de `app_settings`: ventana de
 
 **La hora de apertura tiene que caer en un bloque, y si no, la pantalla no deja guardar** *(D-54)*. Es la única de las seis con esa restricción.
 
+⚠ **Ampliado el 2026-08-15 por la T4: ahora la base tampoco la deja guardar.** La **migración 24**
+*(D-55, cierra Q-19)* añade a `app_settings` un `CHECK` que ata las dos columnas. Hasta entonces la regla
+vivía **solo en la aplicación**, así que por SQL directo el agujero seguía abierto; desde ahora la pantalla
+**adelanta** un rechazo que el motor ya daría por su cuenta. **Lo que estaba en juego está medido, no
+supuesto:** una hora de apertura desalineada deja el calendario entero irreservable —35 franjas ofrecidas y
+las 35 rechazadas una por una— y **no se ve desde ninguna pantalla**; el alumno solo vería un calendario
+que no le deja reservar.
+
 ---
 
 ## 6. Reglas de negocio consolidadas
