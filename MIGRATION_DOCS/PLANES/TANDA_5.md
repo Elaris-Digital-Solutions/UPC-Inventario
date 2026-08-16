@@ -192,6 +192,62 @@ Playwright.
     volver el botón—, que es lo único que descarta que hubiera desaparecido por otro motivo: una sesión
     perdida, la reserva movida de sección. Sin esa vuelta, la ausencia no probaría nada.
 
+25. **Los Steps 4 y 5 no podían correr como estaban escritos, y por el mismo motivo los dos: el `seed.sql`
+    no siembra ni notas ni reservas.** El Step 4 manda comparar dos llamadas —el alumno debe recibir `[]` y
+    el operador **filas**— y tras un `db reset` la tabla está vacía, así que **las dos habrían dado `[]`**:
+    justo el empate que el propio Step advierte que no prueba nada. Y el Step 5 manda mirar el historial en
+    `/mostrador`, pero el diálogo que lo muestra **se abre desde una tarjeta de reserva** y la pantalla
+    arranca vacía. Hubo que **sembrar primero**: una nota con el token del operador y una reserva con
+    `create_reservation`. **Es la lección de la T2A otra vez** —el seed es una fixture de valores
+    convenientes, no representativos— pero cometida sobre lo que el seed **no** trae, en vez de sobre lo
+    que trae con otro valor.
+
+26. **Sembrar por PostgREST con un token real NO es «escribir directo en la base», y esa distinción es la
+    que salva el Step 4.** *D-62* dice que el arnés no escribe en la base, y de ahí salió el rodeo de la
+    corrección 24. Pero la nota se creó con el `access_token` del operador contra `/rest/v1/`, que es **la
+    superficie pública, con RLS decidiendo**: el mismo camino por el que el `INSERT` del alumno fue
+    **rechazado con `42501`**. Un `psql` o una `service_role` sí habrían saltado la política; esto la
+    ejercita. **Donde el arnés no llega, un token real sí, y sin perder el control.**
+
+27. **Q-18 medido en la superficie real deja ver los DOS modos de fallo lado a lado, en la misma tabla.**
+    La regla 3 del proyecto está escrita sobre el `UPDATE`; acá se ve en el `SELECT`. El alumno con sesión
+    recibe `[]` y **HTTP 200** —le falta la *política*, y eso no lanza nada—; el anónimo recibe **`42501`
+    `permission denied`** —le falta el *privilegio*, el `grant` que la migración 25 deliberadamente no
+    tocó—. Mismo efecto práctico, distinto mecanismo. **Y el control que de verdad cierra el Step no es el
+    del operador sino el del alumno leyendo `products`**: sin él, un token caducado daría el mismo `[]` que
+    una política que funciona.
+
+28. **UNA VIOLACIÓN DE CSP EN LOS DIÁLOGOS, y no la trae esta tanda sino el cruce de la T4 con todo lo
+    anterior.** Radix inyecta una hoja `<style>` para bloquear el scroll del fondo al abrir un modal, y
+    `style-src 'self' 'nonce-...'` *(D-56)* la rechaza. **Medido: tres diálogos, dos pantallas
+    —`/mostrador` y `/admin/inventario/[id]`—, dos perfiles, y UN SOLO hash**,
+    `sha256-kAApudxpTi9mfjlC9lC8ZaS9xFHU9/NLLbB173MU7SU=`, contado con `node` y no con `grep`. El efecto es
+    que **el fondo scrollea con el modal abierto**; el `pointer-events: none` sí se aplica, porque es un
+    atributo y no una hoja. **Las páginas cargan limpias** —el otro error de consola de la ficha es el 404
+    de una imagen del seed—, y **ahí está el porqué de que la T4 no lo viera: midió pantallas, no
+    interacciones.** Ningún comando lo delata: los cuatro pasan y el E2E da 6/6 **abriendo diálogos**.
+    Queda como **Q-20** y no se toca *(decidido con Alejandro el 2026-08-15)*: la tanda es de SQL, y las
+    dos curas conocidas son peores que la enfermedad —el hash casa hasta que Radix cambie un byte, y
+    entonces el bloqueo vuelve **en silencio**; `'unsafe-inline'` desarma lo que D-56 construyó—.
+
+29. **`.playwright-mcp/` está en `.gitignore` y NO en los ignorados de ESLint**, que es el género exacto de
+    *D-68*. Hoy no hace daño porque sólo guarda `.yml`, `.log` y un `.stackdump`, y ESLint no los mira.
+    **Queda dicho porque la próxima carpeta que Playwright invente puede traer `.js`**, y sería el
+    2026-08-15 otra vez con sus 3031 problemas. **Se comprobó corriendo el `lint` DESPUÉS de crearla**, no
+    razonando sobre las extensiones.
+
+30. **Una trampa de instrumento nueva: parar la tarea no mata el proceso hijo.** El E2E falló con
+    `http://127.0.0.1:3000 is already used` **después** de detener el servidor de producción, porque
+    `next start` sobrevivió a la parada de la tarea que lo había lanzado. Con `reuseExistingServer: false`
+    eso es un rojo instantáneo que **no dice absolutamente nada del código**. La cura medida: matar por
+    puerto —`Get-NetTCPConnection -LocalPort 3000`— y **comprobar que responde `000` antes de relanzar**.
+    Es de la familia de `cmd | tail`: el instrumento contesta sobre otra cosa que la que se le preguntó.
+
+31. **Las cifras finales, medidas al cerrar la Task 6 y no citadas:** **26 migraciones**, **159 aserciones
+    pgTAP en 27 archivos** tras un `db reset`, **155 pruebas Vitest en 11 archivos**, **23 rutas y 0
+    estáticas** en el `build` —contadas en la tabla, porque el ancla `ƒ` **volvió a dar 25**— y **6 pruebas
+    E2E en 4 specs**. `typecheck` y `lint` en cero, el `lint` **en dos pasadas**, antes y después del E2E.
+
 ---
 
 ## Restricciones globales
