@@ -73,9 +73,9 @@ archivos**. ⚠ **Corregido otra vez el 2026-08-15:** la T4 añadió la **migrac
 así que hoy son **24 migraciones y 150 aserciones en 25 archivos**, y la 24 **ya está en producción**.
 ⚠ **Corregido por QUINTA vez el 2026-08-15:** la tanda 5 añadió **dos de una vez**, la **25** *(D-69, cierra
 Q-18)* y la **26** *(D-70 y D-71, cierran M-12)*, así que hoy son **26 migraciones y 159 aserciones en 27
-archivos**, medido tras un `db reset` y no citado. **Las dos están en local y NO en producción**, donde
-siguen las 24: `migration list` da `remote` vacío en las dos últimas, así que **Q-18 y M-12 siguen abiertos
-para un alumno real hasta que se empuje la rama.**
+archivos**, medido tras un `db reset` y no citado. ~~**Las dos están en local y NO en producción**, donde
+siguen las 24: `migration list` da `remote` vacío en las dos últimas~~, así que ~~**Q-18 y M-12 siguen abiertos
+para un alumno real hasta que se empuje la rama.**~~ ⚠ **Corregido el 2026-08-16, unas horas después:** `db push` las aplicó y **las 26 tienen `local` y `remote` idénticos**.
 Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
@@ -131,7 +131,7 @@ completa.** Las decisiones van de **D-19 a D-68**. Cerrados además **Q-10, Q-13
 abierto y ya no tiene destino la T4**: pasa a una tanda propia *(D-55)*, porque recortar la lectura de
 notas obliga a reverificar la T3A entera.
 ⚠ **Corregido el 2026-08-15, al cerrar la tanda 5: Q-18 está CERRADO en local** —la **migración 25**,
-*D-69*— **y sigue abierto en producción hasta que se empuje la rama.** Y el motivo que lo aplazaba medía de
+*D-69*— ~~**y sigue abierto en producción hasta que se empuje la rama.**~~ ⚠ **Corregido el 2026-08-16, unas horas después:** **cerrado también en producción**, verificado por el efecto: la política vieja ya no existe allá. Y el motivo que lo aplazaba medía de
 más por un lado y de menos por otro: **son la T3A y la T3B** las que leen notas, no sólo la T3A, **pero
 reverificarlas salió barato y no caro**, porque las dos pantallas viven bajo `app/(personal)/` y la política
 nueva no le quita una capacidad a nadie que la use.
@@ -241,8 +241,8 @@ con antelación mínima.~~ ⚠ **Corregido el 2026-08-15: la T4 cerró, ver el p
 quedan **Q-18** y **M-12**; los demás se cerraron, y **`setup-cli` ya no apunta a Node.js 20** — los dos
 workflows usan **`@v3`** desde el 2026-08-15 *(D-64)*.
 ⚠ **Corregido otra vez el 2026-08-15, al cerrar la tanda 5: de esa lista ya no queda nada.** **Q-18** lo
-cierra la **migración 25** *(D-69)* y **M-12** la **26** *(D-70, D-71)*, las dos **en local y todavía no en
-producción**.
+cierra la **migración 25** *(D-69)* y **M-12** la **26** *(D-70, D-71)*, ~~las dos **en local y todavía no en
+producción**.~~ ⚠ **Corregido el 2026-08-16, unas horas después:** **las dos en producción.**
 
 **T4 CERRADA el 2026-08-15, y con ella la Fase 2 entera: las siete tandas.** Diez tareas, 0 a 9, en
 `feature/fase-2-tanda-4` sobre `develop` (`42b26af`), **sin empujar**. **Cierra las tareas 2.10 y 2.11 y
@@ -267,8 +267,8 @@ las lee sólo el personal)* **y la 26** *(D-70 y D-71, cierran **M-12** — marg
 `app_settings`, configurable desde `/admin/ajustes` y con el personal exento)*. La base queda en **26
 migraciones y 159 aserciones en 27 archivos**; Vitest de 152 a **155 en 11**; el `build` sigue en **23 rutas
 y cero estáticas**; el E2E en **6 pruebas y 4 specs**. **Lo que la tanda deja sin hacer, dicho y no
-disimulado:** las dos migraciones **están en local y NO en producción**, así que **Q-18 y M-12 siguen
-abiertos para un alumno real** hasta que se empuje la rama; y **abre Q-20** —la CSP bloquea el bloqueo de
+disimulado:** ~~las dos migraciones **están en local y NO en producción**, así que **Q-18 y M-12 siguen
+abiertos para un alumno real** hasta que se empuje la rama;~~ ⚠ **Corregido el 2026-08-16, unas horas después:** **mergeadas y aplicadas**, con los dos pendientes cerrados también en producción; y **abre Q-20** —la CSP bloquea el bloqueo de
 scroll de todos los diálogos—, aplazado a propósito porque nace de la T4 y las dos curas conocidas son
 peores que la enfermedad.
 
