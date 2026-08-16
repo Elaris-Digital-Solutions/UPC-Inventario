@@ -131,19 +131,25 @@ const TEXTO: Record<
     titulo: "Marcar como no devuelto",
     confirmar: "Marcar no devuelto",
     confirmarPendiente: "Marcando…",
-    // EL AVISO DE PRIVACIDAD NO ES DECORACION. Esta nota va a
-    // `inventory_unit_notes`, y la politica `unit_notes_select_auth` es
+    // EL AVISO NO ES DECORACION, Y SU MITAD DE PRIVACIDAD CADUCO EL
+    // 2026-08-15. Esta nota va a `inventory_unit_notes`, y hasta esa fecha la
+    // politica `unit_notes_select_auth` era
     // `for select to authenticated using (true)`
     // (supabase/migrations/20260805195549_traceability.sql:37-38): CUALQUIER
-    // alumno con sesion la lee entera. Medido por PostgREST en la Task 9, con
-    // un JWT de alumno: HTTP 200 y la nota completa. Es D-2 -la trazabilidad
-    // legible- y no un fallo nuevo, pero este dialogo es justo donde mas
-    // probable es escribir el nombre de una persona, porque pide describir
-    // una falta. dialogo-nota.tsx ya avisaba; este no, y esa asimetria dejaba
-    // sin cubrir el caso mas expuesto de los dos. Queda anotado como Q-18:
-    // arreglarlo de verdad seria tocar RLS, o sea SQL, vetado en esta tanda.
+    // alumno con sesion la leia entera. Medido por PostgREST en la Task 9 de
+    // la T3A, con un JWT de alumno: HTTP 200 y la nota completa.
+    // Eso era Q-18, y este comentario predijo su arreglo -- "seria tocar RLS,
+    // o sea SQL" -- y acerto: lo cerro la migracion 25
+    // (supabase/migrations/20260815190010_unit_notes_staff_only.sql) con D-69,
+    // que deja `unit_notes_select_staff` con
+    // `using ((select private.is_staff()))`.
+    // LO QUE SE QUEDA ES LA TRAZABILIDAD, y aca pesa mas que en los otros
+    // dialogos por el motivo que ya decia la version anterior: este es justo
+    // donde mas probable es escribir el nombre de una persona, porque pide
+    // describir una falta. La nota sigue siendo permanente y atada a la unidad
+    // -- D-2 quedo ACOTADO, no revocado.
     consecuencia: (alumno) =>
-      `Esto bloquea a ${alumno} de forma permanente, y solo un administrador puede revertirlo. Describe abajo qué pasó con el equipo: la nota queda en el historial de la unidad, y cualquier persona con sesión puede leerla, así que no escribas datos personales de un alumno.`,
+      `Esto bloquea a ${alumno} de forma permanente, y solo un administrador puede revertirlo. Describe abajo qué pasó con el equipo: la nota queda en el historial de la unidad y la leen el personal del mostrador y los administradores.`,
   },
 };
 

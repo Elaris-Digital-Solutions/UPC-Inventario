@@ -139,10 +139,15 @@ export function DialogoAgregarUnidad({ productoId, sedes }: DialogoAgregarUnidad
             placeholder="Opcional"
           />
           {/* El aviso va aunque la nota sea opcional: si se escribe, se guarda
-              en la misma tabla que lee cualquiera con sesion (Q-18). */}
+              en `inventory_unit_notes` y queda ahi para siempre. LA RAZON
+              CAMBIO EL 2026-08-15: este comentario decia "en la misma tabla
+              que lee cualquiera con sesion (Q-18)", y esa frase ya es FALSA
+              -- la migracion 25 (D-69) dejo la lectura solo para el personal.
+              Lo que NO cambio es que la nota es permanente, y ese es el motivo
+              por el que el aviso se queda. */}
           <p className="text-muted-foreground text-xs">
-            Si la escribes, queda en el historial del equipo y cualquier persona con sesión puede
-            leerla.
+            Si la escribes, queda en el historial del equipo y la leen el personal del mostrador y
+            los administradores.
           </p>
         </div>
 

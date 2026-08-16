@@ -90,6 +90,7 @@ export type Database = {
           closing_time: string
           daily_limit_per_product: number
           id: boolean
+          min_cancel_minutes: number
           min_duration_minutes: number
           opening_time: string
           slot_minutes: number
@@ -100,6 +101,7 @@ export type Database = {
           closing_time?: string
           daily_limit_per_product?: number
           id?: boolean
+          min_cancel_minutes?: number
           min_duration_minutes?: number
           opening_time?: string
           slot_minutes?: number
@@ -110,6 +112,7 @@ export type Database = {
           closing_time?: string
           daily_limit_per_product?: number
           id?: boolean
+          min_cancel_minutes?: number
           min_duration_minutes?: number
           opening_time?: string
           slot_minutes?: number

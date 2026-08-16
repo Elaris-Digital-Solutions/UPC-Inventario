@@ -71,6 +71,11 @@ son **22 migraciones y 142 aserciones en 23 archivos**. ⚠ **Corregido otra vez
 añadió la **migración 23** *(D-38, cierra Q-17)*, así que hoy son **23 migraciones y 147 aserciones en 24
 archivos**. ⚠ **Corregido otra vez el 2026-08-15:** la T4 añadió la **migración 24** *(D-55, cierra Q-19)*,
 así que hoy son **24 migraciones y 150 aserciones en 25 archivos**, y la 24 **ya está en producción**.
+⚠ **Corregido por QUINTA vez el 2026-08-15:** la tanda 5 añadió **dos de una vez**, la **25** *(D-69, cierra
+Q-18)* y la **26** *(D-70 y D-71, cierran M-12)*, así que hoy son **26 migraciones y 159 aserciones en 27
+archivos**, medido tras un `db reset` y no citado. **Las dos están en local y NO en producción**, donde
+siguen las 24: `migration list` da `remote` vacío en las dos últimas, así que **Q-18 y M-12 siguen abiertos
+para un alumno real hasta que se empuje la rama.**
 Diseño en
 `MIGRATION_DOCS/FASE_1_DISENO.md`, ejecutado en cuatro tandas con un PR cada una, más un arreglo posterior.
 
@@ -125,6 +130,11 @@ fechadas el 2026-08-13, no se borran: **seis de las siete tandas están cerradas
 completa.** Las decisiones van de **D-19 a D-68**. Cerrados además **Q-10, Q-13 y Q-19**. **Q-18 sigue
 abierto y ya no tiene destino la T4**: pasa a una tanda propia *(D-55)*, porque recortar la lectura de
 notas obliga a reverificar la T3A entera.
+⚠ **Corregido el 2026-08-15, al cerrar la tanda 5: Q-18 está CERRADO en local** —la **migración 25**,
+*D-69*— **y sigue abierto en producción hasta que se empuje la rama.** Y el motivo que lo aplazaba medía de
+más por un lado y de menos por otro: **son la T3A y la T3B** las que leen notas, no sólo la T3A, **pero
+reverificarlas salió barato y no caro**, porque las dos pantallas viven bajo `app/(personal)/` y la política
+nueva no le quita una capacidad a nadie que la use.
 
 **La T2 se partió al escribir su plan** *(D-34)*, que es donde el diseño decía que se decidiría: el
 desglose dio **16 tareas**. **Pero el corte no fue por tamaño: la T2A no escribe una sola fila en la base**
@@ -153,7 +163,16 @@ pgTAP**. ~~**Desde aquí ninguna tanda vuelve a tocar SQL.**~~ ⚠ **Falso desde
 la migración 22, con la decisión tomada y el costo dicho por delante. ⚠ **Y falso tres veces más:** la T3A
 añadió la **23** *(D-38)* el 2026-08-12, y la T4 la **24** *(D-55)* el 2026-08-13. **Van cuatro
 desmentidos y la frase sigue sin borrarse**, porque lo que registra no es un hecho sino una intención, y
-las tres decisiones que la desmintieron traían el costo dicho por delante. Correcciones en
+las tres decisiones que la desmintieron traían el costo dicho por delante.
+⚠ **Y falso dos veces más, el 2026-08-15:** la tanda 5 añadió la **25** *(D-69)* y la **26** *(D-70, D-71)*.
+**Esta vez la tanda ENTERA existe para tocar SQL** *(D-72)*, y eso es lo que la separa de los desmentidos
+anteriores: no se coló una migración dentro de una tanda dedicada a otra cosa. **Van CINCO migraciones
+desmintiéndola —22, 23, 24, 25 y 26— y la frase sigue sin borrarse.** ⚠ **Y una corrección al recuento de
+esta misma frase, que tampoco se borra:** decía «van cuatro desmentidos» y «falso tres veces más» mientras
+enumeraba **dos** migraciones y hablaba a renglón seguido de «las **tres** decisiones» — los tres números no
+cerraban entre sí, y las posteriores a la T0 eran **tres: 22, 23 y 24**. **Lo destapó contarlas, no
+releerlas**, que es la misma cura que ya funcionó con los comentarios que decían «seis».
+Correcciones en
 `MIGRATION_DOCS/PLANES/FASE_2_TANDA_0.md`.
 
 **T1 CERRADA y mergeada el 2026-08-08.** PR #21, merge en `895e1625`, **cuatro corridas de CI y las cuatro
@@ -221,6 +240,9 @@ desactivado, **`supabase/setup-cli@v1` apuntando a Node.js 20**, ya deprecado, y
 con antelación mínima.~~ ⚠ **Corregido el 2026-08-15: la T4 cerró, ver el párrafo siguiente.** De esa lista
 quedan **Q-18** y **M-12**; los demás se cerraron, y **`setup-cli` ya no apunta a Node.js 20** — los dos
 workflows usan **`@v3`** desde el 2026-08-15 *(D-64)*.
+⚠ **Corregido otra vez el 2026-08-15, al cerrar la tanda 5: de esa lista ya no queda nada.** **Q-18** lo
+cierra la **migración 25** *(D-69)* y **M-12** la **26** *(D-70, D-71)*, las dos **en local y todavía no en
+producción**.
 
 **T4 CERRADA el 2026-08-15, y con ella la Fase 2 entera: las siete tandas.** Diez tareas, 0 a 9, en
 `feature/fase-2-tanda-4` sobre `develop` (`42b26af`), **sin empujar**. **Cierra las tareas 2.10 y 2.11 y
@@ -233,6 +255,28 @@ un workflow propio `e2e.yml` *(D-63)*. Vitest de 138 pruebas en 10 archivos a **
 disimulado:** **Q-18** va a una tanda propia, **M-12** es SQL y la tanda tenía una sola migración, **HSTS
 se escribió sin poder verificarse por su efecto** porque no hay despliegue, y quedan **dos imágenes de
 prueba en la cuenta real de Cloudinary** que la aplicación no puede borrar *(F7)*.
+
+**TANDA 5 CERRADA el 2026-08-15, y con ella los dos únicos pendientes que exigían tocar la base.** No
+pertenece a la Fase 2 —que cerró entera con la T4— y **no abre una Fase 3**: se numera T5 por continuidad, y
+si el despliegue termina mereciendo fase propia se renombra entonces. **Va antes del despliegue** *(D-72)*
+por un motivo medido y no por comodidad: el despliegue no crea el agujero de Q-18 —la API de Supabase ya
+está en internet—, lo **puebla**. **Las ocho tareas, 0 a 7.** Seis commits en `feature/tanda-5-sql` sobre
+`develop` (`612f9bc`), más el de esta documentación de cierre, **sin empujar**. **Cuatro decisiones, D-69 a
+D-72**, y **las dos últimas migraciones del proyecto: la 25** *(D-69, cierra **Q-18** — las notas de unidad
+las lee sólo el personal)* **y la 26** *(D-70 y D-71, cierran **M-12** — margen mínimo de cancelación en
+`app_settings`, configurable desde `/admin/ajustes` y con el personal exento)*. La base queda en **26
+migraciones y 159 aserciones en 27 archivos**; Vitest de 152 a **155 en 11**; el `build` sigue en **23 rutas
+y cero estáticas**; el E2E en **6 pruebas y 4 specs**. **Lo que la tanda deja sin hacer, dicho y no
+disimulado:** las dos migraciones **están en local y NO en producción**, así que **Q-18 y M-12 siguen
+abiertos para un alumno real** hasta que se empuje la rama; y **abre Q-20** —la CSP bloquea el bloqueo de
+scroll de todos los diálogos—, aplazado a propósito porque nace de la T4 y las dos curas conocidas son
+peores que la enfermedad.
+
+**Y la T5 confirma la lección de método de la T4 en vez de estrenar una: la Task 6 encontró cuatro cosas.**
+La que más vale: **su propio plan no podía correr como estaba escrito**, porque los dos Steps que verifican
+Q-18 asumen datos que el `seed.sql` no siembra —ni notas ni reservas—, y sin sembrarlos la comparación
+habría dado `[]` en las **dos** puntas, que es justo el empate que el Step advierte que no prueba nada.
+**Un plan puede ser correcto en la regla que manda comprobar y falso en el mundo donde manda comprobarla.**
 
 **Y la T4 deja tres cosas de método que valen para cualquier tanda futura.** La primera: **una tarea de
 verificación que no encuentra nada es sospechosa.** Los dos defectos de la Task 8 aparecieron por **correr**

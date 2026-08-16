@@ -98,18 +98,27 @@ export function DialogoEstadoUnidad({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Estado de {unidad}</DialogTitle>
-          {/* El mismo aviso que dialogo-nota.tsx, y por la misma medicion: un
-              JWT de alumno leyendo `inventory_unit_notes` recibe HTTP 200 con
-              todas las notas, porque `unit_notes_select_auth` es
-              `for select to authenticated using (true)`
-              (supabase/migrations/20260805195549_traceability.sql:37-38).
-              Es Q-18, abierto y aparcado a la T4 por D-41. La asimetria entre
-              dos dialogos que escriben en la MISMA tabla ya fue un defecto
-              real en la T3A -- el que faltaba era justo el mas expuesto --,
-              asi que este nace con el aviso puesto. */}
+          {/* El mismo aviso que dialogo-nota.tsx, y cambio con el: hasta el
+              2026-08-15 un JWT de alumno leyendo `inventory_unit_notes`
+              recibia HTTP 200 con todas las notas, porque
+              `unit_notes_select_auth` era `for select to authenticated using
+              (true)` (supabase/migrations/20260805195549_traceability.sql:37-38).
+              Eso era Q-18, y lo cerro la migracion 25
+              (supabase/migrations/20260815190010_unit_notes_staff_only.sql)
+              con D-69: hoy es `unit_notes_select_staff` con
+              `using ((select private.is_staff()))`.
+              DOS COSAS DE ESTE COMENTARIO ERAN FALSAS Y SE CORRIGEN FECHADAS,
+              no se borran. La primera es la politica de arriba. La segunda es
+              que decia "aparcado a la T4 por D-41", y la T4 NO lo hizo: D-55
+              lo mando a una tanda propia justamente porque recortar la lectura
+              obligaba a reverificar pantallas ya cerradas.
+              Lo que sigue en pie es el motivo por el que este dialogo nacio
+              con aviso: la asimetria entre dos dialogos que escriben en la
+              MISMA tabla ya fue un defecto real en la T3A -- el que faltaba
+              era justo el mas expuesto. */}
           <DialogDescription>
-            El motivo queda en el historial del equipo, con la fecha. Cualquier persona con sesión
-            puede leerlo, así que no escribas datos personales de un alumno.
+            El motivo queda en el historial del equipo, con la fecha, y no se puede deshacer. Lo
+            leen el personal del mostrador y los administradores.
           </DialogDescription>
         </DialogHeader>
 
