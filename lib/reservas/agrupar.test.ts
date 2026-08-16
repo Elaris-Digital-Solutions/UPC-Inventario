@@ -91,7 +91,7 @@ describe('seOfreceCancelar', () => {
   const inicioPasado = '2026-08-01T00:00:00Z';
 
   it('reserved, proxima, inicio en el futuro: se ofrece (caso normal)', () => {
-    expect(seOfreceCancelar('reserved', 'proxima', inicioFuturo, ahora)).toBe(true);
+    expect(seOfreceCancelar('reserved', 'proxima', inicioFuturo, ahora, 0)).toBe(true);
   });
 
   // El caso que D-38 cierra y el que hoy fallaba: una reserva de 10:00 a
@@ -100,20 +100,52 @@ describe('seOfreceCancelar', () => {
   // tercer termino, el boton se seguiria ofreciendo aca justo en el caso que
   // el motor ya rechaza (migracion 23).
   it('reserved, proxima, inicio ya pasado pero fin en el futuro: no se ofrece', () => {
-    expect(seOfreceCancelar('reserved', 'proxima', inicioPasado, ahora)).toBe(false);
+    expect(seOfreceCancelar('reserved', 'proxima', inicioPasado, ahora, 0)).toBe(false);
   });
 
   // El borde exacto: inicio igual a ahora. La comparacion es estricta (`>`),
   // igual que `v_start_at <= now()` en el motor rechaza ese mismo instante.
   it('reserved, proxima, inicio exactamente igual a ahora: no se ofrece', () => {
-    expect(seOfreceCancelar('reserved', 'proxima', ahora.toISOString(), ahora)).toBe(false);
+    expect(seOfreceCancelar('reserved', 'proxima', ahora.toISOString(), ahora, 0)).toBe(false);
   });
 
   it('active: no se ofrece, aunque el inicio siga en el futuro', () => {
-    expect(seOfreceCancelar('active', 'en_curso', inicioFuturo, ahora)).toBe(false);
+    expect(seOfreceCancelar('active', 'en_curso', inicioFuturo, ahora, 0)).toBe(false);
   });
 
   it('reserved, pasada: no se ofrece', () => {
-    expect(seOfreceCancelar('reserved', 'pasada', inicioPasado, ahora)).toBe(false);
+    expect(seOfreceCancelar('reserved', 'pasada', inicioPasado, ahora, 0)).toBe(false);
+  });
+
+  // M-12 / D-70, las tres de abajo. Las cinco de arriba pasan `0` a
+  // proposito: con el margen en cero el limite ES `ahora`, asi que siguen
+  // afirmando lo mismo que afirmaban antes de que esta funcion tuviera
+  // margen. Estas tres son las que ejercitan el margen de verdad.
+  it('reserved, proxima, inicio dentro del margen: no se ofrece (M-12)', () => {
+    const ahoraM12 = new Date('2026-08-15T12:00:00Z');
+    const inicioDentroDelMargen = new Date('2026-08-15T12:30:00Z').toISOString();
+    expect(seOfreceCancelar('reserved', 'proxima', inicioDentroDelMargen, ahoraM12, 60)).toBe(
+      false,
+    );
+  });
+
+  it('reserved, proxima, margen en cero: se ofrece hasta el momento de empezar', () => {
+    const ahoraM12 = new Date('2026-08-15T12:00:00Z');
+    const inicioEnUnMinuto = new Date('2026-08-15T12:01:00Z').toISOString();
+    expect(seOfreceCancelar('reserved', 'proxima', inicioEnUnMinuto, ahoraM12, 0)).toBe(true);
+  });
+
+  // EL BORDE EXACTO DEL MARGEN, y esta prueba NO estaba en el plan. Es el
+  // mismo borde que la de "inicio exactamente igual a ahora" cubre para
+  // D-38, y hace falta por el mismo motivo: la comparacion es ESTRICTA
+  // (`>`), y el motor rechaza con `v_start_at <= now() + make_interval(mins
+  // => v_margen)` -migracion 26-, o sea que tambien rechaza la igualdad. Sin
+  // esta prueba, cambiar el `>` por un `>=` dejaria la pantalla ofreciendo
+  // un boton en el unico instante en que el motor lo rechaza, con las otras
+  // siete en verde.
+  it('reserved, proxima, inicio justo en el borde del margen: no se ofrece', () => {
+    const ahoraM12 = new Date('2026-08-15T12:00:00Z');
+    const inicioEnElBorde = new Date('2026-08-15T13:00:00Z').toISOString();
+    expect(seOfreceCancelar('reserved', 'proxima', inicioEnElBorde, ahoraM12, 60)).toBe(false);
   });
 });

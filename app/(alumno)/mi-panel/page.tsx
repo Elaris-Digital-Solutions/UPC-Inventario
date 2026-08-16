@@ -6,7 +6,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TarjetaReserva } from "@/components/reservas/tarjeta-reserva";
 import { grupoDeReserva, type Grupo } from "@/lib/reservas/agrupar";
-import { miEncuesta, misReservas, type ReservaDelAlumno } from "@/lib/reservas/consultas";
+import {
+  ajustesReserva,
+  miEncuesta,
+  misReservas,
+  type ReservaDelAlumno,
+} from "@/lib/reservas/consultas";
 import { EncabezadoSeccion } from "@/components/antetitulo";
 
 // Una sola pasada agrupando, en vez de tres `.filter()` -uno por seccion-
@@ -32,10 +37,22 @@ function agruparReservas(
 }
 
 export default async function MiPanelPage() {
-  // En paralelo, y no en secuencia: las dos consultas son independientes -una
-  // lee inventory_reservations, la otra final_satisfaction_surveys- y ninguna
-  // necesita el resultado de la otra para ejecutarse.
-  const [reservas, encuesta] = await Promise.all([misReservas(), miEncuesta()]);
+  // En paralelo, y no en secuencia: las TRES consultas son independientes
+  // -una lee inventory_reservations, otra final_satisfaction_surveys y la
+  // tercera app_settings- y ninguna necesita el resultado de otra para
+  // ejecutarse. Eran DOS hasta la Tanda 5, y este comentario lo decia: la
+  // tercera la trae M-12.
+  //
+  // El margen entra en este mismo `Promise.all` y no en un `await` suelto
+  // detras. El plan de la Tanda 5 dictaba `const ajustes = await
+  // ajustesReserva();` por separado; se sigue el patron que la pagina ya
+  // tenia, que ademas no serializa una consulta que no depende de ninguna
+  // otra.
+  const [reservas, encuesta, ajustes] = await Promise.all([
+    misReservas(),
+    miEncuesta(),
+    ajustesReserva(),
+  ]);
 
   // UNA SOLA lectura del reloj para toda la pantalla, reutilizada tanto para
   // agrupar como para pasarla a cada <TarjetaReserva>. Es el fallo M-7 que ya
@@ -122,7 +139,13 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">En curso</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {en_curso.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="en_curso" ahora={ahora} />
+                  <TarjetaReserva
+                    key={reserva.id}
+                    reserva={reserva}
+                    grupo="en_curso"
+                    ahora={ahora}
+                    margenCancelacion={ajustes.minCancelMinutes}
+                  />
                 ))}
               </div>
             </section>
@@ -133,7 +156,13 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">Próximas</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {proxima.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="proxima" ahora={ahora} />
+                  <TarjetaReserva
+                    key={reserva.id}
+                    reserva={reserva}
+                    grupo="proxima"
+                    ahora={ahora}
+                    margenCancelacion={ajustes.minCancelMinutes}
+                  />
                 ))}
               </div>
             </section>
@@ -144,7 +173,13 @@ export default async function MiPanelPage() {
               <h2 className="font-display text-xl">Anteriores</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {pasada.map((reserva) => (
-                  <TarjetaReserva key={reserva.id} reserva={reserva} grupo="pasada" ahora={ahora} />
+                  <TarjetaReserva
+                    key={reserva.id}
+                    reserva={reserva}
+                    grupo="pasada"
+                    ahora={ahora}
+                    margenCancelacion={ajustes.minCancelMinutes}
+                  />
                 ))}
               </div>
             </section>

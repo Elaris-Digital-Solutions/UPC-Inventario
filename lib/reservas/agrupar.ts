@@ -59,8 +59,11 @@ export function grupoDeReserva(estado: EstadoReserva, fin: string, ahora: Date):
 /**
  * Si a esta reserva se le ofrece el boton de cancelar en /mi-panel.
  *
- * `true` solo si se cumplen TRES condiciones a la vez, y son TRES DECISIONES
- * distintas que solo coinciden en esta misma linea:
+ * `true` solo si se cumplen TRES condiciones a la vez, y son CUATRO
+ * DECISIONES distintas: la tercera carga con dos, D-38 y M-12, asi que hay
+ * una condicion menos que decisiones. El plan de la Tanda 5 decia que esta
+ * funcion "gana el cuarto termino" y su propio codigo no lo agrega: lo que
+ * hace es PARAMETRIZAR el tercero.
  *
  *   - `estado === 'reserved'`. En `active` el boton DESAPARECE -no se
  *     deshabilita-, porque una reserva ya entregada no se cancela, se
@@ -68,19 +71,40 @@ export function grupoDeReserva(estado: EstadoReserva, fin: string, ahora: Date):
  *   - `grupo === 'proxima'`. D-35: oculta la reserva cuyo FIN ya paso -sigue
  *     en `reserved` en la base porque nadie la recogio, pero ofrecerla como
  *     cancelable prometeria algo que ya no tiene sentido (ya estaba).
- *   - `new Date(inicio) > ahora`. D-38: oculta la reserva cuyo INICIO ya
- *     paso, aunque el FIN siga en el futuro -la migracion 23
- *     (20260812053243_cancel_before_start.sql) rechaza esa cancelacion en el
- *     motor, asi que la pantalla deja de ofrecer un boton que el motor va a
- *     rechazar (nuevo, D-38).
+ *   - `new Date(inicio) > limite`, con `limite` igual a `ahora` corrido
+ *     `margenMinutos` hacia adelante. Carga con DOS decisiones:
  *
- * Comparacion ESTRICTA (`>`), no `>=`: el SQL de la migracion 23 rechaza con
- * `v_start_at <= now()`, asi que esta funcion y el motor coinciden en el
- * instante exacto del inicio -ningun segundo en el que uno ofrezca el boton
- * y el otro lo rechace.
+ *       D-38 oculta la reserva cuyo INICIO ya paso, aunque el FIN siga en el
+ *       futuro -la migracion 23 (20260812053243_cancel_before_start.sql) lo
+ *       rechaza en el motor-. M-12/D-70 oculta ademas la que empieza DENTRO
+ *       del margen configurado -la migracion 26
+ *       (20260815193922_min_cancel_notice.sql)-.
+ *
+ *     Y SON UN SOLO TERMINO, no dos, porque con `margenMinutos` en 0 el
+ *     limite ES `ahora`: el termino de M-12 subsume al de D-38 para todo
+ *     margen >= 0, asi que escribirlos separados evaluaria dos veces la
+ *     misma comparacion. EL SQL SI LOS TIENE SEPARADOS y no es una
+ *     incoherencia entre las dos capas: alla hacen falta dos ramas porque
+ *     cada una devuelve un MENSAJE distinto -y 31_cancel_before_start.sql:74
+ *     afirma el texto del primero con throws_ilike-. Aca no se devuelve
+ *     ningun mensaje, solo se decide pintar o no pintar.
+ *
+ * Comparacion ESTRICTA (`>`), no `>=`, y ahora vale para las dos
+ * migraciones: la 23 rechaza con `v_start_at <= now()` y la 26 con
+ * `v_start_at <= now() + make_interval(mins => v_margen)`. Las dos incluyen
+ * la igualdad, asi que esta funcion y el motor coinciden en el instante
+ * exacto del borde -ningun segundo en el que uno ofrezca el boton y el otro
+ * lo rechace.
  *
  * `ahora` se RECIBE y no se calcula aca con `new Date()`, por el mismo
  * motivo que ya explica el comentario de grupoDeReserva() mas arriba.
+ *
+ * Y EL MARGEN TAMBIEN SE RECIBE, en vez de leerse de una constante de este
+ * archivo: su unica fuente es `app_settings.min_cancel_minutes`, la misma
+ * que usa la RPC. Dos fuentes para el mismo numero serian dos reglas, y en
+ * cuanto se separaran esta pantalla ofreceria un boton que el motor rechaza
+ * -o lo esconderia cuando el motor lo aceptaria-. Es el mismo criterio que
+ * D-19 aplica a las duraciones.
  *
  * HALLAZGO: para una reserva `reserved`, el TERCER termino SUBSUME al
  * SEGUNDO. `grupo === 'proxima'` equivale a `fin > ahora` -es literalmente
@@ -101,8 +125,10 @@ export function seOfreceCancelar(
   grupo: Grupo,
   inicio: string,
   ahora: Date,
+  margenMinutos: number,
 ): boolean {
-  return estado === 'reserved' && grupo === 'proxima' && new Date(inicio) > ahora;
+  const limite = new Date(ahora.getTime() + margenMinutos * 60_000);
+  return estado === 'reserved' && grupo === 'proxima' && new Date(inicio) > limite;
 }
 
 /**

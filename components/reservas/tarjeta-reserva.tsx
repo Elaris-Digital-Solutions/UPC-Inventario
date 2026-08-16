@@ -52,6 +52,13 @@ type TarjetaReservaProps = {
   // cancelar -ver seOfreceCancelar(), lib/reservas/agrupar.ts- comparandolo
   // contra `reserva.inicio` (D-38).
   ahora: Date;
+  // El margen minimo de cancelacion (M-12/D-70), en minutos. Llega YA LEIDO
+  // desde la pagina, igual que `grupo` y `ahora` y por el mismo motivo: una
+  // sola fuente por decision. Su valor real vive en
+  // `app_settings.min_cancel_minutes` y quien DECIDE es cancel_reservation;
+  // esta tarjeta solo oculta el boton para no ofrecer algo que la base va a
+  // rechazar.
+  margenCancelacion: number;
 };
 
 // Componente de servidor: no necesita estado ni eventos propios -solo pinta
@@ -66,7 +73,7 @@ type TarjetaReservaProps = {
 // contrario; se corrige aca porque un comentario caducado compila igual que
 // uno cierto y enseña lo contrario de lo que pasa-, pero NO en toda reserva:
 // ver la condicion de mas abajo, justo antes de pintar <DialogoCancelar>.
-export function TarjetaReserva({ reserva, grupo, ahora }: TarjetaReservaProps) {
+export function TarjetaReserva({ reserva, grupo, ahora, margenCancelacion }: TarjetaReservaProps) {
   return (
     <Card>
       <CardHeader>
@@ -148,20 +155,30 @@ export function TarjetaReserva({ reserva, grupo, ahora }: TarjetaReservaProps) {
                  que la primera falta no hace nada visible y la segunda si.
                  Lo que se pierde al cancelar, entonces, no es una sancion
                  inmediata sino el registro que HABILITA la siguiente.
-              3. `new Date(reserva.inicio) > ahora` (D-38). Excluye la
-                 reserva cuyo INICIO ya paso, aunque el FIN siga en el
-                 futuro -el caso de una reserva de 10:00 a 10:30 vista a las
-                 10:15-.
+              3. `new Date(reserva.inicio) > ahora + margenCancelacion`
+                 (D-38 y M-12/D-70 a la vez). Excluye la reserva cuyo INICIO
+                 ya paso -el caso de una de 10:00 a 10:30 vista a las 10:15-
+                 y tambien la que empieza DENTRO del margen configurado. Son
+                 dos decisiones y un solo termino: ver el comentario de
+                 seOfreceCancelar() en lib/reservas/agrupar.ts para por que
+                 no son dos.
 
-            D-38 cierra la MITAD de M-12 de
+            D-38 cerro la MITAD de M-12 de
             MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md -"cancelacion con
-            antelacion minima"-: ahora no se cancela DESPUES de que la
-            reserva empezo, y desde la migracion 23
+            antelacion minima"-: no se cancela DESPUES de que la reserva
+            empezo, y desde la migracion 23
             (supabase/migrations/20260812053243_cancel_before_start.sql) eso
-            lo hace cumplir el MOTOR, no solo esta pantalla. M-12 SIGUE
-            PENDIENTE en su OTRA mitad: cancelar un minuto ANTES de que
-            empiece sigue sin ninguna restriccion -M-12 pide una antelacion
-            minima, y eso todavia no esta resuelto.
+            lo hace cumplir el MOTOR, no solo esta pantalla.
+
+            LA OTRA MITAD YA ESTA CERRADA, y este comentario decia lo
+            contrario -"M-12 SIGUE PENDIENTE en su OTRA mitad: cancelar un
+            minuto ANTES de que empiece sigue sin ninguna restriccion"-. Era
+            cierto al escribirse y dejo de serlo con la Tanda 5: la migracion
+            26 (supabase/migrations/20260815193922_min_cancel_notice.sql)
+            exige una antelacion minima configurable, y esta pantalla deja de
+            ofrecer el boton dentro de ese margen. Se corrige aca y no se
+            borra el rastro, porque un comentario caducado compila igual que
+            uno cierto y enseña lo contrario de lo que pasa.
 
             Esto tambien corrige lo que este comentario decia antes sobre la
             condicion 2: "el motor SI la aceptaria, y quien llame a la RPC
@@ -185,7 +202,7 @@ export function TarjetaReserva({ reserva, grupo, ahora }: TarjetaReservaProps) {
             recalcularlos: ver el comentario de TarjetaReservaProps mas
             arriba -volver a leer el reloj aca seria repetir el fallo que ese
             comentario ya explica. */}
-        {seOfreceCancelar(reserva.estado, grupo, reserva.inicio, ahora) && (
+        {seOfreceCancelar(reserva.estado, grupo, reserva.inicio, ahora, margenCancelacion) && (
           <DialogoCancelar reservationId={reserva.id} producto={reserva.producto} />
         )}
       </CardContent>

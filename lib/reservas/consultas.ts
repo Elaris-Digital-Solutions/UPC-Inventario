@@ -21,6 +21,13 @@ import type { Database } from '@/lib/database.types';
 // rejilla es la misma en ambos. Lo que NO se puede medir en produccion es el
 // efecto de una reserva, porque alli no hay ninguna.
 //
+// EL SEXTO VALOR, `min_cancel_minutes`, NO ENTRA EN ESA FRASE, y hay que
+// decir por que en vez de estirar el "comprobados en los dos" a una columna
+// mas: la migracion 26 que lo crea esta aplicada SOLO EN LOCAL mientras se
+// escribe esto, asi que en produccion la columna todavia NO EXISTE. En
+// cuanto la rama se mergee y se empuje, la fila pasa a tener seis valores
+// iguales en los dos lados y esta salvedad sobra.
+//
 // Con solo la RPC, franjasDelDia() no puede distinguir esos tres casos: los
 // tres le llegan identicos, un array vacio. Por eso hace falta
 // diasInhabilitados() APARTE -la unica forma de saber si el motivo es "no
@@ -59,6 +66,7 @@ export type AjustesReserva = {
   closingTime: string;
   slotMinutes: number;
   minDurationMinutes: number;
+  minCancelMinutes: number;
 };
 
 // Fila unica de `app_settings` -PK booleana con `check (id)`, insertada en la
@@ -67,10 +75,12 @@ export type AjustesReserva = {
 // disponibilidadPorSede en lib/catalogo/consultas.ts.
 //
 // Si la consulta falla, esta funcion NO devuelve un valor por defecto,
-// aunque sea tentador: los cinco numeros de esta fila estan medidos arriba
-// en este mismo archivo (7, 08:00, 22:00, 30, 30) y copiarlos aca seria
-// exactamente lo que D-19 prohibe para las duraciones -una constante que se
-// separa del dato real sin que nada avise-. Si `app_settings` no responde,
+// aunque sea tentador: cinco de los SEIS numeros de esta fila estan medidos
+// arriba en este mismo archivo (7, 08:00, 22:00, 30, 30) -el sexto es el
+// margen de M-12, que nace con `default 60` en la migracion 26- y copiarlos
+// aca seria exactamente lo que D-19 prohibe para las duraciones -una
+// constante que se separa del dato real sin que nada avise-. Si
+// `app_settings` no responde,
 // toda la pantalla depende de un horario que no se pudo leer, asi que el
 // error se propaga y la pagina falla de forma visible en vez de ofrecer un
 // calendario con un horario inventado.
@@ -79,7 +89,9 @@ export async function ajustesReserva(): Promise<AjustesReserva> {
 
   const { data, error } = await supabase
     .from('app_settings')
-    .select('booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes')
+    .select(
+      'booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes, min_cancel_minutes',
+    )
     .eq('id', true)
     .single();
 
@@ -93,6 +105,7 @@ export async function ajustesReserva(): Promise<AjustesReserva> {
     closingTime: data.closing_time,
     slotMinutes: data.slot_minutes,
     minDurationMinutes: data.min_duration_minutes,
+    minCancelMinutes: data.min_cancel_minutes,
   };
 }
 

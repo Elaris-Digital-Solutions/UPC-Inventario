@@ -125,6 +125,72 @@ Playwright.
     negativo**, que es lo que las hace valer: un spec gemelo que afirmaba `46` donde se había guardado
     `45` **falló**, con `Expected "46" / Received "45"`. Un instrumento que no se ve reprobar no prueba
     nada cuando aprueba.
+16. **El plan de la Task 5 se contradice consigo mismo, y el código que dicta tiene razón.** Su tabla de
+    archivos dice que `seOfreceCancelar()` «gana el **cuarto término**» y el Step 3 manda «ampliar el
+    comentario de cabecera que hoy explica los tres términos: el cuarto es M-12». **Pero el TypeScript que
+    el propio Step 3 escribe no agrega ningún término: PARAMETRIZA el tercero.** `new Date(inicio) >
+    limite` con `margenMinutos` en 0 **es** `new Date(inicio) > ahora`, o sea D-38 exacto, así que el
+    término de M-12 subsume al de D-38 para todo margen `>= 0` y escribirlos separados evaluaría dos veces
+    la misma comparación. Se siguió el código y no la prosa, y el comentario quedó diciendo lo que la
+    función hace: **tres condiciones y cuatro decisiones**, porque la tercera carga con dos.
+17. **Y la asimetría con el SQL es correcta, no una incoherencia entre capas.** La migración 26 **sí**
+    tiene las dos comprobaciones separadas, y hace falta que las tenga: cada rama devuelve un **mensaje
+    distinto**, y `31_cancel_before_start.sql:74` afirma el texto del primero con `throws_ilike`. La
+    pantalla no devuelve ningún mensaje —sólo decide pintar o no pintar—, así que un solo término le
+    alcanza. **El motivo por el que las capas difieren está medido y escrito en las dos**, para que nadie
+    «unifique» ninguna de las dos en el futuro creyendo que arregla algo.
+18. **Las cinco pruebas heredadas reciben `0` como quinto argumento, y no `60`.** El plan no dice cuál
+    pasarles, sólo que «pasan un quinto argumento nuevo». **`0` es la única opción que conserva lo que
+    cada una probaba:** con el margen en cero el límite es `ahora`, así que las cinco siguen afirmando lo
+    mismo que antes de que la función tuviera margen. **Con `60` la prueba del borde —«inicio exactamente
+    igual a ahora: no se ofrece»— seguiría en verde pero por M-12 en vez de por D-38**, y dejaría de
+    probar lo que su propio nombre dice. Es el mismo género que ya persigue este proyecto: una prueba que
+    pasa por el motivo equivocado no protege nada.
+19. **Una TERCERA prueba nueva, que el plan no pide: el borde exacto del margen.** El plan pide dos y
+    predice **154**; con esta son **155**. Hace falta por el mismo motivo por el que ya existe la del
+    borde de D-38: la comparación es **estricta** y el motor rechaza con `v_start_at <= now() +
+    make_interval(mins => v_margen)`, o sea que **también rechaza la igualdad**. Sin ella, cambiar el `>`
+    por un `>=` dejaría la pantalla ofreciendo un botón en el único instante en que el motor lo rechaza,
+    **con las otras siete pruebas en verde**.
+20. **El Step 2 salió exactamente como se predijo por escrito, y eso es lo que lo hace valer: DOS fallos
+    de 155, no tres.** Fallaron «inicio dentro del margen» y «borde del margen», las dos que pasan `60`;
+    **la de margen `0` pasó incluso con la función vieja**, que es la demostración empírica de la
+    corrección 18. Un test que falla *bien* no es lo mismo que un test que falla: si hubiera caído alguna
+    de las cinco heredadas, o alguna de los otros diez archivos, no probaría la implementación. **Vitest
+    no hace typecheck**, y por eso el quinto argumento se ignoró en silencio y las pruebas *corrieron* en
+    vez de reventar por tipos —si hubieran reventado, las 155 habrían caído juntas y no se sabría cuáles
+    dependían del margen.
+21. **Un HECHO CADUCADO en `tarjeta-reserva.tsx`, del género de la corrección 6, y el plan no lo
+    mencionaba.** Su comentario decía «**M-12 SIGUE PENDIENTE en su OTRA mitad**: cancelar un minuto ANTES
+    de que empiece sigue sin ninguna restricción — M-12 pide una antelación mínima, y eso todavía no está
+    resuelto». **Era cierto al escribirse y esta misma tarea lo vuelve falso.** El Step 7 sólo mandaba
+    añadir un prop. Se corrigió dejando el rastro de lo que decía, no borrándolo. Y de paso su enumeración
+    «bajo TRES condiciones» necesitaba la condición 3 reescrita entera.
+22. **Y una afirmación de `consultas.ts` que NO se puede estirar, que es lo contrario de un conteo que se
+    actualiza.** Su cabecera dice que local y producción «comparten los cinco valores de `app_settings`
+    —7, 08:00, 22:00, 30, 30, **comprobados en los dos**—». Sumar ahí el sexto habría sido **falso**: la
+    migración 26 está aplicada **sólo en local**, así que en producción la columna todavía no existe. Se
+    añadió como **salvedad fechada** en vez de ampliar el número, y esa salvedad documenta justo el riesgo
+    que la tanda deja vivo hasta que la rama se empuje. **Es el reverso exacto de la corrección 12:** allá
+    había siete conteos que había que subir, acá hay uno que había que dejar quieto.
+23. **Errores de quien dicta: van 24, y los dos nuevos los cazaron los subagentes, no quien dictaba.** El
+    **23**: un control negativo pedía `grep "ahora))\|ahora)\.toBe"` sobre `agrupar.test.ts` afirmando que
+    «tiene que dar CERO líneas», y el patrón **también matchea las nueve llamadas a `grupoDeReserva()`**
+    del mismo archivo, que legítimamente tienen tres parámetros — ese comando no podía dar cero. El
+    **24**: el bloque VIEJO de la sección 4.2 capturaba sólo la línea del `Promise.all` y **no el
+    comentario de dos líneas encima**, que decía «las **dos** consultas son independientes»; aplicar la
+    especificación tal cual dejaba dos comentarios contradictorios pegados uno al otro. **Los dos salieron
+    de la misma pregunta de siempre**, y el segundo es el mismo género que la corrección 12: describir un
+    archivo sin medir su vecindad. **Y uno más que no cuenta porque se cazó antes de mandarlo:** la
+    especificación anunciaba «13 ediciones» cuando sus secciones sumaban **17 aplicaciones de Edit**.
+24. **La verificación de punta a punta de M-12 se montó AL REVÉS, y por una restricción real.** Para ver
+    el botón desaparecer haría falta una reserva que empiece dentro del margen, y **ninguna pantalla deja
+    crearla** —ni el arnés escribe directo en la base, *D-62*—. Así que en vez de acercar la reserva se
+    **agrandó el margen a 1440 desde `/admin/ajustes`**, con lo que la reserva de mañana cae dentro y el
+    botón se va. **Eso ejercita la Task 4 y la Task 5 juntas**, que es el flujo real de M-12: el admin
+    configura y el alumno lo sufre. **Y se comprobó en las DOS direcciones** —devolver el margen a 60 hace
+    volver el botón—, que es lo único que descarta que hubiera desaparecido por otro motivo: una sesión
+    perdida, la reserva movida de sección. Sin esa vuelta, la ausencia no probaría nada.
 
 ---
 
