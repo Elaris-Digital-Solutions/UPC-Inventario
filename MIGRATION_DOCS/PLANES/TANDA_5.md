@@ -81,6 +81,50 @@ Playwright.
     patrón vecino, no el gusto:** las otras dos funciones que leen esa misma tabla —`create_reservation`
     y la de `duration_slot_multiple`— ya hacen exactamente esto, con este mismo mensaje, así que la
     migración se alinea con ellas y de paso pierde el `where s.id`, que ninguna de las dos usa.
+11. **La Task 4 necesita una QUINTA RAMA en `mensajeDeRechazoAjustes()` y el plan no la pide.** Su Step 3
+    sólo manda ampliar la firma y el `.update()` de `guardarAjustes()`. Sin la rama, el `check` nuevo
+    —`app_settings_min_cancel_minutes_check`— cae al **mensaje CRUDO de Postgres**, y el admin lee en
+    pantalla `new row for relation "app_settings" violates check constraint …`. El criterio que el propio
+    archivo deja escrito es «texto propio SOLO para lo alcanzable», y **este rechazo ES alcanzable**: el
+    botón que abre el diálogo es `type="button"`, así que la validación HTML5 del `min`/`max` **no se
+    dispara** y el valor llega a la base. `limiteDiario` ya tenía texto propio con `min`/`max` en su input
+    por el mismo motivo. **Verificado en el navegador, no deducido:** con 2000 en el campo, la pantalla
+    muestra el texto traducido y no el del motor.
+12. **Los comentarios que dicen «seis» son SIETE, y el plan manda corregir UNO.** Su Step 2 sólo señala
+    «las seis columnas EDITABLES» de `lib/admin/configuracion.ts`. Medidos con `grep` antes de tocar nada,
+    los otros seis son: `acciones.ts` «los seis ajustes globales» y «SOLO SEIS COLUMNAS EN EL BODY»; y
+    `formulario-ajustes.tsx` «las seis columnas» de su cabecera, «los seis campos YA muestran», «Un solo
+    punto para las seis» y «los seis campos nacen con los valores YA GUARDADOS». **Es el mismo género que
+    la corrección 5** —un conteo del encargo que no aguanta el `grep`—, y esta vez el que contó corto no
+    fue el plan sino el briefing de la sesión, que dijo «DOS comentarios dicen seis». **Van 22 errores de
+    quien dicta.**
+13. **Y hay DOS cifras más dentro del comentario del traductor, que ningún encargo mencionaba.** Dice
+    «LOS CINCO SON `23514`» y «SOLO CUATRO llevan texto propio, y NO CINCO»: la rama nueva las vuelve
+    **SEIS** y **CINCO**. Pero al ir a corregirlas apareció algo mejor: **ese comentario ya contaba corto
+    ANTES de esta tanda.** `pg_constraint` devuelve **nueve** `check` sobre `app_settings` y el comentario
+    enumeraba cinco; la migración 24 —D-55, Q-19— añadió `app_settings_apertura_alineada` en la T4 y nadie
+    la anotó ahí. **No es un defecto de comportamiento** —`aperturaDesalineada()` la intercepta en el
+    servidor antes de llegar a la base, exactamente el mismo criterio por el que `slot_divisor` tampoco
+    lleva texto—, pero el comentario afirmaba una completitud que había dejado de tener. Se le añadieron
+    las tres que faltaban con el motivo de cada una. **El género es el de la corrección 6:** nada mal
+    escrito que un revisor cace leyendo el archivo, sólo se ve cruzándolo con lo que la base tiene hoy.
+14. **La línea nueva de esa tabla de mediciones se MIDIÓ, no se dedujo.** El comentario afirma «MEDIDO POR
+    PostgREST … con un JWT de ADMIN firmado a mano», así que añadirle una fila sin medirla habría sido
+    justo la atribución inventada que este proyecto persigue en los subagentes. Se firmó el JWT contra el
+    stack local y se hizo el PATCH: `1441` y `-1` dieron **HTTP 400 / 23514 /
+    `app_settings_min_cancel_minutes_check`**. **Y con control positivo primero**, que es lo que hace que
+    el 400 signifique algo: `90` dio **HTTP 200** con la fila de vuelta. Sin ese 200, un 400 no distingue
+    «la restricción rechazó» de «el JWT no servía y nunca llegué a la tabla». **De paso probó el `grant
+    update` de la columna nueva**, que es el modo de fallo que el Step 7 predice para el navegador.
+    Además la fecha se separó: los cinco primeros rechazos son del 2026-08-13 y el sexto del 2026-08-15,
+    porque meterlo bajo el encabezado viejo habría fechado mal una medición propia.
+15. **El Step 7 se hizo con Playwright y no a ojo, y encontró más de lo que pedía.** El plan dice entrar,
+    cambiar el margen, guardar y recargar. Se escribió un spec temporal —fuera del árbol al terminar— que
+    hace eso y además comprueba que **el resumen del diálogo enumera el campo nuevo** y que **un valor
+    fuera de rango da el texto traducido y no el del motor**. Las dos pruebas en verde. **Y con control
+    negativo**, que es lo que las hace valer: un spec gemelo que afirmaba `46` donde se había guardado
+    `45` **falló**, con `Expected "46" / Received "45"`. Un instrumento que no se ve reprobar no prueba
+    nada cuando aprueba.
 
 ---
 

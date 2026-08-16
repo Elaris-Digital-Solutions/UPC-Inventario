@@ -1,6 +1,7 @@
 "use client";
 
-// El formulario de /admin/ajustes (Task 10, D-39 y D-54): las seis columnas
+// El formulario de /admin/ajustes (Task 10, D-39 y D-54; M-12 le suma la
+// septima en la Tanda 5): las siete columnas
 // editables de app_settings, con dos avisos de naturaleza distinta -ver el
 // comentario largo de aperturaDesalineada() y de productosDesalineados() en
 // lib/admin/ajustes.ts para el porque completo de cada uno-.
@@ -71,6 +72,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   const [slotMinutos, setSlotMinutos] = useState(String(ajustes.slotMinutos));
   const [duracionMinima, setDuracionMinima] = useState(String(ajustes.duracionMinima));
   const [limiteDiario, setLimiteDiario] = useState(String(ajustes.limiteDiario));
+  const [margenCancelacion, setMargenCancelacion] = useState(String(ajustes.margenCancelacion));
 
   const [confirmando, setConfirmando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   // que decir por que, no solo copiar el patron-. En PanelDias, guardar con
   // exito hace aparecer una fila NUEVA en la lista de dias inhabilitados: el
   // cambio se VE solo, sin ningun mensaje aparte. Aca no hay ninguna lista:
-  // los seis campos YA muestran, antes de guardar, exactamente lo que el
+  // los siete campos YA muestran, antes de guardar, exactamente lo que el
   // admin acaba de escribir -son controlados y nacen con los valores
   // guardados-, asi que guardar bien y no guardar nada se ven EXACTAMENTE
   // IGUAL sin esta señal. Es el mismo genero que el fallo silencioso del
@@ -97,7 +99,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   const [guardadoOk, setGuardadoOk] = useState(false);
 
   // Wrapper de cada setter de campo: apaga la señal de exito ANTES de aplicar
-  // el cambio. Un solo punto para las seis, en vez de repetir
+  // el cambio. Un solo punto para las siete, en vez de repetir
   // `setGuardadoOk(false)` en cada `onChange`/`onValueChange`.
   function editar<T>(setter: (valor: T) => void, valor: T) {
     setGuardadoOk(false);
@@ -110,6 +112,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   const idSlot = useId();
   const idDuracion = useId();
   const idLimite = useId();
+  const idMargen = useId();
 
   const slotElegido = Number(slotMinutos);
 
@@ -140,6 +143,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
         slotMinutos: slotElegido,
         duracionMinima: Number(duracionMinima),
         limiteDiario: Number(limiteDiario),
+        margenCancelacion: Number(margenCancelacion),
       });
 
       if (resultado?.error) {
@@ -273,6 +277,24 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
               10.
             </p>
           </div>
+
+          <div>
+            <Label htmlFor={idMargen}>Antelación mínima para cancelar (minutos)</Label>
+            <Input
+              id={idMargen}
+              type="number"
+              min={0}
+              max={1440}
+              required
+              value={margenCancelacion}
+              onChange={(e) => editar(setMargenCancelacion, e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Cuánto antes de empezar deja de poder cancelarse una reserva. Entre 0 y 1440 minutos;
+              con 0 se puede cancelar hasta el momento de empezar.
+            </p>
+          </div>
         </div>
 
         <Button type="button" disabled={aperturaInvalida} onClick={() => setConfirmando(true)}>
@@ -305,7 +327,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
 
           {/* Ningun valor de aca puede estar vacio al abrirse el dialogo: el
               boton que lo abre esta deshabilitado mientras aperturaInvalida
-              sea true, y los seis campos nacen con los valores YA GUARDADOS.
+              sea true, y los siete campos nacen con los valores YA GUARDADOS.
               No hay ningun Date ni Intl.format en este bloque -al reves que
               el dialogo de PanelDias- que pudiera lanzar con un valor vacio,
               asi que no hace falta guardia. */}
@@ -326,6 +348,9 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
               </li>
               <li>
                 Límite diario por producto: <strong>{limiteDiario}</strong>.
+              </li>
+              <li>
+                Antelación mínima para cancelar: <strong>{margenCancelacion} minutos</strong>.
               </li>
             </ul>
 

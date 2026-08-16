@@ -1243,18 +1243,20 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 // criterio de siempre -texto propio SOLO para lo alcanzable, mensaje CRUDO
 // para lo demas, y lo no reconocido cae al crudo y nunca a un generico-.
 //
-// LOS CINCO SON `23514`, y se distinguen por el NOMBRE de la restriccion en
-// el `message`, nunca por el HTTP ni por el codigo -los cinco dan HTTP 400-.
-// MEDIDO POR PostgREST el 2026-08-13, con un JWT de ADMIN firmado a mano
-// contra el stack local:
+// LOS SEIS SON `23514`, y se distinguen por el NOMBRE de la restriccion en
+// el `message`, nunca por el HTTP ni por el codigo -los seis dan HTTP 400-.
+// MEDIDOS POR PostgREST con un JWT de ADMIN firmado a mano contra el stack
+// local; los cinco primeros el 2026-08-13 y el ultimo el 2026-08-15, que es
+// cuando M-12 trajo la columna:
 //
 //   slot_minutes: 45            -> constraint "app_settings_slot_divisor"
 //   booking_window_days: 61     -> constraint "app_settings_booking_window_days_check"
 //   closing_time <= opening_time-> constraint "app_settings_horario"
 //   min_duration_minutes: 4     -> constraint "app_settings_min_duration_minutes_check"
 //   daily_limit_per_product: 11 -> constraint "app_settings_daily_limit_per_product_check"
+//   min_cancel_minutes: 1441    -> constraint "app_settings_min_cancel_minutes_check"
 //
-// SOLO CUATRO llevan texto propio, y NO CINCO, y hay que decir por que:
+// SOLO CINCO llevan texto propio, y NO SEIS, y hay que decir por que:
 // `app_settings_slot_divisor` NO ES ALCANZABLE desde esta pantalla. El Step 1
 // de la Task 10 ofrece `slot_minutes` como un DESPLEGABLE de los ocho valores
 // legales -5, 6, 10, 12, 15, 20, 30, 60-, no como un campo libre de 5 a 60:
@@ -1263,6 +1265,17 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 // sin nadie que lo leyera nunca. Si algun dia el desplegable se reemplazara
 // por un campo libre, este rechazo volveria a ser alcanzable y caeria al
 // mensaje CRUDO hasta que alguien le escriba el suyo.
+//
+// Y `pg_constraint` ENUMERA MAS `check` SOBRE ESTA TABLA QUE LOS SEIS DE
+// ARRIBA -nueve al 2026-08-15, medidos-, lo cual NO es un olvido: los otros
+// tres no llegan a la base desde esta pantalla. `app_settings_singleton`
+// cubre `id`, que nunca va en el body. `app_settings_slot_minutes_check` lo
+// tapa el mismo desplegable que tapa a `slot_divisor`. Y
+// `app_settings_apertura_alineada` -migracion 24, D-55- la intercepta
+// aperturaDesalineada() unas lineas mas abajo, que corre en el SERVIDOR y
+// contesta con su propio mensaje sin llegar a tocar la base. El criterio es
+// el mismo de siempre: se traduce lo alcanzable, y lo que tiene una barrera
+// delante no lo es.
 function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
   if (mensajeDelMotor.includes('app_settings_booking_window_days_check')) {
     return 'La ventana de reserva tiene que ser de entre 1 y 60 días.';
@@ -1280,10 +1293,15 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
     return 'El límite diario por producto tiene que ser de entre 1 y 10.';
   }
 
+  if (mensajeDelMotor.includes('app_settings_min_cancel_minutes_check')) {
+    return 'La antelación mínima para cancelar tiene que ser de entre 0 y 1440 minutos.';
+  }
+
   return mensajeDelMotor;
 }
 
-// Edicion de los seis ajustes globales de reserva (D-39/Q-14 y D-54/Q-19).
+// Edicion de los siete ajustes globales de reserva (D-39/Q-14, D-54/Q-19 y
+// M-12/D-70, que trae el septimo).
 //
 // D-54 PRIMERO, ANTES DE TOCAR LA BASE: barrera de SERVIDOR, mismo criterio
 // que la fecha pasada en inhabilitarDia() -la pantalla ya hace esta misma
@@ -1295,7 +1313,7 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
 // desalineada deja el CALENDARIO ENTERO irreservable sin ningun aviso visible
 // desde ninguna pantalla -medido el 2026-08-13-.
 //
-// SOLO SEIS COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
+// SOLO SIETE COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
 // 403 con 42501 "permission denied for table app_settings", medido el
 // 2026-08-13 -ninguna de las dos se concede a nadie, y `updated_at` la mueve
 // sola el trigger `trg_app_settings_updated_at`-.
@@ -1320,6 +1338,7 @@ export async function guardarAjustes(ajustes: {
   slotMinutos: number;
   duracionMinima: number;
   limiteDiario: number;
+  margenCancelacion: number;
 }): Promise<ResultadoAdmin> {
   if (aperturaDesalineada(ajustes.apertura, ajustes.slotMinutos)) {
     return {
@@ -1338,6 +1357,7 @@ export async function guardarAjustes(ajustes: {
       slot_minutes: ajustes.slotMinutos,
       min_duration_minutes: ajustes.duracionMinima,
       daily_limit_per_product: ajustes.limiteDiario,
+      min_cancel_minutes: ajustes.margenCancelacion,
     })
     .eq('id', true)
     .select();

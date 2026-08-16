@@ -32,6 +32,7 @@ export type AjustesAdmin = {
   slotMinutos: number; // `slot_minutes`
   duracionMinima: number; // `min_duration_minutes`
   limiteDiario: number; // `daily_limit_per_product`
+  margenCancelacion: number; // `min_cancel_minutes`, M-12
 };
 
 // La forma medida de la fila que devuelve el `select` de abajo -mismo
@@ -45,6 +46,7 @@ type FilaAjustesCruda = {
   slot_minutes: number;
   min_duration_minutes: number;
   daily_limit_per_product: number;
+  min_cancel_minutes: number;
 };
 
 function filaAAjustes(fila: FilaAjustesCruda): AjustesAdmin {
@@ -55,10 +57,11 @@ function filaAAjustes(fila: FilaAjustesCruda): AjustesAdmin {
     slotMinutos: fila.slot_minutes,
     duracionMinima: fila.min_duration_minutes,
     limiteDiario: fila.daily_limit_per_product,
+    margenCancelacion: fila.min_cancel_minutes,
   };
 }
 
-// Las seis columnas EDITABLES de la fila unica de `app_settings` -ni `id` ni
+// Las siete columnas EDITABLES de la fila unica de `app_settings` -ni `id` ni
 // `updated_at`, que no se conceden a nadie: mandarlas en un PATCH da HTTP 403
 // con 42501, medido el 2026-08-13-. `.eq('id', true).single()`, mismo filtro
 // que ajustesReserva() en lib/reservas/consultas.ts: la fila es unica -PK
@@ -76,7 +79,7 @@ export async function leerAjustes(): Promise<AjustesAdmin> {
   const { data, error } = await supabase
     .from('app_settings')
     .select(
-      'booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes, daily_limit_per_product',
+      'booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes, daily_limit_per_product, min_cancel_minutes',
     )
     .eq('id', true)
     .single();
