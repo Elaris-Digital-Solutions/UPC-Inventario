@@ -55,6 +55,10 @@ desviaciones**, con su motivo.
 - **D-32** — el dominio se cierra en el enganche, no en la app. Es la migración 22.
 - **D-63** — el E2E va en workflow propio y no como paso de `ci.yml`.
 - **D-66** — la protección de contraseñas filtradas se cierra por producto: no hay contraseñas.
+- **D-74** — la disponibilidad que ve el alumno sale de los **turnos del operador**, no de un horario global.
+- **D-78** — «solo Facultad de Ingeniería, CC e ISW» es **texto del FAQ**, no una regla del sistema. Se
+  verifica con el TIU en el mostrador. No implementarla en código.
+- **D-82** — `products.description` **empaqueta tres datos** y se desempaqueta en la F3-T1.
 
 ## Trampas medidas en este proyecto
 
@@ -71,6 +75,7 @@ desviaciones**, con su motivo.
 4. **Supabase hiberna.** Si un comando contra el remoto falla, reintentar antes de diagnosticar.
 5. **`db reset` exige el stack completo:** falla si se arrancó con `-x`. Y **Docker Desktop tiene que estar
    arrancado** para `supabase db pull` y `supabase start`.
+6. ⚠ **`products.description` no es una descripción: son tres campos en uno**, `Lab: <salón> | <especificación> | Obs: <estado>`, en **34 de 34**. El tercero es información de estado del equipo, o sea **lo mismo que la migración 25 hizo privado del personal** *(D-69)*, publicado a cualquier alumno. Se desempaqueta en la F3-T1 *(D-82)*. **Hasta entonces, nada que muestre esa columna es seguro de ampliar.**
 
 ## Cómo se levanta y cómo se prueba
 
