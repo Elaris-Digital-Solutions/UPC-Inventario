@@ -41,8 +41,10 @@ los reales.
 | Productos con **exactamente una** imagen principal | **34** |
 | Longitud de la `description` | de **20** a **242** caracteres |
 | `description` que empieza por `Lab: ` | **34 de 34** |
-| …con **solo** el salón y el tipo | **12** |
-| …con además especificación técnica y observación de estado | **22** |
+| …con la forma `Lab \| especificación \| Obs` | **16** |
+| …con la forma `Lab \| algo`, sin observación | **16** |
+| …con la forma `Lab \| Obs`, **sin especificación ninguna** | **2** |
+| Partes separadas por ` \| ` | mínimo **2**, máximo **3**. Ninguna con más |
 | Salones distintos | **2** |
 | Productos en San Miguel · sus unidades | **18** · 46 |
 | Productos en Monterrico · sus unidades | **16** · 46 |
@@ -74,8 +76,26 @@ Y **los tres van a sitios distintos**:
 > Esto **cambia lo que es la T1**: deja de ser una tanda de texto y pasa a cerrar una fuga. Sigue yendo
 > primera, y ahora con más motivo.
 
-**Y el «solo tienen el nombre» del cliente son los 12** que no llevan más que el salón y el tipo. Los otros
-22 ya tienen especificación: no hay que escribirla, hay que desempaquetarla.
+**Y el «solo tienen el nombre» del cliente son 16 productos**, contados por lo que les queda al
+desempaquetar y no por la longitud del campo entero:
+
+| Al desempaquetar queda | Productos |
+|---|---|
+| Una especificación de **más de 12 caracteres** | **18** |
+| Un trozo de **12 caracteres o menos** —`IPAD`, `MOVIL`, `TABLET`: un tipo, no una descripción— | **14** |
+| **Nada**: son los dos `Lab \| Obs` sin especificación | **2** |
+
+**Los 18 no hay que escribirlos, hay que desempaquetarlos.** Los otros **16** son Q-23. El corte de los 12
+caracteres **es un umbral elegido, no una propiedad medida**: lo comprobable es que 2 quedan vacíos; que
+`IPAD` no sea una descripción lo decide quien lea la ficha.
+
+> ⚠ **Corregido el 2026-08-18, el mismo día, al preparar el plan de la F3-T1.** Este documento decía
+> **«12 que solo llevan salón y tipo»** y **«22 que ya tienen especificación»**. Salía de cortar por la
+> **longitud del campo entero** —12 filas de 30 caracteres o menos— y no por su **estructura**, que es lo
+> que el desempaquetado necesita. Los dos cortes no coinciden. **Y la diferencia no era cosmética: sin
+> medir la estructura no se ven los 2 productos con forma `Lab \| Obs`**, a los que un `split` de dos
+> partes les habría dejado la observación **como descripción pública** — publicando exactamente lo que
+> D-82 existe para esconder. **El número estaba mal y la SQL que salía de él, peor.**
 
 > ⚠ **Dos instrumentos mintieron al medir esto, y se dejan escritos los dos.**
 >
@@ -294,10 +314,28 @@ mismo criterio por el que la fila de `app_settings` se insertó en su migración
 **El desempaquetado de las 34 descripciones** *(D-82)*, que es el trabajo de verdad de esta tanda:
 
 1. El trozo `Lab: …` se tira, porque el salón pasa a salir de la sede.
-2. El trozo del medio —especificación y orden de compra— se queda en `products.description`. **De los 34,
-   22 ya lo tienen**; los **12** que no, son los que el cliente tiene que escribir *(Q-23)*.
+2. El trozo del medio —especificación y orden de compra— se queda en `products.description`. **18 quedan
+   con texto sustancial**; los otros **16** son Q-23.
 3. El trozo `Obs: …` **se mueve a `inventory_unit_notes`**, que es privado del personal desde la
    migración 25.
+
+**Y hay tres formas, no dos, que es lo que decide la SQL:**
+
+| Forma | Productos | Qué hacer |
+|---|---|---|
+| `Lab \| especificación \| Obs` | **16** | La parte 2 se queda; la 3 se muda |
+| `Lab \| algo` | **16** | La parte 2 se queda; no hay nada que mudar |
+| `Lab \| Obs` | **2** | ⚠ La parte 2 **se muda**, y la descripción queda **vacía** |
+
+**La tercera forma es la trampa.** Un `split_part(description, ' \| ', 2)` aplicado a ciegas le deja a esos
+dos productos `Obs: …` **como descripción pública**. La condición no es la posición sino el prefijo: **lo
+que empieza por `Obs: ` se muda, esté en la parte 2 o en la 3.**
+
+> **La nota se escribe en cada unidad del producto, no una vez.** `inventory_unit_notes` cuelga de
+> `unit_id` y la observación venía del producto, así que la misma frase va a las **92 unidades** de los
+> productos que la tengan. Es lo que dice el dato: la observación describe el lote, no un ejemplar.
+> `created_by` queda **`NULL`** —su `default` es `auth.uid()`, que en una migración no es nadie— y eso es
+> honesto: no lo escribió ninguna persona, salió de una hoja de cálculo.
 
 **El orden importa y no es reversible al revés:** primero se copian las observaciones a su tabla, se
 comprueba que llegaron, y solo entonces se recorta la columna. Al revés se pierde el texto.
@@ -382,7 +420,8 @@ Lo de siempre, y sin excepciones nuevas:
 | Riesgo | Qué lo contiene |
 |---|---|
 | **T4 despliega y el calendario queda vacío** | T2 va antes y da de alta operadores reales. Y D-76 hace que la pantalla diga cuál de los dos vacíos es |
-| **Las 12 descripciones que faltan no llegan** | T1 desempaqueta las 22 que ya existen y entrega el campo y la pantalla igual. Las 12 son Q-23 y no bloquean la tanda |
+| **Las 16 descripciones que faltan no llegan** | T1 desempaqueta las 18 que ya existen y entrega el campo y la pantalla igual. Las 16 son Q-23 y no bloquean la tanda |
+| **El desempaquetado publica una observación** | La condición es el prefijo `Obs: `, **no la posición**. Los 2 productos con forma `Lab \| Obs` son el caso que lo distingue, y la prueba pgTAP los cubre por nombre |
 | **El desempaquetado pierde las observaciones** | Se copian a `inventory_unit_notes` **antes** de recortar la columna, y se cuenta que llegaron. Nunca al revés |
 | **T4 crece** | Es la candidata a partirse, como la T2 y la T3 de la Fase 2. Se decide **escribiendo su plan**, no a mitad de ejecutarlo. El corte natural: la migración y las RPC por un lado, las pantallas de administración por otro |
 | **La CSP y el service worker** | T5 va sola, y su verificación es la de la T4 de la Fase 2 repetida entera |
@@ -396,7 +435,7 @@ Lo de siempre, y sin excepciones nuevas:
 |---|---|
 | **Q-21** | ¿Qué pasa con una reserva ya creada si después se borra o se acorta el turno que la cubría? Las RPC validan al crear, no al llegar el día: hoy la reserva sobreviviría en silencio |
 | **Q-22** | `disabled_days` **no tiene `campus_id`**: un día inhabilitado lo está en las dos sedes. Con horarios por sede, ¿debería poder inhabilitarse una sola? |
-| **Q-23** | Las descripciones de los **12** productos que solo llevan salón y tipo las tiene que dar el cliente. Los otros 22 salen del desempaquetado *(D-82)* |
+| **Q-23** | Las descripciones de **16** productos las tiene que dar el cliente: **2** quedan vacíos al desempaquetar y **14** quedan con 12 caracteres o menos —`IPAD`, `MOVIL`—. Los otros **18** salen del desempaquetado *(D-82)*. **El umbral de los 12 caracteres es elegido, no medido**: lo comprobable son los 2 vacíos |
 | **Q-24** | El número de orden de compra —`O.C 115965`— se queda en la descripción pública al desempaquetar. ¿Es aceptable, o merece un cuarto destino? |
 
 ---

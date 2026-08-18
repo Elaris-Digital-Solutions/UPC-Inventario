@@ -28,7 +28,23 @@ y qué comando la verifica.
 | [`FASE_2_TANDA_2B.md`](./FASE_2_TANDA_2B.md) | El alumno que reserva: el calendario, la reserva, la sanción, `/mi-panel`, la cancelación y la encuesta | ✅ **ejecutado y mergeado el 2026-08-11** (PR #27) · **57 correcciones al plan** · estrena Vitest |
 | [`FASE_2_TANDA_3A.md`](./FASE_2_TANDA_3A.md) | El mostrador: entregar, recibir, las dos faltas con sanción real, anotaciones de unidad. **Y la migración 23** *(D-38)* | ✅ **ejecutado y mergeado el 2026-08-12** (PR #29) · correcciones al plan por tarea, sin total declarado · **cierra Q-17**, abre Q-18 |
 | [`FASE_2_TANDA_3B.md`](./FASE_2_TANDA_3B.md) | La administración: inventario en tres URL, imágenes con firma de servidor, reservas, días, estadísticas, personal y ajustes | ✅ **ejecutado y mergeado el 2026-08-13** (PR #30) · **145 correcciones al plan** · **cierra P0-4 y Q-14**, abre Q-19 |
-| [`FASE_2_TANDA_4.md`](./FASE_2_TANDA_4.md) | El endurecimiento: cabeceras con CSP por nonce, E2E de Playwright, lint y auditoría bloqueantes, Q-13, y la migración 24 *(Q-19)* | 📝 escrito el 2026-08-13 · **D-55 a D-58** · 10 tareas · 10 puntos a verificar · **en ejecución** |
+| [`FASE_2_TANDA_4.md`](./FASE_2_TANDA_4.md) | El endurecimiento: cabeceras con CSP por nonce, E2E de Playwright, lint y auditoría bloqueantes, Q-13, y la migración 24 *(Q-19)* | ~~📝 escrito el 2026-08-13 · **en ejecución**~~ ⚠ **Corregido el 2026-08-18:** ✅ **ejecutado y mergeado el 2026-08-15** (PR #33) · **D-55 a D-68** · **cierra Q-10, Q-13 y Q-19, y con ella la Fase 2 entera** |
+
+### Después de la Fase 2, antes de la Fase 3
+
+| Plan | Tanda | Estado |
+|---|---|---|
+| [`TANDA_5.md`](./TANDA_5.md) | Los dos pendientes que exigían SQL: Q-18 *(notas privadas)* y M-12 *(margen de cancelación)*. Migraciones 25 y 26 | ✅ **ejecutada y EN PRODUCCIÓN el 2026-08-16** (PR #34) · **D-69 a D-72** · **cierra Q-18 y M-12**, abre Q-20 |
+
+> **Su fila de bitácora decía que «no abre una Fase 3»**, y era cierto al escribirlo. Lo desmintió una
+> petición del cliente el 2026-08-18, no el despliegue. Por eso las tandas de abajo llevan prefijo `F3-`:
+> ya hay una «tanda 5» y no es de esa fase.
+
+### Fase 3 · Los cambios acordados con el cliente
+
+| Plan | Tanda | Estado |
+|---|---|---|
+| [`FASE_3_TANDA_1.md`](./FASE_3_TANDA_1.md) | FAQ, salones y fichas: el salón pasa a la sede *(D-77)*, **se desempaqueta `products.description`** *(D-82)*, el FAQ gana la facultad y el TIU *(D-78)*, y el formulario se muda a la primera reserva *(D-79)*. Migraciones 27, 28 y 29 | 📝 escrito el 2026-08-18 · **7 correcciones al diseño antes de ejecutar** · 8 tareas · 53 pasos · 3 puntos a verificar · **sin empezar** |
 
 ## Cómo leerlos
 
