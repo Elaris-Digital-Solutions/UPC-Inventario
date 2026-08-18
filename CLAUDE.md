@@ -22,17 +22,23 @@ desviaciones**, con su motivo.
 
 ## Reglas de negocio
 
-*No se deducen del código. ⚠ Redactadas el 2026-08-18 a partir de los documentos del proyecto y **pendientes
-de que Alejandro las confirme o las complete**.*
+**Las veinte están escritas y numeradas** en [`MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md`](./MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md)
+**§6**, como `BR-01` a `BR-20`. **Aquí no se copian** — una tercera copia diverge.
 
-- **Solo entran correos `@upc.edu.pe`.** Se rechaza en el enganche *Before User Created*, un paso antes del
-  registro, y no en la aplicación.
-- **No hay contraseñas: se entra solo por magic link**, porque el cliente lo pidió así. De ahí que
+> ⚠ **Ese documento es un retrato fechado del sistema React/Vite que se borró**, no de la app actual. Cuatro
+> de sus reglas fueron reemplazadas y **la tabla de §6 no lo dice**: `BR-03` *(admin hardcodeado)* → **D-2**,
+> dos roles con cuenta propia; `BR-10` *(ventana semanal)* → **D-3**, ventana móvil de 7 días validada en la
+> base; `BR-06` *(1 a 4 horas)* → **D-1**, máxima por producto; y `BR-01` se cierra ahora en el enganche y no
+> en el cliente *(**D-32**)*.
+
+**Lo que tiene que estar delante en cada sesión, porque es caro si se pasa por alto:**
+
+- **Solo entran correos `@upc.edu.pe`**, y se cierra **en el enganche, no en la app**.
+- **No hay contraseñas: se entra sólo por magic link**, porque lo pidió el cliente. De ahí que
   `auth_leaked_password_protection` quede desactivado **por producto y no por descuido**.
-- **La autorización vive en la base**, no en la aplicación: RLS en las 13 tablas, y cada RPC comprueba la
-  autorización por dentro. Las seis que `authenticated` puede ejecutar son el diseño entero, no un agujero.
-- **Una reserva se crea por una RPC única**, con anti-solape por `EXCLUDE`, máquina de estados y sanciones.
-  No se insertan filas de reserva a mano.
+- **La autorización vive en la base.** Ninguna queda en el cliente.
+- ⚠ **La baja de personal es desactivar, NUNCA borrar** — borrar pierde la constancia de que esa persona fue
+  personal y con qué rol. Y **nadie puede cambiarse el rol a sí mismo**.
 
 ## Qué hace este proyecto distinto del global
 
