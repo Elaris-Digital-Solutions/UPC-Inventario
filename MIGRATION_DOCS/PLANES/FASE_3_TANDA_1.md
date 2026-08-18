@@ -1343,3 +1343,30 @@ expectativa en silencio.
    tarea no se aplica sola a las demás. El plan avisaba de que el seed corre después de las migraciones y
    yo lo usé solo para diseñar la Tarea 2, que es donde lo había descubierto. La regla de releer las
    correcciones **antes de cada tarea, no al final de la tanda**, existe exactamente para esto.
+
+2. **`unlike()` no existe en pgTAP.** El plan la usaba en la prueba 36. Medido al ejecutar:
+   `function unlike(text, unknown, unknown) does not exist`. Las de patrón `LIKE` son **`alike` /
+   `unalike`**; las de expresión regular, `matches` / `doesnt_match`. Se cambia por `unalike`.
+   **Tres aserciones habían pasado antes de llegar a ella**, así que el fallo no era del SQL de la
+   migración: era del instrumento que lo medía.
+
+3. ⚠ **«No conceder» no es lo mismo que «nadie puede»: Postgres concede `EXECUTE` a `PUBLIC` en toda
+   función nueva.** El plan decía «sin grant para nadie», y eso **no cierra nada** — `private` tiene
+   `grant usage ... to authenticated`, así que la función habría quedado ejecutable por cualquiera con
+   sesión. Se añade `revoke all on function ... from public`, que es lo mismo que ya hicieron
+   `revoke_blanket_grants.sql` y `revoke_trigger_functions.sql`.
+
+   **Verificado por el efecto y con control positivo**, no leyendo la migración:
+   `has_function_privilege` da **`false`** para `authenticated` y para `anon` sobre la función, y **`true`**
+   para `authenticated` sobre `create_reservation` — sin ese `true`, el `false` no distinguiría «revocado»
+   de «la sonda pregunta mal».
+
+   Se decidió además **no** hacerla `security definer`, al revés que los helpers de `private`: solo la
+   llaman la migración y la prueba, las dos como `postgres`, y sin `definer` una ejecución inesperada
+   correría con los privilegios de quien llama y RLS la pararía.
+
+4. **La prueba 36 pasa de 7 aserciones a 8.** Las siete del plan miran las tres filas de fixture y
+   **ninguna comprueba que la función deje en paz lo que no tiene la forma `Lab: `**. Una función sin
+   `where` —o con uno mal escrito— arrasaría el catálogo entero y **las siete seguirían en verde**, porque
+   ninguna mira una fila ajena. La octava afirma que `'Camara full frame sin espejo, 24 MP'` queda intacta.
+   Por eso el recuento de la Tarea 2 sale en **171 y no en 170**.
