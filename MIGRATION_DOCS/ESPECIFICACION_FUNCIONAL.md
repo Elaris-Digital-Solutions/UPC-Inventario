@@ -2,7 +2,9 @@
 
 > Levantada por ingeniería inversa del proyecto React/Vite el **2026-08-04**, para reconstruir en Next.js.
 > Fuente: código en `src/`, SQL en `supabase/`, y esquema del proyecto Supabase canónico `zqfkzgdyeqxzgzpxgadi`.
-> **Este documento describe lo que el sistema hace hoy, no lo que debería hacer.** Las mejoras van en la sección 9.
+> ~~**Este documento describe lo que el sistema hace hoy, no lo que debería hacer.**~~ Las mejoras van en la sección 9.
+>
+> ⚠ **Corregido el 2026-08-18: «hoy» era el 2026-08-04.** El árbol React/Vite **se borró el 2026-08-06**, así que esto describe **el sistema de origen** y no la aplicación actual. **Las rutas de archivo de §5 y la columna «Dónde vive hoy» de §6 apuntan a código que ya no existe, y eso es correcto: son un retrato fechado.** Lo que cambió es qué significa «hoy». *No se reescribe: se marca donde miente sobre el presente.*
 
 ---
 
@@ -16,10 +18,11 @@ equipo por franja horaria en una sede; el personal administrativo entrega, recib
 | Actor | Identificación | Alcance |
 |---|---|---|
 | **Alumno** | Correo `@upc.edu.pe` + fila en `alumnos` | Catálogo, reservar, cancelar, ver su panel, responder encuesta |
-| **Administrador** | Correo único `admin@upc.edu.pe` | Todo lo del alumno + inventario, verificación, reservas, días inhabilitados, estadísticas |
+| **Administrador** ⚠ | ~~Correo único `admin@upc.edu.pe`~~ **Reemplazado por D-2**: dos roles, `admin` y `operator`, en `staff_members`, **cada uno con su cuenta** | Todo lo del alumno + inventario, verificación, reservas, días inhabilitados, estadísticas |
 | **Anónimo** | — | Landing, FAQ, login, registro |
 
-> Hoy no existe un rol intermedio (operador de laboratorio). Todo el personal comparte una sola cuenta.
+> ~~Hoy no existe un rol intermedio (operador de laboratorio). Todo el personal comparte una sola cuenta.~~
+> ⚠ **Cierto el 2026-08-04, falso desde D-2** *(§8-bis)*: **el rol de operador existe** y **la cuenta compartida se eliminó**.
 
 ## 3. Mapa de pantallas
 
@@ -288,16 +291,16 @@ que no le deja reservar.
 
 | ID | Regla | Dónde vive hoy |
 |---|---|---|
-| BR-01 | Solo correos `@upc.edu.pe` | Cliente + RPC |
+| BR-01 ⚠ | Solo correos `@upc.edu.pe` | ~~Cliente + RPC~~ **Enganche *Before User Created*** *(D-32)*: se cierra un paso antes del registro |
 | BR-02 | Solo alumnos registrados y activos pueden iniciar sesión | Cliente |
-| BR-03 | Admin = `admin@upc.edu.pe` | Cliente (hardcodeado) |
+| BR-03 ⚠ | ~~Admin = `admin@upc.edu.pe`~~ **Reemplazada por D-2**: dos roles con cuenta propia y trazabilidad | ~~Cliente (hardcodeado)~~ **`staff_members` + RLS** |
 | BR-04 | Sedes válidas: Monterrico, San Miguel | Cliente + RPC (hardcodeado) |
 | BR-05 | Atención de 08:00 a 22:00, franjas de 30 min | Cliente |
-| BR-06 | Duración de 1 a 4 horas | Cliente + RPC |
+| BR-06 ⚠ | ~~Duración de 1 a 4 horas~~ **Reemplazada por D-1**: la máxima es **por producto** *(`products.max_duration_hours`, 1 a 8)* | RPC, contra el valor del producto |
 | BR-07 | Duración mínima 15 minutos | RPC |
 | BR-08 | Buffer de 2 horas entre reservas de la misma unidad | Cliente + RPC |
 | BR-09 | Una reserva por producto por alumno por día (`America/Lima`) | RPC |
-| BR-10 | Ventana semanal: hasta el domingo; los domingos abre la semana siguiente | Cliente |
+| BR-10 ⚠ | ~~Ventana semanal: hasta el domingo~~ **Reemplazada por D-3**: ventana **móvil de 7 días** | ~~Cliente~~ **Validada en la base**, no sólo en el calendario |
 | BR-11 | Días inhabilitados bloquean el calendario y cancelan reservas existentes | Cliente |
 | BR-12 | Asignación automática de unidad por rotación justa (la menos usada primero) | RPC |
 | BR-13 | No se ofrecen franjas ya pasadas | Cliente |
