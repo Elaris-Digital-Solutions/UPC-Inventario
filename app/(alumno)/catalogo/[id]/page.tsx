@@ -11,7 +11,11 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { detalleProducto, disponibilidadPorSede } from "@/lib/catalogo/consultas";
+import {
+  detalleProducto,
+  disponibilidadPorSede,
+  sedesActivas,
+} from "@/lib/catalogo/consultas";
 
 // Next.js 16: `params` llega como Promise y hay que esperarla antes de leer
 // `id`. Escribirlo como un objeto sincrono -como en versiones anteriores de
@@ -44,6 +48,13 @@ export default async function DetalleProductoPage({
   }
 
   const sedes = await disponibilidadPorSede(producto.id);
+
+  // D-77: el salon de devolucion vive en `campuses`, y `disponibilidadPorSede`
+  // sale de la VISTA `product_availability`, que no lo trae ni lo va a traer
+  // sin tocar la vista. Se pide aparte a `sedesActivas()` -que si consulta
+  // campuses- y se casa por id.
+  const activas = await sedesActivas();
+  const salonPorSede = new Map(activas.map((s) => [s.id, s.salonDevolucion]));
 
   return (
     <main className="container flex-1 py-12">
@@ -131,6 +142,15 @@ export default async function DetalleProductoPage({
                   <li key={sede.campusId}>
                     {sede.campusName}:{" "}
                     {sede.unidades === 1 ? "1 unidad" : `${sede.unidades} unidades`}
+                    {/* D-77. El condicional no es defensivo por costumbre: la
+                        columna es nullable a proposito, asi que una sede sin
+                        salon es un estado valido y no un error. */}
+                    {salonPorSede.get(sede.campusId) ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · se devuelve en {salonPorSede.get(sede.campusId)}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
