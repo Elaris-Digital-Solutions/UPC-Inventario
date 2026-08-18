@@ -1326,4 +1326,20 @@ expectativa en silencio.
 
 *(Se rellena al ejecutar. Si al terminar está vacía, es que no se miró.)*
 
-1. …
+1. ⚠ **La Tarea 1 no podía pasar en local, y el motivo estaba escrito en la corrección 1 de este mismo
+   plan sin que yo lo aplicara a esa tarea.** `db reset` aplica las migraciones y **después** corre
+   `seed.sql`, así que cuando el `update ... where name = 'San Miguel'` de la migración 27 se ejecuta,
+   `campuses` está **vacía**: no toca ni una fila. Medido por el efecto y no deducido — tras el reset, las
+   dos sedes salían con `salon_devolucion` en `NULL`, y la prueba 35 pasaba su aserción 1 —la columna
+   existe— y fallaba las tres de valores.
+
+   **En producción la migración sí funciona**, porque allí las dos sedes existen desde antes. El arreglo
+   es que `seed.sql` siembre la columna con los valores reales, y **la consecuencia se dice en vez de
+   disimularse: en local el dato lo pone el seed, así que el `UPDATE` de la migración NO queda verificado
+   por `35_salon_devolucion.sql`.** Se verifica contra producción, en el **paso 9 de la Tarea 7**, que ya
+   lo contempla con `sedes_con_salon = 2`.
+
+   **Lo que enseña, y vale para las tres migraciones de esta tanda:** una corrección anotada para una
+   tarea no se aplica sola a las demás. El plan avisaba de que el seed corre después de las migraciones y
+   yo lo usé solo para diseñar la Tarea 2, que es donde lo había descubierto. La regla de releer las
+   correcciones **antes de cada tarea, no al final de la tanda**, existe exactamente para esto.

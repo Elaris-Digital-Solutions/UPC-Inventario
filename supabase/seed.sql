@@ -20,9 +20,23 @@
 create extension if not exists pgtap with schema extensions;
 
 
-insert into public.campuses (id, name, address, activo) values
-  ('cccccccc-0000-0000-0000-000000000001', 'Monterrico', 'Av. Primavera 2390, Santiago de Surco', true),
-  ('cccccccc-0000-0000-0000-000000000002', 'San Miguel', 'Av. Alameda San Marcos cuadra 2, San Miguel', true);
+-- D-77: salon_devolucion se siembra AQUI ademas de actualizarse en la migracion
+-- 27, y no es una duplicacion por descuido.
+--
+-- El motivo es el orden de `db reset`: aplica las migraciones y DESPUES corre
+-- este archivo. Cuando el UPDATE de la migracion se ejecuta, campuses esta
+-- VACIA en local, asi que no toca ni una fila. En produccion si funciona,
+-- porque alli las dos sedes existen desde antes.
+--
+-- Consecuencia que se dice en vez de disimularse: en local esta columna la
+-- llena el seed, y el UPDATE de la migracion NO queda verificado por
+-- 35_salon_devolucion.sql. Se verifica contra produccion, en el paso 9 de la
+-- ultima tarea del plan de la F3-T1.
+--
+-- Los valores son los reales, medidos en produccion el 2026-08-18.
+insert into public.campuses (id, name, address, activo, salon_devolucion) values
+  ('cccccccc-0000-0000-0000-000000000001', 'Monterrico', 'Av. Primavera 2390, Santiago de Surco', true, 'MO-UH40'),
+  ('cccccccc-0000-0000-0000-000000000002', 'San Miguel', 'Av. Alameda San Marcos cuadra 2, San Miguel', true, 'SM-SB608');
 
 
 insert into public.carreras (id, nombre, codigo, activa) values
