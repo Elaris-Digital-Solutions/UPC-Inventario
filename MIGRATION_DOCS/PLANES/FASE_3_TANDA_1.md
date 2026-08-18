@@ -1189,7 +1189,18 @@ git commit -m "feat(perfil): los datos se piden en la primera reserva, no al ent
 >
 > **La de Vitest es la única estimada y no calculada**, así que es la candidata a fallar.
 
-- [ ] **Paso 1: los cuatro comandos, sobre el árbol entero**
+> **Medido el 2026-08-18 al ejecutar esta tarea.** Cuatro de las cinco filas salieron exactas y **la que
+> falló no fue la señalada**: las aserciones pgTAP dieron **176** y no 175 *(corrección 12)*. La de Vitest,
+> la única marcada como candidata, acertó. **Predecir cuál va a fallar es una predicción más, y también se
+> comprueba.**
+>
+> ⚠ **Las casillas de las Tareas 0 a 6 quedaron sin marcar al ejecutarlas, y no se marcan ahora**: nadie
+> las fue tachando y rellenarlas a posteriori sería reconstruir de memoria lo que ya cuentan **los seis
+> commits y la bitácora**. Aquí sólo se marcan los pasos que ejecutó esta sesión. **Los pasos 7, 8 y 9
+> los corre Alejandro** —publicar, `db push` y la verificación contra producción—, así que se quedan sin
+> marcar hasta entonces.
+
+- [x] **Paso 1: los cuatro comandos, sobre el árbol entero**
 
 ```powershell
 npm run lint
@@ -1207,7 +1218,7 @@ npm test
 npm run build
 ```
 
-- [ ] **Paso 2: la base desde cero**
+- [x] **Paso 2: la base desde cero**
 
 ```powershell
 npx supabase db reset
@@ -1219,7 +1230,7 @@ npx supabase test db
 
 **Comparar con la predicción de arriba y anotar las diferencias**, no corregir la predicción.
 
-- [ ] **Paso 3: el E2E, porque la Tarea 6 cambió la navegación**
+- [x] **Paso 3: el E2E, porque la Tarea 6 cambió la navegación**
 
 ```powershell
 npm run test:e2e
@@ -1229,7 +1240,7 @@ npm run test:e2e
 aquí**. Y recordar lo que costó la Fase 2: **detener la tarea de fondo no mata `next start`**, y con
 `reuseExistingServer: false` eso da un rojo que no dice nada del código.
 
-- [ ] **Paso 4: la comprobación que ninguna herramienta hace — que la fuga se cerró**
+- [x] **Paso 4: la comprobación que ninguna herramienta hace — que la fuga se cerró**
 
 Con `npm run dev` levantado y sesión de **alumno**, en la consola del navegador:
 
@@ -1245,7 +1256,7 @@ await (await fetch('/catalogo')).text().then(t => t.match(/Obs:|falta bateria|O\
 > tiene que estar, por ejemplo el nombre de un producto. Si eso también da `null`, la sonda está rota y el
 > primer resultado no dice nada. Es la lección que este proyecto ya pagó dos veces.
 
-- [ ] **Paso 5: cerrar los documentos ANTES de pasar los comandos de git**
+- [x] **Paso 5: cerrar los documentos ANTES de pasar los comandos de git**
 
 Actualizar, en este orden:
 
@@ -1255,7 +1266,7 @@ Actualizar, en este orden:
    las métricas medidas, y **Q-23 se actualiza con cuántas descripciones quedaron realmente vacías**.
 3. `MIGRATION_DOCS/PLANES/README.md` — la fila del plan nuevo en la tabla.
 
-- [ ] **Paso 6: el commit de cierre**
+- [x] **Paso 6: el commit de cierre**
 
 ```powershell
 git add MIGRATION_DOCS
@@ -1320,10 +1331,215 @@ expectativa en silencio.
 | **V-3** | ¿El E2E de reservar usa una cuenta con el perfil ya completo? | Sí → 6/6 sin tocar el arnés | No → **la puerta nueva lo rompe**. Se completa el perfil en el arnés, **por la superficie real y no por `psql`** *(D-62)* |
 | **V-4** | ¿Quedan exactamente 2 descripciones vacías en producción? | Sí → Q-23 confirmado en 16 | No → **la estructura tiene una cuarta forma que no se midió**. Se cuenta, se escribe en Q-23 y se decide si hace falta otra migración |
 
+**Desenlace de los cuatro, medido el 2026-08-18 al cerrar la tanda:**
+
+- **V-1 → A.** El salón cabe junto a la sede en la ficha, sin rediseñar nada. No hizo falta la salida B.
+- **V-2 → contestado antes de ejecutar**, al escribir el plan *(corrección 7)*. Es el que salió gratis.
+- **V-3 → B, y se supo antes de romper nada.** Las cuatro specs entran como Ana, y la constante que la
+  nombra —`ALUMNA_CON_PERFIL_COMPLETO`— la volvía mentira D-79, porque `confirmo_facultad` nace en `false`.
+  Se arregló por el seed *(corrección 5)*. **La salida B se cumplió tal como estaba escrita**, incluida la
+  parte de no tocar la base por `psql`.
+- **V-4 → SIN CONTESTAR, y no por olvido: no se puede contestar en local.** Requiere consultar producción,
+  y eso es el paso 9, que corre Alejandro. **Lo que sí se probó en local es el mecanismo que produce el 2**
+  —la forma `Lab | Obs` termina con la descripción vacía— sobre el fixture de la corrección 9. Que el
+  número sea 2 sigue siendo una **predicción**.
+
 ---
 
 ## Cabecera de correcciones
 
 *(Se rellena al ejecutar. Si al terminar está vacía, es que no se miró.)*
 
-1. …
+1. ⚠ **La Tarea 1 no podía pasar en local, y el motivo estaba escrito en la corrección 1 de este mismo
+   plan sin que yo lo aplicara a esa tarea.** `db reset` aplica las migraciones y **después** corre
+   `seed.sql`, así que cuando el `update ... where name = 'San Miguel'` de la migración 27 se ejecuta,
+   `campuses` está **vacía**: no toca ni una fila. Medido por el efecto y no deducido — tras el reset, las
+   dos sedes salían con `salon_devolucion` en `NULL`, y la prueba 35 pasaba su aserción 1 —la columna
+   existe— y fallaba las tres de valores.
+
+   **En producción la migración sí funciona**, porque allí las dos sedes existen desde antes. El arreglo
+   es que `seed.sql` siembre la columna con los valores reales, y **la consecuencia se dice en vez de
+   disimularse: en local el dato lo pone el seed, así que el `UPDATE` de la migración NO queda verificado
+   por `35_salon_devolucion.sql`.** Se verifica contra producción, en el **paso 9 de la Tarea 7**, que ya
+   lo contempla con `sedes_con_salon = 2`.
+
+   **Lo que enseña, y vale para las tres migraciones de esta tanda:** una corrección anotada para una
+   tarea no se aplica sola a las demás. El plan avisaba de que el seed corre después de las migraciones y
+   yo lo usé solo para diseñar la Tarea 2, que es donde lo había descubierto. La regla de releer las
+   correcciones **antes de cada tarea, no al final de la tanda**, existe exactamente para esto.
+
+2. **`unlike()` no existe en pgTAP.** El plan la usaba en la prueba 36. Medido al ejecutar:
+   `function unlike(text, unknown, unknown) does not exist`. Las de patrón `LIKE` son **`alike` /
+   `unalike`**; las de expresión regular, `matches` / `doesnt_match`. Se cambia por `unalike`.
+   **Tres aserciones habían pasado antes de llegar a ella**, así que el fallo no era del SQL de la
+   migración: era del instrumento que lo medía.
+
+3. ⚠ **«No conceder» no es lo mismo que «nadie puede»: Postgres concede `EXECUTE` a `PUBLIC` en toda
+   función nueva.** El plan decía «sin grant para nadie», y eso **no cierra nada** — `private` tiene
+   `grant usage ... to authenticated`, así que la función habría quedado ejecutable por cualquiera con
+   sesión. Se añade `revoke all on function ... from public`, que es lo mismo que ya hicieron
+   `revoke_blanket_grants.sql` y `revoke_trigger_functions.sql`.
+
+   **Verificado por el efecto y con control positivo**, no leyendo la migración:
+   `has_function_privilege` da **`false`** para `authenticated` y para `anon` sobre la función, y **`true`**
+   para `authenticated` sobre `create_reservation` — sin ese `true`, el `false` no distinguiría «revocado»
+   de «la sonda pregunta mal».
+
+   Se decidió además **no** hacerla `security definer`, al revés que los helpers de `private`: solo la
+   llaman la migración y la prueba, las dos como `postgres`, y sin `definer` una ejecución inesperada
+   correría con los privilegios de quien llama y RLS la pararía.
+
+4. **La prueba 36 pasa de 7 aserciones a 8.** Las siete del plan miran las tres filas de fixture y
+   **ninguna comprueba que la función deje en paz lo que no tiene la forma `Lab: `**. Una función sin
+   `where` —o con uno mal escrito— arrasaría el catálogo entero y **las siete seguirían en verde**, porque
+   ninguna mira una fila ajena. La octava afirma que `'Camara full frame sin espejo, 24 MP'` queda intacta.
+   Por eso el recuento de la Tarea 2 sale en **171 y no en 170**.
+
+5. **El E2E se rompía, y se supo antes de romperlo.** V-3 preguntaba si el arnés entra con el perfil
+   completo. Medido: las **cuatro** specs entran como `alumno.a@upc.edu.pe`, y la constante que la nombra
+   se llama `ALUMNA_CON_PERFIL_COMPLETO` — un nombre que D-79 volvía mentira, porque `confirmo_facultad`
+   nace en `false`. **Tres de las seis pruebas habrían rebotado a `/completar-perfil`.** Se arregla en
+   `seed.sql`: Ana se siembra con `confirmo_facultad = true` y **Bruno se queda sin confirmar a propósito**,
+   para que exista un usuario con el perfil a medias con el que caminar la puerta nueva.
+   Resultado tras el arreglo: **6/6**.
+
+6. ⚠ **Un instrumento mintió, y esta vez era `curl`.** Antes del E2E maté el servidor de desarrollo y
+   comprobé el puerto con `curl --max-time 3`, que devolvió **`000`**; lo leí como «puerto libre» y
+   Playwright contestó `http://127.0.0.1:3000 is already used`. **`000` no es «no hay nada»: es «no
+   contestó en tres segundos».** `netstat -ano` mostró el PID **30784** escuchando en `0.0.0.0:3000` y en
+   `[::]:3000` — el `taskkill` anterior filtraba por título de ventana y no casó con nada. **Dos
+   herramientas discrepaban y la que tenía razón era la que mira la tabla de sockets, no la que hace una
+   petición y se rinde.**
+
+7. **El desplegable de carrera no preselecciona, y mi propio cambio lo convierte en un defecto.**
+   `defaultValue=""` estaba clavado en `completar-perfil/page.tsx`. **Antes daba igual**, porque esa
+   pantalla solo aparecía con el perfil vacío; desde D-79 aparece también a quien **solo** le falta
+   confirmar la facultad, y le obligaba a reelegir una carrera que ya había elegido. Se pasa a
+   `defaultValue={alumno?.carrera_id ?? ""}`, y la consulta gana `carrera_id`. **Encontrado caminando la
+   pantalla, no leyéndola:** el `typecheck` no sabe qué opción sale seleccionada.
+
+8. ⚠ **El E2E necesita DOS condiciones a la vez —base limpia y Auth caliente— y los pasos 2 y 3 de la
+   Tarea 7 se las quitan mutuamente.** El paso 2 es `db reset` y el paso 3 es el E2E, encadenados. Medido
+   en cuatro corridas, no deducido:
+
+   | Corrida | Base | Auth | Resultado |
+   |---|---|---|---|
+   | 1 | limpia, recién reseteada | recién arrancado, con el `build` compitiendo | **4/6** |
+   | 2 · solo `cancelar.spec.ts` | sucia | caliente, 12 minutos de vida | **2/2** |
+   | 3 · completa | sucia, 3 corridas acumuladas | caliente | **3/6** |
+   | 4 | **limpia** | **calentada a propósito** | **6/6**, en 2,2 min |
+
+   **Lo que rompe la corrida 1 no es el código de la tanda:** `npx supabase db reset` **para y vuelve a
+   arrancar el contenedor de Auth** —`docker inspect` da `StartedAt = 22:08:38`—, y las dos primeras
+   peticiones de magic link expiraron **dentro del propio servicio**: `POST /otp` → **504
+   `context deadline exceeded` a los 10,97 s**, y la siguiente → **500 `error finding user: timeout:
+   context canceled` a los 8,00 s**. La segunda no es del correo: es una consulta a `auth.users`. Las dos
+   pruebas que caen son las de `cancelar.spec.ts`, que van primero por orden alfabético — **el que va
+   primero paga**.
+
+   **El error no estaba en el log de Playwright sino en la pantalla**, dentro del `error-context.md` que
+   Playwright guarda al fallar: `Processing this request timed out, please retry after a moment.` El log
+   de la corrida sólo decía «timeout esperando *Revisa tu correo*», que nombra el síntoma y no la causa.
+   **Un instrumento más contestando otra pregunta que la hecha.**
+
+   **Y la hipótesis se corrigió a mitad de camino, con la medición que la desmentía a la vista:** el
+   arranque en frío **por sí solo no rompe nada** —tras el `db reset` de la corrida 4, `generate_link`
+   respondió en **0,897 s** y bajó a 0,388 s—, y el `build` por sí solo tampoco, porque la corrida 2 lo
+   pagó entero y pasó. **Es la coincidencia de los dos**: Auth recién arrancado *mientras* el `build` y el
+   arranque del servidor le comen la CPU. Ninguno de los dos factores, aislado, reproduce el fallo.
+
+   **Lo que desmiente la corrida 3, y es lo que no se habría visto parando en la 2:** el estado de la base
+   se acumula entre corridas, y tres seguidas sin resetear dejaron a Ana con **seis reservas del mismo
+   producto en la misma franja** —mié 19 ago, 08:00–08:30, sobre CAM-001, CAM-002 y CAM-003—. Con
+   `buffer_minutes = 120` eso bloquea las tres unidades varias horas, y `e2e/apoyo/reserva.ts:85` toma
+   **la primera franja libre**: cuando no queda ninguna, el fallo sale como un `toHaveURL` que no dice
+   nada de su causa. **Un E2E verde no prueba que el siguiente lo esté: presupone una base que la corrida
+   anterior ya ensució.**
+
+   **Por qué el CI no lo ve y local sí:** `playwright.config.ts:23` es `retries: process.env.CI ? 2 : 0`.
+   En GitHub Actions los dos reintentos **absorben** el arranque en frío; en local no hay ninguno. O sea
+   que este modo de fallo **sólo se manifiesta donde no hay red de seguridad**, y por eso la sesión
+   anterior pudo ver un 6/6 legítimo: su E2E no venía detrás de un `db reset`.
+
+   **No se toca el arnés en esta tanda.** El arreglo de verdad —que el arnés espere a que Auth responda
+   antes de la primera prueba— es código nuevo y crecería el alcance a mitad de tanda. Se anota como
+   **Q-26**. Lo que sí queda escrito es el orden que funciona: **`db reset` → calentar Auth → E2E**.
+
+9. ⚠ **El paso 4 no podía detectar la fuga en local, y es la trampa nº 1 del proyecto cometida sobre el
+   paso que iba a comprobarla.** La sonda busca `Obs:` en `/catalogo`. Medido sobre la base local recién
+   reseteada: **4 productos, 0 con `Lab: `, 0 con `Obs:`, 0 notas de unidad**. La sonda habría dado `null`
+   **porque el dato peligroso no existe en local**, no porque la aplicación lo esconda — y cero
+   coincidencias es indistinguible de cero coincidencias posibles. Es exactamente lo que la corrección 1
+   dijo de la migración, repetido un paso más allá. **El control positivo que el plan sí previó —buscar el
+   nombre de un producto— no lo tapa:** prueba que la sonda lee, que es otra pregunta.
+
+   **Se resuelve reproduciendo en local el estado de producción DESPUÉS de la migración**, con un fixture
+   que no se versiona: se siembran las dos formas que deciden —la completa y la tercera, `Lab | Obs`— y se
+   llama a `private.desempaquetar_descripciones()`, que es el mismo código que corrió la migración. Los
+   cuatro efectos previstos salieron a la vez: la forma completa quedó con su especificación, **la tercera
+   quedó vacía en vez de publicar la observación**, las dos descripciones ajenas quedaron **intactas**, y
+   la nota se copió a **cada unidad** —3 y 2, cinco notas—.
+
+10. **La sonda del paso 4 marcaba como fuga algo que Q-24 decidió publicar.** Su patrón es
+    `/Obs:|falta bateria|O\.C \d+/`, y el tercer término es el número de orden de compra, que **D-82 deja
+    a propósito en la descripción pública** y que Q-24 anota sin decidir. En producción, donde 16
+    productos lo llevan, la sonda habría dado coincidencia **siempre** y se habría leído como «la fuga
+    sigue abierta». **Un patrón que contradice una decisión ya tomada no mide la fuga: mide el desacuerdo
+    entre dos partes del mismo documento.** Se le quita ese término y se le da su papel real, que es el de
+    **control positivo**: si `O.C` aparece, la sonda ve la columna.
+
+11. **La sonda se hace por PostgREST con un token de alumno de verdad, y no por la consola del navegador.**
+    El plan la escribía sobre el HTML de `/catalogo`, y la superficie de PostgREST es **más ancha**: lo que
+    la tarjeta recorta con `line-clamp-2` viaja entero en el HTML igualmente, y lo que ninguna pantalla
+    pinta se pide con la clave publicable. Es además el mismo camino con el que se cerró Q-18, así que
+    compara contra una medición que ya existe. **Resultado, con control en las dos direcciones:** el alumno
+    lee las 4 descripciones y **0 llevan observación de estado**; el control positivo dice que **3 tienen
+    texto** y **1 lleva el `O.C` que Q-24 deja público**, o sea que la sonda ve lo que hay; y en
+    `inventory_unit_notes` el alumno recibe **0 filas con HTTP 200** mientras el operador recibe **5** —sin
+    ese 5, el vacío del alumno no probaría nada—. El 200 con lista vacía, en vez de un `42501`, es la
+    misma firma que dejó escrita la migración 25: le falta la política, no el privilegio.
+
+12. **Y una corrección de recuento a la predicción de esta misma tarea, que se anota en vez de ajustarse:**
+    la tabla preveía **175** aserciones pgTAP y salieron **176**. No es una sorpresa nueva —la corrección 4
+    ya explicó que la prueba 36 pasaba de 7 a 8 aserciones—, sino la predicción que se escribió sin
+    incorporarla. **Es el mismo género que la corrección 1: una corrección anotada no se aplica sola al
+    resto del documento.** Las otras cuatro filas de la predicción salieron exactas.
+
+13. ⚠ **El servidor de desarrollo dio 404 en la pantalla de reservar y el `build` no, y el 404 imitaba
+    exactamente un defecto plausible de esta tanda.** Al caminar la puerta de D-79 con `npm run dev`,
+    `/catalogo/<id>/reservar?sede=<id>` respondió **404** — la misma URL que produce el botón «Reservar» de
+    la ficha, pulsándolo. Como la puerta nueva vive en esa página, la lectura natural era «D-79 rompió la
+    reserva».
+
+    **No lo era, y lo que lo demostró fueron dos controles y no leer el código:** *(a)* con `confirmo_facultad`
+    puesto a `true`, el 404 **siguió** —o sea que no lo producía la puerta—; y *(b)* **Ana, con el perfil
+    completo y siendo la usuaria con la que el E2E reserva ese mismo producto en esa misma sede, recibió
+    también 404**. Dos usuarios y dos estados de perfil, el mismo resultado: la variable no era el perfil.
+    La que quedaba era el servidor — el E2E corre contra `npm run build && npm run start` *(D-60)* y yo
+    estaba en `dev`. Contra el `build`, la misma URL con la misma sesión **carga**.
+
+    **Es el modo de fallo que D-60 ya dejó escrito** —«el servidor de desarrollo ya mintió dos veces: un
+    proceso viejo que se degrada, y un arranque en frío que no registra una ruta»— y por eso **el árbitro
+    de este proyecto es el `build`**. Lo que añade este caso es cuánto se parecía la mentira a un defecto
+    propio: **un instrumento que miente es más caro cuando su mentira es plausible**, porque entonces no
+    parece un instrumento, parece un hallazgo.
+
+14. **La puerta de D-79 y el desplegable de carrera, remedidos por el efecto y contra el `build`.** Es lo
+    que el traspaso de la sesión anterior marcaba como **medido a medias**: el 6/6 de entonces era
+    anterior al arreglo del `defaultValue`, y el E2E **no visita** `/completar-perfil`, así que ese arreglo
+    seguía sin comprobarse. Recorrido entero con Bruno, que el `seed.sql` deja **sin confirmar a propósito**:
+
+    - Entra por magic link y **cae en `/catalogo`**, sin formulario por delante. Es D-79: quien sólo viene
+      a mirar, mira.
+    - Al pedir reservar, rebota a
+      `/completar-perfil?volver=%2Fcatalogo%2F…%2Freservar%3Fsede%3D…` — el destino **codificado** en la URL.
+    - El desplegable llega con **`Ciencias de la Computacion` seleccionada**, que es la carrera que Bruno ya
+      tenía: **la corrección 7 queda comprobada en la pantalla**, que es el único sitio donde se ve —el
+      `typecheck` no sabe qué opción sale marcada—.
+    - Al marcar la casilla y guardar, vuelve **al destino exacto** del que salió.
+    - Y en la base queda `confirmo_facultad = t` con **`es_profesor = f`**: el par que prueba que la casilla
+      de profesor **no se marca sola**, que es justo lo que el comentario de la puerta advierte que habría
+      dejado a todo alumno fuera si `es_profesor` entrara en la condición.
+
+    **La base se devolvió a su estado del seed al terminar**, y el cambio de `confirmo_facultad` que sirvió
+    de control se deshizo para ver volver el rebote.

@@ -20,9 +20,23 @@
 create extension if not exists pgtap with schema extensions;
 
 
-insert into public.campuses (id, name, address, activo) values
-  ('cccccccc-0000-0000-0000-000000000001', 'Monterrico', 'Av. Primavera 2390, Santiago de Surco', true),
-  ('cccccccc-0000-0000-0000-000000000002', 'San Miguel', 'Av. Alameda San Marcos cuadra 2, San Miguel', true);
+-- D-77: salon_devolucion se siembra AQUI ademas de actualizarse en la migracion
+-- 27, y no es una duplicacion por descuido.
+--
+-- El motivo es el orden de `db reset`: aplica las migraciones y DESPUES corre
+-- este archivo. Cuando el UPDATE de la migracion se ejecuta, campuses esta
+-- VACIA en local, asi que no toca ni una fila. En produccion si funciona,
+-- porque alli las dos sedes existen desde antes.
+--
+-- Consecuencia que se dice en vez de disimularse: en local esta columna la
+-- llena el seed, y el UPDATE de la migracion NO queda verificado por
+-- 35_salon_devolucion.sql. Se verifica contra produccion, en el paso 9 de la
+-- ultima tarea del plan de la F3-T1.
+--
+-- Los valores son los reales, medidos en produccion el 2026-08-18.
+insert into public.campuses (id, name, address, activo, salon_devolucion) values
+  ('cccccccc-0000-0000-0000-000000000001', 'Monterrico', 'Av. Primavera 2390, Santiago de Surco', true, 'MO-UH40'),
+  ('cccccccc-0000-0000-0000-000000000002', 'San Miguel', 'Av. Alameda San Marcos cuadra 2, San Miguel', true, 'SM-SB608');
 
 
 insert into public.carreras (id, nombre, codigo, activa) values
@@ -130,9 +144,21 @@ update public.products set max_duration_hours = 8  where id = 'bbbbbbbb-0000-000
 --
 -- La prueba de "perfil incompleto" pone nombre en nulo dentro de su propia
 -- transaccion, que se revierte.
+-- D-79: Ana lleva confirmo_facultad = true y Bruno NO, a proposito.
+--
+-- Desde D-79 la puerta de /catalogo/[id]/reservar exige esa confirmacion, y la
+-- columna nace en false. Sin esta linea las CUATRO pruebas E2E entran como Ana
+-- -e2e/*.spec.ts la llaman ALUMNA_CON_PERFIL_COMPLETO- y rebotarian a
+-- /completar-perfil: tres de las seis pruebas se caerian, y la constante que
+-- la nombra pasaria a mentir.
+--
+-- Bruno se queda SIN confirmar porque hace falta un usuario con el perfil a
+-- medias para caminar el recorrido de la primera reserva. Si algun dia una
+-- prueba entra como Bruno esperando reservar, va a rebotar: es deliberado.
 update public.alumnos
    set nombre = 'Ana', apellido = 'Perez',
-       carrera_id = 'caaaaaaa-0000-0000-0000-000000000001'
+       carrera_id = 'caaaaaaa-0000-0000-0000-000000000001',
+       confirmo_facultad = true
  where auth_user_id = 'a0000000-0000-0000-0000-000000000001';
 
 update public.alumnos

@@ -75,13 +75,37 @@ const SECCIONES: SeccionFaq[] = [
     preguntas: [
       {
         pregunta: "¿Necesito crear una cuenta?",
+        // CAMBIADO el 2026-08-18 por D-79. Antes decia "La primera vez se te
+        // piden nombre, apellido y carrera", y eso era cierto AL ENTRAR.
+        // Desde D-79 los datos se piden en la PRIMERA RESERVA -mirar el
+        // catalogo ya no pide nada- y son dos mas.
         respuesta:
-          "No. No hay registro. Entras con tu correo institucional @upc.edu.pe y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. La primera vez se te piden nombre, apellido y carrera.",
+          "No. No hay registro. Entras con tu correo institucional @upc.edu.pe y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. Mirar el catálogo no pide nada más: los datos se te piden la primera vez que reservas.",
       },
       {
         pregunta: "¿Puedo entrar con otro correo?",
         respuesta:
           "No. Solo se acepta el correo @upc.edu.pe. Cualquier otro dominio se rechaza al pedir el enlace.",
+      },
+      {
+        pregunta: "¿Cualquier alumno de la UPC puede pedir equipos prestados?",
+        respuesta:
+          "No. El préstamo es solo para la Facultad de Ingeniería, y dentro de ella para las carreras de Ciencias de la Computación e Ingeniería de Software.",
+      },
+      {
+        pregunta: "¿Cómo se comprueba que soy de esas carreras?",
+        // D-78: el sistema NO lo comprueba. La verificacion es presencial y
+        // con el TIU, en el mostrador. Esta respuesta dice la verdad a
+        // proposito: prometer una comprobacion automatica que no existe seria
+        // peor que no decir nada, porque quien la creyera reservaria pensando
+        // que el sistema ya lo valido.
+        respuesta:
+          "Con tu TIU, en el mostrador, cuando recoges el equipo. El sistema no lo verifica al reservar: si reservas sin pertenecer a esas carreras, no se te entrega el equipo.",
+      },
+      {
+        pregunta: "¿Qué datos se me piden en la primera reserva?",
+        respuesta:
+          "Nombre, apellido y carrera; si eres profesor, lo indicas ahí mismo y señalas tu carrera en el mismo desplegable. Y confirmas que perteneces a la Facultad de Ingeniería. El correo no se te vuelve a pedir: ya lo tenemos de tu acceso.",
       },
       {
         pregunta: "¿Por qué un enlace por correo y no una contraseña?",
@@ -139,6 +163,17 @@ const SECCIONES: SeccionFaq[] = [
         respuesta:
           "No. El equipo que reservas es el de esa sede, y ahí se recoge.",
       },
+      {
+        pregunta: "¿Dónde devuelvo el equipo?",
+        // D-77. Medido contra produccion el 2026-08-18:
+        // campuses.salon_devolucion vale 'MO-UH40' en Monterrico y 'SM-SB608'
+        // en San Miguel. Va ESCRITO y no consultado porque esta pagina no
+        // habla con la base (ver la cabecera del archivo). Si algun dia se
+        // cambia el salon en la base, esta respuesta hay que tocarla a mano:
+        // se dice aca para que no se descubra tarde.
+        respuesta:
+          "En el mismo salón donde lo recogiste: MO-UH40 en Monterrico y SM-SB608 en San Miguel. La devolución es presencial y la registra el operador delante tuyo.",
+      },
     ],
   },
   {
@@ -173,8 +208,17 @@ const SECCIONES: SeccionFaq[] = [
     preguntas: [
       {
         pregunta: "¿Qué llevo el día de la reserva?",
+        // CONCRETADO el 2026-08-18 por D-78. Antes decia "Tu carne o
+        // identificacion", que es vago justo donde no conviene serlo: el TIU
+        // es lo que el operador usa para comprobar la facultad y la carrera,
+        // porque el sistema no las comprueba.
         respuesta:
-          "Tu carné o identificación, a la sede que elegiste y dentro de tu franja horaria.",
+          "Tu TIU, a la sede que elegiste y dentro de tu franja horaria. Es con el TIU con lo que el operador comprueba que perteneces a la Facultad de Ingeniería.",
+      },
+      {
+        pregunta: "¿Qué pasa paso a paso, desde que reservo hasta que devuelvo?",
+        respuesta:
+          "Reservas una franja para una sede. Vas al salón de esa sede dentro de tu horario, muestras tu TIU y el operador te entrega el equipo y registra la entrega. Al terminar lo devuelves en el mismo salón, el operador lo revisa y registra la recepción. Si no lo recoges, o no lo devuelves a tiempo, queda anotado y afecta a tus próximas reservas.",
       },
       {
         pregunta: "¿Puedo extender la reserva?",

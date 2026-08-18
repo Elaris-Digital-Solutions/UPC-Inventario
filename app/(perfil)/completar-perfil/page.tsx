@@ -28,7 +28,15 @@ import { guardarPerfil } from "./actions";
 const CLASES_SELECT =
   "h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
-export default async function CompletarPerfilPage() {
+export default async function CompletarPerfilPage({
+  searchParams,
+}: {
+  // D-79: `volver` lo pone la puerta de /catalogo/[id]/reservar para que
+  // rellenar los datos no expulse de la reserva que se estaba haciendo.
+  // Next.js 16: searchParams llega como Promise.
+  searchParams: Promise<{ volver?: string }>;
+}) {
+  const { volver } = await searchParams;
   const supabase = await createClient();
 
   // El layout de (perfil) ya comprobo que hay sesion y fila en alumnos; esta
@@ -46,7 +54,7 @@ export default async function CompletarPerfilPage() {
   const { data: alumno } = sub
     ? await supabase
         .from("alumnos")
-        .select("nombre, apellido")
+        .select("nombre, apellido, carrera_id, es_profesor, confirmo_facultad")
         .eq("auth_user_id", sub)
         .maybeSingle()
     : { data: null };
@@ -96,7 +104,13 @@ export default async function CompletarPerfilPage() {
                 id="carrera_id"
                 name="carrera_id"
                 required
-                defaultValue=""
+                // CORREGIDO el 2026-08-18 al caminar D-79: estaba clavado a
+                // "" y no preseleccionaba la carrera que la persona ya tenia.
+                // Antes daba igual, porque esta pantalla SOLO aparecia con el
+                // perfil vacio. Desde D-79 aparece tambien a quien solo le
+                // falta confirmar la facultad, y con "" se le obligaba a
+                // reelegir una carrera que ya habia elegido.
+                defaultValue={alumno?.carrera_id ?? ""}
                 className={CLASES_SELECT}
               >
                 <option value="" disabled>
@@ -109,6 +123,46 @@ export default async function CompletarPerfilPage() {
                 ))}
               </select>
             </div>
+            {/* D-79. Dos casillas, y solo una es obligatoria: declararse
+                profesor o no son las DOS respuestas validas, mientras que sin
+                confirmar la facultad el perfil esta incompleto. */}
+            <div className="flex items-start gap-2">
+              <input
+                id="es_profesor"
+                name="es_profesor"
+                type="checkbox"
+                defaultChecked={alumno?.es_profesor ?? false}
+                className="mt-1"
+              />
+              <label htmlFor="es_profesor" className="text-sm">
+                Soy profesor. La carrera de arriba es a la que pertenezco.
+              </label>
+            </div>
+
+            <div className="flex items-start gap-2">
+              {/* El `required` es comodidad del navegador, NO un control:
+                  quien lo salte llega igual a la puerta de
+                  /catalogo/[id]/reservar, que es la que decide. */}
+              <input
+                id="confirmo_facultad"
+                name="confirmo_facultad"
+                type="checkbox"
+                required
+                defaultChecked={alumno?.confirmo_facultad ?? false}
+                className="mt-1"
+              />
+              <label htmlFor="confirmo_facultad" className="text-sm">
+                Confirmo que pertenezco a la Facultad de Ingeniería, en
+                Ciencias de la Computación o Ingeniería de Software. Se
+                verifica con el TIU al recoger el equipo.
+              </label>
+            </div>
+
+            {/* Campo oculto y no un parametro de la Server Action: el destino
+                llega por la URL de esta pagina y tiene que sobrevivir al
+                envio del formulario. */}
+            <input type="hidden" name="volver" value={volver ?? ""} />
+
             <Button type="submit" className="w-full">
               Guardar
             </Button>

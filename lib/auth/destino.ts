@@ -66,9 +66,8 @@ export async function destino(): Promise<Destino> {
     return '/auth/error';
   }
 
-  if (!alumno.nombre || !alumno.apellido || !alumno.carrera_id) {
-    return '/completar-perfil';
-  }
-
+  // D-79: entrar ya NO desvia por perfil incompleto. Los datos se piden en la
+  // primera reserva, en /catalogo/[id]/reservar. Antes esta funcion devolvia
+  // '/completar-perfil' cuando faltaba nombre, apellido o carrera.
   return '/catalogo';
 }

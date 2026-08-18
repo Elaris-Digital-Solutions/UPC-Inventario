@@ -75,7 +75,7 @@ desviaciones**, con su motivo.
 4. **Supabase hiberna.** Si un comando contra el remoto falla, reintentar antes de diagnosticar.
 5. **`db reset` exige el stack completo:** falla si se arrancó con `-x`. Y **Docker Desktop tiene que estar
    arrancado** para `supabase db pull` y `supabase start`.
-6. ⚠ **`products.description` no es una descripción: son tres campos en uno**, `Lab: <salón> | <especificación> | Obs: <estado>`, en **34 de 34**. El tercero es información de estado del equipo, o sea **lo mismo que la migración 25 hizo privado del personal** *(D-69)*, publicado a cualquier alumno. Se desempaqueta en la F3-T1 *(D-82)*. **Hasta entonces, nada que muestre esa columna es seguro de ampliar.**
+6. ⚠ **`products.description` no es una descripción: son tres campos en uno**, `Lab: <salón> | <especificación> | Obs: <estado>`, en **34 de 34**. El tercero es información de estado del equipo, o sea **lo mismo que la migración 25 hizo privado del personal** *(D-69)*, publicado a cualquier alumno. Se desempaqueta en la F3-T1 *(D-82)*. ~~**Hasta entonces, nada que muestre esa columna es seguro de ampliar.**~~ ⚠ **Precisado el 2026-08-18: el desempaquetado existe pero NO está en producción.** La migración 28 está escrita, probada y verificada en local —descripción vacía en vez de observación publicada, la nota en cada unidad, y un alumno leyendo `products` por PostgREST sin una sola observación—, y vive en `feature/fase-3-tanda-1` **sin empujar**. **Para un alumno real la columna sigue publicando el estado del equipo hasta el `supabase db push`**, así que el aviso sigue vigente sobre producción y deja de serlo sobre el árbol local. Las dos mitades hacen falta: decir sólo «ya está arreglado» sería falso donde importa.
 
 ## Cómo se levanta y cómo se prueba
 

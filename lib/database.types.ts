@@ -41,9 +41,11 @@ export type Database = {
           auth_user_id: string | null
           banned_until: string | null
           carrera_id: string | null
+          confirmo_facultad: boolean
           created_at: string
           email: string
           email_verificado: boolean
+          es_profesor: boolean
           id: string
           nombre: string | null
           updated_at: string
@@ -54,9 +56,11 @@ export type Database = {
           auth_user_id?: string | null
           banned_until?: string | null
           carrera_id?: string | null
+          confirmo_facultad?: boolean
           created_at?: string
           email: string
           email_verificado?: boolean
+          es_profesor?: boolean
           id?: string
           nombre?: string | null
           updated_at?: string
@@ -67,9 +71,11 @@ export type Database = {
           auth_user_id?: string | null
           banned_until?: string | null
           carrera_id?: string | null
+          confirmo_facultad?: boolean
           created_at?: string
           email?: string
           email_verificado?: boolean
+          es_profesor?: boolean
           id?: string
           nombre?: string | null
           updated_at?: string
@@ -126,18 +132,21 @@ export type Database = {
           address: string | null
           id: string
           name: string
+          salon_devolucion: string | null
         }
         Insert: {
           activo?: boolean
           address?: string | null
           id?: string
           name: string
+          salon_devolucion?: string | null
         }
         Update: {
           activo?: boolean
           address?: string | null
           id?: string
           name?: string
+          salon_devolucion?: string | null
         }
         Relationships: []
       }

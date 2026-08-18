@@ -101,11 +101,16 @@ export async function productosVitrina(limite: number): Promise<ProductoVitrina[
   }));
 }
 
-// Una sede activa, tal como la necesita el catalogo: solo lo que hace falta
-// para pintar una pestana y para filtrar la consulta de stock (b mas abajo).
+// Una sede activa, tal como la necesita el catalogo: lo que hace falta para
+// pintar una pestana, para filtrar la consulta de stock (b mas abajo), y
+// -desde D-77- para decir donde se devuelve el equipo.
 export type Sede = {
   id: string;
   name: string;
+  // D-77. NULLABLE a proposito, igual que la columna: una sede puede darse de
+  // alta antes de saber en que salon se devuelve, y ahi la ficha no promete
+  // nada en vez de prometer una cadena vacia.
+  salonDevolucion: string | null;
 };
 
 // Ordenada por `name` y no por el orden de insercion de la tabla: sin un
@@ -118,7 +123,7 @@ export async function sedesActivas(): Promise<Sede[]> {
 
   const { data, error } = await supabase
     .from('campuses')
-    .select('id, name')
+    .select('id, name, salon_devolucion')
     .eq('activo', true)
     .order('name');
 
@@ -127,7 +132,14 @@ export async function sedesActivas(): Promise<Sede[]> {
     return [];
   }
 
-  return data;
+  // EL .map() ES NUEVO y no decorativo: hasta D-77 esta funcion devolvia `data`
+  // tal cual porque las columnas de la base y los campos del tipo se llamaban
+  // igual. `salon_devolucion` y `salonDevolucion` no, asi que hay que traducir.
+  return data.map((fila) => ({
+    id: fila.id,
+    name: fila.name,
+    salonDevolucion: fila.salon_devolucion,
+  }));
 }
 
 // DOS consultas y no un embed, y no es una eleccion de estilo: medido por
