@@ -34,9 +34,13 @@ export default async function AlumnoLayout({
     redirect("/auth/error");
   }
 
-  if (!alumno.nombre || !alumno.apellido || !alumno.carrera_id) {
-    redirect("/completar-perfil");
-  }
+  // D-79: AQUI YA NO SE DESVIA POR PERFIL INCOMPLETO. La puerta vive ahora en
+  // app/(alumno)/catalogo/[id]/reservar/page.tsx, o sea en la primera reserva
+  // y no al entrar: quien solo viene a mirar el catalogo no da sus datos.
+  //
+  // La consulta de arriba se queda: sigue haciendo falta comprobar que la fila
+  // de alumnos existe, que es lo que separa a una alumna de alguien con sesion
+  // pero sin perfil -un correo de otro dominio, por ejemplo-.
 
   // CabeceraSesion y no Cabecera: aqui ya hay sesion comprobada arriba, asi
   // que la cabecera ensena Salir sin volver a preguntarlo. Ver el comentario

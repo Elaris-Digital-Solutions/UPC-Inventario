@@ -26,7 +26,7 @@
 // ahora monta a Calendario en vez de esta pagina. El motivo de la
 // diferencia esta explicado alli.
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { FormularioReserva } from "@/components/reservas/formulario-reserva";
 import { SelectorDuracion } from "@/components/reservas/selector-duracion";
@@ -39,6 +39,7 @@ import {
 } from "@/lib/reservas/consultas";
 import { diasDeLaVentana, duracionesPosibles } from "@/lib/reservas/rejilla";
 import { sancionVigente, textoDeSancion } from "@/lib/reservas/sancion";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ReservarPage({
   params,
@@ -56,6 +57,46 @@ export default async function ReservarPage({
   // porque ahi solo decide que se MUESTRA, no contra que se reserva.
   if (sede === undefined) {
     notFound();
+  }
+
+  // D-79: LA PUERTA DEL PERFIL VIVE AQUI, no en el layout del grupo (alumno).
+  //
+  // La sesion se resuelve otra vez, y no es duplicacion: un layout NO le pasa
+  // props a su pagina en el App Router, asi que la comprobacion del layout
+  // -que hay sesion y fila en alumnos- no llega hasta aca. Y lo que se
+  // comprueba tampoco es lo mismo: alli, que exista; aca, que este completa.
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  const sub = claims?.claims.sub;
+
+  if (!sub) {
+    redirect("/login");
+  }
+
+  const { data: alumno } = await supabase
+    .from("alumnos")
+    .select("nombre, apellido, carrera_id, confirmo_facultad")
+    .eq("auth_user_id", sub)
+    .maybeSingle();
+
+  if (!alumno) {
+    redirect("/auth/error");
+  }
+
+  // `confirmo_facultad` entra en la condicion y `es_profesor` NO, y la
+  // diferencia importa: no haber confirmado es un perfil incompleto, pero NO
+  // SER PROFESOR ES UNA RESPUESTA VALIDA. Si es_profesor entrara aca, ningun
+  // alumno pasaria nunca de esta linea.
+  if (
+    !alumno.nombre ||
+    !alumno.apellido ||
+    !alumno.carrera_id ||
+    !alumno.confirmo_facultad
+  ) {
+    // El destino viaja en la URL para que rellenar los datos no expulse de la
+    // reserva que se estaba haciendo.
+    const volverA = `/catalogo/${id}/reservar?sede=${sede}`;
+    redirect(`/completar-perfil?volver=${encodeURIComponent(volverA)}`);
   }
 
   const producto = await detalleProducto(id);

@@ -1370,3 +1370,26 @@ expectativa en silencio.
    `where` —o con uno mal escrito— arrasaría el catálogo entero y **las siete seguirían en verde**, porque
    ninguna mira una fila ajena. La octava afirma que `'Camara full frame sin espejo, 24 MP'` queda intacta.
    Por eso el recuento de la Tarea 2 sale en **171 y no en 170**.
+
+5. **El E2E se rompía, y se supo antes de romperlo.** V-3 preguntaba si el arnés entra con el perfil
+   completo. Medido: las **cuatro** specs entran como `alumno.a@upc.edu.pe`, y la constante que la nombra
+   se llama `ALUMNA_CON_PERFIL_COMPLETO` — un nombre que D-79 volvía mentira, porque `confirmo_facultad`
+   nace en `false`. **Tres de las seis pruebas habrían rebotado a `/completar-perfil`.** Se arregla en
+   `seed.sql`: Ana se siembra con `confirmo_facultad = true` y **Bruno se queda sin confirmar a propósito**,
+   para que exista un usuario con el perfil a medias con el que caminar la puerta nueva.
+   Resultado tras el arreglo: **6/6**.
+
+6. ⚠ **Un instrumento mintió, y esta vez era `curl`.** Antes del E2E maté el servidor de desarrollo y
+   comprobé el puerto con `curl --max-time 3`, que devolvió **`000`**; lo leí como «puerto libre» y
+   Playwright contestó `http://127.0.0.1:3000 is already used`. **`000` no es «no hay nada»: es «no
+   contestó en tres segundos».** `netstat -ano` mostró el PID **30784** escuchando en `0.0.0.0:3000` y en
+   `[::]:3000` — el `taskkill` anterior filtraba por título de ventana y no casó con nada. **Dos
+   herramientas discrepaban y la que tenía razón era la que mira la tabla de sockets, no la que hace una
+   petición y se rinde.**
+
+7. **El desplegable de carrera no preselecciona, y mi propio cambio lo convierte en un defecto.**
+   `defaultValue=""` estaba clavado en `completar-perfil/page.tsx`. **Antes daba igual**, porque esa
+   pantalla solo aparecía con el perfil vacío; desde D-79 aparece también a quien **solo** le falta
+   confirmar la facultad, y le obligaba a reelegir una carrera que ya había elegido. Se pasa a
+   `defaultValue={alumno?.carrera_id ?? ""}`, y la consulta gana `carrera_id`. **Encontrado caminando la
+   pantalla, no leyéndola:** el `typecheck` no sabe qué opción sale seleccionada.

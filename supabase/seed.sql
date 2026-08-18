@@ -144,9 +144,21 @@ update public.products set max_duration_hours = 8  where id = 'bbbbbbbb-0000-000
 --
 -- La prueba de "perfil incompleto" pone nombre en nulo dentro de su propia
 -- transaccion, que se revierte.
+-- D-79: Ana lleva confirmo_facultad = true y Bruno NO, a proposito.
+--
+-- Desde D-79 la puerta de /catalogo/[id]/reservar exige esa confirmacion, y la
+-- columna nace en false. Sin esta linea las CUATRO pruebas E2E entran como Ana
+-- -e2e/*.spec.ts la llaman ALUMNA_CON_PERFIL_COMPLETO- y rebotarian a
+-- /completar-perfil: tres de las seis pruebas se caerian, y la constante que
+-- la nombra pasaria a mentir.
+--
+-- Bruno se queda SIN confirmar porque hace falta un usuario con el perfil a
+-- medias para caminar el recorrido de la primera reserva. Si algun dia una
+-- prueba entra como Bruno esperando reservar, va a rebotar: es deliberado.
 update public.alumnos
    set nombre = 'Ana', apellido = 'Perez',
-       carrera_id = 'caaaaaaa-0000-0000-0000-000000000001'
+       carrera_id = 'caaaaaaa-0000-0000-0000-000000000001',
+       confirmo_facultad = true
  where auth_user_id = 'a0000000-0000-0000-0000-000000000001';
 
 update public.alumnos
