@@ -44,7 +44,7 @@ y qué comando la verifica.
 
 | Plan | Tanda | Estado |
 |---|---|---|
-| [`FASE_3_TANDA_1.md`](./FASE_3_TANDA_1.md) | FAQ, salones y fichas: el salón pasa a la sede *(D-77)*, **se desempaqueta `products.description`** *(D-82)*, el FAQ gana la facultad y el TIU *(D-78)*, y el formulario se muda a la primera reserva *(D-79)*. Migraciones 27, 28 y 29 | ⚠ **ejecutado EN LOCAL el 2026-08-18** · **7 correcciones al diseño + 12 al plan** · 8 tareas · 53 pasos · V-1, V-2 y V-3 resueltos y **V-4 no**, porque se mide contra producción · **abre Q-25 y Q-26** · **sin empujar: no está en producción** |
+| [`FASE_3_TANDA_1.md`](./FASE_3_TANDA_1.md) | FAQ, salones y fichas: el salón pasa a la sede *(D-77)*, **se desempaqueta `products.description`** *(D-82)*, el FAQ gana la facultad y el TIU *(D-78)*, y el formulario se muda a la primera reserva *(D-79)*. Migraciones 27, 28 y 29 | ⚠ **ejecutado EN LOCAL el 2026-08-18** · **7 correcciones al diseño + 14 al plan** · 8 tareas · 53 pasos · V-1, V-2 y V-3 resueltos y **V-4 no**, porque se mide contra producción · **abre Q-25 y Q-26** · **sin empujar: no está en producción** |
 
 ## Cómo leerlos
 

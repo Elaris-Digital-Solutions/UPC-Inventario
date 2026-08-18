@@ -1504,3 +1504,42 @@ expectativa en silencio.
     ya explicó que la prueba 36 pasaba de 7 a 8 aserciones—, sino la predicción que se escribió sin
     incorporarla. **Es el mismo género que la corrección 1: una corrección anotada no se aplica sola al
     resto del documento.** Las otras cuatro filas de la predicción salieron exactas.
+
+13. ⚠ **El servidor de desarrollo dio 404 en la pantalla de reservar y el `build` no, y el 404 imitaba
+    exactamente un defecto plausible de esta tanda.** Al caminar la puerta de D-79 con `npm run dev`,
+    `/catalogo/<id>/reservar?sede=<id>` respondió **404** — la misma URL que produce el botón «Reservar» de
+    la ficha, pulsándolo. Como la puerta nueva vive en esa página, la lectura natural era «D-79 rompió la
+    reserva».
+
+    **No lo era, y lo que lo demostró fueron dos controles y no leer el código:** *(a)* con `confirmo_facultad`
+    puesto a `true`, el 404 **siguió** —o sea que no lo producía la puerta—; y *(b)* **Ana, con el perfil
+    completo y siendo la usuaria con la que el E2E reserva ese mismo producto en esa misma sede, recibió
+    también 404**. Dos usuarios y dos estados de perfil, el mismo resultado: la variable no era el perfil.
+    La que quedaba era el servidor — el E2E corre contra `npm run build && npm run start` *(D-60)* y yo
+    estaba en `dev`. Contra el `build`, la misma URL con la misma sesión **carga**.
+
+    **Es el modo de fallo que D-60 ya dejó escrito** —«el servidor de desarrollo ya mintió dos veces: un
+    proceso viejo que se degrada, y un arranque en frío que no registra una ruta»— y por eso **el árbitro
+    de este proyecto es el `build`**. Lo que añade este caso es cuánto se parecía la mentira a un defecto
+    propio: **un instrumento que miente es más caro cuando su mentira es plausible**, porque entonces no
+    parece un instrumento, parece un hallazgo.
+
+14. **La puerta de D-79 y el desplegable de carrera, remedidos por el efecto y contra el `build`.** Es lo
+    que el traspaso de la sesión anterior marcaba como **medido a medias**: el 6/6 de entonces era
+    anterior al arreglo del `defaultValue`, y el E2E **no visita** `/completar-perfil`, así que ese arreglo
+    seguía sin comprobarse. Recorrido entero con Bruno, que el `seed.sql` deja **sin confirmar a propósito**:
+
+    - Entra por magic link y **cae en `/catalogo`**, sin formulario por delante. Es D-79: quien sólo viene
+      a mirar, mira.
+    - Al pedir reservar, rebota a
+      `/completar-perfil?volver=%2Fcatalogo%2F…%2Freservar%3Fsede%3D…` — el destino **codificado** en la URL.
+    - El desplegable llega con **`Ciencias de la Computacion` seleccionada**, que es la carrera que Bruno ya
+      tenía: **la corrección 7 queda comprobada en la pantalla**, que es el único sitio donde se ve —el
+      `typecheck` no sabe qué opción sale marcada—.
+    - Al marcar la casilla y guardar, vuelve **al destino exacto** del que salió.
+    - Y en la base queda `confirmo_facultad = t` con **`es_profesor = f`**: el par que prueba que la casilla
+      de profesor **no se marca sola**, que es justo lo que el comentario de la puerta advierte que habría
+      dejado a todo alumno fuera si `es_profesor` entrara en la condición.
+
+    **La base se devolvió a su estado del seed al terminar**, y el cambio de `confirmo_facultad` que sirvió
+    de control se deshizo para ver volver el rebote.
