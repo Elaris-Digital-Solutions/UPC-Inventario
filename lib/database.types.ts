@@ -644,6 +644,13 @@ export type Database = {
         }
         Returns: string
       }
+      primer_acceso_personal: {
+        Args: never
+        Returns: {
+          primer_acceso: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       reservation_status:

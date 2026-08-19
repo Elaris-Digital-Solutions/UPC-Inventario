@@ -4,6 +4,7 @@ import {
   cruzarPersonal,
   type AlumnoParaCruce,
   type MiembroPersonal,
+  type PrimerAccesoParaCruce,
   type RolStaff,
   type StaffParaCruce,
 } from '@/lib/admin/filtros';
@@ -118,5 +119,26 @@ export async function listarPersonal(): Promise<MiembroPersonal[]> {
     .filter((fila): fila is FilaAlumnoCruda & { auth_user_id: string } => fila.auth_user_id !== null)
     .map(filaAAlumnoParaCruce);
 
-  return cruzarPersonal(staff, alumnos);
+  // TERCERA CONSULTA, y es una RPC y no un select (D-80, migracion 31): la
+  // fecha del primer magic link vive en `auth.users.confirmation_sent_at`, y
+  // ese esquema no tiene grant para `authenticated`. La funcion es
+  // `security definer` y filtra por `private.is_admin()`: a quien no lo sea le
+  // devuelve CERO FILAS, no un error.
+  //
+  // EL ERROR SE PROPAGA con throw, mismo criterio que las dos consultas de
+  // arriba: un array vacio por un fallo de red o de privilegios se leeria
+  // exactamente igual que "nadie ha recibido nunca un correo", y esta es la
+  // pantalla desde la que se arregla quien tiene acceso.
+  const { data: dataAcceso, error: errorAcceso } = await supabase.rpc('primer_acceso_personal');
+
+  if (errorAcceso) {
+    throw new Error(`listarPersonal: fallo la RPC primer_acceso_personal: ${errorAcceso.message}`);
+  }
+
+  const primerAcceso: PrimerAccesoParaCruce[] = (dataAcceso ?? []).map((fila) => ({
+    userId: fila.user_id,
+    primerAcceso: fila.primer_acceso,
+  }));
+
+  return cruzarPersonal(staff, alumnos, primerAcceso);
 }

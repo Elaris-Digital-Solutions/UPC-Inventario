@@ -14,6 +14,7 @@ import {
   pasaFiltroEstado,
   pasaFiltroFechaReservas,
   type AlumnoParaCruce,
+  type PrimerAccesoParaCruce,
   type ReservaDelDia,
   type ReservaFiltrable,
   type StaffParaCruce,
@@ -306,14 +307,23 @@ describe('cruzarPersonal', () => {
     };
   }
 
+  function accesoCrudo(cambios: Partial<PrimerAccesoParaCruce> = {}): PrimerAccesoParaCruce {
+    return {
+      userId: 'u1',
+      primerAcceso: '2026-08-08T03:55:22.219Z',
+      ...cambios,
+    };
+  }
+
   it('cruza un miembro con su fila de alumnos', () => {
-    const r = cruzarPersonal([staffCrudo()], [alumnoCrudo()]);
+    const r = cruzarPersonal([staffCrudo()], [alumnoCrudo()], []);
     expect(r).toEqual([
       {
         userId: 'u1',
         rol: 'operator',
         activo: true,
         registro: '2026-08-10T14:00:00Z',
+        primerAcceso: null,
         alumno: { email: 'ana@upc.edu.pe', nombre: 'Ana', apellido: 'Perez' },
       },
     ]);
@@ -324,22 +334,23 @@ describe('cruzarPersonal', () => {
     // auth.users, no alumnos, y el trigger de aprovisionamiento solo crea la
     // fila de alumnos para correos @upc.edu.pe. El cruce no puede perder de
     // vista a esta persona solo porque no tenga fila en alumnos.
-    const r = cruzarPersonal([staffCrudo({ userId: 'u2' })], []);
+    const r = cruzarPersonal([staffCrudo({ userId: 'u2' })], [], []);
     expect(r).toEqual([
       {
         userId: 'u2',
         rol: 'operator',
         activo: true,
         registro: '2026-08-10T14:00:00Z',
+        primerAcceso: null,
         alumno: null,
       },
     ]);
   });
 
   it('con la lista de personal vacia devuelve vacio, sin reventar', () => {
-    expect(cruzarPersonal([], [])).toEqual([]);
+    expect(cruzarPersonal([], [], [])).toEqual([]);
     // Ni siquiera importa si hay alumnos sin nadie con quien cruzarlos.
-    expect(cruzarPersonal([], [alumnoCrudo()])).toEqual([]);
+    expect(cruzarPersonal([], [alumnoCrudo()], [])).toEqual([]);
   });
 
   it('el orden que entra es el orden que sale', () => {
@@ -347,7 +358,37 @@ describe('cruzarPersonal', () => {
     const b = staffCrudo({ userId: 'b', rol: 'operator' });
     const c = staffCrudo({ userId: 'c', rol: 'operator' });
 
-    const r = cruzarPersonal([c, a, b], []);
+    const r = cruzarPersonal([c, a, b], [], []);
     expect(r.map((m) => m.userId)).toEqual(['c', 'a', 'b']);
+  });
+
+  // D-80 / D-85: la fecha del primer magic link llega por una TERCERA lista,
+  // porque sale de una RPC y no de un select -- auth.users no tiene grant para
+  // authenticated --.
+  it('cruza el primer acceso por user_id', () => {
+    const r = cruzarPersonal([staffCrudo()], [alumnoCrudo()], [accesoCrudo()]);
+    expect(r[0].primerAcceso).toBe('2026-08-08T03:55:22.219Z');
+  });
+
+  it('deja `primerAcceso` en null cuando la RPC no devolvio fila para ese user_id', () => {
+    // Pasa de verdad: una fila de personal insertada por SQL directo puede no
+    // tener confirmation_sent_at. La persona SIGUE saliendo en la tabla -- con
+    // un guion en esa columna --, que es lo mismo que ya se decidio para
+    // `alumno`: perder de vista a un miembro del personal es peor que
+    // mostrarlo incompleto.
+    const r = cruzarPersonal([staffCrudo({ userId: 'u9' })], [], [accesoCrudo({ userId: 'u1' })]);
+    expect(r).toHaveLength(1);
+    expect(r[0].primerAcceso).toBeNull();
+  });
+
+  it('trata la fila con primerAcceso null igual que la fila ausente', () => {
+    // Las DOS causas de null -- clave ausente y valor null -- tienen que salir
+    // iguales, porque la columna las pinta iguales. `get() ?? null` es lo que
+    // lo garantiza: sin el `??`, la clave ausente daria `undefined` y el
+    // toEqual de arriba dejaria de cuadrar.
+    const conValorNulo = cruzarPersonal([staffCrudo()], [], [accesoCrudo({ primerAcceso: null })]);
+    const sinFila = cruzarPersonal([staffCrudo()], [], []);
+    expect(conValorNulo[0].primerAcceso).toBeNull();
+    expect(conValorNulo).toEqual(sinFila);
   });
 });
