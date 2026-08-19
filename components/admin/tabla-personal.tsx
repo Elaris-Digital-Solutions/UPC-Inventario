@@ -241,6 +241,7 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
                   <TableHead>Rol</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Desde</TableHead>
+                  <TableHead>Primer correo</TableHead>
                   <TableHead>Acceso</TableHead>
                 </TableRow>
               </TableHeader>
@@ -315,6 +316,31 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
 
                       <TableCell className="whitespace-nowrap">
                         {FORMATO_FECHA.format(new Date(m.registro))}
+                      </TableCell>
+
+                      {/*
+                        D-80 / D-85: la fecha del PRIMER magic link, que no la
+                        guarda este proyecto -- la escribe Supabase Auth al
+                        PEDIRLO -- y que la migracion 31 expone.
+
+                        SE LLAMA "Primer correo" Y NO "Acceso" NI "Desde" a
+                        proposito: esta tabla ya tiene esas dos, y "Desde" es
+                        ademas otra fecha -- cuando se le dio de alta como
+                        personal --. Tres fechas con nombres parecidos se leen
+                        mal.
+
+                        EL GUION NO ES UN FALLO: `primerAcceso` es null cuando
+                        la cuenta no paso por Auth -- una fila de personal
+                        insertada por SQL directo -- o cuando quien mira no es
+                        admin, que aqui no puede pasar porque el layout lo para
+                        antes.
+                      */}
+                      <TableCell className="whitespace-nowrap">
+                        {m.primerAcceso === null ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          FORMATO_FECHA.format(new Date(m.primerAcceso))
+                        )}
                       </TableCell>
 
                       <TableCell>

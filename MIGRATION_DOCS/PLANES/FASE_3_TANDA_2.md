@@ -605,3 +605,86 @@ mano. Se comprobó así el 2026-08-18 *(corrección 14 de la F3-T1)*.
 ## Cabecera de correcciones
 
 *(Se rellena al ejecutar. Si al terminar está vacía, es que no se miró.)*
+
+1. **Al `seed.sql` había que sembrarle también `last_sign_in_at`, y el plan sólo nombraba
+   `confirmation_sent_at`.** La aserción 9 afirma que el valor devuelto no es ninguna de las otras tres
+   fechas, y **en SQL comparar contra NULL no da falso: da NULL**. Con `last_sign_in_at` sin sembrar, esa
+   aserción no podía escribirse. Se siembran las cuatro, imitando el orden real de producción: se pide el
+   enlace, se manda, se abre 21 s después, y se vuelve a entrar días más tarde.
+
+2. **La aserción 9 cambió de significado al escribirla, y por eso la predicción del paso 7 de la Tarea 1
+   falló.** El plan decía que con la función devolviendo `created_at` fallarían «la 8 y la 9». **Falló
+   exactamente la 8, y sólo la 8** — medido. El motivo es que la 9 acabó afirmando algo mejor: no que la
+   función devuelva lo correcto *(eso ya lo dice la 8)*, sino que **el fixture sembró las cuatro fechas
+   distintas**, que es la condición sin la cual la 8 no probaría nada. Una aserción sobre la función y otra
+   sobre el fixture; el plan las había pensado como dos sobre la función.
+
+3. ⚠ **El tipo generado miente, y en la dirección peligrosa: `supabase gen types` declara
+   `primer_acceso: string`, sin `| null`, sobre una columna que SÍ es nullable.** `confirmation_sent_at`
+   es `timestamptz` nullable —medido contra `information_schema`—, pero el generador infiere del
+   `returns table (... timestamptz)` que nunca falta. **La capa de aplicación lo declara
+   `string | null` a propósito y no confía en el tipo generado**; si alguien lo «simplificara» siguiendo al
+   tipo, el `null` real llegaría a `new Date(null)` en la pantalla. Es la familia de instrumento que este
+   proyecto ya tiene fichada: **una herramienta contestando con seguridad una pregunta que no le hicieron.**
+
+4. ⚠ **La mutación de la Tarea 2 no falla como el plan predijo, y lo que la para es la propia base.**
+   El paso 6 decía que quitando el `where` del segundo `delete` fallaría «la 8, y sólo la 8». **Lo medido:
+   la función aborta con `inventory_reservations_alumno_id_fkey`** —`Key (id)=(…d3) is still referenced`—,
+   la prueba corta en la cuarta aserción y **las cinco restantes no llegan a correr**: `Bad plan. You
+   planned 8 tests but ran 3`. **La `NO ACTION` de la corrección 5 no es sólo una molestia de orden: es una
+   red de seguridad real contra un borrado masivo**, y el fixture la activa porque deja al alumno ajeno
+   **con una reserva**.
+
+   **Y eso dejaba sin comprobar justo la aserción que justifica la prueba entera**, así que hizo falta una
+   **segunda mutación** —quitarle el `where` a los **dos** `delete`, para que nada la abortara—. Con esa:
+   **fallan la 4 y la 8, y sólo esas.** La 8 caza el borrado de más, que es su papel. **Una prueba de
+   mutación que aborta no prueba que la aserción mida: prueba que algo antes se rompió.**
+
+5. **Hacer obligatorio el tercer parámetro de `cruzarPersonal()` rompió 5 llamadas en
+   `lib/admin/filtros.test.ts`, y el plan no lo había previsto.** Es la señal correcta —el tipo obliga a
+   pasar la lista en vez de dejarla opcional y silenciosa—, pero significa que la Tarea 3 toca cinco
+   llamadas existentes además de añadir tres pruebas. **La predicción de 158 pruebas se cumplió igual**,
+   porque las cinco se actualizaron, no se duplicaron.
+
+6. ⚠ **Q-20 es MÁS ANCHO de lo que dice su enunciado, y se descubrió sin buscarlo, caminando la Tarea 4.**
+   Q-20 dice «tres diálogos, dos pantallas, **y UN SOLO hash**». Medido el 2026-08-19 en
+   **`/admin/personal`** —una **tercera** pantalla— al abrir el **desplegable de rol**, que **no es un
+   diálogo**: dos violaciones de CSP con **dos hashes distintos**, el conocido
+   `sha256-kAApudxpTi9mfjlC9lC8ZaS9xFHU9/NLLbB173MU7SU=` y uno nuevo,
+   `sha256-441zG27rExd4/il+NvIqyL8zFx5XmyNQtE381kSkUJk=`.
+
+   **Esta tanda no lo introdujo:** el Select de rol existe desde la T3B. Lo único que hizo falta fue mirar
+   donde nadie había mirado — igual que la T4 de la Fase 2 midió **quince pantallas con cero violaciones**
+   y ese resultado sigue siendo cierto, porque midió **pantallas y no interacciones**. **No se arregla
+   aquí**: Q-20 está aplazado por decisión de Alejandro y las dos curas conocidas siguen siendo peores que
+   la enfermedad. Lo que cambia es su alcance, y eso encarece la cura por hash: **son dos y pueden ser
+   más.**
+
+7. **Calentar Auth con un correo del seed consume su cuota de frecuencia.** El primer `POST /otp` respondió
+   **HTTP 200 en 459 ms** —contra los 10.970 ms y 8.000 ms que expiraban en frío en la F3-T1, o sea que el
+   calentamiento funciona—, y el segundo, a menos de un segundo, **HTTP 429 en 378 ms**. No rompió el E2E
+   —entre pruebas pasa tiempo de sobra—, pero **calentar dos veces seguidas con el mismo correo no calienta
+   más: agota la ventana.** Una basta.
+
+8. **El E2E no necesitó tocar el arnés, y eso contesta V-3 por la salida A.** `iniciarSesionComo(page,
+   email)` ya aceptaba cualquier correo del seed, así que la séptima prueba entra como Bruno sin rozar las
+   cuatro que entran como Ana. **7/7 en 1,3 min.**
+
+---
+
+**Desenlace de los cuatro puntos a verificar, medido el 2026-08-19:**
+
+- **V-1 → A.** `security definer` basta: la función lee `auth.users` sin ningún `grant usage on schema
+  auth` extra. No hizo falta la salida B.
+- **V-2 → A.** La séptima columna cabe. La tabla ya vive dentro de un `overflow-x-auto`, así que no hubo
+  nada que rediseñar ni que anotar.
+- **V-3 → A.** El arnés ya permitía entrar como Bruno. Es el que salió gratis.
+- **V-4 → A, reconfirmado contra producción el 2026-08-19 al cerrar la tanda**, que es lo más cerca del
+  `db push` que se puede estar sin haberlo hecho. Los **cuatro ids siguen existiendo**, los cuatro **sin
+  cuenta de Auth**, y sus reservas suman **2 + 2 + 3 + 1 = 8**, igual que al escribir el plan. Estado
+  previo al empuje, para comparar después: `alumnos` **5**, sin cuenta **4**, reservas **8**, log **3**,
+  `staff_members` **1**, `auth.users` **1**, y **34 / 92 / 68** en productos, unidades y notas.
+
+  ⚠ **Vale para hoy y caduca.** Si entre esta medición y el `db push` pasan días, o alguien entra al sitio
+  real, **se recuenta antes de empujar**: un borrado de producción no se ejecuta contra una lista que
+  caducó.

@@ -348,6 +348,15 @@ export type AlumnoParaCruce = {
   apellido: string | null;
 };
 
+// Lo que devuelve public.primer_acceso_personal() por cada miembro (D-80,
+// migracion 31). `primerAcceso` es nulable de verdad: `confirmation_sent_at`
+// es NULLABLE en auth.users, y una fila de personal insertada por SQL directo
+// -- como el primer admin -- puede no tenerla.
+export type PrimerAccesoParaCruce = {
+  userId: string;
+  primerAcceso: string | null;
+};
+
 // Lo que pinta /admin/personal por cada miembro. Misma forma que
 // `ReservaFiltrable.alumno` mas arriba: `nombre` y `apellido` nulables por
 // separado, `email` no.
@@ -356,6 +365,13 @@ export type MiembroPersonal = {
   rol: RolStaff;
   activo: boolean;
   registro: string; // `created_at` en ISO, tal cual llega
+  // Fecha del PRIMER magic link, en ISO. `null` por DOS causas distintas que
+  // esta capa no distingue, y no hace falta que lo haga: que la funcion no
+  // haya devuelto fila para este `user_id` -- quien mira no es admin, y
+  // entonces no devuelve ninguna --, o que `confirmation_sent_at` sea null de
+  // verdad. Quien no es admin no llega a esta pantalla: el layout de
+  // app/(personal)/admin/ lo para antes.
+  primerAcceso: string | null;
   // `null` cuando NO hay fila en `alumnos` para este `user_id`. La rama
   // IMPORTA aunque hoy sea el camino menos comun -- no es un caso teorico,
   // pero tampoco el camino normal --: desde D-32 el enganche Before User
@@ -394,8 +410,13 @@ export type MiembroPersonal = {
  * no reordena, asi que quien decide el orden final es el `order('created_at')`
  * de la consulta en lib/admin/personal.ts, no esta funcion.
  */
-export function cruzarPersonal(staff: StaffParaCruce[], alumnos: AlumnoParaCruce[]): MiembroPersonal[] {
+export function cruzarPersonal(
+  staff: StaffParaCruce[],
+  alumnos: AlumnoParaCruce[],
+  primerAcceso: PrimerAccesoParaCruce[],
+): MiembroPersonal[] {
   const porUserId = new Map(alumnos.map((a) => [a.authUserId, a]));
+  const accesoPorUserId = new Map(primerAcceso.map((p) => [p.userId, p.primerAcceso]));
 
   return staff.map((s) => {
     const alumno = porUserId.get(s.userId) ?? null;
@@ -405,6 +426,10 @@ export function cruzarPersonal(staff: StaffParaCruce[], alumnos: AlumnoParaCruce
       rol: s.rol,
       activo: s.activo,
       registro: s.registro,
+      // `?? null` y no `get()` a secas: la clave puede faltar -- la funcion no
+      // devolvio fila -- o estar con valor null. Las dos salen como null, que
+      // es lo que la columna pinta con un guion.
+      primerAcceso: accesoPorUserId.get(s.userId) ?? null,
       alumno: alumno ? { email: alumno.email, nombre: alumno.nombre, apellido: alumno.apellido } : null,
     };
   });

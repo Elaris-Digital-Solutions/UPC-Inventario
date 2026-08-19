@@ -106,17 +106,42 @@ insert into public.disabled_days (id, date, reason) values
 -- email_change_token_current, reauthentication_token- llevan `default ''`,
 -- asi que un INSERT que no las nombra ya las rellena solo. Un usuario creado
 -- por la API de GoTrue nace con '' en las ocho; uno insertado a mano, no.
+-- LAS CUATRO FECHAS SE SIEMBRAN DISTINTAS A PROPOSITO, y esto tampoco es
+-- adorno (D-80, migracion 31).
+--
+-- `confirmation_sent_at` es NULLABLE y SIN DEFAULT -medido contra
+-- information_schema-, asi que un INSERT que no la nombre la deja en NULL.
+-- Antes daba igual: nadie la leia. Desde la migracion 31 la lee
+-- primer_acceso_personal(), y con NULL la columna "Primer correo" de
+-- /admin/personal saldria VACIA EN LOCAL Y LLENA EN PRODUCCION, con lint,
+-- typecheck, build y el recorrido en navegador todos en verde. Es la trampa
+-- nº 1 de este proyecto -la de products.featured- sobre otra columna.
+--
+-- Y SEPARADAS ENTRE SI porque si valieran todas now(), una funcion que
+-- devolviera created_at o email_confirmed_at pasaria la prueba igual. El
+-- orden imita al del proyecto real: se pide el enlace, se manda, se abre 21 s
+-- despues, y se vuelve a entrar dias mas tarde.
+--
+--   created_at           hace 10 dias
+--   confirmation_sent_at hace 10 dias + 1 s   <- el primer magic link
+--   email_confirmed_at   hace 10 dias + 21 s
+--   last_sign_in_at      hace 2 dias
+--
+-- `last_sign_in_at` se siembra por un motivo concreto: la prueba 39 afirma
+-- que el valor devuelto NO es ninguna de las otras tres, y en SQL comparar
+-- contra NULL no da falso, da NULL. Sin esta columna esa asercion no podria
+-- escribirse.
 insert into auth.users
   (instance_id, id, aud, role, email, encrypted_password,
-   email_confirmed_at, created_at, updated_at,
+   email_confirmed_at, confirmation_sent_at, last_sign_in_at, created_at, updated_at,
    raw_app_meta_data, raw_user_meta_data, is_super_admin,
    confirmation_token, recovery_token, email_change_token_new, email_change)
 values
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'alumno.a@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'alumno.b@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'admin@upc.edu.pe',    'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'operador@upc.edu.pe', 'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000f', 'authenticated', 'authenticated', 'alguien@gmail.com',   'no-login', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', '');
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'alumno.a@upc.edu.pe', 'no-login', now() - interval '10 days' + interval '21 seconds', now() - interval '10 days' + interval '1 second', now() - interval '2 days', now() - interval '10 days', now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'alumno.b@upc.edu.pe', 'no-login', now() - interval '10 days' + interval '21 seconds', now() - interval '10 days' + interval '1 second', now() - interval '2 days', now() - interval '10 days', now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'admin@upc.edu.pe',    'no-login', now() - interval '10 days' + interval '21 seconds', now() - interval '10 days' + interval '1 second', now() - interval '2 days', now() - interval '10 days', now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'operador@upc.edu.pe', 'no-login', now() - interval '10 days' + interval '21 seconds', now() - interval '10 days' + interval '1 second', now() - interval '2 days', now() - interval '10 days', now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-00000000000f', 'authenticated', 'authenticated', 'alguien@gmail.com',   'no-login', now() - interval '10 days' + interval '21 seconds', now() - interval '10 days' + interval '1 second', now() - interval '2 days', now() - interval '10 days', now(), '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', '');
 
 
 -- El primer miembro del personal se siembra a mano porque no hay admin que lo
