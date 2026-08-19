@@ -26,10 +26,10 @@
 // casos) un campo de texto. Esta tarjeta los monta en el hueco que quedaba
 // marcado mas abajo, pero no los construye aca: DialogoFalta trae su propio
 // boton disparador, y esta tarjeta solo le pasa los datos que ya tiene.
-import Image from "next/image";
 import { useState, useTransition } from "react";
 import { CalendarDays, User } from "lucide-react";
 
+import { MiniaturaAmpliable } from "@/components/imagenes/miniatura-ampliable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogoFalta } from "@/components/mostrador/dialogo-falta";
@@ -167,25 +167,21 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
           {/* La miniatura del equipo (F3-T3). El mostrador no mostraba NINGUNA
               imagen, y quien atiende tiene que reconocer el aparato que va a
               sacar del estante: un nombre como "UGREEN 4K USB-C MULTIFUNCTION
-              ADAPTER 7-IN-1" no le dice que buscar.
+              ADAPTER 7-IN-1" no le dice que buscar. Se amplia con un clic, sin
+              salir del mostrador.
 
-              Va PEGADA al nombre y no en una fila propia: es el identificador
-              visual del mismo dato, no un dato mas.
+              MISMO COMPONENTE que la lista de inventario: el placeholder, el
+              lightbox y el caso sin imagen se deciden alli una sola vez.
 
-              `/placeholder.svg` de respaldo, el mismo que usan el catalogo y
-              la lista de inventario. Tamano funcional, no afinado: la fase
-              visual la hace otra persona. */}
-          {/* La miniatura y el titulo van AGRUPADOS: el `justify-between` del
+              La miniatura y el titulo van AGRUPADOS: el `justify-between` del
               contenedor separa dos bloques -equipo a la izquierda, horario a
               la derecha-, y con la imagen suelta como tercer hijo el horario
               habria dejado de quedar en su extremo. */}
           <div className="flex items-start gap-3">
-            <Image
-              src={reserva.imagenUrl ?? "/placeholder.svg"}
+            <MiniaturaAmpliable
+              src={reserva.imagenUrl}
               alt={reserva.producto}
-              width={48}
-              height={48}
-              className="bg-muted shrink-0 rounded object-cover"
+              tamano={48}
             />
             <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
           </div>

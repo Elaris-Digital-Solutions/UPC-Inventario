@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 
+import { MiniaturaAmpliable } from "@/components/imagenes/miniatura-ampliable";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -117,27 +117,16 @@ export function TablaInventario({ filas }: TablaInventarioProps) {
                   un vistazo, que es lo que el admin necesita para no abrir 34
                   fichas buscando una.
 
-                  `next/image` con medidas FIJAS y no `fill`: dentro de una
-                  celda de tabla, `fill` exigiria un contenedor con posicion
-                  relativa y alto propio, y eso si seria maquetar. Asi la celda
-                  se comporta como cualquier otra.
+                  El placeholder, el lightbox y el caso sin imagen viven DENTRO
+                  de MiniaturaAmpliable, no aqui: esta celda le pasa el dato y
+                  el tamano, y no repite ninguna de esas decisiones. El
+                  mostrador usa el mismo componente.
 
                   El tamano es FUNCIONAL, no afinado: 56 px es lo minimo con lo
                   que se reconoce un equipo en una lista. Ajustarlo es de la
-                  fase visual, que hace otra persona.
-
-                  El respaldo es `/placeholder.svg`, el MISMO que usa
-                  components/catalogo/tarjeta-producto.tsx: dos huecos
-                  distintos para el mismo caso se leerian como dos estados
-                  distintos. */}
+                  fase visual, que hace otra persona. */}
               <TableCell>
-                <Image
-                  src={fila.imagenUrl ?? "/placeholder.svg"}
-                  alt={fila.nombre}
-                  width={56}
-                  height={56}
-                  className="bg-muted rounded object-cover"
-                />
+                <MiniaturaAmpliable src={fila.imagenUrl} alt={fila.nombre} tamano={56} />
               </TableCell>
             </TableRow>
           ))}
