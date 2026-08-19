@@ -679,7 +679,12 @@ mano. Se comprobó así el 2026-08-18 *(corrección 14 de la F3-T1)*.
 - **V-2 → A.** La séptima columna cabe. La tabla ya vive dentro de un `overflow-x-auto`, así que no hubo
   nada que rediseñar ni que anotar.
 - **V-3 → A.** El arnés ya permitía entrar como Bruno. Es el que salió gratis.
-- **V-4 → PENDIENTE, y no por olvido: no se puede contestar en local.** Que los 4 alumnos de demo sigan
-  siendo esos 4 ids el día del `db push` **se comprueba contra producción, en el paso 8**, y si la lista
-  cambió **se para y se vuelve a confirmar con Alejandro**. La medición que fija la lista es del
-  2026-08-19.
+- **V-4 → A, reconfirmado contra producción el 2026-08-19 al cerrar la tanda**, que es lo más cerca del
+  `db push` que se puede estar sin haberlo hecho. Los **cuatro ids siguen existiendo**, los cuatro **sin
+  cuenta de Auth**, y sus reservas suman **2 + 2 + 3 + 1 = 8**, igual que al escribir el plan. Estado
+  previo al empuje, para comparar después: `alumnos` **5**, sin cuenta **4**, reservas **8**, log **3**,
+  `staff_members` **1**, `auth.users` **1**, y **34 / 92 / 68** en productos, unidades y notas.
+
+  ⚠ **Vale para hoy y caduca.** Si entre esta medición y el `db push` pasan días, o alguien entra al sitio
+  real, **se recuenta antes de empujar**: un borrado de producción no se ejecuta contra una lista que
+  caducó.
