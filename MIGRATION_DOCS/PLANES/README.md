@@ -45,6 +45,7 @@ y qué comando la verifica.
 | Plan | Tanda | Estado |
 |---|---|---|
 | [`FASE_3_TANDA_1.md`](./FASE_3_TANDA_1.md) | FAQ, salones y fichas: el salón pasa a la sede *(D-77)*, **se desempaqueta `products.description`** *(D-82)*, el FAQ gana la facultad y el TIU *(D-78)*, y el formulario se muda a la primera reserva *(D-79)*. Migraciones 27, 28 y 29 | ⚠ **ejecutado EN LOCAL el 2026-08-18** · **7 correcciones al diseño + 19 al plan** · 8 tareas · 53 pasos · V-1, V-2 y V-3 resueltos y **V-4 no**, porque se mide contra producción · **abre Q-25 y Q-26** · ✅ **EN PRODUCCIÓN el 2026-08-19** (PR #38) · **cierra Q-23 y V-4: son 2, la predicción acertó** · ⚠ **dejó 41 notas duplicadas** —el diseño midió el origen y no el destino—, **arregladas el mismo día con la migración 30** *(D-83, PR #39)*: de 109 notas a 68, cero duplicados |
+| [`FASE_3_TANDA_2.md`](./FASE_3_TANDA_2.md) | Operadores, primer correo y limpieza: la función del primer acceso *(D-80)*, su columna en `/admin/personal`, el **borrado de los datos de demo** y la séptima prueba E2E *(Q-25)*. Migraciones 31 y 32 | 📝 **escrito el 2026-08-19** · **11 correcciones al diseño** · 7 tareas · 4 puntos a verificar · **nada ejecutado todavía** |
 
 ## Cómo leerlos
 
