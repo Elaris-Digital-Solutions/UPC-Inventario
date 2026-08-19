@@ -1,3 +1,4 @@
+import { imagenPrincipal } from '@/lib/imagenes/principal';
 import { createClient } from '@/lib/supabase/server';
 
 import type { Database } from '@/lib/database.types';
@@ -28,7 +29,18 @@ export type FilaInventario = {
   // asset_code ni ninguna no-`AUTO-` sin el. Nadie puede identificar esas
   // unidades en un estante, asi que verlas es VISIBILIDAD, no estetica.
   unidadesSinCodigo: number;
-  imagenes: number;
+  // La URL de la imagen principal, o `null` si el producto no tiene ninguna.
+  //
+  // ANTES ERA `imagenes: number`, el RECUENTO, y la F3-T3 lo sustituye en vez
+  // de anadir un campo al lado. Llevar los dos obligaria a cada pantalla a
+  // decidir cual mira, y la lista ya no muestra el numero: muestra la foto. Si
+  // algun dia hace falta el recuento, se anade entonces y con su motivo.
+  //
+  // `| null` no es defensivo: el `seed.sql` deja 2 de sus 4 productos sin
+  // ninguna imagen a proposito, y esa es la mitad de la pantalla que prueba
+  // que el hueco se pinta bien. En produccion -medido el 2026-08-19- los 34
+  // tienen imagen, asi que ese caso NO se ve alli.
+  imagenUrl: string | null;
 };
 
 // La forma MEDIDA de la fila que devuelve el embed. Misma tecnica que
@@ -55,6 +67,13 @@ export type FilaInventario = {
 //       buffer_minutes,inventory_units(status,asset_code),product_images(id)
 //   -> HTTP 200 con las dos colecciones pobladas.
 //
+// OJO: ESA TRANSCRIPCION ES LA DE LA MEDICION DE 2026-08-12 y ya no es el select
+// de abajo: la F3-T3 cambio `product_images(id)` por
+// `product_images(secure_url,is_main,sort_order)`. Se conserva el texto
+// original porque lo que la medicion probo -que products EMBEBE a sus hijos,
+// que era lo que no se podia dar por hecho- sigue siendo cierto y no depende
+// de que columnas se pidan. Lo que cambio son las columnas, no la relacion.
+//
 // Por eso esto es UNA sola consulta y no dos con agrupacion en TypeScript,
 // que era el otro desenlace que el plan dejo escrito.
 type FilaCruda = {
@@ -64,7 +83,11 @@ type FilaCruda = {
   max_duration_hours: number;
   buffer_minutes: number;
   inventory_units: { status: EstadoUnidad; asset_code: string | null }[];
-  product_images: { id: string }[];
+  // Las TRES columnas que decide `imagenPrincipal()`, y ni una mas. `id` se
+  // dejo de pedir porque nadie lo leia -este listado no enlaza a una imagen
+  // concreta-, y `format` y `cloudinary_public_id` no entran porque no pueden
+  // decidir nada: medido el 2026-08-19, son NULL en las 34 filas de produccion.
+  product_images: { secure_url: string; is_main: boolean; sort_order: number }[];
 };
 
 // Los cuatro conteos se calculan ACA y no con `count` de PostgREST: son cuatro
@@ -89,7 +112,11 @@ function filaAInventario(fila: FilaCruda): FilaInventario {
     unidadesMaintenance: unidades.filter((u) => u.status === 'maintenance').length,
     unidadesRetired: unidades.filter((u) => u.status === 'retired').length,
     unidadesSinCodigo: unidades.filter((u) => u.asset_code === null).length,
-    imagenes: fila.product_images.length,
+    // NO se reimplementa la regla aqui: la decide imagenPrincipal(), que vive
+    // en lib/imagenes/principal.ts desde la F3-T3 justamente para que las tres
+    // capas que la necesitan -catalogo, este listado y el mostrador- no tengan
+    // tres copias que puedan divergir.
+    imagenUrl: imagenPrincipal(fila.product_images),
   };
 }
 
@@ -112,7 +139,7 @@ export async function listarInventario(): Promise<FilaInventario[]> {
   const { data, error } = await supabase
     .from('products')
     .select(
-      'id,name,category,max_duration_hours,buffer_minutes,inventory_units(status,asset_code),product_images(id)',
+      'id,name,category,max_duration_hours,buffer_minutes,inventory_units(status,asset_code),product_images(secure_url,is_main,sort_order)',
     )
     .order('name', { ascending: true });
 

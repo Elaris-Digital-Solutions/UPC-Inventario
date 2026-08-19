@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { NonceRadix } from "@/components/seguridad/nonce-radix";
 import { cn } from "@/lib/utils";
 
 // D-23: las fuentes las descarga next/font en el build y las sirve desde el
@@ -39,7 +41,28 @@ export const metadata: Metadata = {
     "Reserva y prestamo de equipamiento tecnologico para alumnos UPC.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// LEER `headers()` AQUI VUELVE DINAMICAS TODAS LAS RUTAS, y el comentario de
+// abajo ya avisaba de ese mecanismo para la cabecera de sesion. Se hace igual,
+// y no por descuido:
+//
+//   - MEDIDO EL 2026-08-19 sobre `npm run build`: de las 23 rutas de este
+//     proyecto, las 23 YA son dinamicas y NINGUNA es estatica. El coste que
+//     ese aviso describe ya esta pagado por otra via, asi que aqui no queda
+//     nada que perder.
+//   - Va en el layout RAIZ y no en los de grupo porque el nonce es una
+//     propiedad de la PETICION, no de una seccion. Repartirlo entre
+//     `(personal)` y `(alumno)` dejaria sin nonce -- en silencio -- la
+//     tercera pantalla que alguien anada manana con un componente de Radix.
+//
+// EL COSTE SE ESCRIBE POR DELANTE: si algun dia se recuperan rutas estaticas,
+// esta llamada es lo primero que lo impide, y entonces el nonce se mueve a los
+// layouts de los grupos que usan Radix.
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // `x-nonce` la inyecta proxy.ts en las cabeceras del REQUEST (proxy.ts:59,
+  // via `new Headers(request.headers)` en lib/supabase/proxy.ts). Hasta la
+  // F3-T3 no la leia nadie.
+  const nonce = (await headers()).get("x-nonce") ?? "";
+
   return (
     <html
       lang="es"
@@ -51,7 +74,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           -las ocho pasaron de dos estaticas a cero-. La vitrina publica no
           necesita saber quien mira, asi que la cabecera la pintan los layouts
           de grupo: la publica en (publico), la de sesion en (alumno). */}
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* Antes que `children`: `setNonce` tiene que haber corrido cuando se
+            monte el primer componente de Radix, porque la hoja se crea una
+            sola vez y no se recrea. No pinta nada. */}
+        <NonceRadix nonce={nonce} />
+        {children}
+      </body>
     </html>
   );
 }

@@ -29,6 +29,7 @@
 import { useState, useTransition } from "react";
 import { CalendarDays, User } from "lucide-react";
 
+import { MiniaturaAmpliable } from "@/components/imagenes/miniatura-ampliable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogoFalta } from "@/components/mostrador/dialogo-falta";
@@ -163,7 +164,27 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+          {/* La miniatura del equipo (F3-T3). El mostrador no mostraba NINGUNA
+              imagen, y quien atiende tiene que reconocer el aparato que va a
+              sacar del estante: un nombre como "UGREEN 4K USB-C MULTIFUNCTION
+              ADAPTER 7-IN-1" no le dice que buscar. Se amplia con un clic, sin
+              salir del mostrador.
+
+              MISMO COMPONENTE que la lista de inventario: el placeholder, el
+              lightbox y el caso sin imagen se deciden alli una sola vez.
+
+              La miniatura y el titulo van AGRUPADOS: el `justify-between` del
+              contenedor separa dos bloques -equipo a la izquierda, horario a
+              la derecha-, y con la imagen suelta como tercer hijo el horario
+              habria dejado de quedar en su extremo. */}
+          <div className="flex items-start gap-3">
+            <MiniaturaAmpliable
+              src={reserva.imagenUrl}
+              alt={reserva.producto}
+              tamano={48}
+            />
+            <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+          </div>
           <span className="text-foreground shrink-0 font-mono text-sm tabular-nums">
             {FORMATO_HORA.format(new Date(reserva.inicio))}
             {" – "}

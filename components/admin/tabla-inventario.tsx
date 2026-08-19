@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MiniaturaAmpliable } from "@/components/imagenes/miniatura-ampliable";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -40,7 +41,10 @@ export function TablaInventario({ filas }: TablaInventarioProps) {
             <TableHead className="text-right">Máximo</TableHead>
             <TableHead className="text-right">Retorno</TableHead>
             <TableHead>Unidades</TableHead>
-            <TableHead className="text-right">Imágenes</TableHead>
+            {/* Antes decia "Imágenes" y contaba; ahora hay UNA foto, asi que el
+                encabezado va en singular. No es cosmetica: un plural sobre una
+                sola miniatura sugiere que faltan las demas. */}
+            <TableHead>Imagen</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -108,7 +112,22 @@ export function TablaInventario({ filas }: TablaInventarioProps) {
                 </div>
               </TableCell>
 
-              <TableCell className="text-right">{fila.imagenes}</TableCell>
+              {/* La miniatura sustituye al RECUENTO de imagenes (F3-T3). Un
+                  numero no dice que equipo es; la foto identifica la fila de
+                  un vistazo, que es lo que el admin necesita para no abrir 34
+                  fichas buscando una.
+
+                  El placeholder, el lightbox y el caso sin imagen viven DENTRO
+                  de MiniaturaAmpliable, no aqui: esta celda le pasa el dato y
+                  el tamano, y no repite ninguna de esas decisiones. El
+                  mostrador usa el mismo componente.
+
+                  El tamano es FUNCIONAL, no afinado: 56 px es lo minimo con lo
+                  que se reconoce un equipo en una lista. Ajustarlo es de la
+                  fase visual, que hace otra persona. */}
+              <TableCell>
+                <MiniaturaAmpliable src={fila.imagenUrl} alt={fila.nombre} tamano={56} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

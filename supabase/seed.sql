@@ -70,9 +70,33 @@ insert into public.inventory_units (id, product_id, campus_id, unit_code, asset_
   ('dddddddd-0000-0000-0000-000000000008', 'bbbbbbbb-0000-0000-0000-000000000004', 'cccccccc-0000-0000-0000-000000000002', 'MIC-002', 'UPC-100008', 'maintenance');
 
 
+-- URLS DE LA CUENTA DE DEMOSTRACION DE CLOUDINARY, y no del proyecto: son las
+-- unicas publicas que se pueden versionar sin depender de la cuenta real.
+--
+-- CAMBIADAS EN LA F3-T3, y el motivo es una medicion. Antes apuntaban a
+-- `demo/image/upload/seed/cam-001.jpg` y `.../seed/lap-001.jpg`, que NO
+-- EXISTEN: medido el 2026-08-19 con `curl -I`, las dos responden 404 -- con
+-- `content-type: image/gif`, que es el gif de error de Cloudinary --. Una URL
+-- real de produccion responde 200 image/jpeg.
+--
+-- Daba igual mientras nadie mirara la foto en local. Deja de dar igual cuando
+-- la lista de inventario y el mostrador pasan a mostrar la miniatura: la
+-- pantalla se veria ROTA EN LOCAL Y BIEN EN PRODUCCION, que es la trampa numero 1
+-- de este proyecto -- la de `products.featured` -- pero INVERTIDA. Lo que cuesta no
+-- es creer que algo funciona: es creer que esta roto y "arreglar" codigo sano.
+--
+-- DOS URLS DISTINTAS y no la misma dos veces, a proposito: con la misma foto
+-- en los dos productos, una miniatura pegada a la fila equivocada se veria
+-- correcta y nadie lo notaria.
+--
+-- `cloudinary_public_id` se actualiza para que corresponda a la URL. No cambia
+-- ningun comportamiento -- lo unico que lo lee es la insignia "sin
+-- identificador de Cloudinary" de la galeria de administracion, que solo
+-- reacciona al NULL -- pero un fixture cuyo identificador no case con su
+-- propia URL es un fixture que miente, aunque sea poco.
 insert into public.product_images (id, product_id, cloudinary_public_id, secure_url, format, is_main, sort_order) values
-  ('faaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', 'seed/cam-001', 'https://res.cloudinary.com/demo/image/upload/seed/cam-001.jpg', 'jpg', true, 0),
-  ('faaaaaaa-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000003', 'seed/lap-001', 'https://res.cloudinary.com/demo/image/upload/seed/lap-001.jpg', 'jpg', true, 0);
+  ('faaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', 'sample', 'https://res.cloudinary.com/demo/image/upload/sample.jpg', 'jpg', true, 0),
+  ('faaaaaaa-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000003', 'couple', 'https://res.cloudinary.com/demo/image/upload/couple.jpg', 'jpg', true, 0);
 
 
 -- Fecha fija y futura respecto de la Fase 1, para que las pruebas de dia
