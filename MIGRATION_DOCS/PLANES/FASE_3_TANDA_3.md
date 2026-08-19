@@ -480,6 +480,91 @@ que si esta tarea no existiera. Lo que NO se hace en ningún desenlace es el has
 
 *(Se rellena al ejecutar. Si al terminar está vacía, es que no se miró.)*
 
+1. ⚠ **Mover `imagenPrincipal()` dejó huérfano a `FilaProducto`, y yo escribí en el propio archivo que
+   seguía contrastando. Era falso, y lo delató el `lint`, no yo.** El comentario que puse en la Tarea 1
+   decía que *«`FilaProducto['product_images']` sigue satisfaciendo su parámetro estructuralmente, así que
+   el typecheck sigue CONTRASTANDO»*; **un tipo que no es parámetro de nada no contrasta nada**, y ESLint
+   lo cazó como `'FilaProducto' is defined but never used` — un **warning**, no un error, o sea que el CI
+   no lo habría parado. **Lo que de verdad se perdió al borrarlo es nada**, y eso también hubo que medirlo
+   en vez de suponerlo: ese tipo **nunca contrastó las siete columnas**, porque `imagenPrincipal()` recibía
+   sólo `FilaProducto['product_images']`. El contraste real era sobre las **tres** columnas de imagen, y
+   hoy lo sostiene el parámetro `ImagenElegible`. **Verificado con control positivo, no razonado:** quitar
+   `is_main` del `select` rompe el typecheck en **4 sitios**, incluidas las dos llamadas a
+   `imagenPrincipal()`.
+
+2. ⚠ **El paso 4 mandaba leer `x-nonce` en `app/layout.tsx`, y ese archivo lleva escrito el aviso que lo
+   desaconseja.** Su comentario dice, medido el 2026-08-08, que una cabecera que lee sesión en el layout
+   raíz **vuelve dinámicas todas las rutas** —«las ocho pasaron de dos estáticas a cero»—, y `headers()`
+   es exactamente el mismo mecanismo. **Se hizo igual, y el motivo se midió antes: de las 23 rutas de hoy,
+   las 23 ya son dinámicas y ninguna es estática**, así que el coste que ese aviso describe **ya está
+   pagado por otra vía y no queda nada que perder**. Va en el raíz y no en los layouts de grupo porque el
+   nonce es una propiedad de la petición: repartirlo entre `(personal)` y `(alumno)` dejaría **sin nonce y
+   en silencio** la pantalla que alguien añada mañana. **El coste queda escrito por delante en el propio
+   archivo:** si algún día se recuperan rutas estáticas, esta llamada es lo primero que lo impide.
+
+3. ⚠ **LA CORRECCIÓN QUE MÁS IMPORTA, y desmiente a la corrección 6 de este plan: los dos hashes de Q-20
+   NO eran dos hojas del mismo inyector.** Al escribir el plan deduje —leyendo `react-style-singleton`—
+   que el Dialog y el Select comparten `RemoveScroll` y que por eso *«una sola llamada las cubriría a las
+   dos»*. **Medido el 2026-08-19: son DOS MECANISMOS DISTINTOS.**
+
+   | Mecanismo | Quién lo inyecta | ¿Lo cubre `setNonce()`? |
+   |---|---|---|
+   | El *scroll-lock* del `body` | `react-style-singleton` vía `get-nonce` | **Sí** |
+   | `[data-radix-select-viewport]{scrollbar-width:none…}` | **`@radix-ui/react-select` lo renderiza en JSX**, con `dangerouslySetInnerHTML` *(su `dist/index.mjs:733`)*, y lo inserta **React DOM** | **No** |
+
+   El segundo **no pasa por `get-nonce`**, así que ninguna llamada lo alcanza. **La deducción sobre el
+   código de la dependencia era razonable y estaba a medias, y sólo medir la separó de la verdad** — que
+   es la razón por la que la corrección 6 decía explícitamente «esto es una lectura del código, NO una
+   verificación por el efecto».
+
+4. ⚠ **pgTAP falló en el paso 1 de la Tarea 6 con SIETE archivos en rojo, y no era una regresión: era la
+   base sucia.** Los fallos eran del género *«sin reservas, las tres cámaras están disponibles»* y *«el
+   alumno A no ve reservas ajenas»* — porque **la verificación por el efecto de las Tareas 3 y 4 dejó 2
+   reservas en la base local**. Tras `db reset`: **`Files=33, Tests=200, PASS`**, exactamente lo que
+   predecía el paso 2. **El plan pedía esa predicción sin decir «con base limpia», y sólo lo decía para el
+   E2E** *(paso 3)*. **La cura no es leer con más cuidado: es que el paso 2 vaya después del `db reset`,
+   no antes.** Sin haberlo comprobado, la lectura natural del rojo era «la tanda rompió algo», y el
+   siguiente movimiento habría sido buscar —o «arreglar»— un defecto que no existe.
+
+5. **`get-nonce` era una dependencia transitiva y hubo que declararla.** Se importa directamente desde
+   `components/seguridad/nonce-radix.tsx`, y depender de un paquete que sólo llega por el árbol de otro es
+   la clase de fallo que aparece el día que npm cambia el aplanado. Queda en `package.json` como
+   `"get-nonce": "1.0.1"`, con versión exacta.
+
+6. **`db reset` remedido, y el dato heredado era alto:** **56 s** la primera vez y **70 s** la segunda,
+   contra los **87 s** que el traspaso arrastraba sin verificar. Dos mediciones, no una, porque la
+   diferencia entre las dos ya es mayor que la precisión que tendría citar una sola.
+
+7. **El calentamiento de Auth costó 6,4 s, no 459 ms, y eso confirma el mecanismo de Q-26 en vez de
+   contradecirlo.** El `POST /auth/v1/otp` respondió **HTTP 200 en 6,399 s** — porque se lanzó **justo
+   después de un `db reset`**, que reinicia el contenedor de Auth. Los 459 ms del traspaso eran con Auth ya
+   caliente. **Las dos cifras son ciertas y miden cosas distintas**, y la lenta es la que importa: es el
+   coste de despertar el servicio, que es exactamente lo que el calentamiento existe para pagar **antes**
+   de que lo pague una prueba.
+
+8. **El E2E tardó 96 s (1,5 min) con sus 7 pruebas**, contra el 1,3 min del traspaso. Sin cambios de
+   flujo: la tanda no toca ninguno.
+
 ---
 
-**Desenlace de los cinco puntos a verificar:** *(se rellena al ejecutar, con la fecha)*
+**Desenlace de los cinco puntos a verificar, medido el 2026-08-19:**
+
+- **V-1 → A, con un límite medido y dicho.** `setNonce()` funciona para el mecanismo que cubre: las cuatro
+  superficies pasan de **5 violaciones a 1**, y el efecto se ve —`body` pasa de `overflow: visible` a
+  **`hidden`** en las tres pantallas con diálogo, o sea que **el *scroll-lock* que Q-20 declaraba roto
+  ahora se aplica**. La que queda es la del `<style>` en JSX del `Select` *(corrección 3)*, cuyo efecto es
+  **cosmético y menor**: se ve la barra de desplazamiento del desplegable. **Con control positivo en las
+  dos direcciones**, sin el cual el 0 no distinguiría «arreglado» de «dejé de mirar»: una hoja **sin**
+  nonce dispara violación y **no** aplica su regla; **la misma con** nonce **no** dispara ninguna y **sí**
+  aplica. **Y sobrevive a la navegación de cliente** *(paso 5)*: mismo nonce antes y después de saltar
+  entre pantallas sin recargar.
+- **V-2 → A**, medido antes de escribir el código y con el control que lo hace válido: el embed anidado
+  `inventory_reservations → products → product_images` da **HTTP 200**, y el imposible
+  —`products → product_availability`— da **HTTP 400 / PGRST200 sobre la misma tabla vacía**. Sin ese
+  control negativo, un `200` con `[]` sobre **0 reservas** no habría probado nada.
+- **V-3 → A.** La celda de miniatura cabe: la tabla ya vive dentro de un `overflow-x-auto`. Mismo
+  desenlace y mismo motivo que el V-2 de la F3-T2.
+- **V-4 → A.** La primera tarjeta del catálogo —la que toma `reservarParaManana()`— es **`Camara Sony
+  A7 III`**, que **sí** tiene imagen en el seed. No hizo falta la salida B, y **el arnés no se tocó**.
+- **V-5 → A, y medido entero y no por muestra: las 34 URLs de producción responden `200`.** Al escribir el
+  plan sólo se había comprobado **una**.
