@@ -1543,3 +1543,66 @@ expectativa en silencio.
 
     **La base se devolvió a su estado del seed al terminar**, y el cambio de `confirmo_facultad` que sirvió
     de control se deshizo para ver volver el rebote.
+
+15. ⚠ **El paso 9 encontró en producción lo que ninguna prueba podía encontrar: la migración 28 dejó 41
+    notas duplicadas, porque nadie midió la tabla de DESTINO.** Los cinco números predichos salieron
+    exactos —`0`, `0`, **2**, un número mayor que cero y `2`—, **y uno de ellos acertó por el camino
+    equivocado**, que es peor que fallar: confirma un modelo falso.
+
+    **Lo medido, en este orden.** `notas_migradas` —definida como `created_by is null`— dio **108**, contra
+    las **92 unidades** que el diseño había contado. Un total que supera al universo posible no es un
+    total: es una señal de que la definición mide otra cosa. **Desglosado:** 109 notas en total, **50
+    insertadas por la migración 28** en **50 unidades distintas —una por unidad, exactamente lo que D-82
+    pedía—**, y **59 preexistentes**, de las que 58 son del **2026-02-24** y una la escribió un operador
+    desde el mostrador. **41 de las 50 nuevas son copia exacta de una que ya estaba ahí.**
+
+    **La migración 28 no se equivocó al insertar. Se equivocó la medición previa.** §2 del diseño midió el
+    catálogo con cuidado —34 descripciones, tres formas, 92 unidades, dos salones— y **no miró
+    `inventory_unit_notes`**, que ya llevaba esas mismas observaciones desde febrero. **Se contó de dónde
+    salía el dato y no si ya había llegado.** Es un hueco de la misma familia que la trampa nº 1 del
+    proyecto, pero en el otro extremo del movimiento: allí el riesgo era mirar el origen equivocado, aquí
+    fue no mirar el destino en absoluto.
+
+    **Por qué ninguna prueba local podía cazarlo, y esto no es una excusa sino el límite exacto:** la
+    prueba 36 verifica que la función escribe la nota donde debe, y lo hace bien. Que el destino **ya
+    tuviera** ese texto es una propiedad **de los datos de producción**, no del código, y el `seed.sql` no
+    la reproduce. **Lo único que podía encontrarlo era el paso 9, y lo encontró** — pero sólo porque su
+    número se comparó contra otro dato del propio proyecto, las 92 unidades. **Un `> 0` no lo habría
+    delatado nunca:** la predicción del plan pedía «un número mayor que cero», y 108 lo es.
+
+    **Daño real, dicho sin inflarlo: ninguna fuga.** El alumno no lee esa tabla desde la migración 25
+    *(D-69)*. El personal ve la misma observación dos veces en el historial de 41 unidades.
+
+    **Se arregla con la migración 30** *(D-83)*, en la rama `fix/notas-duplicadas-f3-t1`, con el mismo
+    patrón que ya validó la 28: la lógica en `private.deduplicar_notas_migradas()` para que la prueba
+    pueda ejercitarla, `revoke` explícito, y `38_deduplicar_notas.sql` con el caso real montado como
+    fixture. **La base pasa de 176 aserciones en 30 archivos a 183 en 31.**
+
+    **Y la prueba se comprobó por su capacidad de fallar, no sólo por su verde:** con el criterio de
+    ordenación invertido a propósito, falla **exactamente una** aserción —«la que sobrevive es la MÁS
+    ANTIGUA»— y **sólo esa**, porque las otras seis siguen siendo ciertas con el criterio al revés. Un
+    recuento habría dado verde en los dos casos: **cuál de las dos filas sobrevive es la mitad que un
+    `count` no mira.**
+
+16. **Y una cifra de esta misma cabecera que estaba mal, corregida al medirla contra producción.** La
+    corrección 10 decía que el `O.C` lo llevan **16** productos. Son **13**. El 16 salía de las formas
+    —16 con `Lab | especificación | Obs`— y el `O.C` no está ni en todas ésas ni sólo en ésas: **son dos
+    cortes distintos y se citó uno por el otro**, exactamente el error que Q-23 ya había pagado con el 12
+    y el 22. **El argumento de la corrección 10 no cambia** —con 13 la sonda habría dado coincidencia
+    igual, y por eso el `O.C` pasó a ser el control positivo—, pero **el número se cuenta o no se pone**.
+    El cuerpo del PR #38 salió con el 16 y queda dicho aquí, que es donde alguien lo va a buscar.
+
+17. **Matar el servidor de desarrollo por PID deja `.next/dev/types/routes.d.ts` a medias, y entonces el
+    `typecheck` acusa al código de un error que no tiene.** Al verificar la migración 30 salieron cuatro
+    errores de **sintaxis** —`TS1109: Expression expected` y `TS1160: Unterminated template literal`— en un
+    archivo que **nadie escribió a mano**: lo genera `next typegen`. El `build` cayó detrás, porque
+    typechequea. **Lo único que se había tocado era SQL y documentos.**
+
+    La causa es de esta misma sesión: el `taskkill /F` del paso 4 interrumpió al servidor mientras escribía
+    ese archivo generado. `rm -rf .next` y los dos comandos vuelven a **exit 0**.
+
+    **Es la familia de instrumento que este proyecto ya tiene fichada** —`Get-Content` sin `-Encoding UTF8`
+    acusando de corrupción a un archivo sano—, y la señal que la delata es la misma: **el error apunta a un
+    artefacto generado y no a código fuente**. Un `TS1160` en un `.d.ts` de `.next/` no es un defecto de
+    tipos, es un archivo truncado. **Antes de creerle a un typecheck que se rompe sin que nadie haya
+    tocado TypeScript, se borra `.next`.**
