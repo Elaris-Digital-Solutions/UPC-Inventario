@@ -658,6 +658,31 @@ para que no se confundan con aquella.
 > y el recorrido en navegador todos en verde — **exactamente la forma de la trampa de `products.featured`,
 > que este proyecto ya pagó una vez**. F3-T2 no evita el riesgo: **lo puebla antes de que exista.**
 
+> ### Procedimiento de alta de operadores en producción
+>
+> *Escrito el 2026-08-19 en la Tarea 4 de la F3-T2, después de caminar el camino entero en local.*
+>
+> ⚠ **No hay nada que programar: el alta ya está construida desde la Task 9 de la T3B** *(D-52, D-53)*.
+> Lo que falta es una precondición con personas, y por eso este procedimiento vive aquí y no en el código.
+>
+> 1. **Cada operador real pide su enlace de acceso y entra una vez** en el sitio de producción, con su
+>    correo `@upc.edu.pe`. Eso crea su fila en `auth.users` y, por el trigger `handle_new_auth_user`, en
+>    `alumnos` **con su `auth_user_id`**.
+> 2. **Alejandro, como admin, lo da de alta** en `/admin/personal` con rol `operator`.
+> 3. **Se verifica por el efecto:** `staff_members` pasa de **1** fila a 1 + el número de operadores, y la
+>    pantalla los lista con su fecha en la columna «Primer correo».
+>
+> **El paso 1 no se puede saltar, y el sistema lo dice bien.** `darDeAltaPersonal()` exige `auth_user_id`
+> no nulo, y con un correo que nunca pidió su enlace responde *«No encontramos esa cuenta. O todavía no
+> pidió nunca su enlace de acceso, o su correo no es @upc.edu.pe.»* — **comprobado en pantalla el
+> 2026-08-19**, junto al segundo rechazo, *«Esa persona ya es parte del personal.»* **El texto se evaluó
+> con los ojos de quien no escribió el sistema y no se cambió:** nombra la causa real y el párrafo del
+> formulario ya explica el remedio.
+>
+> **Y lo que este procedimiento NO puede hacer solo: mientras no haya operadores dados de alta, la F3-T4
+> no se puede desplegar con sentido** —con D-74 su calendario saldría vacío—. Es la dependencia externa
+> de la Fase 3.
+
 > **Riesgo anotado: F3-T4 es la tanda grande**, como la T2 y la T3 de la Fase 2, que se partieron las dos.
 > Si al escribir su plan pasa de unas quince tareas se parte —la migración y las RPC por un lado, las
 > pantallas de administración por otro— y son seis PR. **Se decide escribiendo el plan, no a mitad de
