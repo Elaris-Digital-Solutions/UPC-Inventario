@@ -1,3 +1,4 @@
+import { imagenPrincipal } from '@/lib/imagenes/principal';
 import { createClient } from '@/lib/supabase/server';
 
 // Esta consulta NO toca `product_availability` a proposito (D-21): la landing
@@ -30,40 +31,26 @@ export type ProductoVitrina = {
 // Es exactamente el modo de fallo contra el que se escribio D-26 -"un tipo
 // desactualizado no rompe la compilacion: miente en silencio"-.
 //
-// Tal como queda, este tipo se usa solo como parametro de imagenPrincipal(),
-// asi que TypeScript lo CONTRASTA con lo que de verdad devuelve la consulta.
-// Si el select y esta declaracion se separan, el typecheck falla. El mismo
-// tipo escrito, pero verificado en lugar de impuesto.
-type FilaProducto = {
-  id: string;
-  name: string;
-  category: string | null;
-  description: string | null;
-  product_images: {
-    secure_url: string;
-    is_main: boolean;
-    sort_order: number;
-  }[];
-};
-
-// De cada fila se necesita UNA imagen, no el array entero: la principal
-// (`is_main`), o si nadie la marco, la de menor `sort_order`. El aplanado
-// vive aqui y no en el componente que pinta la tarjeta, para que ese
-// componente reciba un dato ya decidido -una URL o `null`- y no repita la
-// regla de "cual es la imagen buena" en cada sitio que la use.
-function imagenPrincipal(imagenes: FilaProducto['product_images']): string | null {
-  if (imagenes.length === 0) {
-    return null;
-  }
-
-  const principal = imagenes.find((imagen) => imagen.is_main);
-  if (principal) {
-    return principal.secure_url;
-  }
-
-  const ordenadas = [...imagenes].sort((a, b) => a.sort_order - b.sort_order);
-  return ordenadas[0].secure_url;
-}
+// EL TIPO `FilaProducto` VIVIA AQUI y se borro en la F3-T3, junto con la mudanza
+// de imagenPrincipal() a lib/imagenes/principal.ts. El razonamiento de arriba
+// -por que no se usa `.returns<>()`- SIGUE VIGENTE y por eso se conserva; lo
+// que cambio es QUIEN sostiene el contraste.
+//
+// Y hay que decir con precision que contrastaba, porque al mover la funcion
+// escribi aqui que "FilaProducto['product_images'] sigue satisfaciendo su
+// parametro" y ESO ERA FALSO: el tipo quedo sin usar, lo delato el lint con un
+// warning de variable no usada, y un tipo que no es parametro de nada NO
+// contrasta nada.
+//
+// Lo que de verdad se pierde al borrarlo es NADA, y el motivo es que este tipo
+// nunca contrasto las siete columnas: imagenPrincipal() recibia solo
+// `FilaProducto['product_images']`, o sea que el unico contraste real era sobre
+// las TRES columnas de imagen. Ese contraste sigue entero, y ahora lo sostiene
+// el parametro `ImagenElegible` de lib/imagenes/principal.ts: si el select de
+// abajo dejara de pedir `is_main` o `sort_order`, la llamada falla el typecheck
+// igual que antes. `id`, `name`, `category` y `description` no estaban
+// contrastadas antes y siguen sin estarlo -se dice para que nadie lea este
+// borrado como una perdida que no fue-.
 
 // Sale ordenada por `sort_order` y NO por `featured`. Medido el 2026-08-08
 // contra el proyecto real: `featured` vale `false` en los 34 productos, asi
