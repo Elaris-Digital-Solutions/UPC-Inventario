@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,10 @@ export function TablaInventario({ filas }: TablaInventarioProps) {
             <TableHead className="text-right">Máximo</TableHead>
             <TableHead className="text-right">Retorno</TableHead>
             <TableHead>Unidades</TableHead>
-            <TableHead className="text-right">Imágenes</TableHead>
+            {/* Antes decia "Imágenes" y contaba; ahora hay UNA foto, asi que el
+                encabezado va en singular. No es cosmetica: un plural sobre una
+                sola miniatura sugiere que faltan las demas. */}
+            <TableHead>Imagen</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -108,7 +112,33 @@ export function TablaInventario({ filas }: TablaInventarioProps) {
                 </div>
               </TableCell>
 
-              <TableCell className="text-right">{fila.imagenes}</TableCell>
+              {/* La miniatura sustituye al RECUENTO de imagenes (F3-T3). Un
+                  numero no dice que equipo es; la foto identifica la fila de
+                  un vistazo, que es lo que el admin necesita para no abrir 34
+                  fichas buscando una.
+
+                  `next/image` con medidas FIJAS y no `fill`: dentro de una
+                  celda de tabla, `fill` exigiria un contenedor con posicion
+                  relativa y alto propio, y eso si seria maquetar. Asi la celda
+                  se comporta como cualquier otra.
+
+                  El tamano es FUNCIONAL, no afinado: 56 px es lo minimo con lo
+                  que se reconoce un equipo en una lista. Ajustarlo es de la
+                  fase visual, que hace otra persona.
+
+                  El respaldo es `/placeholder.svg`, el MISMO que usa
+                  components/catalogo/tarjeta-producto.tsx: dos huecos
+                  distintos para el mismo caso se leerian como dos estados
+                  distintos. */}
+              <TableCell>
+                <Image
+                  src={fila.imagenUrl ?? "/placeholder.svg"}
+                  alt={fila.nombre}
+                  width={56}
+                  height={56}
+                  className="bg-muted rounded object-cover"
+                />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
