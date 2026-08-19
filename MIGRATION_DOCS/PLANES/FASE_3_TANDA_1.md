@@ -1606,3 +1606,25 @@ expectativa en silencio.
     artefacto generado y no a código fuente**. Un `TS1160` en un `.d.ts` de `.next/` no es un defecto de
     tipos, es un archivo truncado. **Antes de creerle a un typecheck que se rompe sin que nadie haya
     tocado TypeScript, se borra `.next`.**
+
+18. **Cierre medido de la corrección 15: la migración 30 está aplicada y los 41 duplicados no existen.**
+    PR #39, las **30 migraciones** con `local` y `remote` idénticos. `inventory_unit_notes` pasa de **109
+    notas a 68** —67 sin autor y 1 con autor—, **0 grupos duplicados**, las **59 de febrero intactas** y
+    las **9 del 2026-08-19 que sí aportaban** conservadas. **El control que descarta el modo de fallo que
+    de verdad importaba** —borrar de más y dejar una unidad sin su observación— es que **las unidades con
+    nota siguen siendo 53**: se borraron copias, no notas. Y el `revoke`, medido **con control positivo**:
+    `authenticated` no puede ejecutar la función nueva, y **sí** puede ejecutar `create_reservation`; sin
+    ese segundo dato, el primero no distingue «revocado» de «la sonda pregunta mal».
+
+19. ⚠ **Y un turno entero se fue en algo que este proyecto ya tenía escrito: el PR estaba mergeado, el CI
+    verde, y la migración NO estaba aplicada.** Al ir a verificar el efecto salió `remote` vacío para la
+    30 en `migration list`, la función inexistente en el proyecto real, y las 109 notas donde estaban —
+    **tres instrumentos coincidiendo**, que es lo que separa «no está aplicada» de «la sonda falla».
+
+    **No es un descuido de nadie: es el diseño.** «Ninguna migración se aplica sola al mergear» es una de
+    las cuatro reglas caras del `CLAUDE.md` global, y existe porque *automatizar el deploy de código es
+    cómodo y automatizar el de esquema es cómo se pierde una base*. **Lo que enseña este caso es el coste
+    del acierto: un PR verde se parece muchísimo a un trabajo terminado**, y esa semejanza es justo lo que
+    la regla acepta pagar. **Por eso el paso del `db push` va escrito como paso propio en el plan y en el
+    cuerpo del PR, y por eso la verificación es por el efecto y no por el registro** — aquí el registro de
+    GitHub decía «mergeado» con toda la razón, y no era la pregunta.
