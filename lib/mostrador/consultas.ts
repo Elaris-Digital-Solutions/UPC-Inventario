@@ -1,3 +1,4 @@
+import { imagenPrincipal } from '@/lib/imagenes/principal';
 import { createClient } from '@/lib/supabase/server';
 
 import type { EstadoReserva } from '@/lib/reservas/consultas';
@@ -36,6 +37,9 @@ export type ReservaMostrador = {
   // anotar() (Task 7) para escribir en inventory_unit_notes sin depender de
   // que el embed de abajo haya llegado poblado.
   producto: string;
+  // La imagen del producto, o `null` si no tiene ninguna (F3-T3). La regla de
+  // cual es "la" imagen la decide imagenPrincipal(), no esta pantalla.
+  imagenUrl: string | null;
   unidad: string;
   sede: string;
   // `| null` A PROPOSITO, y NO por el mismo motivo que products/inventory_units
@@ -87,7 +91,32 @@ type FilaMostrador = {
   end_at: string;
   status: EstadoReserva;
   unit_id: string;
-  products: { name: string } | null;
+  // `product_images` cuelga de `products`, o sea un embed ANIDADO A DOS
+  // NIVELES desde `inventory_reservations`. Este proyecto NO lo daba por
+  // hecho: la T2A ya se topo con que PostgREST no embebe `product_availability`
+  // desde `products` (PGRST200), asi que se midio antes de escribir esto.
+  //
+  // MEDIDO EL 2026-08-19 contra el stack local, y con control negativo, que es
+  // lo que hace valida la medicion -- en local hay CERO reservas, asi que un
+  // HTTP 200 con `[]` no probaria nada por si solo:
+  //
+  //   GET /rest/v1/inventory_reservations?select=id,status,
+  //       products(name,product_images(secure_url,is_main,sort_order)),
+  //       inventory_units(unit_code,campuses(name))
+  //   -> HTTP 200
+  //
+  //   GET .../inventory_reservations?select=id,products(name,product_availability(in_stock))
+  //   -> HTTP 400, PGRST200 "Could not find a relationship"
+  //
+  // El segundo, sobre LA MISMA TABLA VACIA, falla. Eso prueba que PostgREST
+  // valida las relaciones ANTES de ejecutar, y por tanto que el 200 de arriba
+  // si dice algo. La diferencia entre los dos casos no es el anidamiento: es
+  // que `product_availability` es una VISTA sin FK propia y `product_images`
+  // es una tabla con FK real.
+  products: {
+    name: string;
+    product_images: { secure_url: string; is_main: boolean; sort_order: number }[];
+  } | null;
   inventory_units: { unit_code: string; campuses: { name: string } | null } | null;
   alumnos: { nombre: string | null; apellido: string | null; email: string } | null;
 };
@@ -145,6 +174,21 @@ function filaAMostrador(fila: FilaMostrador): ReservaMostrador | null {
     estado: fila.status,
     unidadId: fila.unit_id,
     producto: fila.products.name,
+    // UNA FOTO QUE FALTA NO DESCARTA LA FILA, y el criterio es distinto a
+    // proposito del que aplica el `if` de arriba a `products`,
+    // `inventory_units` y `campuses`.
+    //
+    // Alli la fila entera se descarta porque sin nombre de equipo, sin codigo
+    // de unidad o sin sede el personal NO SABE QUE ENTREGAR NI DONDE ESTA: la
+    // tarjeta no le sirve para nada. Una reserva sin foto SI le sirve --
+    // tiene el nombre, el codigo y la sede, que es todo lo que necesita para
+    // trabajar --. Descartarla escondaria del mostrador un prestamo real, que
+    // es el mismo modo de fallo que ya evita el criterio de `alumnos`: falta
+    // el dato, no la fila.
+    //
+    // Y no es un caso teorico: `product_images` llega `[]` para cualquier
+    // producto sin imagen, y el `seed.sql` deja 2 de sus 4 productos asi.
+    imagenUrl: imagenPrincipal(fila.products.product_images),
     unidad: fila.inventory_units.unit_code,
     sede: fila.inventory_units.campuses.name,
     alumno: fila.alumnos,
@@ -192,7 +236,7 @@ export async function reservasMostrador(): Promise<ReservaMostrador[]> {
   const { data, error } = await supabase
     .from('inventory_reservations')
     .select(
-      'id,start_at,end_at,status,unit_id,products(name),inventory_units(unit_code,campuses(name)),alumnos(nombre,apellido,email)',
+      'id,start_at,end_at,status,unit_id,products(name,product_images(secure_url,is_main,sort_order)),inventory_units(unit_code,campuses(name)),alumnos(nombre,apellido,email)',
     )
     .in('status', ['reserved', 'active'])
     .order('start_at');

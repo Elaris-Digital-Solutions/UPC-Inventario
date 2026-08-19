@@ -26,6 +26,7 @@
 // casos) un campo de texto. Esta tarjeta los monta en el hueco que quedaba
 // marcado mas abajo, pero no los construye aca: DialogoFalta trae su propio
 // boton disparador, y esta tarjeta solo le pasa los datos que ya tiene.
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { CalendarDays, User } from "lucide-react";
 
@@ -163,7 +164,31 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+          {/* La miniatura del equipo (F3-T3). El mostrador no mostraba NINGUNA
+              imagen, y quien atiende tiene que reconocer el aparato que va a
+              sacar del estante: un nombre como "UGREEN 4K USB-C MULTIFUNCTION
+              ADAPTER 7-IN-1" no le dice que buscar.
+
+              Va PEGADA al nombre y no en una fila propia: es el identificador
+              visual del mismo dato, no un dato mas.
+
+              `/placeholder.svg` de respaldo, el mismo que usan el catalogo y
+              la lista de inventario. Tamano funcional, no afinado: la fase
+              visual la hace otra persona. */}
+          {/* La miniatura y el titulo van AGRUPADOS: el `justify-between` del
+              contenedor separa dos bloques -equipo a la izquierda, horario a
+              la derecha-, y con la imagen suelta como tercer hijo el horario
+              habria dejado de quedar en su extremo. */}
+          <div className="flex items-start gap-3">
+            <Image
+              src={reserva.imagenUrl ?? "/placeholder.svg"}
+              alt={reserva.producto}
+              width={48}
+              height={48}
+              className="bg-muted shrink-0 rounded object-cover"
+            />
+            <CardTitle className="leading-snug">{reserva.producto}</CardTitle>
+          </div>
           <span className="text-foreground shrink-0 font-mono text-sm tabular-nums">
             {FORMATO_HORA.format(new Date(reserva.inicio))}
             {" – "}
