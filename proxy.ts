@@ -23,7 +23,18 @@ import { construirCSP } from '@/lib/seguridad/csp'
 // de anadir nace ABIERTA y no se entera nadie.
 //
 // Regla: cada pantalla publica nueva es una edicion de esta constante.
-const RUTAS_PUBLICAS = ['/', '/login', '/auth', '/faq']
+//
+// OJO con '/manifest.webmanifest', que NO es una pantalla y entra igual: es el
+// manifest de la aplicacion instalable. Sin esta entrada el proxy lo rebotaba
+// a /login con un 307 -medido el 2026-08-19 con build+start, no supuesto- y
+// entonces la aplicacion no se puede instalar. Y NO se arregla iniciando
+// sesion: el navegador pide el manifest SIN credenciales salvo que el <link>
+// lleve crossorigin="use-credentials", asi que rebotaria igual con la sesion
+// abierta. El matcher de abajo tampoco lo cubre: excluye extensiones de
+// imagen, no '.webmanifest'. Publicarlo no expone nada -nombre, colores e
+// iconos-, y tiene que ser legible sin sesion por definicion: quien instala la
+// aplicacion todavia no ha entrado.
+const RUTAS_PUBLICAS = ['/', '/login', '/auth', '/faq', '/manifest.webmanifest']
 
 export async function proxy(request: NextRequest) {
   // El nonce se genera por peticion, siguiendo el patron de la documentacion
