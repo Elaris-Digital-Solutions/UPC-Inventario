@@ -81,3 +81,16 @@ supabase/.branches
 # Son de la corrida, no del proyecto.
 test-results/
 playwright-report/
+
+# Configuración del agente, propia de cada máquina: ajustes locales, skills
+# instaladas y su fichero de bloqueo.
+#
+# `.mcp.json` NO entra aquí y es deliberado: declara el servidor MCP de
+# Supabase de este proyecto —`project_ref=zqfkzgdyeqxzgzpxgadi`, en modo
+# `read_only`— y no lleva ningún secreto; el token viaja por variable de
+# entorno. Versionarlo hace que apunte al proyecto correcto para cualquiera
+# que clone, que es justo el fallo que costó una sesión el 2026-08-19: sin él,
+# la conexión se resolvió contra la cuenta equivocada.
+.claude/
+.agents/
+skills-lock.json
