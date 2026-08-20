@@ -374,11 +374,20 @@ navegador— ya está pagado por la Tarea 1, y ése era el argumento de D-89.*
    tubería el código de salida daba 0**; por redirección a archivo, **1**. Es la regla de PowerShell del
    global cobrándose en `bash`, y se cobró **en el comando que se escribió para diagnosticar**.
 
-10. **El E2E quedó en 1 de 7, y NO es una regresión de esta tanda.** Las 6 que fallan lo hacen en la
+10. **El E2E quedó en 1 de 7, y NO era una regresión de esta tanda.** Las 6 que fallaban lo hacían en la
     misma línea —`e2e/apoyo/sesion.ts:70`, esperando «Revisa tu correo»— con GoTrue devolviendo
     ***«Processing this request timed out»***, no un 429 de rate limit. Misma causa que la corrección 9.
-    **La tanda no toca auth, ni el esquema, ni el login.** Queda pendiente de repetir con Docker sano, y
-    esa repetición es la única parte del plan que no se pudo cerrar.
+    **La tanda no toca auth, ni el esquema, ni el login.** ✅ **REPETIDO Y VERDE el 2026-08-19 con Docker
+    sano: `7 passed`, exit 0, en 204 s.** El diagnóstico queda **confirmado por el efecto y no sólo por
+    ser plausible**: el mismo código, la misma rama y las mismas 7 pruebas pasan en cuanto el entorno se
+    repara, sin tocar una línea. ⚠ **Y la prueba que más falta hacía aquí es la `[4/7]`, «sin sesion, una
+    ruta privada rebota a /login»**: es la que ejercita `proxy.ts` y `RUTAS_PUBLICAS`, o sea **el archivo
+    que esta tanda modificó**. Un E2E rojo por entorno habría dejado sin verificar precisamente el cambio
+    con más capacidad de romper algo. ⚠ **Lo que sigue sin explicarse del todo: el reloj.** `db reset`
+    medido hoy **tres veces con Docker en tres estados distintos: 72 s, 331 s y 234 s**, y la última ya
+    con Docker sano. La diferencia con el rango heredado *(56–109 s)* coincide con tener **dos stacks de
+    Supabase arriba a la vez** —17 contenedores, `UPC-Inventario` y `CCC-Impresiones`—, pero **eso es una
+    correlación observada, no una causa medida**, y se dice así.
 
 ### Los cuatro puntos a verificar, con lo medido
 
