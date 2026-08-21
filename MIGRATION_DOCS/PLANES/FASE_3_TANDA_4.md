@@ -251,12 +251,12 @@ veces*.**
 
 ## Tarea 0 · La rama y el punto de partida
 
-- [ ] **Paso 1.** `git branch --show-current` → `develop`; `git status --short` → vacío;
+- [x] **Paso 1.** `git branch --show-current` → `develop`; `git status --short` → vacío;
       `git log --oneline -1` → **`587ce5a`**, el merge del PR #45. ⚠ **Sin tubería.**
-- [ ] **Paso 2.** Comprobar **por el efecto** que el stack local está arriba: `docker ps` lista
+- [x] **Paso 2.** Comprobar **por el efecto** que el stack local está arriba: `docker ps` lista
       `supabase_db_UPC-Inventario`. **No basta con que `supabase start` haya devuelto 0.**
-- [ ] **Paso 3.** Crear la rama `feature/fase-3-tanda-4` desde `develop`.
-- [ ] **Paso 4.** **Fijar la línea base contando, no citando:** `npm test` → **12 archivos, 166 pruebas**.
+- [x] **Paso 3.** Crear la rama `feature/fase-3-tanda-4` desde `develop`.
+- [x] **Paso 4.** **Fijar la línea base contando, no citando:** `npm test` → **12 archivos, 166 pruebas**.
       pgTAP no se mide aquí: se mide en la Tarea 5, **después** del `db reset`.
 
 **Commit:** ninguno. Esta tarea no cambia archivos.
@@ -269,13 +269,13 @@ veces*.**
 comprueba es otra cosa: que la misma consulta funciona con `available_units` dentro y con las restricciones
 reales encima.** Va primera porque si falla, cambia la tanda entera.
 
-- [ ] **Paso 1.** Sobre el stack local y **dentro de una transacción que se revierte**, crear las dos
+- [x] **Paso 1.** Sobre el stack local y **dentro de una transacción que se revierte**, crear las dos
       tablas con su forma definitiva y sembrar: Monterrico abierta 08:00–22:00 mañana, y **dos turnos
       consecutivos** 08:00–12:00 y 12:00–16:00.
-- [ ] **Paso 2.** Correr la rejilla **con `available_units` dentro**, para una duración de 120 min.
-- [ ] **Paso 3.** ⚠ **El control negativo, que es lo que hace válido el paso 2:** repetir con un **hueco**
+- [x] **Paso 2.** Correr la rejilla **con `available_units` dentro**, para una duración de 120 min.
+- [x] **Paso 3.** ⚠ **El control negativo, que es lo que hace válido el paso 2:** repetir con un **hueco**
       entre los turnos (08:00–11:00 y 12:00–16:00).
-- [ ] **Paso 4.** Anotar las dos cifras en la cabecera de correcciones, salgan como salgan.
+- [x] **Paso 4.** Anotar las dos cifras en la cabecera de correcciones, salgan como salgan.
 
 | Salida | Qué se ve | Qué se hace |
 |---|---|---|
@@ -289,20 +289,20 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 2 · Migración 33 · `campus_hours` y `staff_shifts`
 
-- [ ] **Paso 1.** Las dos tablas de §5.1, tal cual. ⚠ **NO se añade alineación sobre `staff_shifts`**: con
+- [x] **Paso 1.** Las dos tablas de §5.1, tal cual. ⚠ **NO se añade alineación sobre `staff_shifts`**: con
       la corrección 2 los turnos no generan rejilla, así que no pueden desalinearla.
-- [ ] **Paso 1 bis.** ⚠ **La alineación de `campus_hours.opens_at` va en DOS DISPARADORES, no en un
+- [x] **Paso 1 bis.** ⚠ **La alineación de `campus_hours.opens_at` va en DOS DISPARADORES, no en un
       `CHECK`** — ver la **corrección 1 de la cabecera**, medida: `cannot use subquery in check
       constraint`. Uno sobre `campus_hours` y otro sobre `app_settings` para la puerta de atrás de
       `slot_minutes`, **que ahora puede desalinear 14 filas de golpe en vez de una**.
-- [ ] **Paso 2.** RLS en las dos: **lectura para `authenticated`** —el alumno necesita saber si la sede
+- [x] **Paso 2.** RLS en las dos: **lectura para `authenticated`** —el alumno necesita saber si la sede
       abre—, **escritura sólo para admin** vía `private.is_admin()`, como el resto del proyecto.
-- [ ] **Paso 3.** ⚠ **La siembra del techo actual** *(corrección 7)*: `insert … select` cruzando
+- [x] **Paso 3.** ⚠ **La siembra del techo actual** *(corrección 7)*: `insert … select` cruzando
       `campuses` con `generate_series(0, 6)` y tomando `opening_time` y `closing_time` **de
       `app_settings`**, no de literales. **Sin este paso la migración deja producción sin poder reservar.**
-- [ ] **Paso 4.** `npx supabase db reset` y comprobar **por el efecto**: `campus_hours` tiene
+- [x] **Paso 4.** `npx supabase db reset` y comprobar **por el efecto**: `campus_hours` tiene
       **2 sedes × 7 días = 14 filas** con 08:00–22:00, y `staff_shifts` **0**.
-- [ ] **Paso 5.** Revocar `execute`/grants por defecto donde aplique, según `19_function_hardening.sql`.
+- [x] **Paso 5.** Revocar `execute`/grants por defecto donde aplique, según `19_function_hardening.sql`.
 
 **Commit:** `feat: tablas de horario por sede y turnos de operador`
 
@@ -310,17 +310,17 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 3 · Migración 34 · las dos RPC sobre la intersección
 
-- [ ] **Paso 1.** `available_slots`: la rejilla nace de `campus_hours` para el `weekday` de `p_date` y se
+- [x] **Paso 1.** `available_slots`: la rejilla nace de `campus_hours` para el `weekday` de `p_date` y se
       filtra por cobertura de turnos. ⚠ **Los paréntesis de la corrección 5.** **La firma no cambia.**
-- [ ] **Paso 2.** `create_reservation`: la comprobación de las líneas 123–126 —`::time < opening_time or
+- [x] **Paso 2.** `create_reservation`: la comprobación de las líneas 123–126 —`::time < opening_time or
       ::time > closing_time`— pasa a ser «cada bloque de `[start, end)` cae dentro de algún turno de esa
       sede y ese día». **La firma no cambia.**
-- [ ] **Paso 3.** ⚠ **Conservar la propiedad que sostiene el calendario:** todo lo que la rejilla ofrece,
+- [x] **Paso 3.** ⚠ **Conservar la propiedad que sostiene el calendario:** todo lo que la rejilla ofrece,
       la RPC lo acepta. **La rejilla puede ser más estricta, nunca más laxa** — está escrita en la
       cabecera de la migración 21 y se vuelve a escribir en ésta.
-- [ ] **Paso 4.** Dos mensajes de error distintos, porque son dos causas distintas *(D-76)*: **«Ese día la
+- [x] **Paso 4.** Dos mensajes de error distintos, porque son dos causas distintas *(D-76)*: **«Ese día la
       sede no abre»** y **«No hay ningún operador en ese horario»**.
-- [ ] **Paso 5.** `npx supabase db reset` y comprobar por el efecto que con 0 turnos la rejilla devuelve
+- [x] **Paso 5.** `npx supabase db reset` y comprobar por el efecto que con 0 turnos la rejilla devuelve
       **0 franjas** y `create_reservation` **rechaza**, con el mensaje del operador y no el de la sede.
 
 **Commit:** `feat: la rejilla y la validacion salen de los turnos del operador`
@@ -331,14 +331,14 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 *Esta tarea existe por la corrección 1 y **es la que evita tocar nueve archivos de prueba**.*
 
-- [ ] **Paso 1.** Sembrar `campus_hours`: las **2 sedes × 7 días**, 08:00–22:00, que es el horario con el
+- [x] **Paso 1.** Sembrar `campus_hours`: las **2 sedes × 7 días**, 08:00–22:00, que es el horario con el
       que están escritas las nueve baterías.
-- [ ] **Paso 2.** Sembrar `staff_shifts` para el operador que **ya existe en el seed**
+- [x] **Paso 2.** Sembrar `staff_shifts` para el operador que **ya existe en el seed**
       (`a0000000-…-00000000000b`): un turno 08:00–22:00 en **las dos sedes**, los **7 días**.
-- [ ] **Paso 3.** ⚠ **Sembrar además el caso que hace falta para probar D-76**: un día con horario de sede
+- [x] **Paso 3.** ⚠ **Sembrar además el caso que hace falta para probar D-76**: un día con horario de sede
       y **sin ningún turno**. Va en la sede de San Miguel para no tocar los escenarios de las baterías
       existentes, que reservan en Monterrico.
-- [ ] **Paso 4.** `npx supabase db reset`, luego `npx supabase test db`. **Esperado: las 200 aserciones
+- [x] **Paso 4.** `npx supabase db reset`, luego `npx supabase test db`. **Esperado: las 200 aserciones
       existentes siguen pasando**, salvo las de la 29 y la 32, que se reescriben en la Tarea 5.
 
 **Commit:** `chore: horarios y turnos en el seed local`
@@ -347,20 +347,20 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 5 · Las pruebas pgTAP
 
-- [ ] **Paso 1.** Reescribir `29_available_slots.sql` contra la rejilla nueva.
-- [ ] **Paso 2.** Reescribir `32_opening_time_aligned.sql` contra `campus_hours`. **La regla es la misma,
+- [x] **Paso 1.** Reescribir `29_available_slots.sql` contra la rejilla nueva.
+- [x] **Paso 2.** Reescribir `32_opening_time_aligned.sql` contra `campus_hours`. **La regla es la misma,
       la tabla es otra**, y su comentario de cabecera explica el porqué mejor que ningún resumen: se
       conserva y se adapta.
-- [ ] **Paso 3.** `41_campus_hours.sql` y `42_staff_shifts.sql`: restricciones de orden, clave primaria,
+- [x] **Paso 3.** `41_campus_hours.sql` y `42_staff_shifts.sql`: restricciones de orden, clave primaria,
       cascada al borrar una sede, y **RLS en las dos direcciones** —un alumno lee, un alumno no escribe,
       un admin escribe—. ⚠ **El control positivo no se salta:** sin un «sí puede» al lado, un «no puede»
       no distingue «revocado» de «la sonda pregunta mal».
-- [ ] **Paso 4.** `43_interseccion.sql`: **las dos cifras de la corrección 3**, el hueco incluido. Es la
+- [x] **Paso 4.** `43_interseccion.sql`: **las dos cifras de la corrección 3**, el hueco incluido. Es la
       prueba que convierte el prototipo en regresión.
-- [ ] **Paso 5.** ⚠ **Una prueba de mutación por batería nueva**, y se comprueba **dónde** falla: en la
+- [x] **Paso 5.** ⚠ **Una prueba de mutación por batería nueva**, y se comprueba **dónde** falla: en la
       F3-T2 una mutación abortó antes de llegar a la aserción que se quería probar y **`Bad plan` no es
       una prueba que mide**.
-- [ ] **Paso 6.** `npx supabase db reset`, luego `npx supabase test db`.
+- [x] **Paso 6.** `npx supabase db reset`, luego `npx supabase test db`.
 
 **Commit:** `test: pgTAP de horarios, turnos y la interseccion`
 
@@ -491,14 +491,14 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 13 · Verificación de punta a punta y cierre
 
-- [ ] **Paso 1.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
-- [ ] **Paso 2.** `npx supabase db reset`, luego `npx supabase test db`.
-- [ ] **Paso 3.** `npm run test:e2e` con Auth caliente.
-- [ ] **Paso 4.** `npx supabase migration list` → **34**, `local` con las dos nuevas y `remote` **sin
+- [x] **Paso 1.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+- [x] **Paso 2.** `npx supabase db reset`, luego `npx supabase test db`.
+- [x] **Paso 3.** `npm run test:e2e` con Auth caliente.
+- [x] **Paso 4.** `npx supabase migration list` → **34**, `local` con las dos nuevas y `remote` **sin
       ellas**: es lo esperado, porque **el `db push` es un paso aparte y lo da Alejandro**.
-- [ ] **Paso 5.** Cerrar `ESTADO_Y_PLAN.md` —la fila de la tanda en §6, la bitácora, las `D-n` nuevas y
+- [x] **Paso 5.** Cerrar `ESTADO_Y_PLAN.md` —la fila de la tanda en §6, la bitácora, las `D-n` nuevas y
       Q-21— **antes** de pasar los comandos de git, nunca después.
-- [ ] **Paso 6.** ⚠ **Escribir las predicciones de producción por delante**, antes de que nadie dé un
+- [x] **Paso 6.** ⚠ **Escribir las predicciones de producción por delante**, antes de que nadie dé un
       `db push`. Ver la tabla de abajo.
 
 **Commit:** `docs: cierre de la F3-T4`
@@ -965,3 +965,70 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     CI corre en UTC y en Lima la fecha civil va un día por detrás las cinco primeras horas del día UTC.
     Sin eso, la prueba pediría el turno de un día y miraría el calendario de otro, **y fallaría sólo en
     esa franja horaria**.
+
+29. ✅ **F3-T4 CERRADA EN LOCAL. Las cifras medidas contra las predichas, y las dos que fallaron tienen
+    nombre.**
+
+    | Métrica | Antes | Predicho | **Medido** |
+    |---|---|---|---|
+    | Migraciones | 32 | 34 | **36** ⚠ |
+    | Archivos pgTAP | 33 | 36 | **37** ⚠ |
+    | Aserciones pgTAP | 200 | *(se predijo 229 al escribir la Tarea 5)* | **235** |
+    | Vitest, archivos / pruebas | 12 / 166 | ≥ 12 / ≥ 166 | **13 / 175** |
+    | E2E, archivos / pruebas | 5 / 7 | **6 / 8** | **6 / 8** ✅ |
+    | Enlaces de admin en la cabecera | 6 | **7** | **7** ✅ |
+
+    **Las dos que se pasaron son la misma cosa contada dos veces, y no es una sorpresa sino dos
+    decisiones tomadas al ejecutar:** la **35** es D-91 en archivo propio *(corrección 5: el plan lo
+    metía en la 34, que ya estaba confirmada)* y la **36** es **D-94** *(corrección 20: el recuento de
+    D-92 en SQL)*, que arrastra la batería **44** y sus 6 aserciones. **235 = 229 + 6.**
+
+    **Verificación de punta a punta, toda del 2026-08-21:** `lint`, `typecheck` y `build` en verde;
+    `npm test` **13 archivos / 175 pruebas**; tras `db reset`, `npx supabase test db` da
+    **`Files=37, Tests=235, PASS`**; y `npx playwright test` da **8 passed** con base limpia y Auth
+    caliente. **`npx supabase migration list` da 36 en `local` y 32 en `remote`**, con la 33, la 34, la
+    35 y la 36 saliendo con `remote` vacío: **es lo esperado**, porque el `db push` es un paso aparte y
+    lo da Alejandro.
+
+    **Los seis puntos a verificar, por salida A:** **V-1** las 13 franjas y las 8 del hueco *(corrección
+    2)*; **V-2** las 25 ofrecidas y las 25 aceptadas, con el rechazo de las 07:00 como control
+    *(corrección 7)*; **V-3** los dos mensajes distintos de D-76 *(corrección 7)*; **V-4** las 200
+    aserciones existentes sin tocar una prueba *(correcciones 4 y 7)*; **V-5** la barra a 1440 px con
+    `scrollWidth` = `clientWidth` = 1440 *(corrección 18)*; **V-6** el aviso que cuenta la cobertura y no
+    las reservas del turno *(corrección 22)*.
+
+30. ⚠ **LAS PREDICCIONES CONTRA PRODUCCIÓN, escritas ANTES de que nadie dé el `db push`, y con la que
+    importa primero.**
+
+    **Son CUATRO migraciones y no tres:** 33, 34, 35 y 36.
+
+    | Después del `db push` | Predicción |
+    |---|---|
+    | `campus_hours` | **14 filas** — 2 sedes × 7 días, 08:00–22:00, sembradas desde `app_settings` por `private.sembrar_horarios_por_defecto()` |
+    | `staff_shifts` | **0** |
+    | `app_settings`, columnas | **7** — se van `opening_time` y `closing_time` |
+    | `app_settings`, restricciones `check` | **8** — se van `app_settings_horario` y `app_settings_apertura_alineada` |
+    | Franjas que ve un alumno | **CERO, en las dos sedes y todos los días** |
+
+    ⚠ **Esa última fila es la tanda entera en una línea: con `staff_shifts` vacía NADIE PUEDE
+    RESERVAR.** No es un efecto secundario, es la consecuencia directa de D-74, y ocurre **en el instante
+    del `db push`**. **El `db push` no es el último paso.**
+
+    **El último paso, y desde D-93 no depende de contratar a nadie:** entrar en `/admin/horarios` y
+    cargar turnos. Producción tiene **1 miembro de `staff_members`, un admin**, y **el admin se asigna
+    turnos a sí mismo** — el desplegable de personal ofrece a todo el que esté `activo`, sin filtro de
+    rol. **Se verifica por el efecto y con control positivo:** el calendario del alumno ofrece franjas
+    **dentro** de esos turnos y **ninguna fuera**. Un calendario que vuelve a tener franjas no distingue
+    «los turnos funcionan» de «la cobertura no filtra»; la mitad que lo distingue es la de **fuera**.
+
+    ⚠ **Y una predicción que conviene escribir porque es la que más se puede leer mal:** en local la
+    siembra de la migración 33 inserta **0** filas y en producción **14**. Las dos son correctas —
+    `db reset` corre el seed **después** de las migraciones, así que `campuses` está vacía cuando la
+    migración siembra. **En local el camino de la migración NO queda verificado**, y por eso la lógica
+    vive en una función a la que llaman los dos.
+
+31. ✅ **Tarea 13 cerrada, y con ella la tanda. Lo que NO decide quien ejecuta, y queda escrito para que
+    no se decida solo:** **cuándo** se aplica el `db push` de las cuatro migraciones; **cuándo y dónde**
+    se despliega el Next.js —sigue sin haber `netlify.toml`, `vercel.json` ni Dockerfile en el
+    repositorio, y `main` publica el Vite viejo—; y **Q-28**, si este proyecto instala Sentry o se queda
+    con la convención de mensajes que ya tiene medida.
