@@ -135,13 +135,14 @@ PASS`** tras un `db reset` de **114 s**; Vitest **12 archivos, 166 pruebas**; E2
 ## Las tres decisiones que NO toma quien ejecuta
 
 *Se anotaron aquí y no en el cuerpo de una tarea, para que no se resolvieran de paso.*
-**Dos están resueltas desde el 2026-08-20; la tercera sigue abierta y se dice.**
+✅ **Las tres están resueltas desde el 2026-08-20, las tres por Alejandro. El plan no tiene ningún hueco
+de decisión: se puede ejecutar entero en cuanto haya operadores.**
 
 | # | Qué había que decidir | Resuelto |
 |---|---|---|
 | **A** | **¿La cobertura es por la unión de turnos o por un turno solo?** | ✅ **La UNIÓN. De Alejandro, el 2026-08-20 → D-90.** Alimentada por la corrección 3, medida con control negativo: 13 franjas con dos turnos consecutivos y 8 con un hueco. **La comprobación es «cada bloque del tramo cae en algún turno»**, y como D-19 obliga a que la duración sea múltiplo del bloque, se escribe **sin unir intervalos y sin `distinct`** |
 | **B** | **¿`app_settings.opening_time` y `closing_time` se borran o se dejan muertas?** §5.2 delegaba esto al plan explícitamente | ✅ **SE BORRAN, con su restricción `app_settings_horario`. De Alejandro, el 2026-08-20 → D-91.** El argumento no es de limpieza: **una columna que conserva su nombre y deja de gobernar es la forma exacta de `products.description`** *(D-82)*, que este proyecto ya pagó una vez |
-| **C** | **¿Q-21 entra en esta tanda o se deja escrito?** | ⬜ **ABIERTA.** *«¿Qué pasa con una reserva ya creada si después se borra o se acorta el turno que la cubría?»* Las RPC validan **al crear y no al llegar el día**, así que la reserva sobrevive en silencio y el alumno se presenta a un mostrador vacío. **Recomendación: avisar sin impedir** —la pantalla dice cuántas reservas quedan descubiertas y el admin decide—. ⚠ **Mientras no se decida, la Tarea 9 no está completa**, y se dice en su paso 3 |
+| **C** | **¿Q-21 entra en esta tanda o se deja escrito?** | ✅ **AVISAR SIN IMPEDIR. De Alejandro, el 2026-08-20 → D-92, y con ella se CIERRA Q-21.** Se eligió por **cuál de los dos daños es reversible**: un turno huérfano deja a un alumno frente a un mostrador vacío —visible y arreglable—; impedir el borrado deja al admin sin poder reflejar que un operador se fue, salvo **cancelando reservas de alumnos una a una**. ⚠ **El recuento es la parte que D-90 vuelve fácil de hacer mal** — ver el paso 3 de la Tarea 9 |
 
 ---
 
@@ -405,10 +406,24 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 - [ ] **Paso 1.** En la misma ruta: alta, edición y baja de turnos, por operador y por sede.
 - [ ] **Paso 2.** ⚠ **Sólo se ofrecen operadores `activo = true`.** La baja de personal es desactivar y
       nunca borrar, y un operador desactivado no debe poder recibir turnos nuevos.
-- [ ] **Paso 3.** ⚠ **PASO BLOQUEADO: la decisión C sigue abierta** *(Q-21)*. Al borrar o acortar un
-      turno, o se dice **cuántas reservas quedan descubiertas** y el admin decide, o se impide. **No se
-      elige al ejecutar.** Si al llegar aquí sigue sin decidirse, **se para y se pregunta**: dejar el
-      borrado sin ninguna de las dos cosas es la opción que nadie eligió.
+- [ ] **Paso 3.** **D-92, que cierra Q-21: al borrar o acortar un turno se AVISA y no se impide.** Antes
+      de confirmar, la pantalla dice **cuántas reservas quedan descubiertas**; el admin decide con el
+      dato delante.
+- [ ] **Paso 4.** ⚠ **EL RECUENTO ES LA PARTE QUE SE HACE MAL, y el motivo es D-90.** *«Las reservas que
+      caían dentro de ese turno»* **no es la cifra**: con la cobertura por unión, **el turno de un
+      compañero puede seguir cubriéndolas**, así que ese total sale **inflado** y el admin decide sobre
+      un número que mide otra cosa. **Se cuenta recalculando la cobertura SIN ese turno** y quedándose
+      con las que dejan de estarlo. **Es la lección de la migración 28 aplicada por adelantado.**
+- [ ] **Paso 5.** El universo, acotado y medido contra el enum `reservation_status` y no recordado:
+      **reservas no terminadas —`reserved` y `active`—**, nunca `cancelled`, `completed`,
+      `not_picked_up` ni `not_returned`. ⚠ **Y se mira el intervalo entero `[start_at, end_at)`, no sólo
+      el inicio:** un turno que desaparece por la tarde descubre la **devolución** de una reserva
+      retirada por la mañana.
+- [ ] **Paso 6.** ⚠ **El control que hace válido el recuento:** montar dos turnos solapados, borrar uno y
+      comprobar que el aviso dice **0** —el compañero cubre—, y repetirlo sin solape para que diga el
+      número real. **Un aviso que siempre da un número no distingue «cuenta bien» de «cuenta las de ese
+      turno».**
+- [ ] **Paso 7.** **No va a Sentry:** es una acción esperada del admin, no un incidente.
 
 **Commit:** `feat: turnos de operador por sede y dia`
 
@@ -479,6 +494,7 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 | **V-3** | ¿`campus_hours` vacío rechaza con el mensaje de la **sede**, y sin turnos con el del **operador**? | Dos mensajes distintos | Uno solo: D-76 no está implementado |
 | **V-4** | ¿Las nueve baterías que reservan siguen pasando **sin tocarlas**? | 200 aserciones intactas | El seed no cubre algún escenario: **se arregla el seed, no la prueba** |
 | **V-5** | ¿El séptimo enlace cabe en la segunda fila a 1440 px? | Cabe, o se desplaza con `overflow-x-auto` | Se anota y **lo resuelve la fase visual**, no ésta |
+| **V-6** | **¿El aviso de D-92 cuenta las reservas que quedan descubiertas, o las que caían en el turno?** | Con dos turnos solapados, borrar uno avisa **0**; sin solape, avisa el número real | Está contando por turno y no por cobertura: **es la cifra inflada de la corrección de D-90 y se arregla**, no se documenta |
 
 ---
 
