@@ -716,6 +716,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      reservas_descubiertas: {
+        Args: { p_ends_at?: string; p_shift_id: string; p_starts_at?: string }
+        Returns: number
+      }
     }
     Enums: {
       reservation_status:

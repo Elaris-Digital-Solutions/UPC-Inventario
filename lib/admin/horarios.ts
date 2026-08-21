@@ -74,3 +74,44 @@ export async function listarHorariosPorSede(): Promise<SedeConHorario[]> {
     return { id: sede.id, nombre: sede.name, activo: sede.activo, dias };
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Los turnos (D-74, D-90, D-92)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// La sede vive SOLO en el turno y no en `staff_members`, cuyas columnas son
+// user_id, role, activo, created_at y updated_at. Eso decide algo que conviene
+// dejar dicho para que nadie "arregle" la falta de campus_id en el personal: un
+// mismo operador puede tener turnos en LAS DOS sedes, y el modelo lo permite sin
+// anadir nada.
+export type TurnoAdmin = {
+  id: string;
+  staffId: string;
+  campusId: string;
+  weekday: number;
+  inicio: string; // `starts_at`, "HH:MM:SS" tal cual llega
+  fin: string; // `ends_at`
+};
+
+export async function listarTurnos(): Promise<TurnoAdmin[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('staff_shifts')
+    .select('id, staff_id, campus_id, weekday, starts_at, ends_at')
+    .order('weekday')
+    .order('starts_at');
+
+  if (error) {
+    throw new Error(`listarTurnos: fallo la consulta a staff_shifts: ${error.message}`);
+  }
+
+  return (data ?? []).map((fila) => ({
+    id: fila.id,
+    staffId: fila.staff_id,
+    campusId: fila.campus_id,
+    weekday: fila.weekday,
+    inicio: fila.starts_at,
+    fin: fila.ends_at,
+  }));
+}

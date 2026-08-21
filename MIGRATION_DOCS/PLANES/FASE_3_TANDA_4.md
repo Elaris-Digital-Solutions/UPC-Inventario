@@ -423,29 +423,29 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 9 · Los turnos de cada operador
 
-- [ ] **Paso 1.** En la misma ruta: alta, edición y baja de turnos, por operador y por sede.
-- [ ] **Paso 2.** ⚠ **Se ofrece TODO el personal `activo = true`, admin incluido** *(D-93)*, no sólo los
+- [x] **Paso 1.** En la misma ruta: alta, edición y baja de turnos, por operador y por sede.
+- [x] **Paso 2.** ⚠ **Se ofrece TODO el personal `activo = true`, admin incluido** *(D-93)*, no sólo los
       de rol `operator`: el modelo nunca ató los turnos al rol y **hoy el único personal que existe en
       producción es un admin**. La baja de personal es desactivar y nunca borrar, y **un miembro
       desactivado no debe poder recibir turnos nuevos** — eso sí se filtra.
-- [ ] **Paso 3.** **D-92, que cierra Q-21: al borrar o acortar un turno se AVISA y no se impide.** Antes
+- [x] **Paso 3.** **D-92, que cierra Q-21: al borrar o acortar un turno se AVISA y no se impide.** Antes
       de confirmar, la pantalla dice **cuántas reservas quedan descubiertas**; el admin decide con el
       dato delante.
-- [ ] **Paso 4.** ⚠ **EL RECUENTO ES LA PARTE QUE SE HACE MAL, y el motivo es D-90.** *«Las reservas que
+- [x] **Paso 4.** ⚠ **EL RECUENTO ES LA PARTE QUE SE HACE MAL, y el motivo es D-90.** *«Las reservas que
       caían dentro de ese turno»* **no es la cifra**: con la cobertura por unión, **el turno de un
       compañero puede seguir cubriéndolas**, así que ese total sale **inflado** y el admin decide sobre
       un número que mide otra cosa. **Se cuenta recalculando la cobertura SIN ese turno** y quedándose
       con las que dejan de estarlo. **Es la lección de la migración 28 aplicada por adelantado.**
-- [ ] **Paso 5.** El universo, acotado y medido contra el enum `reservation_status` y no recordado:
+- [x] **Paso 5.** El universo, acotado y medido contra el enum `reservation_status` y no recordado:
       **reservas no terminadas —`reserved` y `active`—**, nunca `cancelled`, `completed`,
       `not_picked_up` ni `not_returned`. ⚠ **Y se mira el intervalo entero `[start_at, end_at)`, no sólo
       el inicio:** un turno que desaparece por la tarde descubre la **devolución** de una reserva
       retirada por la mañana.
-- [ ] **Paso 6.** ⚠ **El control que hace válido el recuento:** montar dos turnos solapados, borrar uno y
+- [x] **Paso 6.** ⚠ **El control que hace válido el recuento:** montar dos turnos solapados, borrar uno y
       comprobar que el aviso dice **0** —el compañero cubre—, y repetirlo sin solape para que diga el
       número real. **Un aviso que siempre da un número no distingue «cuenta bien» de «cuenta las de ese
       turno».**
-- [ ] **Paso 7.** **No va a Sentry:** es una acción esperada del admin, no un incidente.
+- [x] **Paso 7.** **No va a Sentry:** es una acción esperada del admin, no un incidente.
 
 **Commit:** `feat: turnos de operador por sede y dia`
 
@@ -839,3 +839,72 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     provocar. ⚠ **Y uno de los dos no es un `check` de tabla sino un TRIGGER**, lo que cambia cómo se
     reconoce: los dos llegan con `23514`, pero el del trigger **no trae nombre de restricción en el
     mensaje**, así que se busca por su texto —que lo escribe la migración 33 y no Postgres—.
+
+20. ⚠ **LA TAREA 9 TRAE UNA MIGRACIÓN, Y EL CORTE DECÍA «CERO SQL» EN LA MITAD B.** El recuento de D-92
+    es «recalcular la cobertura SIN ese turno», y **esa cobertura ya está escrita DOS veces en la
+    migración 34** —en `available_slots` y en el paso 6-bis de `create_reservation`—, cada una con una
+    nota diciendo que las dos tienen que ser idénticas o el calendario miente. **Una tercera copia en
+    TypeScript sería un tercer sitio del que separarse, y el único que pgTAP no puede probar.** Es el
+    mismo argumento que hizo nacer `private.sembrar_horarios_por_defecto()` en la corrección 3, y por eso
+    se toma la misma salida: **migración 36, `public.reservas_descubiertas(uuid, time, time)`**.
+
+    **Es `SECURITY INVOKER`** —lo contrario de casi todo lo demás en este proyecto—, y con motivo: el
+    admin **ya** puede leer `inventory_reservations` y `staff_shifts` por sus políticas, así que RLS
+    decide sola y no hay que repetir `private.is_admin()`. A quien no sea personal, `staff_shifts` le
+    devuelve cero filas y la función le contesta sobre un mundo vacío.
+
+    ⚠ **Y cambia lo que hay que empujar: son CUATRO migraciones y no tres.** La 33, la 34, la 35 y esta
+    36. **El cuándo sigue sin ser de quien ejecuta.**
+
+    **Una cosa que la función añade y D-92 no decía, dicha en vez de colada:** el universo lleva
+    `end_at > now()`. Los turnos son **semanales** —por `weekday`—, así que sin ese filtro un turno de
+    los lunes contaría también los lunes de hace un mes. **Contarlos inflaría el número, que es
+    justamente el defecto contra el que D-92 se escribió.**
+
+21. ⚠ **`inventory_reservations` NO TIENE `campus_id`, y la primera versión de la migración 36 dio por
+    hecho que sí.** `ERROR: column r.campus_id does not exist`. Sus doce columnas son `id`,
+    `product_id`, `unit_id`, `alumno_id`, `purpose`, `cancellation_reason`, `start_at`, `end_at`,
+    `status`, `created_at`, `updated_at` y `blocked_range`: **la sede vive en la UNIDAD**, y se alcanza
+    por `unit_id`. Cuesta un `join` y se anota porque es de un género barato de repetir: **escribir el
+    nombre de columna que la frase pide en castellano —«la reserva de esa sede»— en vez del que la tabla
+    tiene.**
+
+22. ✅ **V-6 CONTESTADO POR SALIDA A, y medido dos veces: en SQL y a través de la pantalla.** La sonda
+    del paso 6, sobre una reserva viva de mañana 10:00–12:00 en Monterrico:
+
+    | Escenario | Descubiertas |
+    |---|---|
+    | Borrar el único turno que la cubría | **1** |
+    | Acortarlo a 08:00–11:00 | **1** |
+    | «Acortarlo» a 08:00–22:00, o sea sin cambio | **0** ← control positivo |
+    | Con un compañero 08:00–22:00, borrar el primero | **0** ← la que la cuenta ingenua daría como 1 |
+    | Con el compañero solo hasta las 11:00, borrar el primero | **1** ← «hay compañero» ≠ «cubre» |
+
+    **Las mismas dos cifras que deciden salieron por la pantalla**, con el diálogo diciendo «1
+    reserva(s) se quedarían sin nadie» sin compañero y «Ninguna reserva se queda sin alguien» con él.
+
+23. ✅ **La batería 44 convierte la sonda en regresión, y la mutación dice DÓNDE falla y no sólo que
+    falla.** `Files=37, Tests=235, PASS`, y el 235 = 229 + 6. **Mutando `reservas_descubiertas` para que
+    ignore los demás turnos** —que es exactamente la cuenta ingenua que D-92 prohíbe— **falla UNA sola
+    aserción, la 5**, con `have: 1, want: 0`, y **las seis corren enteras sin abortar**. Las otras cinco
+    son invariantes bajo esa mutación, y eso no es un defecto del diseño de la batería sino la razón de
+    ser de la 5: **es la única que separa las dos semánticas.**
+
+24. ⚠ **UN FALLO REAL QUE SOLO SE VE EN EL NAVEGADOR: la tabla de turnos reventaba al añadir uno.**
+    `TablaTurnos` sembraba su mapa de edición con los turnos de la primera carga, indexado por `id`.
+    Al añadir un turno, `revalidatePath` vuelve a pintar con un turno **más**, React conserva el estado
+    del componente, y **la fila nueva no tenía entrada en el mapa**: `fila.inicio` sobre `undefined`
+    tumbaba la tabla entera y las filas desaparecían de pantalla. **Ni `typecheck` ni `lint` ni `build`
+    lo vieron** —el índice de un `Record<string, T>` se tipa como `T`, no como `T | undefined`, salvo con
+    `noUncheckedIndexedAccess`—. La cura **quita código**: no se siembra nada y, si no hay edición local,
+    el valor sale del turno. ⚠ **Y explica por qué `TablaHorariosSede` sí puede sembrar el suyo:** aquella
+    lo indexa por `weekday`, que son siempre los mismos siete. **Aquí la clave es un id que nace y muere.**
+
+25. **El paso 3 de la Tarea 9 se cumple con un diálogo y NO con un aviso permanente**, y la diferencia
+    importa: el número depende del cambio concreto —acortar a las 11:00 y borrar descubren cantidades
+    distintas—, así que se cuenta **al pedir la confirmación** y con las horas que hay en pantalla en ese
+    momento. Un aviso siempre visible tendría que elegir un cambio hipotético y sería falso para todos
+    los demás. **Y `contarDescubiertas()` devuelve `null` si la consulta falla, no 0:** el 0 es
+    justamente la respuesta tranquilizadora, e inventarlo sería peor que decir que no se pudo saber.
+    **No va a Sentry** —que además no está instalado— porque consultar el impacto de un cambio es una
+    acción esperada del admin.

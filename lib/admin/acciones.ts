@@ -1520,3 +1520,178 @@ export async function cerrarDia(campusId: string, weekday: number): Promise<Resu
 
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /admin/horarios · los turnos del personal (D-74, D-90, D-92, D-93)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que `staff_shifts` puede dar desde esta pantalla. Son
+// DOS, y ninguno es el mismo que los de `campus_hours`:
+//
+//   ends_at <= starts_at -> constraint "staff_shifts_orden", 23514
+//   staff_id inexistente -> constraint "staff_shifts_staff_id_fkey", 23503
+//
+// NO HAY RESTRICCION DE ALINEACION SOBRE LOS TURNOS, y no es un olvido: la
+// rejilla nace de `campus_hours` y los turnos solo la RECORTAN, asi que un turno
+// que empiece a las 09:07 no puede desalinear nada. Esta escrito en la cabecera
+// de la migracion 33 y se repite aqui porque desde la pantalla parece que
+// deberia haberla.
+//
+// TAMPOCO se traduce nada sobre solapes: dos turnos que se pisan son LEGALES y
+// deseables -es el caso que D-90 existe para cubrir-, y la migracion 33 no puso
+// ninguna exclusion.
+function mensajeDeRechazoTurno(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('staff_shifts_orden')) {
+    return 'La hora de fin del turno tiene que ser posterior a la de inicio.';
+  }
+
+  if (mensajeDelMotor.includes('staff_shifts_staff_id_fkey')) {
+    return 'Esa persona ya no está en el personal.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// El aviso de D-92, que cierra Q-21: cuantas reservas quedan DESCUBIERTAS si se
+// borra o se acorta este turno. NO impide nada; el admin decide con el dato
+// delante.
+//
+// LA CUENTA LA HACE LA BASE -public.reservas_descubiertas(), migracion 36- y no
+// esta capa, y el motivo esta en la cabecera de esa migracion: la cobertura ya
+// esta escrita dos veces en la 34 y una tercera copia en JavaScript seria la
+// unica que nadie puede probar con pgTAP.
+//
+// `null` en las dos horas significa "el turno desaparece"; con valores, "el
+// turno pasa a ser este". Una sola funcion para las dos operaciones, porque la
+// pregunta es la misma.
+//
+// NO VA A SENTRY aunque el recuento falle: consultar el impacto de un cambio es
+// una accion esperada del admin, no un incidente (regla 3 de errores). Si la
+// consulta falla se devuelve `null` y la pantalla lo dice; inventar un 0 seria
+// peor que no saber, porque el 0 es justamente la respuesta tranquilizadora.
+export async function contarDescubiertas(
+  turnoId: string,
+  inicio: string | null,
+  fin: string | null,
+): Promise<number | null> {
+  const supabase = await createClient();
+
+  // OJO: los tipos generados declaran los dos `time` con DEFAULT como
+  // `string | undefined`, no como `string | null`. Se omiten en vez de mandarse
+  // en null, que es lo que PostgREST entiende por "usa el default" -- y el
+  // default de la funcion es justamente NULL, o sea "el turno desaparece".
+  const { data, error } =
+    inicio === null || fin === null
+      ? await supabase.rpc('reservas_descubiertas', { p_shift_id: turnoId })
+      : await supabase.rpc('reservas_descubiertas', {
+          p_shift_id: turnoId,
+          p_starts_at: inicio,
+          p_ends_at: fin,
+        });
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
+// Alta de un turno. SE OFRECE TODO EL PERSONAL ACTIVO, ADMIN INCLUIDO (D-93):
+// `staff_shifts.staff_id` referencia `staff_members(user_id)` SIN filtro de rol,
+// y nunca lo tuvo. Hoy el unico personal que existe en produccion es un admin,
+// asi que atarlo al rol `operator` dejaria el calendario vacio para siempre.
+//
+// QUIEN FILTRA POR `activo` ES LA PANTALLA y no hay `check` en la base: la baja
+// de personal es DESACTIVAR y nunca borrar, asi que un miembro desactivado
+// conserva su fila y podria recibir turnos nuevos. Eso si se impide, y se impide
+// donde se elige a la persona -el desplegable solo lista activos-. Sus turnos
+// VIEJOS no se tocan: borrarlos perderia la constancia de que esa persona
+// atendio ese dia.
+export async function crearTurno(
+  staffId: string,
+  campusId: string,
+  weekday: number,
+  inicio: string,
+  fin: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('staff_shifts')
+    .insert({ staff_id: staffId, campus_id: campusId, weekday, starts_at: inicio, ends_at: fin })
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo crear el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Edicion: solo las horas. Cambiar de persona o de sede es borrar un turno y
+// crear otro, y se deja asi a proposito: son turnos DISTINTOS, y tratarlos como
+// el mismo haria que el aviso de D-92 midiera un cambio que no es el que se
+// esta haciendo.
+export async function guardarTurno(
+  turnoId: string,
+  inicio: string,
+  fin: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('staff_shifts')
+    .update({ starts_at: inicio, ends_at: fin })
+    .eq('id', turnoId)
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  // Cero filas es RLS filtrando en silencio, medido en este proyecto: un UPDATE
+  // que la politica no deja ver NO lanza 42501, filtra a cero y termina bien.
+  if (data.length === 0) {
+    return { error: 'No se pudo guardar el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Baja de un turno. AQUI SI SE BORRA LA FILA, al reves que con la baja de
+// PERSONAL -que desactiva y nunca borra-, y la diferencia no es un descuido: la
+// fila de `staff_members` es la constancia de que alguien fue personal y con que
+// rol, mientras que un turno solo dice "esta persona atiende los martes", una
+// afirmacion sobre el futuro que deja de ser cierta.
+//
+// NO SE IMPIDE AUNQUE HAYA RESERVAS DESCUBIERTAS (D-92). El aviso lo da la
+// pantalla antes de llamar aqui; esta funcion no vuelve a contar ni a decidir.
+// El argumento esta en D-92 y es cual de los dos danos es reversible: un turno
+// huerfano deja a un alumno frente a un mostrador vacio -visible y arreglable-,
+// e impedir el borrado deja al admin sin poder reflejar que alguien se fue,
+// salvo cancelando reservas de alumnos una a una.
+export async function borrarTurno(turnoId: string): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('staff_shifts').delete().eq('id', turnoId).select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo borrar el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
