@@ -374,8 +374,10 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
       leía y el `grep` no lo vio, sale ahora. **Esperado: verde**, y si no lo está, la corrección 4 estaba
       mal y se anota.
 - [ ] **Paso 3.** **D-91: borrar** `opening_time` y `closing_time` de `app_settings`, **con su restricción
-      `app_settings_horario`**. Va en la migración 34, no en una tercera. ⚠ **El orden importa:** primero
-      las RPC dejan de leerlas *(Tarea 3)*, después se borran. Al revés, la migración 34 no compila.
+      `app_settings_horario`**. ⚠ **En una migración 35 PROPIA y no dentro de la 34** — ver la
+      **corrección 5**: la 34 se confirma en la Tarea 3 y meterlo aquí obligaría a editar una migración ya
+      commiteada. **El orden lo garantiza el timestamp:** primero las RPC dejan de leerlas *(Tarea 3)*,
+      después se borran.
 - [ ] **Paso 4.** Y con ellas, los **siete** sitios que las arrastran, contados en D-91:
       `opening_time_aligned` *(D-54, que se muda a `campus_hours` en la Tarea 2)*,
       `supabase/tests/32_opening_time_aligned.sql` *(Tarea 5)*,
@@ -613,3 +615,30 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
    el alumno ve **14 horarios y 0 turnos** mientras **el admin ve 14 y 13**. ✅ **Y las 200 aserciones
    existentes siguen pasando sin tocar una prueba** —`Files=33, Tests=200, PASS`—, que era el riesgo que
    describe la corrección 1.
+
+5. ⚠ **El borrado de columnas de D-91 va en una migración 35 PROPIA, no dentro de la 34.** La Tarea 6,
+   paso 3, dice *«va en la migración 34, no en una tercera»*. **No se sostiene al ejecutar:** la 34 se
+   escribe y se confirma en la Tarea 3, y la Tarea 6 llega cinco tareas después. Meterlo en el mismo
+   archivo obligaría a **editar una migración ya confirmada**, o a dejar el commit de la Tarea 3 con una
+   migración a medias. **Un archivo por propósito, y el orden lo garantiza el timestamp**, que es la
+   convención del proyecto desde la Fase 1. La 34 deja `opening_time` y `closing_time` **existiendo y
+   sin gobernar nada**, y su cabecera lo dice para que nadie las lea creyendo que mandan.
+
+6. ⚠ **LA SONDA DE LA PROPIEDAD SE MONTÓ MAL LA PRIMERA VEZ, Y CONFIRMABA LA HIPÓTESIS EQUIVOCADA.**
+   Recorrer las 25 franjas llamando a `create_reservation` **sin revertir entre intentos** dio **1
+   aceptada y 24 rechazadas**, que leído deprisa es *«la rejilla ofrece franjas que la RPC rechaza»* — o
+   sea, justo la propiedad rota. **El mensaje decía otra cosa:** *«Ya tienes una reserva de este producto
+   para ese dia»*, que es **BR-09, el límite diario**, no el horario. **La primera reserva agotaba el
+   cupo y envenenaba las 24 siguientes.** Es el mismo género que la sesión del 2026-08-19 ya pagó: **un
+   control mal montado que confirma lo que se temía**, y lo salvó leer el mensaje en vez de el recuento.
+   La versión correcta pone cada intento en su propio bloque `BEGIN/EXCEPTION` de plpgsql —savepoint
+   implícito— y fuerza el rollback tras aceptar.
+
+7. ✅ **Tarea 3 verificada por el efecto, y la propiedad se sostiene: 25 franjas ofrecidas, 25
+   ACEPTADAS, 0 rechazadas.** ⚠ **Con el control negativo que la hace válida:** pedir las **07:00**
+   —una hora que la rejilla no ofrece— se rechaza con *«Fuera del horario de atencion»*; sin él, un 25
+   de 25 no distingue «valida bien» de «acepta cualquier cosa». **Los dos mensajes de D-76 salen
+   distintos y por la causa correcta:** sin turno ese día, *«No hay ningun operador en ese horario»*;
+   sin fila en `campus_hours`, *«Ese dia la sede no abre»*. **Y las 200 aserciones siguen pasando sin
+   tocar una sola prueba** —`Files=33, Tests=200, PASS`—, que era exactamente el riesgo de la
+   corrección 1: **la cura era el seed y no reescribir nueve archivos**. La sonda dejó **0** reservas.
