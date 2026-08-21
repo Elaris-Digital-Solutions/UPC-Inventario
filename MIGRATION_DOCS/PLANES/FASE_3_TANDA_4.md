@@ -289,9 +289,12 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 2 · Migración 33 · `campus_hours` y `staff_shifts`
 
-- [ ] **Paso 1.** Las dos tablas de §5.1, tal cual, **con una sola adición: la restricción de alineación
-      sobre `campus_hours.opens_at`**, que es D-54 mudándose de tabla. ⚠ **NO se añade sobre
-      `staff_shifts`**: con la corrección 2 los turnos no generan rejilla, así que no pueden desalinearla.
+- [ ] **Paso 1.** Las dos tablas de §5.1, tal cual. ⚠ **NO se añade alineación sobre `staff_shifts`**: con
+      la corrección 2 los turnos no generan rejilla, así que no pueden desalinearla.
+- [ ] **Paso 1 bis.** ⚠ **La alineación de `campus_hours.opens_at` va en DOS DISPARADORES, no en un
+      `CHECK`** — ver la **corrección 1 de la cabecera**, medida: `cannot use subquery in check
+      constraint`. Uno sobre `campus_hours` y otro sobre `app_settings` para la puerta de atrás de
+      `slot_minutes`, **que ahora puede desalinear 14 filas de golpe en vez de una**.
 - [ ] **Paso 2.** RLS en las dos: **lectura para `authenticated`** —el alumno necesita saber si la sede
       abre—, **escritura sólo para admin** vía `private.is_admin()`, como el resto del proyecto.
 - [ ] **Paso 3.** ⚠ **La siembra del techo actual** *(corrección 7)*: `insert … select` cruzando
@@ -546,4 +549,67 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
 
 *(Lo que la ejecución desmienta va aquí, no reescribiendo el plan.)*
 
-*Vacía: la tanda no se ha ejecutado.*
+1. ⚠ **LA TAREA DE RIESGO ENCONTRÓ ALGO, Y NO ES LA INTERSECCIÓN: `D-54` NO SE PUEDE MUDAR A
+   `campus_hours` COMO UN `CHECK`.** La Tarea 2, paso 1, dice *«la restricción de alineación sobre
+   `campus_hours.opens_at`, que es D-54 mudándose de tabla»*. **Postgres lo rechaza, medido y no
+   deducido:**
+
+   ```
+   ERROR:  cannot use subquery in check constraint
+   ```
+
+   **El motivo es que en `app_settings` la regla funcionaba por una casualidad de forma:** `opening_time`
+   y `slot_minutes` viven **en la misma fila**, así que el `CHECK` no necesitaba mirar fuera.
+   `campus_hours` no tiene `slot_minutes` — vive en `app_settings` — y **un `CHECK` no puede leer otra
+   tabla**. Es la misma pared contra la que Q-14 ya se había dado.
+
+   **La cura son DOS disparadores, y hacen falta los dos:**
+   - `before insert or update on public.campus_hours` → valida `opens_at` contra
+     `app_settings.slot_minutes`.
+   - `before update on public.app_settings` → si cambia `slot_minutes`, comprueba que **ninguna** fila de
+     `campus_hours` quede desalineada.
+
+   ⚠ **El segundo no es simetría decorativa: el daño creció de tamaño.** En `app_settings` cambiar
+   `slot_minutes` podía desalinear **una** fila, y el `CHECK` de la propia tabla lo frenaba; con
+   `campus_hours` puede desalinear **14 de golpe** *(2 sedes × 7 días)* **y ya no hay `CHECK` que lo
+   frene**. **La prueba 32 ya tiene la forma correcta** —su aserción 1 prueba la vía directa y la 3 «la
+   puerta de atrás» de `slot_minutes`—, así que **cambia la tabla y no el diseño de la prueba**.
+
+2. ✅ **La intersección salió por la salida A con las tablas reales y `available_units` dentro**, o sea
+   que la medición del prototipo no dependía de haberla hecho sobre tablas temporales. **13 franjas** de
+   2 h con dos turnos consecutivos —**incluida 11:00–13:00**— y **8** con un hueco de una hora, con
+   `available_units` devolviendo **3** en todas. ⚠ **Y el borde que más valía comprobar:** sobrevive
+   **09:00–11:00**, que termina exactamente donde acaba el turno, lo que confirma que el `>=` sobre
+   `ends_at` es el operador correcto y no uno más laxo de la cuenta.
+
+3. ⚠ **EL ORDEN DE LAS TAREAS ESTÁ MAL: la 4 no puede ir después de la 2, porque sin ella la 2 NO SE
+   PUEDE VERIFICAR.** Y no se dedujo, se pagó: la primera verificación de la Tarea 2 dio `campus_hours` =
+   **0** donde el plan predecía 14, **y los tres controles de debajo salieron todos en verde sobre una
+   tabla vacía** —dos `UPDATE 0` leídos como «el trigger cierra» y un `0` de RLS leído como «el alumno no
+   ve turnos»—. **Un cero por no haber nada que mirar se lee exactamente igual que un cero por
+   funcionar**, y aquí hubo tres seguidos.
+
+   **La causa la tenía escrita el propio `seed.sql` desde la migración 27** *(D-77)*: `db reset` aplica
+   las migraciones y **después** corre el seed, así que **cuando la migración siembra, `campuses` está
+   VACÍA en local**. En producción las dos sedes existen desde antes y sí habría sembrado.
+
+   ⚠ **Con `salon_devolucion` eso se aceptó —una columna de texto que el seed rellena aparte—. Aquí no se
+   puede:** si la siembra falla en producción, **nadie puede reservar**, y el precedente deja esa
+   sentencia sin probar en local. **La cura es una función, `private.sembrar_horarios_por_defecto(opens,
+   closes)`, a la que llaman la migración Y el seed** — copiar el `INSERT` en el seed habría dejado dos
+   versiones que se separan, y **la que corre en producción sería la que nadie probó**. La función
+   **recibe las dos horas en vez de leer `app_settings`** porque la migración 34 borra esas columnas
+   *(D-91)*: una función que las leyera quedaría rota al día siguiente de escribirse. Y **devuelve el
+   número de filas insertadas**, que es lo que permite verificarla por el efecto.
+
+4. ✅ **Tarea 2 verificada, y las cifras del plan salieron exactas una vez sembrado el seed:**
+   `campus_hours` = **14** *(2 sedes × 7 días, las 14 coincidiendo con `app_settings`)* y `staff_shifts` =
+   **13** *(7 de Monterrico + 6 de San Miguel, sin el miércoles, a propósito para poder probar D-76)*.
+   **Con los controles en las dos direcciones, sin los cuales nada de esto valdría:** el trigger rechaza
+   `09:10` y **acepta `09:00`**; la puerta de atrás rechaza bajar el bloque a 20 min diciendo **«14
+   horario(s) de sede sin alinear»** —la cifra correcta— y **acepta el mismo 20 con la apertura en
+   08:00**; las tres funciones nuevas dan `EXECUTE = false` para `authenticated` y `anon` **mientras
+   `is_admin` e `is_staff` dan `true`**, que es lo que distingue «revocado» de «la sonda pregunta mal»; y
+   el alumno ve **14 horarios y 0 turnos** mientras **el admin ve 14 y 13**. ✅ **Y las 200 aserciones
+   existentes siguen pasando sin tocar una prueba** —`Files=33, Tests=200, PASS`—, que era el riesgo que
+   describe la corrección 1.

@@ -217,3 +217,52 @@ update public.alumnos
 
 -- NO se siembran reservas. 14_rls_alumnos.sql afirma que el operador solo se ve a
 -- si mismo mientras no haya reservas vivas; una reserva sembrada rompe esa prueba.
+
+
+-- F3-T4 / D-75: los horarios de sede y los turnos.
+--
+-- SE LLAMA A LA MISMA FUNCION QUE LLAMA LA MIGRACION 33, no se copia su INSERT.
+-- El motivo esta medido: `db reset` aplica las migraciones y DESPUES corre este
+-- archivo, asi que cuando la migracion siembra, `campuses` esta VACIA en local y
+-- inserta CERO. En produccion inserta 14. Es el mismo desfase que el comentario
+-- de salon_devolucion describe mas arriba, pero aqui NO se puede aceptar
+-- duplicando la logica: si las dos versiones se separan, la que corre en
+-- produccion es la que nadie probo, y su fallo deja a nadie pudiendo reservar.
+--
+-- Las horas salen de app_settings, que si existe a esta altura -la inserta la
+-- migracion 11-, asi que el techo local es identico al de produccion.
+select private.sembrar_horarios_por_defecto(s.opening_time, s.closing_time)
+  from public.app_settings s;
+
+
+-- Turnos del operador (a0000000-...-0000000b), que ya se siembra como staff.
+--
+-- Monterrico lleva los SIETE dias cubiertos de apertura a cierre, y esa es la
+-- condicion que hace que las NUEVE baterias que llaman a create_reservation
+-- sigan pasando sin tocarlas: todas reservan "manana a las 10:00" en Monterrico
+-- contando con el horario 08:00-22:00.
+insert into public.staff_shifts (staff_id, campus_id, weekday, starts_at, ends_at)
+select 'a0000000-0000-0000-0000-00000000000b',
+       'cccccccc-0000-0000-0000-000000000001',
+       d.weekday,
+       s.opening_time, s.closing_time
+  from generate_series(0, 6) as d(weekday)
+ cross join public.app_settings s;
+
+-- San Miguel se queda SIN turno el miercoles (weekday = 3) A PROPOSITO: es el
+-- unico caso que permite probar D-76 -distinguir "cerrado" de "sin operador
+-- asignado"-, y sin el las dos situaciones darian cero franjas y ninguna prueba
+-- podria separarlas.
+--
+-- No afecta a ninguna bateria existente: la unica prueba que menciona San Miguel
+-- es 26_linter.sql, y la usa para leer product_availability, no para reservar.
+-- Si algun dia una prueba reserva en San Miguel un miercoles, va a fallar: es
+-- deliberado, igual que Bruno sin confirmo_facultad.
+insert into public.staff_shifts (staff_id, campus_id, weekday, starts_at, ends_at)
+select 'a0000000-0000-0000-0000-00000000000b',
+       'cccccccc-0000-0000-0000-000000000002',
+       d.weekday,
+       s.opening_time, s.closing_time
+  from generate_series(0, 6) as d(weekday)
+ cross join public.app_settings s
+ where d.weekday <> 3;
