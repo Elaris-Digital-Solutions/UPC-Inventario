@@ -1032,3 +1032,37 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     se despliega el Next.js —sigue sin haber `netlify.toml`, `vercel.json` ni Dockerfile en el
     repositorio, y `main` publica el Vite viejo—; y **Q-28**, si este proyecto instala Sentry o se queda
     con la convención de mensajes que ya tiene medida.
+
+32. ✅ **LA CSP DE `/admin/horarios`, MEDIDA ANTES DEL PR Y NO DESPUÉS — porque la tanda mete tres
+    desplegables de Radix y Q-20 dice justamente eso.** El plan no lo pedía, y aparece aquí porque **no
+    medirlo habría dejado tres superficies nuevas sin contar en un pendiente que se cerró afirmando «18
+    de 18 medidas»** *(D-89)*.
+
+    **Medido con `build` + `start`, que es el único sitio donde la CSP muerde:** en `npm run dev`
+    `style-src` lleva `unsafe-inline` y no mide nada, y eso ya estaba escrito en `lib/seguridad/csp.test.ts`.
+
+    | Superficie | Violaciones |
+    |---|---|
+    | Carga de la pantalla | **0** |
+    | Abrir el desplegable **Persona** | **1** |
+    | Abrir el desplegable **Sede** | **1** |
+    | Abrir el desplegable **Día** | **1** |
+    | Abrir el **diálogo de confirmación de D-92** | **0** |
+    | *Control positivo: `<style>` sin nonce inyectado a mano* | **1** |
+
+    **Las tres son la misma y ya conocida:** `style-src-elem`, `blockedURI: inline` — la firma de D-89,
+    `@radix-ui/react-select` renderizando su `<style>` en JSX sin pasar por `get-nonce`. **Ninguna
+    violación de un tipo nuevo.**
+
+    ✅ **Y una que se esperaba y no ocurrió: el diálogo da CERO.** Q-20 se enunció sobre «el scroll-lock
+    de los diálogos», y con el `setNonce` de la F3-T3 el `Dialog` ya no viola nada. **Lo que queda es el
+    `Select`, y sólo el `Select`** — el enunciado de Q-20 se quedó viejo por el lado bueno.
+
+    ⚠ **Tres controles, porque sin ellos los dos ceros de la tabla no significarían nada:**
+    **(a)** la cabecera trae `style-src 'self' 'nonce-…'` **sin** `unsafe-inline`, o sea que la política
+    aplica de verdad; **(b)** inyectar a mano un `<style>` sin nonce produce **1** violación, así que el
+    oyente funciona y los ceros son de la página; **(c)** **dos instrumentos independientes dan el mismo
+    número** — el oyente de `securitypolicyviolation` cuenta 4 y la consola del navegador cuenta 4.
+
+    **El efecto sigue siendo cosmético y no funcional**, y eso también está medido y no supuesto:
+    `e2e/horarios.spec.ts` abre los tres desplegables y elige opciones en cada corrida.
