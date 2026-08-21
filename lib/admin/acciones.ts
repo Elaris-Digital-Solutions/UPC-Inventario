@@ -1398,3 +1398,125 @@ export async function guardarAjustes(ajustes: {
 
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /admin/horarios · el horario de cada sede (F3-T4, D-74/D-75)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que `campus_hours` puede dar, mismo criterio que
+// mensajeDeRechazoAjustes() mas arriba: texto propio SOLO para lo alcanzable
+// desde esta pantalla, y lo no reconocido cae al CRUDO y nunca a un generico
+// que escondiera una causa que nadie previo.
+//
+// SON DOS, Y UNO NO ES UN `check` DE TABLA sino un TRIGGER, lo cual cambia
+// como se reconoce:
+//
+//   closes_at <= opens_at  -> constraint "campus_hours_orden", 23514
+//   opens_at desalineada   -> trigger campus_hours_alineacion, tambien 23514
+//                             pero SIN nombre de restriccion en el message
+//
+// Por eso el segundo se busca por su TEXTO -"no cae en un bloque"-, que lo
+// escribe la migracion 33 y no Postgres. Buscarlo por el codigo no serviria:
+// los dos son 23514.
+//
+// `campus_hours_weekday_check` NO lleva texto propio y no es un olvido: el
+// `weekday` no sale de ningun campo del formulario, lo pone la fila de la
+// tabla que se esta editando. Igual que `app_settings_slot_divisor`, es un
+// rechazo que nadie puede provocar desde esta pantalla.
+function mensajeDeRechazoHorario(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('campus_hours_orden')) {
+    return 'La hora de cierre tiene que ser posterior a la de apertura.';
+  }
+
+  if (mensajeDelMotor.includes('no cae en un bloque')) {
+    return 'La hora de apertura tiene que caer justo en un bloque. Ajusta sus minutos o cambia el tamaño del bloque en /admin/ajustes.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// Las DOS rutas que hay que revalidar al tocar un horario, y la segunda es la
+// que importa: el techo de la sede es de donde nace la rejilla del alumno
+// -migracion 34-, asi que cambiarlo aca y no revalidar alli dejaria al alumno
+// viendo el calendario viejo. Mismo par y mismo motivo que guardarAjustes().
+function revalidarHorarios(): void {
+  revalidatePath('/admin/horarios');
+  revalidatePath('/(alumno)/catalogo/[id]/reservar', 'page');
+}
+
+// Guardar el horario de un dia de una sede. Es un UPSERT y no un INSERT
+// porque la clave primaria de `campus_hours` es (campus_id, weekday): abrir un
+// dia cerrado y cambiar el horario de uno abierto son la misma operacion desde
+// la pantalla, y partirlas obligaria a que el formulario supiera cual de las
+// dos esta haciendo.
+//
+// PIDE LA FILA DE VUELTA CON `.select()` Y TRATA EL VACIO COMO ERROR, mismo
+// criterio que guardarAjustes(). El motivo esta MEDIDO en este proyecto y es
+// contraintuitivo: una escritura que RLS no deja ver NO lanza 42501, filtra a
+// cero filas y termina bien. Sin este chequeo, una llamada sin permiso
+// contestaria exactamente igual que una que guardo.
+export async function guardarHorarioDia(
+  campusId: string,
+  weekday: number,
+  apertura: string,
+  cierre: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('campus_hours')
+    .upsert(
+      { campus_id: campusId, weekday, opens_at: apertura, closes_at: cierre },
+      { onConflict: 'campus_id,weekday' },
+    )
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoHorario(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo guardar. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Cerrar un dia: se BORRA la fila, porque en este modelo "un dia sin fila es
+// un dia cerrado" (D-75). No hay columna `cerrado` que poner en true, y anadir
+// una seria inventar un tercer estado que ni las RPC ni D-76 conocen.
+//
+// NO PIDE CONFIRMACION AQUI: la pide la pantalla, que es donde el admin ve lo
+// que va a pasar. Y NO comprueba si hay reservas ese dia -eso es D-92 y vale
+// para los TURNOS, no para el techo de la sede-: cerrar un dia entero es una
+// decision del admin sobre el servicio, del mismo genero que /admin/dias.
+export async function cerrarDia(campusId: string, weekday: number): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('campus_hours')
+    .delete()
+    .eq('campus_id', campusId)
+    .eq('weekday', weekday)
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoHorario(error.message) };
+  }
+
+  // Cero filas aca tiene DOS causas y las dos son un problema que el admin
+  // tiene que ver: o RLS no dejo borrar, o el dia ya estaba cerrado y la
+  // pantalla esta pintando algo que la base no tiene. Un `null` silencioso
+  // haria pasar las dos por exito.
+  if (data.length === 0) {
+    return {
+      error: 'No se pudo cerrar el día. Puede que no tengas permiso, o que ya estuviera cerrado.',
+    };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}

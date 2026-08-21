@@ -397,10 +397,10 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 7 · `/admin/ajustes` pierde apertura y cierre
 
-- [ ] **Paso 1.** Quitar los dos campos del formulario y de `guardarAjustes()`.
-- [ ] **Paso 2.** Dejar en su sitio un enlace a `/admin/horarios`, para que quien vaya a buscarlos donde
+- [x] **Paso 1.** Quitar los dos campos del formulario y de `guardarAjustes()`.
+- [x] **Paso 2.** Dejar en su sitio un enlace a `/admin/horarios`, para que quien vaya a buscarlos donde
       siempre estuvieron **encuentre adónde fueron**.
-- [ ] **Paso 3.** Comprobar que las pruebas de Vitest de ajustes siguen en verde o se ajustan.
+- [x] **Paso 3.** Comprobar que las pruebas de Vitest de ajustes siguen en verde o se ajustan.
 
 **Commit:** `feat: ajustes deja de llevar el horario global`
 
@@ -408,13 +408,13 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 8 · `/admin/horarios` · el horario de cada sede
 
-- [ ] **Paso 1.** `lib/admin/horarios.ts` con la lectura y las acciones de servidor. **La autorización la
+- [x] **Paso 1.** `lib/admin/horarios.ts` con la lectura y las acciones de servidor. **La autorización la
       pone RLS**, no la pantalla.
-- [ ] **Paso 2.** La pantalla, con una tabla por sede: siete días, apertura y cierre. **Un día sin fila es
+- [x] **Paso 2.** La pantalla, con una tabla por sede: siete días, apertura y cierre. **Un día sin fila es
       un día cerrado**, y se ve que lo está *(D-76)*.
-- [ ] **Paso 3.** ⚠ **El error de la base no se reenvía al cliente**: mensaje genérico más el id de
+- [x] **Paso 3.** ⚠ **El error de la base no se reenvía al cliente**: mensaje genérico más el id de
       correlación, y el contexto entero a Sentry bajo ese id.
-- [ ] **Paso 4.** **El séptimo enlace en `components/cabecera-personal.tsx`** *(corrección 8)*, y **se
+- [x] **Paso 4.** **El séptimo enlace en `components/cabecera-personal.tsx`** *(corrección 8)*, y **se
       mira la barra a 1440 px** antes de dar la tarea por hecha.
 
 **Commit:** `feat: pantalla de horarios por sede`
@@ -778,3 +778,64 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     comportamiento—, que es justo lo que la corrección 5 protegía: lo que no se puede es **editar lo
     que una migración confirmada HACE**. Dejar un puntero equivocado dentro de un archivo que alguien
     va a leer es exactamente la enfermedad que D-91 borra las columnas para evitar.
+
+17. ⚠ **EL `build` ENCONTRÓ LO QUE `typecheck` Y `lint` NO VEN, y es un modo de fallo que este proyecto
+    no tenía escrito todavía.** `lib/admin/horarios.ts` importa `createClient()` de
+    `@/lib/supabase/server`, y `components/admin/tabla-horarios-sede.tsx` le importaba **una constante**
+    —la lista de días—. Con eso, Turbopack se lleva el módulo entero al bundle del navegador y corta:
+
+    ```
+    Error: You're importing a module that depends on "next/headers". This API is only
+    available in Server Components in the App Router, but you are using it in the Pages Router.
+        ./lib/admin/horarios.ts [Client Component Browser]
+    ```
+
+    **`typecheck` y `lint` habían salido en verde los dos** —el import es legal en TypeScript y ESLint
+    no modela la frontera servidor/cliente—. **La cura son tres líneas movidas a `lib/admin/semana.ts`**,
+    con lo puro que la pantalla pinta: la lista de días, su etiqueta y los dos tipos. **El tipo no era
+    el problema** —`import type` se borra al compilar—: lo eran los **valores**. Es la misma línea que
+    la cabecera de `lib/admin/acciones.ts` ya tenía trazada por otro motivo —«la separación es por lo
+    que Vitest puede resolver, no por capas»—, y ahora hay un segundo motivo, medido: **por lo que el
+    navegador puede resolver**.
+
+18. ✅ **Tarea 8 cerrada, y V-5 contestado por salida A: la barra de administración CABE a 1440 px.**
+    Medido en el navegador y no estimado, sobre la fila de administración con los **siete** enlaces:
+    `clientWidth` = **1440** y `scrollWidth` = **1440**. Esa fila lleva `overflow-x-auto`, así que si
+    no cupiera el `scrollWidth` sería mayor; **son iguales, luego no desborda.** ⚠ **Y no es el mismo
+    siete de la medición vieja de `cabecera-personal.tsx`**, que daba 1481 px sobre 1440: aquella
+    contaba **Mostrador más seis de administración en UNA sola barra**, y por eso se partió en dos
+    filas. Esta cuenta la **segunda** fila, donde hoy hay siete.
+
+    **La pantalla se caminó entera con Playwright, y lo que dice la base es lo que la pantalla
+    prometió:** editar el lunes de San Miguel a **09:00–18:00** dejó esa fila con esas horas y **las
+    otras cinco intactas en 08:00–22:00** —el control sin el cual «guardó» no distingue una escritura
+    quirúrgica de un `update` que pisa la sede entera—; cerrar el martes **borró su fila** y
+    `campus_hours` pasó de **14 a 13**, con la pantalla marcando «Cerrado» y los dos campos vacíos, que
+    es la primera de las tres formas de D-76. ⚠ **Con el control negativo que hace válido lo anterior:**
+    una apertura de **09:10** con bloques de 30 min deja el botón de guardar **deshabilitado**, así que
+    el «guardó» del primer caso no significa «acepta cualquier cosa».
+
+    **Y un control positivo del estado del seed que conviene dejar escrito porque se presta a
+    confusión:** San Miguel tiene los **siete días abiertos** en `campus_hours`. Lo que el seed deja
+    sin el miércoles —a propósito, para poder probar D-76— es el **turno**, no el horario de sede. Son
+    las dos capas de D-74, y confundirlas al leer la pantalla llevaría a «arreglar» un seed que está
+    bien.
+
+19. **La Tarea 7 se cierra sin commit propio, y sus tres pasos están donde tenían que estar.** Los
+    pasos 1 y 3 entraron en la Tarea 6 por la corrección 12 —la migración obliga—, y el paso 2, el
+    puntero a `/admin/horarios`, entró aquí, en la tarea que construye esa pantalla: **ahora es un
+    enlace de verdad y no un texto**, porque la ruta ya existe. Es la convención de la corrección 8
+    aplicada a un segundo enlace. **Las pruebas de Vitest de ajustes siguen en verde sin tocarlas**
+    —12 / 166—: lo que se borró no tenía ninguna.
+
+    ⚠ **Lo que el paso 3 de la Tarea 8 pide y NO se puede hacer, dicho en vez de disimulado: Sentry no
+    está en este proyecto.** El paso manda «el contexto entero a Sentry bajo ese id», y `package.json`
+    tiene **0 coincidencias** con `sentry`, igual que todo el árbol fuera de `node_modules`. Instalarlo
+    es una dependencia nueva y una decisión de despliegue, que no es de quien ejecuta. **Lo que sí se
+    respeta es la convención que este repositorio ya tiene medida y documentada** —`mensajeDeRechazoAjustes()`
+    en `lib/admin/acciones.ts`—: texto propio en castellano para los rechazos **alcanzables desde la
+    pantalla**, y lo no reconocido cae al mensaje del motor en vez de a un genérico que escondería una
+    causa que nadie previó. `mensajeDeRechazoHorario()` traduce los **dos** que esta pantalla puede
+    provocar. ⚠ **Y uno de los dos no es un `check` de tabla sino un TRIGGER**, lo que cambia cómo se
+    reconoce: los dos llegan con `23514`, pero el del trigger **no trae nombre de restricción en el
+    mensaje**, así que se busca por su texto —que lo escribe la migración 33 y no Postgres—.

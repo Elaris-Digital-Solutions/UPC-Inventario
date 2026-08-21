@@ -14,6 +14,7 @@
 // blanco-, asi que un reseteo los borraria. PanelDias (components/admin/panel-dias.tsx)
 // ya usa este mismo patron por el mismo motivo, aunque su formulario si nace
 // vacio.
+import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -164,11 +165,16 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
 
         {/* D-91: el horario de atencion ESTUVO AQUI y se fue. Quien venga a
             buscarlo donde siempre estuvo tiene que encontrar adonde fue, o va
-            a concluir que se perdio. El enlace de verdad lo pone la tarea que
-            construye /admin/horarios; hasta entonces se nombra la pantalla. */}
+            a concluir que se perdio. El enlace entra ahora y no antes porque
+            /admin/horarios existe desde la misma tanda: un enlace a una
+            pantalla que todavia no esta es un 404, peor que no ponerlo. */}
         <p className="text-muted-foreground text-xs">
-          El horario de atención ya no se configura aquí: ahora es por sede y por día de la semana,
-          y vive en la pantalla de Horarios junto con los turnos del personal.
+          El horario de atención ya no se configura aquí: ahora es por sede y por día de la semana.
+          Se edita en{" "}
+          <Link href="/admin/horarios" className="underline">
+            Horarios
+          </Link>
+          , junto con los turnos del personal.
         </p>
 
         <div>
