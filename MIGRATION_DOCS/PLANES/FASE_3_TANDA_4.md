@@ -642,3 +642,39 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
    sin fila en `campus_hours`, *«Ese dia la sede no abre»*. **Y las 200 aserciones siguen pasando sin
    tocar una sola prueba** —`Files=33, Tests=200, PASS`—, que era exactamente el riesgo de la
    corrección 1: **la cura era el seed y no reescribir nueve archivos**. La sonda dejó **0** reservas.
+
+8. ⚠ **`29_available_slots.sql` NO rompió, y la corrección 1 decía que sí.** La predicción era que la
+   29 caía con la 32; **pasó tal cual, sin tocar una línea**, porque el seed siembra turnos que cubren
+   el día entero y sus seis aserciones miran los mismos bordes de siempre. **La corrección 1 acertó en
+   lo caro —las nueve baterías de `create_reservation`— y se pasó de largo en esta.** Se deja escrito
+   porque el género importa: **estimar cuántos archivos rompen no es contarlos**, y aquí la estimación
+   sobró en uno. La cobertura de turnos se prueba en `43_interseccion.sql`, que es donde tiene sentido.
+
+9. ⚠ **Dos suposiciones sobre pgTAP que costaron una corrida en rojo, y las dos se midieron:**
+
+   - **Borrar una sede del seed para probar una cascada NO funciona.** `delete from campuses` sobre San
+     Miguel falla con `inventory_units_campus_id_fkey` —esa FK **no lleva cascada**— y **aborta la
+     transacción entera**, dejando `Bad plan. You planned 10 tests but ran 5` en vez de un fallo
+     legible. Es el mismo modo de fallo que la F3-T2 documentó: **una prueba que aborta no prueba que
+     la aserción mida, prueba que algo antes se rompió.** Las cascadas se prueban sobre **filas
+     propias**, creadas dentro de la transacción.
+   - ⚠ **Un `UPDATE` que RLS no deja ver NO lanza `42501`: filtra a cero filas y termina bien.** El
+     `42501` sólo salta cuando el `WITH CHECK` rechaza una fila **nueva**. La primera versión probaba
+     la escritura del alumno con un `UPDATE` y `throws_ok` devolvió **«no exception»**, que se lee
+     como «la política no cierra» cuando **lo que no cerraba era la prueba**. Se prueba con `INSERT`.
+
+10. ✅ **Tarea 5 cerrada: `Files=36, Tests=229, PASS`**, y el 229 salió exacto contra la predicción
+    escrita antes de correrlo. Tres baterías nuevas —`41_campus_hours`, `42_staff_shifts`,
+    `43_interseccion`— y la 32 reescrita contra `campus_hours` **conservando su estructura**, que es lo
+    que dice que la regla de D-54 es la misma y sólo cambió de tabla.
+
+    ✅ **La prueba de mutación salió por donde se predijo, y se comprobó DÓNDE falla.** Cambiando la
+    cobertura de «cada bloque cae en algún turno» a «el tramo entero cabe en un turno» —el cambio
+    exacto que D-90 descartó— fallan **la 1 y la 2 de la 43**, las 229 corren enteras **sin abortar**,
+    y el recuento baja de **13 a 10**: desaparecen las tres franjas que cruzan de un turno al otro.
+
+    ⚠ **Y destapó algo que no se buscaba: la aserción 4 —el control negativo del hueco— NO falla con la
+    mutación.** Con un hueco de una hora, «por bloque» y «por tramo entero» dan **el mismo 8**. O sea
+    que **el control negativo, por sí solo, no distingue las dos semánticas**: la única aserción que
+    las separa es la de las 11:00. **Un control negativo que pasa no siempre acota lo que uno cree que
+    acota**, y eso sólo se ve mutando.
