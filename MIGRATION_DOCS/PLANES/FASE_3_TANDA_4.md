@@ -134,13 +134,14 @@ PASS`** tras un `db reset` de **114 s**; Vitest **12 archivos, 166 pruebas**; E2
 
 ## Las tres decisiones que NO toma quien ejecuta
 
-*Se anotan aquí y no en el cuerpo de una tarea, para que no se resuelvan de paso.*
+*Se anotaron aquí y no en el cuerpo de una tarea, para que no se resolvieran de paso.*
+**Dos están resueltas desde el 2026-08-20; la tercera sigue abierta y se dice.**
 
-| # | Qué hay que decidir | Lo medido que lo alimenta |
+| # | Qué había que decidir | Resuelto |
 |---|---|---|
-| **A** | **¿La cobertura es por la unión de turnos o por un turno solo?** | Corrección 3. La unión describe el servicio real —siempre hay alguien— y está medida con control negativo. **Recomendación: la unión.** Candidata a **D-90** |
-| **B** | **¿`app_settings.opening_time` y `closing_time` se borran o se dejan muertas?** §5.2 delega esto al plan explícitamente | Borrarlas obliga a tocar `app_settings_horario`, `opening_time_aligned` *(D-54)*, la prueba 32, `formulario-ajustes.tsx`, `configuracion.ts`, `acciones.ts`, `ajustes.ts` y `database.types.ts`. **Dejarlas muertas** es una columna que ya no gobierna nada y que alguien va a creerse dentro de seis meses. **Recomendación: borrarlas**, porque una columna muerta con nombre de columna viva es la forma exacta del defecto que este proyecto ya pagó con `products.description` |
-| **C** | **¿Q-21 entra en esta tanda o se deja escrito?** | Impedir borrar un turno que descubre reservas es una validación más en una tanda que ya tiene 14 tareas. **Recomendación: avisar sin impedir** —la pantalla dice cuántas reservas quedan descubiertas y el admin decide—, y **Q-21 se cierra con esa decisión anotada** |
+| **A** | **¿La cobertura es por la unión de turnos o por un turno solo?** | ✅ **La UNIÓN. De Alejandro, el 2026-08-20 → D-90.** Alimentada por la corrección 3, medida con control negativo: 13 franjas con dos turnos consecutivos y 8 con un hueco. **La comprobación es «cada bloque del tramo cae en algún turno»**, y como D-19 obliga a que la duración sea múltiplo del bloque, se escribe **sin unir intervalos y sin `distinct`** |
+| **B** | **¿`app_settings.opening_time` y `closing_time` se borran o se dejan muertas?** §5.2 delegaba esto al plan explícitamente | ✅ **SE BORRAN, con su restricción `app_settings_horario`. De Alejandro, el 2026-08-20 → D-91.** El argumento no es de limpieza: **una columna que conserva su nombre y deja de gobernar es la forma exacta de `products.description`** *(D-82)*, que este proyecto ya pagó una vez |
+| **C** | **¿Q-21 entra en esta tanda o se deja escrito?** | ⬜ **ABIERTA.** *«¿Qué pasa con una reserva ya creada si después se borra o se acorta el turno que la cubría?»* Las RPC validan **al crear y no al llegar el día**, así que la reserva sobrevive en silencio y el alumno se presenta a un mostrador vacío. **Recomendación: avisar sin impedir** —la pantalla dice cuántas reservas quedan descubiertas y el admin decide—. ⚠ **Mientras no se decida, la Tarea 9 no está completa**, y se dice en su paso 3 |
 
 ---
 
@@ -222,7 +223,7 @@ gana**: un PR de 14 tareas sobre dos migraciones y tres pantallas no lo revisa n
 | `lib/reservas/consultas.ts` | Se le quitan `openingTime` y `closingTime` *(corrección 4)* |
 | `components/cabecera-personal.tsx` | El séptimo enlace, **en la Tarea 8** *(corrección 8)* |
 | `lib/database.types.ts` | Regenerado, no editado a mano |
-| `components/admin/formulario-ajustes.tsx`, `lib/admin/{configuracion,acciones,ajustes}.ts` | Sólo si la **decisión B** es borrar las dos columnas |
+| `components/admin/formulario-ajustes.tsx`, `lib/admin/{configuracion,acciones,ajustes}.ts` | Pierden apertura y cierre. **Firme desde D-91:** las dos columnas se borran |
 
 **No se toca, y se dice para que nadie lo intente:** `available_units` —cuenta unidades libres en un
 rango y la rejilla sólo decide qué rangos preguntar—; ninguna **firma** de RPC; ninguna llamada del
@@ -263,7 +264,7 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 | Salida | Qué se ve | Qué se hace |
 |---|---|---|
 | **A** | **13 franjas** sin hueco y **8** con hueco, **incluida 11:00–13:00** en el primer caso | Sigue la Tarea 2 con la consulta ya validada |
-| **B** | Faltan las franjas que cruzan de un turno a otro | La cobertura es **por turno** y no por la unión: **para y decide Alejandro** *(decisión A)*. No se «arregla» ampliando la consulta |
+| **B** | Faltan las franjas que cruzan de un turno a otro | ⚠ **Ya no es una decisión abierta: D-90 dice que la cobertura es por la UNIÓN**, así que esto es un defecto de la consulta y se arregla. La comprobación tiene que ser **por bloque** —«cada bloque de `[start, end)` cae en algún turno»— y no por tramo entero |
 | **C** | Salen franjas **repetidas**, o alguna no alineada al bloque | La rejilla se está generando desde los turnos y no desde `campus_hours`: **es la corrección 2 y se vuelve a leer**, no se parchea con un `distinct` |
 
 **Commit:** ninguno. Es una medición.
@@ -353,9 +354,15 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 - [ ] **Paso 2.** `npm run typecheck`. ⚠ **Aquí el typecheck es el instrumento:** si algún consumidor los
       leía y el `grep` no lo vio, sale ahora. **Esperado: verde**, y si no lo está, la corrección 4 estaba
       mal y se anota.
-- [ ] **Paso 3.** Según la **decisión B**: borrar `opening_time` y `closing_time` de `app_settings` —con su
-      restricción `app_settings_horario`— o dejarlas con un comentario `OJO` que diga que ya no gobiernan.
-- [ ] **Paso 4.** Regenerar `lib/database.types.ts` **con el comando, nunca a mano**.
+- [ ] **Paso 3.** **D-91: borrar** `opening_time` y `closing_time` de `app_settings`, **con su restricción
+      `app_settings_horario`**. Va en la migración 34, no en una tercera. ⚠ **El orden importa:** primero
+      las RPC dejan de leerlas *(Tarea 3)*, después se borran. Al revés, la migración 34 no compila.
+- [ ] **Paso 4.** Y con ellas, los **siete** sitios que las arrastran, contados en D-91:
+      `opening_time_aligned` *(D-54, que se muda a `campus_hours` en la Tarea 2)*,
+      `supabase/tests/32_opening_time_aligned.sql` *(Tarea 5)*,
+      `components/admin/formulario-ajustes.tsx`, `lib/admin/configuracion.ts`, `lib/admin/acciones.ts`,
+      `lib/admin/ajustes.ts` *(los cuatro en la Tarea 7)* y `lib/database.types.ts`.
+- [ ] **Paso 5.** Regenerar `lib/database.types.ts` **con el comando, nunca a mano**.
 
 **Commit:** `refactor: el horario global deja de gobernar la rejilla`
 
@@ -398,8 +405,10 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 - [ ] **Paso 1.** En la misma ruta: alta, edición y baja de turnos, por operador y por sede.
 - [ ] **Paso 2.** ⚠ **Sólo se ofrecen operadores `activo = true`.** La baja de personal es desactivar y
       nunca borrar, y un operador desactivado no debe poder recibir turnos nuevos.
-- [ ] **Paso 3.** Según la **decisión C**: al borrar o acortar un turno, decir **cuántas reservas quedan
-      descubiertas** —avisar sin impedir— o impedirlo.
+- [ ] **Paso 3.** ⚠ **PASO BLOQUEADO: la decisión C sigue abierta** *(Q-21)*. Al borrar o acortar un
+      turno, o se dice **cuántas reservas quedan descubiertas** y el admin decide, o se impide. **No se
+      elige al ejecutar.** Si al llegar aquí sigue sin decidirse, **se para y se pregunta**: dejar el
+      borrado sin ninguna de las dos cosas es la opción que nadie eligió.
 
 **Commit:** `feat: turnos de operador por sede y dia`
 
