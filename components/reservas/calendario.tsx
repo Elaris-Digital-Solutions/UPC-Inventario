@@ -29,13 +29,18 @@
 //       la ultima franja de 4 horas habria empezado a las 18:00 y ya paso
 //       -y ese dia no estaba inhabilitado-.
 //
-//       Si `franjas` vino vacio y el dia NO es hoy, no deberia poder pasar
-//       con los dias que este componente recibe -`dias` ya viene acotado a
-//       la ventana movil (diasDeLaVentana), asi que la tercera causa medida
-//       de cero filas ("fuera de ventana") no aplica a ningun dia de esta
-//       lista-. Se deja un mensaje generico igual, y no un error, porque una
-//       pantalla que se rompe por un caso que la teoria dice que no deberia
-//       llegar es peor que una que se degrada con un texto sobrio.
+//       OJO -F3-T4, D-74/D-76-: AQUI DECIA QUE ESE CASO "NO DEBERIA PODER
+//       PASAR
+//       Y DESDE LA MIGRACION 34 ES EL CASO NORMAL. La rejilla ya no sale de
+//       un horario global: sale de `campus_hours` RECORTADA por los turnos,
+//       asi que un dia futuro, no inhabilitado y dentro de la ventana puede
+//       devolver cero franjas siempre que la sede abra y ningun turno la
+//       cubra. Era una rama defensiva y ahora es una rama de verdad.
+//
+//       EL MENSAJE NO NOMBRA A NADIE, y es deliberado (Tarea 11, paso 3):
+//       quien falta es dato de PERSONAL, y el alumno no tiene por que saber
+//       que el operador de esa sede no tiene turno ese dia. Dice que puede no
+//       haber atencion, que es cierto y suficiente para que elija otra cosa.
 //
 //   (c) `franjas` trajo filas pero TODAS con `free = 0`: un dia lleno de
 //       verdad, no vacio. Medido montando el escenario -la unica unidad del
@@ -165,13 +170,13 @@ export function Calendario({
             con una duración más corta o elige otro día.
           </p>
         ) : (
-          // Caso defensivo y no uno medido: con los `dias` que recibe este
-          // componente -acotados a la ventana movil- no deberia darse un dia
-          // futuro, no inhabilitado, con cero franjas. Se cubre igual para
-          // que la pantalla nunca se quede sin nada que decir.
+          // La rama de D-74/D-76: la sede abre y ningun turno cubre ese
+          // tramo. Ver el comentario (b) de la cabecera para por que esto
+          // dejo de ser defensivo.
           <p className="text-muted-foreground border-border mt-4 rounded-lg border border-dashed py-8 text-center">
-            No hay franjas disponibles para esta duración ese día. Prueba con
-            otro día o con una duración más corta.
+            No hay franjas disponibles para esta duración ese día. Puede que esa sede no tenga
+            atención a esas horas; prueba con otro día, con otra sede o con una duración más
+            corta.
           </p>
         )
       ) : franjasLibres.length === 0 ? (

@@ -453,12 +453,12 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 10 · El aviso de D-76 · «cerrado» no es «sin operador»
 
-- [ ] **Paso 1.** El panel de los **próximos 7 días** *(la ventana móvil de D-3)*: qué sedes tienen horas
+- [x] **Paso 1.** El panel de los **próximos 7 días** *(la ventana móvil de D-3)*: qué sedes tienen horas
       declaradas **sin ningún turno detrás**.
-- [ ] **Paso 2.** Las tres formas de §5.3, distinguibles en pantalla: **cerrado** *(sin fila)*, **sin
+- [x] **Paso 2.** Las tres formas de §5.3, distinguibles en pantalla: **cerrado** *(sin fila)*, **sin
       operador asignado** *(fila sin cobertura)*, y **tramo descubierto** *(el bloque no aparece y el día
       muestra lo que sí)*.
-- [ ] **Paso 3.** ⚠ **Este es el fallo diseñado a propósito** *(D-76)*, y el aviso va **en la pantalla
+- [x] **Paso 3.** ⚠ **Este es el fallo diseñado a propósito** *(D-76)*, y el aviso va **en la pantalla
       donde se corrige**. Sin él, una sede sin turnos se lee como «hoy no hay nada» y nadie pregunta.
 
 **Commit:** `feat: aviso de sede con horario y sin operador`
@@ -467,11 +467,11 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 11 · El calendario del alumno
 
-- [ ] **Paso 1.** Comprobar en navegador que el calendario refleja los turnos: **con el turno completo
+- [x] **Paso 1.** Comprobar en navegador que el calendario refleja los turnos: **con el turno completo
       del seed, la rejilla de siempre**; quitando un turno, **las franjas desaparecen**.
-- [ ] **Paso 2.** ⚠ **El control positivo:** que la franja que sobrevive es la que se predijo, no que
+- [x] **Paso 2.** ⚠ **El control positivo:** que la franja que sobrevive es la que se predijo, no que
       «hay menos». **Un calendario más corto no distingue «filtra bien» de «se rompió la consulta».**
-- [ ] **Paso 3.** El mensaje que ve el alumno cuando la sede abre y no hay nadie: genérico, y **no dice
+- [x] **Paso 3.** El mensaje que ve el alumno cuando la sede abre y no hay nadie: genérico, y **no dice
       quién falta** — un nombre de operador es dato de personal.
 
 **Commit:** `fix: lo que el alumno ve cuando no hay operador`
@@ -480,10 +480,10 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 12 · La octava prueba E2E
 
-- [ ] **Paso 1.** `e2e/horarios.spec.ts`: un admin carga un turno y el calendario del alumno lo refleja.
-- [ ] **Paso 2.** ⚠ **La prueba tiene que fallar si se borra la cobertura**, y se comprueba quitándola una
+- [x] **Paso 1.** `e2e/horarios.spec.ts`: un admin carga un turno y el calendario del alumno lo refleja.
+- [x] **Paso 2.** ⚠ **La prueba tiene que fallar si se borra la cobertura**, y se comprueba quitándola una
       vez. Una prueba E2E que pasa con y sin el cambio no mide el cambio.
-- [ ] **Paso 3.** `db reset` → calentar Auth con **una** petición → `npm run test:e2e`. **Esperado: 8/8.**
+- [x] **Paso 3.** `db reset` → calentar Auth con **una** petición → `npm run test:e2e`. **Esperado: 8/8.**
 
 **Commit:** `test: E2E del calendario con turnos`
 
@@ -908,3 +908,60 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     justamente la respuesta tranquilizadora, e inventarlo sería peor que decir que no se pudo saber.
     **No va a Sentry** —que además no está instalado— porque consultar el impacto de un cambio es una
     acción esperada del admin.
+
+26. ✅ **Tarea 10 cerrada, y el cálculo de D-76 es una función PURA con pruebas de Vitest en vez de otra
+    consulta.** `lib/admin/cobertura.ts` recibe lo que la pantalla ya trajo —los horarios y los turnos— y
+    devuelve, para cada día de la ventana móvil, cuál de las **cuatro** formas es: `cerrado`,
+    `sin-operador`, `parcial` o `cubierto`. **Son cuatro y no las tres de §5.3** porque «no pasa nada»
+    también hay que poder decirlo: sin `cubierto`, un día correcto y un día que no se pudo calcular se
+    verían igual, que es la enfermedad que D-76 persigue.
+
+    ⚠ **NO puede vivir en `lib/admin/semana.ts`, y el motivo es medible: Vitest no resuelve el alias
+    `@/`.** `vitest.config.mts` no declara ninguno, y `semana.ts` importa con `@/`. Es la misma frontera
+    que la cabecera de `lib/admin/acciones.ts` ya tenía escrita —«la separación es por lo que Vitest
+    puede resolver, no por capas»— y ahora hay **tres** líneas trazadas por la misma razón y no por
+    gusto: lo que Vitest resuelve, lo que el navegador resuelve *(corrección 17)*, y lo que necesita
+    `next/headers`.
+
+    **La ventana la fija `booking_window_days` y no un 7 escrito a mano.** El plan dice «los próximos 7
+    días *(la ventana móvil de D-3)*», y esas dos cosas coinciden hoy porque la columna vale 7. Escribir
+    el 7 haría que el panel avisara tarde el día que alguien la suba.
+
+    **Nueve pruebas nuevas de Vitest, de 166 a 175**, y la que decide es la segunda: mismo día, misma
+    sede, y **la única diferencia es que hay fila de horario** — una da `cerrado` y la otra
+    `sin-operador`. Si las dos salieran iguales, D-76 no estaría implementado. **Y la de los turnos
+    solapados es la versión aritmética del error de D-92:** 08:00–12:00 y 10:00–14:00 sobre un techo de
+    08:00–16:00 **no** cubren el día —contarlos por separado daría 8 h y la unión son 6—, así que quedan
+    **120 minutos** sin cubrir.
+
+27. ⚠ **LA TAREA 11 NO ERA «COMPROBAR EN NAVEGADOR»: HABÍA UN COMENTARIO QUE HABÍA DEJADO DE SER
+    CIERTO, Y ERA EL QUE DESCRIBÍA ESTA RAMA.** `components/reservas/calendario.tsx` decía, sobre el caso
+    «día futuro, no inhabilitado, con cero franjas», que **«no debería poder pasar»** y que la rama era
+    **defensiva**. Desde la migración 34 **es el caso normal**: la rejilla sale de `campus_hours`
+    recortada por los turnos, así que una sede que abre y no tiene a nadie da cero franjas todos los días.
+    Era cierto cuando se escribió y dejó de serlo el mismo día en que la 34 se confirmó, sin que nada
+    avisara.
+
+    **El texto que ve el alumno se ajusta y NO NOMBRA A NADIE** *(paso 3)*: dice que puede no haber
+    atención en esa sede a esas horas. **Quién falta es dato de personal**, y el alumno no tiene por qué
+    saber que el operador de su sede no tiene turno ese día. La versión anterior sólo ofrecía «prueba con
+    una duración más corta», que con cobertura cero es un consejo que no lleva a ninguna parte.
+
+28. ✅ **Tarea 12 cerrada: `e2e/horarios.spec.ts`, y la prueba MIDE EL CAMBIO, comprobado quitándolo.**
+    La predicción del plan se cumple exacta: **6 archivos y 8 pruebas**, `8 passed`. La prueba borra los
+    turnos de mañana en las dos sedes, comprueba que el calendario del alumno se queda sin franjas, y
+    **los repone para ver que vuelven** — esa segunda mitad es lo que la separa de una prueba que también
+    pasaría con la consulta rota.
+
+    ⚠ **El paso 2 se cumplió de verdad y no de palabra: se borró la cobertura y la prueba falló.**
+    Quitando el `not exists` de turnos de `available_slots` —o sea, dejando la rejilla como estaba antes
+    de la migración 34—, la corrida falla en la **línea 83**, `expect(getByText('No hay franjas
+    disponibles')).toBeVisible()` → `element(s) not found`: sin cobertura, el alumno sigue viendo franjas
+    aunque no haya un solo turno. **Es el punto exacto donde tenía que fallar.**
+
+    **Y lleva dos controles que el plan no pedía y que evitan dos falsos verdes:** el mensaje que se
+    busca **no** es el de día inhabilitado —que también da cero franjas—, y el nombre del día se calcula
+    con `Intl` y **zona horaria explícita** en vez de con `getDay()` sobre el reloj del runner, porque el
+    CI corre en UTC y en Lima la fecha civil va un día por detrás las cinco primeras horas del día UTC.
+    Sin eso, la prueba pediría el turno de un día y miraría el calendario de otro, **y fallaría sólo en
+    esa franja horaria**.

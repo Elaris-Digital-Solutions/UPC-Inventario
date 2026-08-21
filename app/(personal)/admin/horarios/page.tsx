@@ -1,9 +1,11 @@
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
+import { AvisoSinOperador } from "@/components/admin/aviso-sin-operador";
 import { TablaHorariosSede } from "@/components/admin/tabla-horarios-sede";
 import { TablaTurnos } from "@/components/admin/tabla-turnos";
-import { leerSlotMinutes } from "@/lib/admin/consultas";
+import { leerAjustes } from "@/lib/admin/configuracion";
 import { listarHorariosPorSede, listarTurnos } from "@/lib/admin/horarios";
 import { listarPersonal } from "@/lib/admin/personal";
+import { hoyEnLima } from "@/lib/reservas/rejilla";
 
 // /admin/horarios, Tareas 8 y 9 de la F3-T4 (D-74, D-75, D-76, D-92, D-93).
 //
@@ -19,12 +21,20 @@ import { listarPersonal } from "@/lib/admin/personal";
 // ofrece ni una franja. El `db push` no es el ultimo paso; el ultimo es cargar
 // horarios y turnos desde aca.
 export default async function HorariosPage() {
-  const [sedes, slotMinutos, turnos, personal] = await Promise.all([
+  // leerAjustes() y no leerSlotMinutes(): la pagina necesita DOS valores de
+  // `app_settings` -el tamano del bloque, para la alineacion de D-54, y la
+  // ventana movil de D-3, para saber cuantos dias mira el panel de D-76-, y
+  // pedirlos por separado serian dos consultas a la misma fila unica.
+  const [sedes, ajustes, turnos, personal] = await Promise.all([
     listarHorariosPorSede(),
-    leerSlotMinutes(),
+    leerAjustes(),
     listarTurnos(),
     listarPersonal(),
   ]);
+
+  // LA UNICA LECTURA DEL RELOJ DE TODA LA PAGINA (regla M-7), en YYYY-MM-DD de
+  // Lima. Baja al panel por props, mismo patron que DiasPage con PanelDias.
+  const hoy = hoyEnLima(new Date());
 
   // SOLO EL PERSONAL ACTIVO, y de CUALQUIER rol (D-93). La baja de personal
   // desactiva y nunca borra, asi que sin este filtro el desplegable ofreceria a
@@ -59,8 +69,15 @@ export default async function HorariosPage() {
       </div>
 
       <div className="space-y-8">
+        <AvisoSinOperador
+          sedes={sedes}
+          turnos={turnos}
+          hoy={hoy}
+          ventanaDias={ajustes.ventanaDias}
+        />
+
         {sedes.map((sede) => (
-          <TablaHorariosSede key={sede.id} sede={sede} slotMinutos={slotMinutos} />
+          <TablaHorariosSede key={sede.id} sede={sede} slotMinutos={ajustes.slotMinutos} />
         ))}
 
         <TablaTurnos
