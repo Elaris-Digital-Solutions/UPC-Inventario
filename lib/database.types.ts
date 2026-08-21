@@ -93,38 +93,61 @@ export type Database = {
       app_settings: {
         Row: {
           booking_window_days: number
-          closing_time: string
           daily_limit_per_product: number
           id: boolean
           min_cancel_minutes: number
           min_duration_minutes: number
-          opening_time: string
           slot_minutes: number
           updated_at: string
         }
         Insert: {
           booking_window_days?: number
-          closing_time?: string
           daily_limit_per_product?: number
           id?: boolean
           min_cancel_minutes?: number
           min_duration_minutes?: number
-          opening_time?: string
           slot_minutes?: number
           updated_at?: string
         }
         Update: {
           booking_window_days?: number
-          closing_time?: string
           daily_limit_per_product?: number
           id?: boolean
           min_cancel_minutes?: number
           min_duration_minutes?: number
-          opening_time?: string
           slot_minutes?: number
           updated_at?: string
         }
         Relationships: []
+      }
+      campus_hours: {
+        Row: {
+          campus_id: string
+          closes_at: string
+          opens_at: string
+          weekday: number
+        }
+        Insert: {
+          campus_id: string
+          closes_at: string
+          opens_at: string
+          weekday: number
+        }
+        Update: {
+          campus_id?: string
+          closes_at?: string
+          opens_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campus_hours_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campuses: {
         Row: {
@@ -578,6 +601,48 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      staff_shifts: {
+        Row: {
+          campus_id: string
+          ends_at: string
+          id: string
+          staff_id: string
+          starts_at: string
+          weekday: number
+        }
+        Insert: {
+          campus_id: string
+          ends_at: string
+          id?: string
+          staff_id: string
+          starts_at: string
+          weekday: number
+        }
+        Update: {
+          campus_id?: string
+          ends_at?: string
+          id?: string
+          staff_id?: string
+          starts_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_shifts_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_shifts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {

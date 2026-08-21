@@ -35,11 +35,18 @@ import type { Database } from '@/lib/database.types';
 // dos respuestas y decide el mensaje es el componente de calendario, no esta
 // capa: aqui solo se traduce cada tabla/RPC a un tipo mas comodo.
 //
-// Y la tercera consulta, ajustesReserva(), no es un capricho de horario:
-// `diasDeLaVentana()` (lib/reservas/rejilla.ts) necesita `booking_window_days`
-// como parametro, no lo asume, y el calendario necesita el horario para
-// poder decir "hoy ya no queda franja para esta duracion" en vez de una
-// pantalla vacia sin explicacion.
+// Y la tercera consulta, ajustesReserva(), existe por `booking_window_days`:
+// `diasDeLaVentana()` (lib/reservas/rejilla.ts) lo necesita como parametro y
+// no lo asume.
+//
+// OJO -F3-T4, D-91-: esta consulta YA NO LEE EL HORARIO, y hasta la migracion
+// 35 leia `opening_time` y `closing_time` de `app_settings`. El horario dejo
+// de ser global: vive en `campus_hours` por sede y por dia, recortado por
+// `staff_shifts` (D-74), y quien lo aplica es `available_slots` dentro de la
+// base. Nadie del lado del cliente lo necesita -las dos columnas tenian CERO
+// consumidores cuando se borraron, contado con grep sobre `app`, `lib` y
+// `components`-, asi que aqui no se sustituyen por una lectura equivalente:
+// se van y ya.
 //
 // La afirmacion que sostiene todo el diseño de la pantalla:
 // CERO FILAS NUNCA SIGNIFICA "LLENO".
@@ -62,8 +69,6 @@ import type { Database } from '@/lib/database.types';
 
 export type AjustesReserva = {
   bookingWindowDays: number;
-  openingTime: string;
-  closingTime: string;
   slotMinutes: number;
   minDurationMinutes: number;
   minCancelMinutes: number;
@@ -75,22 +80,21 @@ export type AjustesReserva = {
 // disponibilidadPorSede en lib/catalogo/consultas.ts.
 //
 // Si la consulta falla, esta funcion NO devuelve un valor por defecto,
-// aunque sea tentador: cinco de los SEIS numeros de esta fila estan medidos
-// arriba en este mismo archivo (7, 08:00, 22:00, 30, 30) -el sexto es el
-// margen de M-12, que nace con `default 60` en la migracion 26- y copiarlos
-// aca seria exactamente lo que D-19 prohibe para las duraciones -una
-// constante que se separa del dato real sin que nada avise-. Si
-// `app_settings` no responde,
-// toda la pantalla depende de un horario que no se pudo leer, asi que el
-// error se propaga y la pagina falla de forma visible en vez de ofrecer un
-// calendario con un horario inventado.
+// aunque sea tentador: tres de los CUATRO numeros que quedan estan medidos
+// arriba en este mismo archivo (7, 30, 30) -el cuarto es el margen de M-12,
+// que nace con `default 60` en la migracion 26- y copiarlos aca seria
+// exactamente lo que D-19 prohibe para las duraciones -una constante que se
+// separa del dato real sin que nada avise-. Si `app_settings` no responde,
+// el calendario no sabe ni cuantos dias ofrecer ni de que tamano es el
+// bloque, asi que el error se propaga y la pagina falla de forma visible en
+// vez de pintar una ventana inventada.
 export async function ajustesReserva(): Promise<AjustesReserva> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('app_settings')
     .select(
-      'booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes, min_cancel_minutes',
+      'booking_window_days, slot_minutes, min_duration_minutes, min_cancel_minutes',
     )
     .eq('id', true)
     .single();
@@ -101,8 +105,6 @@ export async function ajustesReserva(): Promise<AjustesReserva> {
 
   return {
     bookingWindowDays: data.booking_window_days,
-    openingTime: data.opening_time,
-    closingTime: data.closing_time,
     slotMinutes: data.slot_minutes,
     minDurationMinutes: data.min_duration_minutes,
     minCancelMinutes: data.min_cancel_minutes,

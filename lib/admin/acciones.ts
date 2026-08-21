@@ -11,7 +11,6 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { aperturaDesalineada } from '@/lib/admin/ajustes';
 import { reservasVivas } from '@/lib/admin/dias';
 import { particionarPorDia, type RolStaff } from '@/lib/admin/filtros';
 import { hoyEnLima } from '@/lib/reservas/rejilla';
@@ -1251,12 +1250,20 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 //
 //   slot_minutes: 45            -> constraint "app_settings_slot_divisor"
 //   booking_window_days: 61     -> constraint "app_settings_booking_window_days_check"
-//   closing_time <= opening_time-> constraint "app_settings_horario"
 //   min_duration_minutes: 4     -> constraint "app_settings_min_duration_minutes_check"
 //   daily_limit_per_product: 11 -> constraint "app_settings_daily_limit_per_product_check"
 //   min_cancel_minutes: 1441    -> constraint "app_settings_min_cancel_minutes_check"
 //
-// SOLO CINCO llevan texto propio, y NO SEIS, y hay que decir por que:
+// OJO -F3-T4, migracion 35, D-91-: ERAN SEIS Y AHORA SON CINCO.
+// `app_settings_horario` -closing_time > opening_time- se fue con las dos
+// columnas, y en su lugar entra un rechazo que NO es un `check` de tabla sino
+// un TRIGGER: `app_settings_respeta_horarios` (migracion 33) impide bajar
+// `slot_minutes` si eso dejaria aperturas de `campus_hours` sin alinear. Es la
+// puerta de atras de D-54 despues de la mudanza, y llega con errcode 23514
+// igual que los demas, pero su `message` NO trae nombre de restriccion: se
+// reconoce por su texto, que lo escribe esta casa y no Postgres.
+//
+// SOLO CINCO llevan texto propio, y hay que decir por que:
 // `app_settings_slot_divisor` NO ES ALCANZABLE desde esta pantalla. El Step 1
 // de la Task 10 ofrece `slot_minutes` como un DESPLEGABLE de los ocho valores
 // legales -5, 6, 10, 12, 15, 20, 30, 60-, no como un campo libre de 5 a 60:
@@ -1281,8 +1288,8 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
     return 'La ventana de reserva tiene que ser de entre 1 y 60 días.';
   }
 
-  if (mensajeDelMotor.includes('app_settings_horario')) {
-    return 'La hora de cierre tiene que ser posterior a la hora de apertura.';
+  if (mensajeDelMotor.includes('sin alinear')) {
+    return 'Con ese tamaño de bloque, alguna hora de apertura de sede dejaría de caer justo en un bloque. Ajusta primero los horarios en /admin/horarios.';
   }
 
   if (mensajeDelMotor.includes('app_settings_min_duration_minutes_check')) {
@@ -1300,20 +1307,21 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
   return mensajeDelMotor;
 }
 
-// Edicion de los siete ajustes globales de reserva (D-39/Q-14, D-54/Q-19 y
-// M-12/D-70, que trae el septimo).
+// Edicion de los cinco ajustes globales de reserva (D-39/Q-14 y M-12/D-70).
 //
-// D-54 PRIMERO, ANTES DE TOCAR LA BASE: barrera de SERVIDOR, mismo criterio
-// que la fecha pasada en inhabilitarDia() -la pantalla ya hace esta misma
-// comprobacion con aperturaDesalineada() antes de mandar el formulario, y
-// esto no es una repeticion ociosa, es la regla de siempre: lo del cliente es
-// VISIBILIDAD, no control-. Ver el comentario extenso de aperturaDesalineada()
-// en lib/admin/ajustes.ts para el porque completo: en corto, la base no tiene
-// ningun `check` que ate `opening_time` a `slot_minutes`, y una apertura
-// desalineada deja el CALENDARIO ENTERO irreservable sin ningun aviso visible
-// desde ninguna pantalla -medido el 2026-08-13-.
+// OJO -F3-T4, migracion 35, D-91-: ERAN SIETE. Apertura y cierre ya no se
+// editan aqui: el horario dejo de ser global y vive en `campus_hours` por sede
+// y por dia (D-74), en /admin/horarios.
 //
-// SOLO SIETE COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
+// Y CON ELLOS SE FUE LA BARRERA DE SERVIDOR DE D-54, que aqui llamaba a
+// aperturaDesalineada() antes de tocar la base. No se ha perdido la regla: se
+// mudo a DOS DISPARADORES en la migracion 33 -uno sobre `campus_hours` y otro
+// sobre `app_settings` para la puerta de atras de `slot_minutes`-, o sea que
+// la aplica la base, que es donde Q-19 pedia que estuviera. aperturaDesalineada()
+// SIGUE EXISTIENDO en lib/admin/ajustes.ts con sus pruebas: la va a necesitar
+// /admin/horarios para avisar antes de guardar, que es visibilidad y no control.
+//
+// SOLO CINCO COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
 // 403 con 42501 "permission denied for table app_settings", medido el
 // 2026-08-13 -ninguna de las dos se concede a nadie, y `updated_at` la mueve
 // sola el trigger `trg_app_settings_updated_at`-.
@@ -1333,27 +1341,17 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
 // nada contestaria exactamente igual que uno que si.
 export async function guardarAjustes(ajustes: {
   ventanaDias: number;
-  apertura: string;
-  cierre: string;
   slotMinutos: number;
   duracionMinima: number;
   limiteDiario: number;
   margenCancelacion: number;
 }): Promise<ResultadoAdmin> {
-  if (aperturaDesalineada(ajustes.apertura, ajustes.slotMinutos)) {
-    return {
-      error: `Con bloques de ${ajustes.slotMinutos} minutos, la hora de apertura tiene que caer justo en un bloque, y "${ajustes.apertura}" no cae. Ajusta la apertura para que sus minutos sean múltiplo de ${ajustes.slotMinutos} y no lleve segundos.`,
-    };
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('app_settings')
     .update({
       booking_window_days: ajustes.ventanaDias,
-      opening_time: ajustes.apertura,
-      closing_time: ajustes.cierre,
       slot_minutes: ajustes.slotMinutos,
       min_duration_minutes: ajustes.duracionMinima,
       daily_limit_per_product: ajustes.limiteDiario,

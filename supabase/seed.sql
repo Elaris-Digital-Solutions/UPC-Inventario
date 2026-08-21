@@ -229,10 +229,16 @@ update public.alumnos
 -- duplicando la logica: si las dos versiones se separan, la que corre en
 -- produccion es la que nadie probo, y su fallo deja a nadie pudiendo reservar.
 --
--- Las horas salen de app_settings, que si existe a esta altura -la inserta la
--- migracion 11-, asi que el techo local es identico al de produccion.
-select private.sembrar_horarios_por_defecto(s.opening_time, s.closing_time)
-  from public.app_settings s;
+-- OJO -F3-T4, migracion 35, D-91-: LAS HORAS SON LITERALES AQUI Y NO EN LA
+-- MIGRACION, y la asimetria es a proposito. La migracion 33 las lee de
+-- app_settings porque en ese instante siguen existiendo y son EL DATO VIVO de
+-- produccion; la 35 borra las dos columnas, y este archivo corre DESPUES de
+-- todas las migraciones, asi que ya no hay de donde leerlas. En local no queda
+-- nada que consultar -campus_hours esta vacia por el desfase de arriba-, asi
+-- que 08:00-22:00 pasa a ser lo que de verdad es: el techo elegido del stack de
+-- desarrollo, con el que estan escritas las nueve baterias que reservan.
+-- No es una transcripcion del dato de produccion, que ya no se puede leer.
+select private.sembrar_horarios_por_defecto('08:00', '22:00');
 
 
 -- Turnos del operador (a0000000-...-0000000b), que ya se siembra como staff.
@@ -241,13 +247,18 @@ select private.sembrar_horarios_por_defecto(s.opening_time, s.closing_time)
 -- condicion que hace que las NUEVE baterias que llaman a create_reservation
 -- sigan pasando sin tocarlas: todas reservan "manana a las 10:00" en Monterrico
 -- contando con el horario 08:00-22:00.
+--
+-- LOS TURNOS SALEN DE campus_hours, que se acaba de sembrar justo arriba, y no
+-- de un par de horas repetido por tercera vez. Asi el turno cubre exactamente
+-- el techo de su sede sea cual sea, y cambiar el horario del seed en un solo
+-- sitio arrastra los turnos solos. Un turno que se pase del techo se recorta
+-- igual (D-74), pero uno que se quede corto dejaria franjas sin cubrir sin que
+-- nada lo dijera.
 insert into public.staff_shifts (staff_id, campus_id, weekday, starts_at, ends_at)
 select 'a0000000-0000-0000-0000-00000000000b',
-       'cccccccc-0000-0000-0000-000000000001',
-       d.weekday,
-       s.opening_time, s.closing_time
-  from generate_series(0, 6) as d(weekday)
- cross join public.app_settings s;
+       h.campus_id, h.weekday, h.opens_at, h.closes_at
+  from public.campus_hours h
+ where h.campus_id = 'cccccccc-0000-0000-0000-000000000001';
 
 -- San Miguel se queda SIN turno el miercoles (weekday = 3) A PROPOSITO: es el
 -- unico caso que permite probar D-76 -distinguir "cerrado" de "sin operador
@@ -260,9 +271,7 @@ select 'a0000000-0000-0000-0000-00000000000b',
 -- deliberado, igual que Bruno sin confirmo_facultad.
 insert into public.staff_shifts (staff_id, campus_id, weekday, starts_at, ends_at)
 select 'a0000000-0000-0000-0000-00000000000b',
-       'cccccccc-0000-0000-0000-000000000002',
-       d.weekday,
-       s.opening_time, s.closing_time
-  from generate_series(0, 6) as d(weekday)
- cross join public.app_settings s
- where d.weekday <> 3;
+       h.campus_id, h.weekday, h.opens_at, h.closes_at
+  from public.campus_hours h
+ where h.campus_id = 'cccccccc-0000-0000-0000-000000000002'
+   and h.weekday <> 3;

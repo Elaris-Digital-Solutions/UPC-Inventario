@@ -198,7 +198,7 @@ create policy staff_shifts_admin_all on public.staff_shifts
 -- pgTAP. Copiar el INSERT en el seed habria dejado dos versiones que se separan.
 --
 -- LA FUNCION RECIBE LAS DOS HORAS EN VEZ DE LEER app_settings, y no es un
--- capricho: la migracion 34 BORRA opening_time y closing_time (D-91). Una funcion
+-- capricho: la migracion 35 BORRA opening_time y closing_time (D-91). Una funcion
 -- que las leyera quedaria rota al dia siguiente de escribirse.
 create or replace function private.sembrar_horarios_por_defecto(
   p_opens_at  time,

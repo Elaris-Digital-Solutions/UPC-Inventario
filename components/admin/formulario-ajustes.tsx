@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { aperturaDesalineada, productosDesalineados } from "@/lib/admin/ajustes";
+import { productosDesalineados } from "@/lib/admin/ajustes";
 import { guardarAjustes } from "@/lib/admin/acciones";
 import type { AjustesAdmin, ProductoConBuffer } from "@/lib/admin/configuracion";
 import { plural } from "@/lib/admin/plural";
@@ -47,19 +47,6 @@ import { plural } from "@/lib/admin/plural";
 // las pruebas de aperturaDesalineada() en lib/admin/ajustes.test.ts.
 const SLOTS_LEGALES = [5, 6, 10, 12, 15, 20, 30, 60];
 
-// Recorta "HH:MM:SS" a "HH:MM". SOLO para el <input type="time">, que trabaja
-// en "HH:MM" con su `step` por defecto -medido el 2026-08-13 por PostgREST:
-// `GET app_settings` devuelve "08:00:00"-. La base acepta las dos formas por
-// igual -tambien medido-, asi que este recorte no le arregla nada a un
-// guardado que fuera a fallar: es puramente para que el control del navegador
-// tenga un valor que entienda. leerAjustes() (lib/admin/configuracion.ts)
-// devuelve el crudo con segundos A PROPOSITO -su comentario dice que no le
-// corresponde a una lectura decidir el formato del formulario-, asi que el
-// recorte tiene que vivir aca.
-function paraInputTime(hora: string): string {
-  return hora.slice(0, 5);
-}
-
 type FormularioAjustesProps = {
   ajustes: AjustesAdmin;
   productos: ProductoConBuffer[];
@@ -67,8 +54,6 @@ type FormularioAjustesProps = {
 
 export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps) {
   const [ventanaDias, setVentanaDias] = useState(String(ajustes.ventanaDias));
-  const [apertura, setApertura] = useState(paraInputTime(ajustes.apertura));
-  const [cierre, setCierre] = useState(paraInputTime(ajustes.cierre));
   const [slotMinutos, setSlotMinutos] = useState(String(ajustes.slotMinutos));
   const [duracionMinima, setDuracionMinima] = useState(String(ajustes.duracionMinima));
   const [limiteDiario, setLimiteDiario] = useState(String(ajustes.limiteDiario));
@@ -107,8 +92,6 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   }
 
   const idVentana = useId();
-  const idApertura = useId();
-  const idCierre = useId();
   const idSlot = useId();
   const idDuracion = useId();
   const idLimite = useId();
@@ -116,13 +99,13 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
 
   const slotElegido = Number(slotMinutos);
 
-  // D-54: la comprobacion que SI bloquea. `aperturaDesalineada()` es la misma
-  // funcion pura que repite guardarAjustes() en el servidor
-  // (lib/admin/acciones.ts) -esto es VISIBILIDAD, no la unica barrera: la
-  // base todavia no tiene un `check` que ate opening_time a slot_minutes
-  // (Q-19), asi que sin la comprobacion del servidor esta pantalla seria el
-  // unico obstaculo, y un formulario armado a mano la saltaria entera-.
-  const aperturaInvalida = aperturaDesalineada(apertura, slotElegido);
+  // OJO -F3-T4, migracion 35, D-91-: AQUI HABIA LA COMPROBACION DE D-54 y ya
+  // no puede estar, porque esta pantalla dejo de tener hora de apertura. La
+  // regla no se perdio: la aplican dos disparadores de la migracion 33, y uno
+  // de ellos -app_settings_respeta_horarios- vigila justo el campo que SI
+  // queda aqui, `slot_minutes`. Si el bloque elegido desalinea algun horario
+  // de sede, el rechazo llega del servidor y lo traduce
+  // mensajeDeRechazoAjustes() (lib/admin/acciones.ts).
 
   // El aviso de buffers, que NO bloquea: la base permite cualquier
   // combinacion de slot_minutes y buffer_minutes -no hay ningun check que las
@@ -138,8 +121,6 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
     iniciarGuardado(async () => {
       const resultado = await guardarAjustes({
         ventanaDias: Number(ventanaDias),
-        apertura,
-        cierre,
         slotMinutos: slotElegido,
         duracionMinima: Number(duracionMinima),
         limiteDiario: Number(limiteDiario),
@@ -181,44 +162,14 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label htmlFor={idApertura}>Hora de apertura</Label>
-            <Input
-              id={idApertura}
-              type="time"
-              required
-              value={apertura}
-              onChange={(e) => editar(setApertura, e.target.value)}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor={idCierre}>Hora de cierre</Label>
-            <Input
-              id={idCierre}
-              type="time"
-              required
-              value={cierre}
-              onChange={(e) => editar(setCierre, e.target.value)}
-              className="mt-1"
-            />
-          </div>
-        </div>
+        {/* D-91: el horario de atencion ESTUVO AQUI y se fue. Quien venga a
+            buscarlo donde siempre estuvo tiene que encontrar adonde fue, o va
+            a concluir que se perdio. El enlace de verdad lo pone la tarea que
+            construye /admin/horarios; hasta entonces se nombra la pantalla. */}
         <p className="text-muted-foreground text-xs">
-          El horario de atención. La hora de cierre tiene que ser posterior a la de apertura.
+          El horario de atención ya no se configura aquí: ahora es por sede y por día de la semana,
+          y vive en la pantalla de Horarios junto con los turnos del personal.
         </p>
-
-        {/* D-54: el aviso que SI impide guardar. Redactado en castellano
-            llano -que pasa y como se arregla-, no con el nombre del check. */}
-        {aperturaInvalida && (
-          <p role="alert" className="bg-destructive/10 text-destructive rounded-lg px-4 py-3 text-sm">
-            Con bloques de {slotMinutos} minutos, la hora de apertura tiene que caer justo en un
-            bloque: sus minutos tienen que ser múltiplo de {slotMinutos}. Ajusta la hora de apertura
-            o elige otro tamaño de bloque.
-          </p>
-        )}
 
         <div>
           <Label htmlFor={idSlot}>Tamaño del bloque (minutos)</Label>
@@ -297,7 +248,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
           </div>
         </div>
 
-        <Button type="button" disabled={aperturaInvalida} onClick={() => setConfirmando(true)}>
+        <Button type="button" onClick={() => setConfirmando(true)}>
           Guardar ajustes
         </Button>
 
@@ -325,20 +276,16 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
             </DialogDescription>
           </DialogHeader>
 
-          {/* Ningun valor de aca puede estar vacio al abrirse el dialogo: el
-              boton que lo abre esta deshabilitado mientras aperturaInvalida
-              sea true, y los siete campos nacen con los valores YA GUARDADOS.
-              No hay ningun Date ni Intl.format en este bloque -al reves que
-              el dialogo de PanelDias- que pudiera lanzar con un valor vacio,
-              asi que no hace falta guardia. */}
+          {/* Ningun valor de aca puede estar vacio al abrirse el dialogo: los
+              cinco campos nacen con los valores YA GUARDADOS. No hay ningun
+              Date ni Intl.format en este bloque -al reves que el dialogo de
+              PanelDias- que pudiera lanzar con un valor vacio, asi que no hace
+              falta guardia. */}
           <div className="space-y-2 text-sm">
             <p>Vas a guardar estos ajustes:</p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
                 Ventana de reserva: <strong>{plural(Number(ventanaDias), "día", "días")}</strong>.
-              </li>
-              <li>
-                Horario de atención: <strong>{apertura}</strong> a <strong>{cierre}</strong>.
               </li>
               <li>
                 Tamaño del bloque: <strong>{slotMinutos} minutos</strong>.

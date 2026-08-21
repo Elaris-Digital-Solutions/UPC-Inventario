@@ -368,22 +368,22 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ## Tarea 6 · Lo que deja de gobernar
 
-- [ ] **Paso 1.** `lib/reservas/consultas.ts`: quitar `openingTime` y `closingTime` del tipo
+- [x] **Paso 1.** `lib/reservas/consultas.ts`: quitar `openingTime` y `closingTime` del tipo
       `AjustesReserva` y del `return` *(corrección 4)*. **Cuatro líneas.**
-- [ ] **Paso 2.** `npm run typecheck`. ⚠ **Aquí el typecheck es el instrumento:** si algún consumidor los
+- [x] **Paso 2.** `npm run typecheck`. ⚠ **Aquí el typecheck es el instrumento:** si algún consumidor los
       leía y el `grep` no lo vio, sale ahora. **Esperado: verde**, y si no lo está, la corrección 4 estaba
       mal y se anota.
-- [ ] **Paso 3.** **D-91: borrar** `opening_time` y `closing_time` de `app_settings`, **con su restricción
+- [x] **Paso 3.** **D-91: borrar** `opening_time` y `closing_time` de `app_settings`, **con su restricción
       `app_settings_horario`**. ⚠ **En una migración 35 PROPIA y no dentro de la 34** — ver la
       **corrección 5**: la 34 se confirma en la Tarea 3 y meterlo aquí obligaría a editar una migración ya
       commiteada. **El orden lo garantiza el timestamp:** primero las RPC dejan de leerlas *(Tarea 3)*,
       después se borran.
-- [ ] **Paso 4.** Y con ellas, los **siete** sitios que las arrastran, contados en D-91:
+- [x] **Paso 4.** Y con ellas, los **siete** sitios que las arrastran, contados en D-91:
       `opening_time_aligned` *(D-54, que se muda a `campus_hours` en la Tarea 2)*,
       `supabase/tests/32_opening_time_aligned.sql` *(Tarea 5)*,
       `components/admin/formulario-ajustes.tsx`, `lib/admin/configuracion.ts`, `lib/admin/acciones.ts`,
       `lib/admin/ajustes.ts` *(los cuatro en la Tarea 7)* y `lib/database.types.ts`.
-- [ ] **Paso 5.** Regenerar `lib/database.types.ts` **con el comando, nunca a mano**.
+- [x] **Paso 5.** Regenerar `lib/database.types.ts` **con el comando, nunca a mano**.
 
 **Commit:** `refactor: el horario global deja de gobernar la rejilla`
 
@@ -678,3 +678,103 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
     que **el control negativo, por sí solo, no distingue las dos semánticas**: la única aserción que
     las separa es la de las 11:00. **Un control negativo que pasa no siempre acota lo que uno cree que
     acota**, y eso sólo se ve mutando.
+
+11. ⚠ **EL PASO QUE NO ESTABA EN LA TAREA 6 Y HABRÍA DEJADO `db reset` ROTO: `supabase/seed.sql` LEÍA
+    LAS DOS COLUMNAS EN TRES SITIOS.** El paso 4 enumera **siete** arrastres contados en D-91 y el seed
+    no está entre ellos. **Es el único de todos que corre DESPUÉS de la migración 35** —`db reset`
+    aplica las migraciones y luego siembra—, así que sin tocarlo la base local no se levanta y
+    **ninguna de las 229 aserciones llega a correr**. Los tres sitios eran la llamada a
+    `private.sembrar_horarios_por_defecto(s.opening_time, s.closing_time)` y los dos `insert` de
+    `staff_shifts`, que sacaban las horas del mismo `cross join public.app_settings`.
+
+    **Cómo quedan, y los dos casos no son el mismo:**
+    - **La siembra pasa a literales `'08:00'`/`'22:00'`, y eso NO contradice la corrección 7.** Aquella
+      dice que la **migración 33** lee de `app_settings` en vez de transcribir, y lo sigue haciendo:
+      cuando corre, las columnas existen y traen el dato vivo de producción. El seed corre después de
+      la 35, cuando **ya no hay de dónde leerlas**, así que ese 08:00–22:00 deja de ser una
+      transcripción y pasa a ser lo que de verdad es: **el techo elegido del stack de desarrollo**,
+      con el que están escritas las nueve baterías que reservan.
+    - **Los dos `insert` de turnos pasan a leer `campus_hours`**, que se acaba de sembrar dos líneas
+      más arriba, en vez de repetir el par de horas por tercera vez. **Quita el `generate_series` y el
+      `cross join`**, y hace que el turno cubra exactamente el techo de su sede sea cual sea.
+      Comprobado por el efecto con el control que lo hace valer: **0 turnos con `starts_at`/`ends_at`
+      distintos de los de su fila de `campus_hours`**, sobre 13 turnos y 14 horarios.
+
+12. ⚠ **LA TAREA 6 NO PUEDE TERMINAR EN VERDE POR SÍ SOLA, y no es una preferencia de estilo: está
+    medido.** Su paso 4 manda los cuatro archivos de `/admin/ajustes` a la **Tarea 7**. Con los tipos
+    regenerados —paso 5, dentro de esta misma tarea— el árbol queda con **3 errores de `tsc` en 2
+    archivos**, copiados tal cual:
+
+    ```
+    lib/admin/acciones.ts(1355,7): error TS2322: Type 'string' is not assignable to type 'never'.
+    lib/admin/acciones.ts(1356,7): error TS2322: Type 'string' is not assignable to type 'never'.
+    lib/admin/configuracion.ts(91,23): error TS2345: Argument of type
+      'SelectQueryError<"column 'opening_time' does not exist on 'app_settings'.">' ...
+    ```
+
+    **No hay orden de pasos que lo salve**, y conviene decir por qué en vez de elegir uno al azar:
+    regenerar los tipos más tarde deja el commit con el esquema sin las columnas y unos tipos que
+    todavía las declaran, o sea **rojo por el otro lado** —el paso «los tipos coinciden con el
+    esquema» de `db.yml`, que es D-26—. **La migración y el código que lee esas columnas tienen que
+    entrar en el mismo commit**, y eso es un hecho del cambio y no una decisión de quien ejecuta.
+    **Así que la Tarea 6 se lleva los pasos 1 y 3 de la Tarea 7.**
+
+    **Lo que la Tarea 7 conserva es su paso 2**, el puntero a `/admin/horarios`, **y se mueve a la
+    Tarea 8** por la misma convención que la corrección 8 aplica al séptimo enlace de la cabecera:
+    **el enlace entra en la tarea que construye su pantalla**, nunca antes, porque hasta entonces es
+    un 404. Mientras tanto la pantalla **sí dice adónde fue el horario**, en texto y sin enlace: quien
+    lo busque donde siempre estuvo tiene que encontrarlo, o va a concluir que se perdió.
+
+13. ⚠ **D-91 NOMBRA UNA RESTRICCIÓN Y HABÍA DOS.** `app_settings_horario` es la que la decisión
+    enumera, y `app_settings_apertura_alineada` —D-54/Q-19, migración 24— **también referencia
+    `opening_time`**. Contadas en la base y no leídas del documento: `pg_constraint` daba **10** sobre
+    `app_settings` antes y **8** después. Postgres las habría borrado solas al caer las columnas, así
+    que el riesgo no era que la migración fallara: era **que no dijera lo que quita**. Se nombran las
+    dos en el `alter table`, lo que además hace que el archivo **falle en voz alta** si alguna no
+    existe con ese nombre.
+
+14. **`lib/reservas/consultas.ts` eran CINCO sitios y no cuatro, y el quinto es justo el que ninguna
+    herramienta ve.** La corrección 4 contó `openingTime` y `closingTime` —declaración del tipo y
+    `return`, cuatro líneas— y **el `select` los nombra en `snake_case` dentro de una cadena de
+    texto**. El paso 2 de la tarea dice que ahí el `typecheck` es el instrumento, y para esa línea
+    **no lo es**: es una cadena. Dejarla habría pedido a PostgREST dos columnas borradas y **la
+    pantalla de reservar del alumno fallaría entera**, con `lint`, `typecheck` y `build` en verde.
+    ⚠ **Sobrevive por un pelo, y la salvedad importa:** una vez regenerados los tipos, `supabase-js`
+    sí convierte esa cadena en un `SelectQueryError` —es lo que destapó `lib/admin/configuracion.ts`
+    en la corrección 12—, así que el instrumento habría avisado **en el paso 5 y no en el 2**. La
+    corrección 4 acertó en lo caro —**cero consumidores**, confirmado: el `typecheck` del paso 2 salió
+    verde— y se quedó corta en el recuento. **Es el mismo género que la corrección 8: estimar cuántos
+    sitios rompen no es contarlos.**
+
+15. ✅ **Tarea 6 cerrada y verificada por el efecto, con un control positivo al lado de cada cero.**
+    Las dos columnas se fueron y **las otras siete de `app_settings` siguen ahí** —sin ese control,
+    «no están» no distingue «borradas» de «tabla rota»—; las dos restricciones de horario no aparecen
+    y **quedan 8**; `campus_hours` = **14**, `staff_shifts` = **13** (7 + 6) y **0 turnos desalineados
+    de su techo**; el `select` exacto que ahora manda la aplicación devuelve su fila (**7 / 30 / 30 /
+    1 / 60**); y `available_slots` para mañana en Monterrico a 120 min sigue dando **25 franjas**, que
+    es **el mismo 25 de la corrección 7**: la prueba de que quitar las columnas no vació el
+    calendario. **Cero referencias vivas** a las dos columnas fuera de los comentarios que hablan de
+    su borrado. `Files=36, Tests=229, PASS` —sin moverse—, Vitest **12 / 166** —sin moverse, y es lo
+    esperado: lo que se borró no tenía pruebas propias—, `lint`, `typecheck` y `build` en verde.
+
+    **`aperturaDesalineada()` NO se borra con la columna**, y se deja dicho para que nadie lo
+    «termine»: `/admin/ajustes` dejó de llamarla, pero **`/admin/horarios` la va a necesitar** para el
+    mismo papel de siempre —avisar en pantalla antes de guardar— ahora sobre `campus_hours.opens_at`.
+    Sus pruebas de Vitest no dependen de ninguna columna, que es por lo que el 166 no se movió. ⚠ **Y
+    con ella se fue la única barrera de servidor de D-54 en esta pantalla**, lo cual está bien porque
+    ahora la pone la base —los dos disparadores de la migración 33—, pero **cambia quién avisa**: al
+    bajar `slot_minutes` el rechazo llega del motor y no del formulario, así que
+    `mensajeDeRechazoAjustes()` gana una rama para él. **Se reconoce por su texto y no por un nombre
+    de restricción**, porque un trigger no tiene nombre de `check` que salga en el mensaje.
+
+    **En reloj, medido y no citado:** `db reset` **57 s** —el más rápido de las cinco mediciones del
+    proyecto, contra 114, 131, 195 y 132— y `npx supabase test db` **16 s de punta a punta**, de los
+    que el arnés declara 4 de reloj de pared. **Los dos números son del mismo día y del mismo stack de
+    20 contenedores.**
+
+16. **La migración 33 apuntaba a la 34 donde debía decir 35.** Su comentario decía «la migracion 34
+    BORRA opening_time y closing_time (D-91)», escrito **antes** de que la corrección 5 moviera ese
+    borrado a una migración propia. Se corrige el número **y nada más** —ni una línea de
+    comportamiento—, que es justo lo que la corrección 5 protegía: lo que no se puede es **editar lo
+    que una migración confirmada HACE**. Dejar un puntero equivocado dentro de un archivo que alguien
+    va a leer es exactamente la enfermedad que D-91 borra las columnas para evitar.
