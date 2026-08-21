@@ -28,9 +28,16 @@ instrumentos**, el MCP y `npx supabase migration list`; pgTAP **`Files=33, Tests
 PASS`** tras un `db reset` de **114 s**; Vitest **12 archivos, 166 pruebas**; E2E **5 archivos, 7 pruebas**
 *(2+2+1+1+1)*.
 
-**Y la precondición, medida el mismo día contra producción:** `staff_members` = **1**, de los cuales
-**operadores = 0**; `alumnos` = 1; `inventory_reservations` = **0**; productos / unidades / notas / sedes
-= **34 / 92 / 68 / 2**.
+**Y el estado de producción, medido el mismo día:** `staff_members` = **1**, de los cuales **operadores =
+0** y **admins = 1**; `alumnos` = 1; `inventory_reservations` = **0**; productos / unidades / notas / sedes
+= **34 / 92 / 68 / 2**. Sin despliegue del Next.js: **no hay `netlify.toml`, `vercel.json` ni Dockerfile en
+el repositorio**, sólo los tres workflows de CI, que no publican.
+
+> ⚠ **Este bloque decía «la precondición» y esa palabra sobraba, corregido el 2026-08-20 con D-93.** El
+> **1 admin es suficiente** para desplegar la tanda: los turnos son de cualquier miembro activo de
+> `staff_members` y **nunca estuvieron atados al rol**. **El 0 de operadores es un dato del servicio, no
+> una puerta cerrada del sistema** — y esa diferencia se dio por sabida en tres documentos seguidos sin
+> que nadie la comprobara.
 
 ---
 
@@ -93,9 +100,17 @@ PASS`** tras un `db reset` de **114 s**; Vitest **12 archivos, 166 pruebas**; E2
    que ya existe en el seed)*. **Producción tiene 0 operadores, medido hoy.** O sea: **calendario lleno en
    local y vacío en el sitio real**, con `lint`, `typecheck`, `build`, pgTAP, Vitest, E2E y el recorrido en
    navegador **todos en verde**, porque el recorrido se hace contra local. Aquí no acaba en una vitrina
-   vacía como con `products.featured`: **acaba en que nadie puede reservar nada.** Es el argumento de §6
-   —F3-T2 antes que F3-T4— llegando hasta el final, y **el motivo por el que esta tanda no se despliega
-   hasta que haya operadores de verdad con turnos cargados**.
+   vacía como con `products.featured`: **acaba en que nadie puede reservar nada.**
+
+   > ⚠ **CORREGIDA el 2026-08-20, el mismo día, por D-93 — y la corrección es del género que este
+   > proyecto persigue: el peligro es real y la conclusión que se sacaba de él era falsa.** Aquí se
+   > cerraba diciendo que *«esta tanda no se despliega hasta que haya operadores de verdad»*. **No es
+   > cierto:** `staff_shifts.staff_id` referencia `staff_members(user_id)` **sin filtro de rol**
+   > —`FASE_3_DISENO.md:259`—, así que **el admin se asigna turnos a sí mismo** y el calendario dice la
+   > verdad con una sola persona. **Lo que se midió era el dato; lo que se copió sin comprobar era la
+   > inferencia.** El riesgo del párrafo de arriba **sigue en pie tal cual**: si se despliega con
+   > `staff_shifts` vacío, nadie puede reservar. **Lo que cambia es la cura** — ya no es «esperar a que
+   > contraten», es **cargar turnos antes o a la vez que el `db push`**, y eso sí lo entrega esta tanda.
 
 7. ⚠ **Y el diseño no dice lo que pasa con `campus_hours` VACÍO, que rompe más que el calendario.** Sin
    filas, `available_slots` devuelve cero franjas *(esperable)* **y `create_reservation` rechaza todo**
@@ -404,8 +419,10 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 ## Tarea 9 · Los turnos de cada operador
 
 - [ ] **Paso 1.** En la misma ruta: alta, edición y baja de turnos, por operador y por sede.
-- [ ] **Paso 2.** ⚠ **Sólo se ofrecen operadores `activo = true`.** La baja de personal es desactivar y
-      nunca borrar, y un operador desactivado no debe poder recibir turnos nuevos.
+- [ ] **Paso 2.** ⚠ **Se ofrece TODO el personal `activo = true`, admin incluido** *(D-93)*, no sólo los
+      de rol `operator`: el modelo nunca ató los turnos al rol y **hoy el único personal que existe en
+      producción es un admin**. La baja de personal es desactivar y nunca borrar, y **un miembro
+      desactivado no debe poder recibir turnos nuevos** — eso sí se filtra.
 - [ ] **Paso 3.** **D-92, que cierra Q-21: al borrar o acortar un turno se AVISA y no se impide.** Antes
       de confirmar, la pantalla dice **cuántas reservas quedan descubiertas**; el admin decide con el
       dato delante.
@@ -511,9 +528,17 @@ reales encima.** Va primera porque si falla, cambia la tanda entera.
 
 ⚠ **Y las predicciones contra producción, que son las que sólo se pueden escribir antes:** tras el
 `db push`, `campus_hours` = **14 filas** *(2 sedes × 7 días, 08:00–22:00, sembradas desde `app_settings`)*
-y `staff_shifts` = **0**. **Con `staff_shifts` en 0, el calendario de producción sale vacío y eso es
-correcto** *(corrección 6)*. **La tanda no está terminada hasta que haya turnos cargados de operadores
-reales**, y eso no lo entrega un commit.
+y `staff_shifts` = **0**. **Con `staff_shifts` en 0 nadie puede reservar** *(corrección 6)*, así que el
+`db push` **no es el último paso**.
+
+**El último paso lo entrega esta tanda, y desde D-93 no depende de nadie más:** el admin carga sus propios
+turnos desde `/admin/horarios`, y se verifica **por el efecto y con control positivo** —el calendario del
+alumno ofrece franjas dentro de esos turnos y **ninguna fuera**—. Producción tiene **1 miembro de
+`staff_members`, un admin**, medido el 2026-08-20: **es suficiente**.
+
+⚠ **Lo que sigue siendo cierto y es más pequeño de lo que este plan afirmó dos veces:** sin operadores
+contratados, **la atención depende de una sola persona**. Es una limitación **del servicio**, no del
+sistema, y el sistema la refleja con exactitud en vez de disimularla.
 
 ---
 
