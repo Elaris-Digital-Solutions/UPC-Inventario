@@ -501,6 +501,39 @@ export type Database = {
           },
         ]
       }
+      product_purchase_orders: {
+        Row: {
+          created_at: string
+          product_id: string
+          purchase_order: string
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          purchase_order: string
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          purchase_order?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_purchase_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "product_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_purchase_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           buffer_minutes: number
