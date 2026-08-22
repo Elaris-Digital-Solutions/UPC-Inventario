@@ -11,7 +11,6 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { aperturaDesalineada } from '@/lib/admin/ajustes';
 import { reservasVivas } from '@/lib/admin/dias';
 import { particionarPorDia, type RolStaff } from '@/lib/admin/filtros';
 import { hoyEnLima } from '@/lib/reservas/rejilla';
@@ -1251,12 +1250,20 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 //
 //   slot_minutes: 45            -> constraint "app_settings_slot_divisor"
 //   booking_window_days: 61     -> constraint "app_settings_booking_window_days_check"
-//   closing_time <= opening_time-> constraint "app_settings_horario"
 //   min_duration_minutes: 4     -> constraint "app_settings_min_duration_minutes_check"
 //   daily_limit_per_product: 11 -> constraint "app_settings_daily_limit_per_product_check"
 //   min_cancel_minutes: 1441    -> constraint "app_settings_min_cancel_minutes_check"
 //
-// SOLO CINCO llevan texto propio, y NO SEIS, y hay que decir por que:
+// OJO -F3-T4, migracion 35, D-91-: ERAN SEIS Y AHORA SON CINCO.
+// `app_settings_horario` -closing_time > opening_time- se fue con las dos
+// columnas, y en su lugar entra un rechazo que NO es un `check` de tabla sino
+// un TRIGGER: `app_settings_respeta_horarios` (migracion 33) impide bajar
+// `slot_minutes` si eso dejaria aperturas de `campus_hours` sin alinear. Es la
+// puerta de atras de D-54 despues de la mudanza, y llega con errcode 23514
+// igual que los demas, pero su `message` NO trae nombre de restriccion: se
+// reconoce por su texto, que lo escribe esta casa y no Postgres.
+//
+// SOLO CINCO llevan texto propio, y hay que decir por que:
 // `app_settings_slot_divisor` NO ES ALCANZABLE desde esta pantalla. El Step 1
 // de la Task 10 ofrece `slot_minutes` como un DESPLEGABLE de los ocho valores
 // legales -5, 6, 10, 12, 15, 20, 30, 60-, no como un campo libre de 5 a 60:
@@ -1281,8 +1288,8 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
     return 'La ventana de reserva tiene que ser de entre 1 y 60 días.';
   }
 
-  if (mensajeDelMotor.includes('app_settings_horario')) {
-    return 'La hora de cierre tiene que ser posterior a la hora de apertura.';
+  if (mensajeDelMotor.includes('sin alinear')) {
+    return 'Con ese tamaño de bloque, alguna hora de apertura de sede dejaría de caer justo en un bloque. Ajusta primero los horarios en /admin/horarios.';
   }
 
   if (mensajeDelMotor.includes('app_settings_min_duration_minutes_check')) {
@@ -1300,20 +1307,21 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
   return mensajeDelMotor;
 }
 
-// Edicion de los siete ajustes globales de reserva (D-39/Q-14, D-54/Q-19 y
-// M-12/D-70, que trae el septimo).
+// Edicion de los cinco ajustes globales de reserva (D-39/Q-14 y M-12/D-70).
 //
-// D-54 PRIMERO, ANTES DE TOCAR LA BASE: barrera de SERVIDOR, mismo criterio
-// que la fecha pasada en inhabilitarDia() -la pantalla ya hace esta misma
-// comprobacion con aperturaDesalineada() antes de mandar el formulario, y
-// esto no es una repeticion ociosa, es la regla de siempre: lo del cliente es
-// VISIBILIDAD, no control-. Ver el comentario extenso de aperturaDesalineada()
-// en lib/admin/ajustes.ts para el porque completo: en corto, la base no tiene
-// ningun `check` que ate `opening_time` a `slot_minutes`, y una apertura
-// desalineada deja el CALENDARIO ENTERO irreservable sin ningun aviso visible
-// desde ninguna pantalla -medido el 2026-08-13-.
+// OJO -F3-T4, migracion 35, D-91-: ERAN SIETE. Apertura y cierre ya no se
+// editan aqui: el horario dejo de ser global y vive en `campus_hours` por sede
+// y por dia (D-74), en /admin/horarios.
 //
-// SOLO SIETE COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
+// Y CON ELLOS SE FUE LA BARRERA DE SERVIDOR DE D-54, que aqui llamaba a
+// aperturaDesalineada() antes de tocar la base. No se ha perdido la regla: se
+// mudo a DOS DISPARADORES en la migracion 33 -uno sobre `campus_hours` y otro
+// sobre `app_settings` para la puerta de atras de `slot_minutes`-, o sea que
+// la aplica la base, que es donde Q-19 pedia que estuviera. aperturaDesalineada()
+// SIGUE EXISTIENDO en lib/admin/ajustes.ts con sus pruebas: la va a necesitar
+// /admin/horarios para avisar antes de guardar, que es visibilidad y no control.
+//
+// SOLO CINCO COLUMNAS EN EL BODY, nunca `id` ni `updated_at`: mandarlas da HTTP
 // 403 con 42501 "permission denied for table app_settings", medido el
 // 2026-08-13 -ninguna de las dos se concede a nadie, y `updated_at` la mueve
 // sola el trigger `trg_app_settings_updated_at`-.
@@ -1333,27 +1341,17 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
 // nada contestaria exactamente igual que uno que si.
 export async function guardarAjustes(ajustes: {
   ventanaDias: number;
-  apertura: string;
-  cierre: string;
   slotMinutos: number;
   duracionMinima: number;
   limiteDiario: number;
   margenCancelacion: number;
 }): Promise<ResultadoAdmin> {
-  if (aperturaDesalineada(ajustes.apertura, ajustes.slotMinutos)) {
-    return {
-      error: `Con bloques de ${ajustes.slotMinutos} minutos, la hora de apertura tiene que caer justo en un bloque, y "${ajustes.apertura}" no cae. Ajusta la apertura para que sus minutos sean múltiplo de ${ajustes.slotMinutos} y no lleve segundos.`,
-    };
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('app_settings')
     .update({
       booking_window_days: ajustes.ventanaDias,
-      opening_time: ajustes.apertura,
-      closing_time: ajustes.cierre,
       slot_minutes: ajustes.slotMinutos,
       min_duration_minutes: ajustes.duracionMinima,
       daily_limit_per_product: ajustes.limiteDiario,
@@ -1397,6 +1395,303 @@ export async function guardarAjustes(ajustes: {
   // hecho medido hoy.
   revalidatePath('/admin/ajustes');
   revalidatePath('/(alumno)/catalogo/[id]/reservar', 'page');
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /admin/horarios · el horario de cada sede (F3-T4, D-74/D-75)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que `campus_hours` puede dar, mismo criterio que
+// mensajeDeRechazoAjustes() mas arriba: texto propio SOLO para lo alcanzable
+// desde esta pantalla, y lo no reconocido cae al CRUDO y nunca a un generico
+// que escondiera una causa que nadie previo.
+//
+// SON DOS, Y UNO NO ES UN `check` DE TABLA sino un TRIGGER, lo cual cambia
+// como se reconoce:
+//
+//   closes_at <= opens_at  -> constraint "campus_hours_orden", 23514
+//   opens_at desalineada   -> trigger campus_hours_alineacion, tambien 23514
+//                             pero SIN nombre de restriccion en el message
+//
+// Por eso el segundo se busca por su TEXTO -"no cae en un bloque"-, que lo
+// escribe la migracion 33 y no Postgres. Buscarlo por el codigo no serviria:
+// los dos son 23514.
+//
+// `campus_hours_weekday_check` NO lleva texto propio y no es un olvido: el
+// `weekday` no sale de ningun campo del formulario, lo pone la fila de la
+// tabla que se esta editando. Igual que `app_settings_slot_divisor`, es un
+// rechazo que nadie puede provocar desde esta pantalla.
+function mensajeDeRechazoHorario(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('campus_hours_orden')) {
+    return 'La hora de cierre tiene que ser posterior a la de apertura.';
+  }
+
+  if (mensajeDelMotor.includes('no cae en un bloque')) {
+    return 'La hora de apertura tiene que caer justo en un bloque. Ajusta sus minutos o cambia el tamaño del bloque en /admin/ajustes.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// Las DOS rutas que hay que revalidar al tocar un horario, y la segunda es la
+// que importa: el techo de la sede es de donde nace la rejilla del alumno
+// -migracion 34-, asi que cambiarlo aca y no revalidar alli dejaria al alumno
+// viendo el calendario viejo. Mismo par y mismo motivo que guardarAjustes().
+function revalidarHorarios(): void {
+  revalidatePath('/admin/horarios');
+  revalidatePath('/(alumno)/catalogo/[id]/reservar', 'page');
+}
+
+// Guardar el horario de un dia de una sede. Es un UPSERT y no un INSERT
+// porque la clave primaria de `campus_hours` es (campus_id, weekday): abrir un
+// dia cerrado y cambiar el horario de uno abierto son la misma operacion desde
+// la pantalla, y partirlas obligaria a que el formulario supiera cual de las
+// dos esta haciendo.
+//
+// PIDE LA FILA DE VUELTA CON `.select()` Y TRATA EL VACIO COMO ERROR, mismo
+// criterio que guardarAjustes(). El motivo esta MEDIDO en este proyecto y es
+// contraintuitivo: una escritura que RLS no deja ver NO lanza 42501, filtra a
+// cero filas y termina bien. Sin este chequeo, una llamada sin permiso
+// contestaria exactamente igual que una que guardo.
+export async function guardarHorarioDia(
+  campusId: string,
+  weekday: number,
+  apertura: string,
+  cierre: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('campus_hours')
+    .upsert(
+      { campus_id: campusId, weekday, opens_at: apertura, closes_at: cierre },
+      { onConflict: 'campus_id,weekday' },
+    )
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoHorario(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo guardar. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Cerrar un dia: se BORRA la fila, porque en este modelo "un dia sin fila es
+// un dia cerrado" (D-75). No hay columna `cerrado` que poner en true, y anadir
+// una seria inventar un tercer estado que ni las RPC ni D-76 conocen.
+//
+// NO PIDE CONFIRMACION AQUI: la pide la pantalla, que es donde el admin ve lo
+// que va a pasar. Y NO comprueba si hay reservas ese dia -eso es D-92 y vale
+// para los TURNOS, no para el techo de la sede-: cerrar un dia entero es una
+// decision del admin sobre el servicio, del mismo genero que /admin/dias.
+export async function cerrarDia(campusId: string, weekday: number): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('campus_hours')
+    .delete()
+    .eq('campus_id', campusId)
+    .eq('weekday', weekday)
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoHorario(error.message) };
+  }
+
+  // Cero filas aca tiene DOS causas y las dos son un problema que el admin
+  // tiene que ver: o RLS no dejo borrar, o el dia ya estaba cerrado y la
+  // pantalla esta pintando algo que la base no tiene. Un `null` silencioso
+  // haria pasar las dos por exito.
+  if (data.length === 0) {
+    return {
+      error: 'No se pudo cerrar el día. Puede que no tengas permiso, o que ya estuviera cerrado.',
+    };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /admin/horarios · los turnos del personal (D-74, D-90, D-92, D-93)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los rechazos que `staff_shifts` puede dar desde esta pantalla. Son
+// DOS, y ninguno es el mismo que los de `campus_hours`:
+//
+//   ends_at <= starts_at -> constraint "staff_shifts_orden", 23514
+//   staff_id inexistente -> constraint "staff_shifts_staff_id_fkey", 23503
+//
+// NO HAY RESTRICCION DE ALINEACION SOBRE LOS TURNOS, y no es un olvido: la
+// rejilla nace de `campus_hours` y los turnos solo la RECORTAN, asi que un turno
+// que empiece a las 09:07 no puede desalinear nada. Esta escrito en la cabecera
+// de la migracion 33 y se repite aqui porque desde la pantalla parece que
+// deberia haberla.
+//
+// TAMPOCO se traduce nada sobre solapes: dos turnos que se pisan son LEGALES y
+// deseables -es el caso que D-90 existe para cubrir-, y la migracion 33 no puso
+// ninguna exclusion.
+function mensajeDeRechazoTurno(mensajeDelMotor: string): string {
+  if (mensajeDelMotor.includes('staff_shifts_orden')) {
+    return 'La hora de fin del turno tiene que ser posterior a la de inicio.';
+  }
+
+  if (mensajeDelMotor.includes('staff_shifts_staff_id_fkey')) {
+    return 'Esa persona ya no está en el personal.';
+  }
+
+  return mensajeDelMotor;
+}
+
+// El aviso de D-92, que cierra Q-21: cuantas reservas quedan DESCUBIERTAS si se
+// borra o se acorta este turno. NO impide nada; el admin decide con el dato
+// delante.
+//
+// LA CUENTA LA HACE LA BASE -public.reservas_descubiertas(), migracion 36- y no
+// esta capa, y el motivo esta en la cabecera de esa migracion: la cobertura ya
+// esta escrita dos veces en la 34 y una tercera copia en JavaScript seria la
+// unica que nadie puede probar con pgTAP.
+//
+// `null` en las dos horas significa "el turno desaparece"; con valores, "el
+// turno pasa a ser este". Una sola funcion para las dos operaciones, porque la
+// pregunta es la misma.
+//
+// NO VA A SENTRY aunque el recuento falle: consultar el impacto de un cambio es
+// una accion esperada del admin, no un incidente (regla 3 de errores). Si la
+// consulta falla se devuelve `null` y la pantalla lo dice; inventar un 0 seria
+// peor que no saber, porque el 0 es justamente la respuesta tranquilizadora.
+export async function contarDescubiertas(
+  turnoId: string,
+  inicio: string | null,
+  fin: string | null,
+): Promise<number | null> {
+  const supabase = await createClient();
+
+  // OJO: los tipos generados declaran los dos `time` con DEFAULT como
+  // `string | undefined`, no como `string | null`. Se omiten en vez de mandarse
+  // en null, que es lo que PostgREST entiende por "usa el default" -- y el
+  // default de la funcion es justamente NULL, o sea "el turno desaparece".
+  const { data, error } =
+    inicio === null || fin === null
+      ? await supabase.rpc('reservas_descubiertas', { p_shift_id: turnoId })
+      : await supabase.rpc('reservas_descubiertas', {
+          p_shift_id: turnoId,
+          p_starts_at: inicio,
+          p_ends_at: fin,
+        });
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
+// Alta de un turno. SE OFRECE TODO EL PERSONAL ACTIVO, ADMIN INCLUIDO (D-93):
+// `staff_shifts.staff_id` referencia `staff_members(user_id)` SIN filtro de rol,
+// y nunca lo tuvo. Hoy el unico personal que existe en produccion es un admin,
+// asi que atarlo al rol `operator` dejaria el calendario vacio para siempre.
+//
+// QUIEN FILTRA POR `activo` ES LA PANTALLA y no hay `check` en la base: la baja
+// de personal es DESACTIVAR y nunca borrar, asi que un miembro desactivado
+// conserva su fila y podria recibir turnos nuevos. Eso si se impide, y se impide
+// donde se elige a la persona -el desplegable solo lista activos-. Sus turnos
+// VIEJOS no se tocan: borrarlos perderia la constancia de que esa persona
+// atendio ese dia.
+export async function crearTurno(
+  staffId: string,
+  campusId: string,
+  weekday: number,
+  inicio: string,
+  fin: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('staff_shifts')
+    .insert({ staff_id: staffId, campus_id: campusId, weekday, starts_at: inicio, ends_at: fin })
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo crear el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Edicion: solo las horas. Cambiar de persona o de sede es borrar un turno y
+// crear otro, y se deja asi a proposito: son turnos DISTINTOS, y tratarlos como
+// el mismo haria que el aviso de D-92 midiera un cambio que no es el que se
+// esta haciendo.
+export async function guardarTurno(
+  turnoId: string,
+  inicio: string,
+  fin: string,
+): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('staff_shifts')
+    .update({ starts_at: inicio, ends_at: fin })
+    .eq('id', turnoId)
+    .select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  // Cero filas es RLS filtrando en silencio, medido en este proyecto: un UPDATE
+  // que la politica no deja ver NO lanza 42501, filtra a cero y termina bien.
+  if (data.length === 0) {
+    return { error: 'No se pudo guardar el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
+
+  return null;
+}
+
+// Baja de un turno. AQUI SI SE BORRA LA FILA, al reves que con la baja de
+// PERSONAL -que desactiva y nunca borra-, y la diferencia no es un descuido: la
+// fila de `staff_members` es la constancia de que alguien fue personal y con que
+// rol, mientras que un turno solo dice "esta persona atiende los martes", una
+// afirmacion sobre el futuro que deja de ser cierta.
+//
+// NO SE IMPIDE AUNQUE HAYA RESERVAS DESCUBIERTAS (D-92). El aviso lo da la
+// pantalla antes de llamar aqui; esta funcion no vuelve a contar ni a decidir.
+// El argumento esta en D-92 y es cual de los dos danos es reversible: un turno
+// huerfano deja a un alumno frente a un mostrador vacio -visible y arreglable-,
+// e impedir el borrado deja al admin sin poder reflejar que alguien se fue,
+// salvo cancelando reservas de alumnos una a una.
+export async function borrarTurno(turnoId: string): Promise<ResultadoAdmin> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('staff_shifts').delete().eq('id', turnoId).select();
+
+  if (error) {
+    return { error: mensajeDeRechazoTurno(error.message) };
+  }
+
+  if (data.length === 0) {
+    return { error: 'No se pudo borrar el turno. Puede que no tengas permiso para hacerlo.' };
+  }
+
+  revalidarHorarios();
 
   return null;
 }

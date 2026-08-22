@@ -31,14 +31,23 @@ type CabeceraPersonalProps = {
   role: Database["public"]["Enums"]["staff_role"];
 };
 
-// Las SEIS pantallas de administracion, escritas UNA vez y pintadas en los dos
+// Las SIETE pantallas de administracion, escritas UNA vez y pintadas en los dos
 // sitios -barra ancha y panel plegable-. Repetir la lista a mano en ambos es
 // como se desincronizan: se anade una arriba y se olvida abajo, y el fallo
 // solo aparece a un tamano de pantalla.
+//
+// OJO -F3-T4-: LA SEPTIMA ES /admin/horarios, y este archivo ya tiene una
+// medicion sobre el numero siete que NO es esta. La que hay escrita mas abajo
+// dice que con siete enlaces en UNA SOLA barra -Mostrador mas los seis de
+// administracion- la navegacion pedia 1481 px y se salia a 1440, y por eso se
+// partio en dos filas. El siete de aqui es el SEPTIMO DE ADMINISTRACION, que va
+// en la SEGUNDA fila, la que lleva `overflow-x-auto`. Son dos cuentas distintas
+// sobre dos filas distintas.
 const ENLACES_ADMIN = [
   { href: "/admin/inventario", texto: "Inventario" },
   { href: "/admin/reservas", texto: "Reservas" },
   { href: "/admin/dias", texto: "Días" },
+  { href: "/admin/horarios", texto: "Horarios" },
   { href: "/admin/estadisticas", texto: "Estadísticas" },
   { href: "/admin/personal", texto: "Personal" },
   { href: "/admin/ajustes", texto: "Ajustes" },

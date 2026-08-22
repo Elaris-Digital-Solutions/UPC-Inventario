@@ -143,6 +143,22 @@ export function productosDesalineados(
 // `true`. La regex exige al menos un digito por parte, asi que una cadena
 // vacia -o con signo, espacio o decimal- cae por aca antes de llegar a
 // `Number()`.
+// OJO -F3-T4, migraciones 33 y 35, D-91-: TODO EL COMENTARIO DE ARRIBA SIGUE
+// SIENDO CIERTO SOBRE LA REGLA Y YA NO LO ES SOBRE DONDE VIVE. `app_settings`
+// no tiene `opening_time` desde la migracion 35: el horario es por sede y por
+// dia, en `campus_hours`. Y el `check` que Q-19 pedia YA EXISTE, aunque no
+// como `check` -un CHECK no puede llevar subconsulta, medido-: son dos
+// disparadores de la migracion 33, `campus_hours_alineacion` sobre la tabla
+// nueva y `app_settings_respeta_horarios` para la puerta de atras de
+// `slot_minutes`. O sea que la base YA decide, que es lo que este comentario
+// pedia.
+//
+// ESTA FUNCION NO SE BORRA CON LA COLUMNA, y no es inercia: /admin/ajustes
+// dejo de llamarla, pero /admin/horarios la necesita para el mismo papel de
+// siempre -avisar en pantalla antes de guardar-, ahora sobre
+// `campus_hours.opens_at`. Sigue siendo VISIBILIDAD y nunca la unica barrera.
+// Sus pruebas viven en lib/admin/ajustes.test.ts y no dependen de ninguna
+// columna.
 export function aperturaDesalineada(apertura: string, slotMinutos: number): boolean {
   const partes = apertura.split(':');
 

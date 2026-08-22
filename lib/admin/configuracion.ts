@@ -19,7 +19,7 @@ import { createClient } from '@/lib/supabase/server';
 // reservasVivas(), listarReservas() y listarPersonal(), y aca pesa TANTO como
 // en cualquiera de esas: unos ajustes que se leyeran como CEROS o VACIOS por
 // un fallo de red serian indistinguibles de una configuracion real -0 dias de
-// ventana, "00:00" de apertura, un buffer en cero- y el formulario los
+// ventana, un bloque de cero minutos, un buffer en cero- y el formulario los
 // pintaria como si fueran los valores de verdad. El admin los editaria un
 // poco y los guardaria ENCIMA de los buenos, sin ningun aviso de que lo que
 // vio nunca fue lo que habia. Es el mismo riesgo que ya evita ajustesReserva()
@@ -27,8 +27,6 @@ import { createClient } from '@/lib/supabase/server';
 
 export type AjustesAdmin = {
   ventanaDias: number; // `booking_window_days`
-  apertura: string; // `opening_time`, "HH:MM:SS" tal cual llega
-  cierre: string; // `closing_time`, "HH:MM:SS" tal cual llega
   slotMinutos: number; // `slot_minutes`
   duracionMinima: number; // `min_duration_minutes`
   limiteDiario: number; // `daily_limit_per_product`
@@ -41,8 +39,6 @@ export type AjustesAdmin = {
 // TypeScript la CONTRASTE contra lo que el `select` infiere.
 type FilaAjustesCruda = {
   booking_window_days: number;
-  opening_time: string;
-  closing_time: string;
   slot_minutes: number;
   min_duration_minutes: number;
   daily_limit_per_product: number;
@@ -52,8 +48,6 @@ type FilaAjustesCruda = {
 function filaAAjustes(fila: FilaAjustesCruda): AjustesAdmin {
   return {
     ventanaDias: fila.booking_window_days,
-    apertura: fila.opening_time,
-    cierre: fila.closing_time,
     slotMinutos: fila.slot_minutes,
     duracionMinima: fila.min_duration_minutes,
     limiteDiario: fila.daily_limit_per_product,
@@ -61,25 +55,26 @@ function filaAAjustes(fila: FilaAjustesCruda): AjustesAdmin {
   };
 }
 
-// Las siete columnas EDITABLES de la fila unica de `app_settings` -ni `id` ni
+// Las CINCO columnas EDITABLES de la fila unica de `app_settings` -ni `id` ni
 // `updated_at`, que no se conceden a nadie: mandarlas en un PATCH da HTTP 403
 // con 42501, medido el 2026-08-13-. `.eq('id', true).single()`, mismo filtro
 // que ajustesReserva() en lib/reservas/consultas.ts: la fila es unica -PK
 // booleana con `check (id)`-, asi que `.single()` es correcto y no una
 // suposicion.
 //
-// LOS TIEMPOS LLEGAN CON SEGUNDOS -"08:00:00", medido el 2026-08-13-, y esta
-// funcion los deja TAL CUAL: no le corresponde a una lectura decidir si el
-// formulario los recorta a "HH:MM" para un `<input type="time">`. La base
-// acepta las dos formas por igual -tambien medido-, asi que recortar aca no
-// arreglaria nada que el guardado fuera a rechazar.
+// OJO -F3-T4, migracion 35, D-91-: ERAN SIETE, y las dos que faltan son
+// `opening_time` y `closing_time`. El horario dejo de ser global: vive en
+// `campus_hours` por sede y por dia (D-74) y se edita en /admin/horarios, no
+// aqui. Con ellas se fue el unico dato de tipo `time` que esta lectura
+// devolvia, asi que ya no hay nada que recortar a "HH:MM" para un
+// `<input type="time">`.
 export async function leerAjustes(): Promise<AjustesAdmin> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('app_settings')
     .select(
-      'booking_window_days, opening_time, closing_time, slot_minutes, min_duration_minutes, daily_limit_per_product, min_cancel_minutes',
+      'booking_window_days, slot_minutes, min_duration_minutes, daily_limit_per_product, min_cancel_minutes',
     )
     .eq('id', true)
     .single();
