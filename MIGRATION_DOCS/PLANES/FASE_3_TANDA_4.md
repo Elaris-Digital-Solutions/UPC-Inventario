@@ -1066,3 +1066,53 @@ sistema, y el sistema la refleja con exactitud en vez de disimularla.
 
     **El efecto sigue siendo cosmético y no funcional**, y eso también está medido y no supuesto:
     `e2e/horarios.spec.ts` abre los tres desplegables y elige opciones en cada corrida.
+
+33. ✅ **EN PRODUCCIÓN el 2026-08-22, y las CINCO predicciones de la corrección 30 salieron exactas.**
+    La corrección 29 dice «CERRADA EN LOCAL» y era cierta al escribirse; **esto la sustituye.**
+
+    | Predicción, escrita antes del `db push` | Medido en producción |
+    |---|---|
+    | `campus_hours` = 14 filas | **14** |
+    | `staff_shifts` = 0 | **0** |
+    | `app_settings`, columnas = 7 | **7** |
+    | `app_settings`, `check` = 8 | **8** |
+    | `opening_time` / `closing_time` fuera | **No existen** |
+
+    **Con sus controles, sin los cuales los ceros no significarían nada:** 08:00–22:00 en las **2**
+    sedes, **34** productos, **1** personal activo, **0** reservas. Y los privilegios medidos en las
+    **dos** direcciones: `available_slots`, `create_reservation` y `reservas_descubiertas` ejecutables
+    por `authenticated` y **no** por `anon`.
+
+    ⚠ **La sexta predicción NO quedó medida, y se dice en vez de darla por buena:** «franjas que ve un
+    alumno = cero» **no se comprobó llamando a `available_slots`**. El MCP recibe `permission denied`
+    —que es justamente la prueba de que los `grant` están bien puestos—, así que la afirmación sale de
+    `staff_shifts = 0` y no de la salida de la función. **La verifica el recorrido del alumno tras
+    cargar turnos, y el control que importa es el negativo: franjas DENTRO de los turnos y NINGUNA
+    fuera.**
+
+34. ⚠ **DOS AFIRMACIONES DE ESTE PLAN CADUCARON, y las dos son del mismo género: medir en un alcance y
+    afirmar en otro más ancho.**
+
+    **(a)** El punto de partida y la corrección 31 dicen que **«no hay `netlify.toml`, `vercel.json` ni
+    Dockerfile en el repositorio»**. **`main` SÍ tiene `netlify.toml`**, con `publish = "dist"`. La
+    medición se hizo sobre la rama de trabajo y se escribió del repositorio entero. **El punto de
+    partida se deja como está** —está fechado el 2026-08-20 y dice lo que se midió entonces—; **lo que
+    mentía sobre hoy era D-93, y se corrigió allí.** **El bloqueo del despliegue no es que falte
+    configuración: es que la que hay publica la app equivocada.**
+
+    **(b)** Se afirmó al ejecutar que **el `db push` dejaba producción sin poder reservar**. El dato
+    era cierto —`staff_shifts` = 0 da cero franjas— y **la causa atribuida no**: la única app publicada
+    está **rota contra el esquema desde la Fase 1**, medido: usa `from('app_admins')` y
+    `rpc('get_all_carreras')`, que **no existen**, e `INSERT` directo en `inventory_reservations`, para
+    el que `authenticated` **no tiene privilegio**. **Nadie podía reservar en producción antes de estas
+    migraciones tampoco.**
+
+    **Y el género de (b) es el que este proyecto persigue desde D-93, en su forma espejo:** allí se
+    midió el dato y se copió la **inferencia**; aquí se midió el dato y se le colgó una **urgencia**.
+    En los dos casos lo medido era correcto y lo que viajaba encima no se comprobó.
+
+    ⚠ **De regalo, un tercer error del mismo día y de otra familia:** se dijo que el hecho de (b) «no
+    está escrito en ningún sitio». **Sí lo estaba** —en la memoria de despliegue, desde el
+    2026-08-13—, y **afirmar una ausencia sin buscarla** es lo mismo que afirmar un recuento sin
+    contarlo. Lo que sí faltaba era tenerlo **en el repositorio**, que es donde lo lee quien no tiene
+    esa memoria: queda en la bitácora y en D-93.
