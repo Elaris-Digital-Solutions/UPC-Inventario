@@ -3,7 +3,7 @@ import { calcularEstadisticas } from "@/lib/admin/estadisticas";
 import { reservasParaEstadisticas } from "@/lib/admin/reservas";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/estadisticas, Task 8 de la tanda 3B (F9 de
+// /admin/estadisticas (F9 de
 // ESPECIFICACION_FUNCIONAL.md, ampliada por D-51: ocho indicadores en vez de
 // los cinco que pide F9 -los seis estados mas el total mas la semana-, y el
 // desglose por dia de la semana de D-50).

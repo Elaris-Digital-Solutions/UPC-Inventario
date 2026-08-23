@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO y no `@/lib/admin/plural`: Vitest no conoce el alias que
-// declara tsconfig.json, y el modo de fallo es el peligroso -- `typecheck` y
-// `build` pasan en verde con el alias y solo `vitest run` se rompe. Medido en
-// la Task 8 de la tanda 3A.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { plural } from './plural';
 
 describe('plural', () => {

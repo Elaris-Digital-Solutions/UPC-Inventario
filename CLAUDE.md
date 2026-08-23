@@ -9,6 +9,13 @@ reconstruyendo primero la base de datos.
 > `FASE_1_DISENO.md` *cómo se construye* la base de datos, `FASE_2_DISENO.md` *cómo se construye* la
 > aplicación Next.js, y `PLANES/` guarda el desglose paso a paso de cada tanda. **Los planes no se
 > reescriben tras ejecutar:** lo que la ejecución desmiente va en una cabecera de correcciones.
+>
+> ⚠ **Y antes de diagnosticar un fallo raro de plataforma:
+> [`MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md`](./MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md).** Contesta *cómo
+> se comporta de verdad* PostgREST, RLS, `@supabase/ssr`, Next.js 16 y la zona horaria de Lima **en este
+> proyecto**, y se consulta **por síntoma** — que es como aparece el problema. Nació el 2026-08-22 al
+> reducir los comentarios del código: los hechos ya estaban medidos, repartidos entre los `PLANES/`
+> —que son historia fechada y se consultan por tanda— y 7 784 líneas de comentario.
 
 @AGENTS.md
 

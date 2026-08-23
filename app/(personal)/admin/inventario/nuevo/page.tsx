@@ -4,7 +4,7 @@ import { FormularioProducto } from "@/components/admin/formulario-producto";
 import { listarCategorias, listarSedes, leerSlotMinutes } from "@/lib/admin/consultas";
 import { multiplosDeSlot } from "@/lib/admin/ajustes";
 
-// /admin/inventario/nuevo, Task 2 de la tanda 3B. F7: alta de producto con sus
+// /admin/inventario/nuevo. F7: alta de producto con sus
 // unidades en un solo formulario.
 //
 // ES UNA SUBRUTA DE INVENTARIO Y NO UNA PESTAÑA (D-43). El diseño dice que

@@ -17,13 +17,9 @@ import { registrarImagen } from "@/lib/admin/acciones";
 // atraviese el proceso -- memoria y tiempo por imagen -- sin ganar nada: la
 // autorizacion ya ocurrio en el paso 1, que es donde tiene que estar.
 //
-// LOS PARAMETROS QUE SE MANDAN SON EXACTAMENTE LOS QUE SE FIRMARON. El
-// handler firma `{ timestamp, folder }`, asi que aca van esos dos y nada mas
-// entre los firmables. Agregar uno -- un `public_id` propio, un `tag` --
-// haria que Cloudinary calculara otra firma y rechazara la subida con un error
-// que suena a credenciales invalidas y manda a buscar el problema donde no
-// esta. `file` y `api_key` van pero NO se firman, que es lo que dice
-// FUERA_DE_LA_FIRMA en lib/cloudinary/firma.ts.
+// LOS PARAMETROS QUE SE MANDAN SON EXACTAMENTE LOS QUE SE FIRMARON. Agregar uno
+// mas haria que Cloudinary calculara otra firma y rechazara con un error que
+// suena a credenciales invalidas y manda a buscar el problema donde no esta.
 
 type SubidaImagenesProps = {
   productoId: string;
@@ -38,17 +34,14 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
   async function subir(archivos: FileList) {
     setError(null);
 
-    // Se piden las credenciales UNA vez para todo el lote. El `timestamp` que
-    // firma el servidor vale para las subidas del lote entero, y pedir una
-    // firma por archivo serian N viajes mas sin ninguna ganancia.
+    // Las credenciales UNA vez para todo el lote: el `timestamp` firmado vale
+    // para todas, y una firma por archivo serian N viajes sin ganancia.
     const respuesta = await fetch("/api/cloudinary/firma", { method: "POST" });
 
     if (!respuesta.ok) {
-      // El cuerpo puede no ser JSON: sin sesion, el proxy contesta un 307 a
-      // /login -- medido en la Task 4 -- y lo que llega es HTML. Por eso se
-      // intenta leer y se cae a un texto propio, en vez de dejar que un
-      // `await respuesta.json()` reviente con un error de parseo que no
-      // explicaria nada.
+      // El cuerpo puede no ser JSON: sin sesion el proxy contesta un 307 a /login
+      // y lo que llega es HTML. Sin esto, `respuesta.json()` reventaria con un
+      // error de parseo que no explica nada.
       let mensaje = "No se pudo preparar la subida.";
       try {
         const cuerpo = await respuesta.json();
@@ -64,12 +57,9 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
 
     const { timestamp, signature, apiKey, cloudName, folder } = await respuesta.json();
 
-    // EN SERIE Y NO EN PARALELO, a proposito. registrarImagen() cuenta las
-    // imagenes que ya hay para decidir `is_main` y `sort_order`; con varias
-    // subidas resolviendose a la vez, todas leerian el MISMO conteo y saldrian
-    // con el mismo `sort_order` -- y si el producto estaba vacio, TODAS se
-    // marcarian principales. Es una carrera de lectura-y-escritura, y en serie
-    // no existe.
+    // EN SERIE Y NO EN PARALELO: registrarImagen() cuenta las imagenes que ya hay
+    // para decidir `is_main` y `sort_order`, asi que en paralelo todas leerian el
+    // MISMO conteo y, con el producto vacio, TODAS se marcarian principales.
     for (const archivo of Array.from(archivos)) {
       setProgreso(`Subiendo ${archivo.name}…`);
 
@@ -88,11 +78,8 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
       });
 
       if (!subida.ok) {
-        // El mensaje CRUDO de Cloudinary, no uno propio: los rechazos de aca
-        // -- firma invalida, formato no admitido, cuenta sin cuota -- son
-        // cosas que este codigo no puede anticipar ni traducir con honestidad.
-        // Mismo criterio que el resto del proyecto: texto propio solo para lo
-        // alcanzable y previsto, crudo para lo demas.
+        // El mensaje CRUDO de Cloudinary: sus rechazos -firma invalida, formato
+        // no admitido, cuenta sin cuota- no se pueden traducir con honestidad.
         const detalle = await subida.text();
         setError(`Cloudinary rechazó ${archivo.name}: ${detalle}`);
         setProgreso(null);
@@ -110,10 +97,8 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
         bytes: datos.bytes ?? null,
       });
 
-      // La imagen YA esta en Cloudinary y la fila no se guardo. Se dice tal
-      // cual en vez de disimularlo: el archivo existe, no se ve en el
-      // catalogo, y quien lo lea tiene que saber que reintentar sube una
-      // segunda copia.
+      // La imagen YA esta en Cloudinary y la fila no se guardo. Se dice tal cual:
+      // quien lo lea tiene que saber que reintentar sube una segunda copia.
       if (resultado?.error) {
         setError(
           `${archivo.name} se subió a Cloudinary pero no se pudo guardar en el catálogo: ${resultado.error}`,
@@ -125,9 +110,8 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
 
     setProgreso(null);
 
-    // El input se limpia para que elegir el MISMO archivo otra vez vuelva a
-    // disparar `onChange`. Sin esto, un reintento tras un error no haria nada
-    // y pareceria que el boton esta roto.
+    // Se limpia para que elegir el MISMO archivo vuelva a disparar `onChange`:
+    // sin esto, un reintento tras un error pareceria un boton roto.
     if (inputRef.current) {
       inputRef.current.value = "";
     }

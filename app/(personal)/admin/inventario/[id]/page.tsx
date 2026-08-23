@@ -10,7 +10,7 @@ import { multiplosDeSlot } from "@/lib/admin/ajustes";
 import { leerProducto, leerSlotMinutes, listarCategorias, listarSedes } from "@/lib/admin/consultas";
 import { notasPorUnidad } from "@/lib/mostrador/notas";
 
-// /admin/inventario/[id], Tasks 3 y 5 de la tanda 3B. El detalle de un
+// /admin/inventario/[id]. El detalle de un
 // producto: sus datos editables, sus unidades con estado e historial, y -- a
 // partir de la Task 5 -- sus imagenes.
 //
@@ -24,7 +24,7 @@ export default async function DetalleProductoPage({
 
   const producto = await leerProducto(id);
 
-  // `null` cubre los DOS casos que la T2A midio por separado en /catalogo/[id]
+  // `null` cubre los DOS casos que se midieron por separado en /catalogo/[id]
   // y que fallan distinto: un UUID inexistente -- cero filas, HTTP 200 -- y un
   // id MALFORMADO -- `22P02`, HTTP 400 --. leerProducto() los une; aca los dos
   // acaban en el mismo 404, que es lo correcto: en los dos la URL esta mal.
@@ -36,7 +36,7 @@ export default async function DetalleProductoPage({
   // TAL CUAL de lib/mostrador/notas.ts: pide las notas de varias unidades en
   // UNA consulta con `in.(...)` y las devuelve agrupadas, que es exactamente
   // lo que esta pantalla necesita. No depende de ninguna reserva -- por eso la
-  // T3A la separo de lib/mostrador/consultas.ts --, asi que sirve igual acá.
+  // vive separada de lib/mostrador/consultas.ts --, asi que sirve igual aca.
   const [notas, categorias, sedes, slotMinutes] = await Promise.all([
     notasPorUnidad(producto.unidades.map((u) => u.id)),
     listarCategorias(),

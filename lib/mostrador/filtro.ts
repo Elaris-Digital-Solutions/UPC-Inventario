@@ -1,55 +1,25 @@
-// El filtro de fecha del mostrador (F5), como logica pura: mismo espiritu
-// que columnaDeReserva() en lib/mostrador/columnas.ts -se puede PROBAR sin
-// montar React ni Supabase, y "que reserva pasa el filtro" se decide en UN
-// SOLO SITIO, no en cada boton que lo use-.
+// El filtro de fecha del mostrador (F5), como logica pura: se puede PROBAR sin
+// montar React ni Supabase, y "que reserva pasa el filtro" se decide en UN SOLO
+// SITIO.
 //
-// Decision de Alejandro, tomada el 2026-08-12 y NO discutida aca:
+// DOS DECISIONES:
 //
-//   1. El filtro ACOTA HACIA ADELANTE, nunca hacia atras. Una reserva de
-//      "Por entregar" cuya hora ya paso -el alumno no vino- se ve con
-//      CUALQUIER opcion del filtro, incluida "Hoy": son justamente las
-//      candidatas a "No se retiro", y esconderlas haria que esa falta no se
-//      marcara nunca. Por eso la condicion de abajo es un TECHO, sin suelo:
-//      no hay ningun `>=` que descarte una reserva por vieja.
-//   2. Las ventanas son MOVILES, no de calendario. "Hoy" es solo hoy;
-//      "proximos 3 dias" es hoy y los dos siguientes; "esta semana" es hoy y
-//      los seis siguientes. El tamano no cambia segun el dia de la semana en
-//      que se mire -no hay ningun concepto de "domingo a sabado" aca-, mismo
-//      criterio movil que ya usa diasDeLaVentana() (lib/reservas/rejilla.ts)
-//      para la ventana de reserva del alumno.
+//   1. ACOTA HACIA ADELANTE, NUNCA HACIA ATRAS. Una reserva de "Por entregar"
+//      cuya hora ya paso se ve con CUALQUIER opcion, incluida "Hoy": son
+//      justamente las candidatas a "No se retiro", y esconderlas haria que esa
+//      falta no se marcara nunca. Por eso la condicion es un TECHO, sin suelo.
+//   2. VENTANAS MOVILES, no de calendario: el tamaño no cambia segun el dia en
+//      que se mire. Mismo criterio que diasDeLaVentana().
 //
-// Combinando las dos: una reserva pasa el filtro si
-// `fechaEnLima(inicio) <= hoy + N`, con N = 0, 2 o 6 segun la opcion, y
-// "todas" sin ninguna condicion.
-//
-// Import RELATIVO, no `@/lib/reservas/rejilla`, y a proposito DISTINTO del
-// que usa lib/mostrador/consultas.ts para el mismo cruce de carpetas
-// (`@/lib/reservas/consultas`). La diferencia no es un descuido: consultas.ts
-// nunca lo carga Vitest -no existe consultas.test.ts-, mientras que ESTE
-// archivo si lo carga filtro.test.ts. El proyecto SI tiene configuracion de
-// Vitest desde la T4 -`vitest.config.mts`-, pero ahi dentro solo se declara el
-// `exclude` de los specs de Playwright: NO declara el alias `@/*` que si
-// declara `tsconfig.json`, asi que Vitest sigue sin conocerlo -el mismo motivo
-// por el que columnas.test.ts y rejilla.test.ts importan con ruta relativa en
-// vez de alias-. Con el alias, `tsc` y `next build` lo resuelven igual y no
-// habria fallado ninguno de los dos; solo `vitest run` se rompe, y solo
-// porque este archivo es el sujeto de una prueba.
-//
-// La premisa vieja de este parrafo -«el proyecto no tiene vitest.config.ts»-
-// era cierta cuando se escribio y caduco al crear ese archivo la Task 3 de la
-// T4. La CONCLUSION nunca dejo de ser cierta, y se comprobo abriendo el
-// archivo en vez de darla por buena: una conclusion correcta sostenida por una
-// premisa falsa es de los defectos que ninguna herramienta de este proyecto
-// puede ver, porque vive dentro de un comentario y todo compila igual.
+// Import RELATIVO y no `@/`, a proposito distinto del que usa
+// lib/mostrador/consultas.ts para el mismo cruce: a aquel no lo carga Vitest y a
+// este si, y bajo Vitest el alias no resuelve. Ver COMPORTAMIENTO_MEDIDO.md §5.
 import { fechaEnLima, sumarDias } from '../reservas/rejilla';
 
 export type FiltroFecha = 'hoy' | 'tres_dias' | 'semana' | 'todas';
 
-// Cuantos dias suma el techo de cada opcion, contando HOY como el dia 0:
-// "hoy" no suma nada -techo = hoy-, "tres_dias" cubre hoy + 2 mas -tres dias
-// civiles en total-, "semana" cubre hoy + 6 mas -siete dias civiles en
-// total-. "todas" no esta en esta tabla porque no tiene techo: se resuelve
-// aparte, antes de mirarla, en pasaFiltroFecha().
+// Cuantos dias suma el techo de cada opcion, contando HOY como el dia 0. "todas"
+// no esta porque no tiene techo: se resuelve antes de mirar la tabla.
 const DIAS_DE_TECHO: Record<Exclude<FiltroFecha, 'todas'>, number> = {
   hoy: 0,
   tres_dias: 2,
@@ -59,15 +29,11 @@ const DIAS_DE_TECHO: Record<Exclude<FiltroFecha, 'todas'>, number> = {
 /**
  * Si una reserva pasa el filtro de fecha de la columna "Por entregar".
  *
- * `inicio` es el instante de arranque de la reserva, en ISO tal como llega
- * de ReservaMostrador.inicio. `ahora` es el instante actual -RECIBIDO y no
- * leido con `new Date()` por dentro, mismo motivo que ya explican
- * hoyEnLima() y columnaDeReserva(): una funcion que lee el reloj del sistema
- * no se puede probar en la frontera de medianoche, que es justo donde este
- * filtro se rompe si se escribe mal-.
+ * `ahora` se RECIBE y no se lee con `new Date()`: una funcion que lee el reloj no
+ * se puede probar en la frontera de medianoche, que es justo donde este filtro se
+ * rompe si se escribe mal.
  *
  * SIN SUELO: no hay ninguna comparacion que descarte una reserva por vieja.
- * Ver el punto 1 del comentario de cabecera.
  */
 export function pasaFiltroFecha(inicio: string, ahora: Date, filtro: FiltroFecha): boolean {
   if (filtro === 'todas') {
@@ -77,14 +43,11 @@ export function pasaFiltroFecha(inicio: string, ahora: Date, filtro: FiltroFecha
   const hoy = fechaEnLima(ahora);
   const techo = sumarDias(hoy, DIAS_DE_TECHO[filtro]);
 
-  // Comparacion de texto sin ningun truco: las dos fechas son `YYYY-MM-DD`,
-  // el mismo formato que devuelve fechaEnLima() en los dos lados, y ese
-  // formato ordena igual como texto que como fecha.
+  // Comparacion de texto sin truco: las dos son `YYYY-MM-DD`, y ese formato
+  // ordena igual como texto que como fecha.
   return fechaEnLima(new Date(inicio)) <= techo;
 }
 
-// Las etiquetas de interfaz, CON sus tildes -a diferencia de los comentarios
-// de este archivo, que van sin acentos ni ene por convencion del proyecto-.
 export const ETIQUETAS_FILTRO_FECHA: Record<FiltroFecha, string> = {
   hoy: 'Hoy',
   tres_dias: 'Próximos 3 días',
@@ -92,15 +55,7 @@ export const ETIQUETAS_FILTRO_FECHA: Record<FiltroFecha, string> = {
   todas: 'Todas',
 };
 
-// El orden de pintado, como array EXPLICITO en vez de
-// `Object.keys(ETIQUETAS_FILTRO_FECHA)` -mismo motivo que COLUMNAS en
-// app/(personal)/mostrador/page.tsx: `Object.keys()` devuelve `string[]`, y
-// convertirlo a `FiltroFecha[]` exigiria un `as` que le mentiria al
-// compilador sobre algo que si puede comprobar solo. La red de seguridad
-// real es ETIQUETAS_FILTRO_FECHA, arriba: al ser un `Record<FiltroFecha,
-// string>` con las CUATRO claves escritas a mano, si `FiltroFecha` ganara o
-// perdiera un miembro el typecheck de ESE objeto fallaria antes de llegar
-// aca -el mismo mecanismo que TITULOS (Record<Columna, string>) ya usa en
-// page.tsx-. Este array solo evita el `as` al recorrerlo para pintar los
-// botones.
+// Array EXPLICITO y no `Object.keys()`: eso devuelve `string[]` y convertirlo
+// exigiria un `as`. La red de seguridad es el `Record` de arriba, con las cuatro
+// claves escritas: si el tipo cambiara, su typecheck fallaria primero.
 export const ORDEN_FILTROS_FECHA: readonly FiltroFecha[] = ['hoy', 'tres_dias', 'semana', 'todas'];

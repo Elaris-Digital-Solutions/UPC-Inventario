@@ -1,6 +1,4 @@
-// El panel del alumno, Task 12 de la tanda 2B. Vive bajo app/(alumno)/, asi
-// que exige sesion igual que el resto del grupo -el layout ya comprobo
-// getClaims() antes de llegar aca (app/(alumno)/layout.tsx)-.
+// El panel del alumno. Bajo app/(alumno)/, asi que el layout ya exigio sesion.
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -14,11 +12,9 @@ import {
 } from "@/lib/reservas/consultas";
 import { EncabezadoSeccion } from "@/components/antetitulo";
 
-// Una sola pasada agrupando, en vez de tres `.filter()` -uno por seccion-
-// que cada uno volveria a llamar grupoDeReserva() para cada reserva. Con las
-// pocas reservas que un alumno real va a tener esto no cambia nada medible,
-// pero evita que la logica de "a que grupo pertenece" quede repetida tres
-// veces en este archivo con la excusa de que es barata.
+// UNA sola pasada en vez de tres `.filter()`. Con las pocas reservas de un alumno
+// no cambia nada medible, pero evita repetir tres veces la logica de "a que grupo
+// pertenece" con la excusa de que es barata.
 function agruparReservas(
   reservas: ReservaDelAlumno[],
   ahora: Date,
@@ -37,29 +33,17 @@ function agruparReservas(
 }
 
 export default async function MiPanelPage() {
-  // En paralelo, y no en secuencia: las TRES consultas son independientes
-  // -una lee inventory_reservations, otra final_satisfaction_surveys y la
-  // tercera app_settings- y ninguna necesita el resultado de otra para
-  // ejecutarse. Eran DOS hasta la Tanda 5, y este comentario lo decia: la
-  // tercera la trae M-12.
-  //
-  // El margen entra en este mismo `Promise.all` y no en un `await` suelto
-  // detras. El plan de la Tanda 5 dictaba `const ajustes = await
-  // ajustesReserva();` por separado; se sigue el patron que la pagina ya
-  // tenia, que ademas no serializa una consulta que no depende de ninguna
-  // otra.
+  // En paralelo: las tres consultas son independientes y ninguna necesita el
+  // resultado de otra.
   const [reservas, encuesta, ajustes] = await Promise.all([
     misReservas(),
     miEncuesta(),
     ajustesReserva(),
   ]);
 
-  // UNA SOLA lectura del reloj para toda la pantalla, reutilizada tanto para
-  // agrupar como para pasarla a cada <TarjetaReserva>. Es el fallo M-7 que ya
-  // senala el comentario de TarjetaReservaProps: dos lecturas del reloj para
-  // la misma decision pueden desincronizarse entre si -una reserva que
-  // venciera justo entre las dos llamadas quedaria agrupada con un `ahora` y
-  // evaluada por seOfreceCancelar() con otro.
+  // UNA SOLA lectura del reloj para toda la pantalla (regla M-7): con dos, una
+  // reserva que venciera entre ambas quedaria agrupada con un `ahora` y evaluada
+  // por seOfreceCancelar() con otro.
   const ahora = new Date();
   const { en_curso, proxima, pasada } = agruparReservas(reservas, ahora);
 
@@ -110,14 +94,10 @@ export default async function MiPanelPage() {
       )}
 
       {reservas.length === 0 ? (
-        // La pantalla vacia se diseña en serio y no se improvisa: CERO
-        // RESERVAS es el estado real de produccion hoy -no hay ninguna
-        // reserva creada fuera de un escenario de prueba-, asi que esta es
-        // la primera pantalla que va a ver cualquiera que entre a
-        // /mi-panel apenas se abra el sitio. Un titulo claro, una frase que
-        // diga que hacer, y un boton que lleve al catalogo -no un parrafo
-        // suelto sin salida, como si el alumno tuviera que adivinar el
-        // siguiente paso-.
+        // La pantalla vacia se diseña en serio: CERO RESERVAS es el estado real
+        // de produccion, asi que esta es la primera pantalla que ve cualquiera
+        // que entre. Un titulo, una frase y un boton al catalogo, no un parrafo
+        // sin salida.
         <div className="border-border mt-8 flex flex-col items-center gap-4 rounded-lg border border-dashed py-16 text-center">
           <p className="text-lg font-medium">Todavía no tienes reservas</p>
           <p className="text-muted-foreground max-w-md text-sm">

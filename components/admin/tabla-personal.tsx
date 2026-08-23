@@ -1,20 +1,13 @@
 "use client";
 
-// El alta y la tabla de /admin/personal (Task 9 de la tanda 3B, D-52 y D-53).
-// Misma idea que PanelDias (components/admin/panel-dias.tsx): el formulario
-// de alta y la lista comparten estado -- dar de alta a alguien tiene que
-// hacer aparecer la fila nueva sin recargar --, asi que van en un solo Client
-// Component en vez de repartirse en dos hermanos que igual necesitarian un
-// padre comun con ese mismo estado.
+// El alta y la tabla de /admin/personal (D-52, D-53). El formulario y la lista
+// comparten estado -dar de alta tiene que hacer aparecer la fila sin recargar-,
+// asi que van en un solo Client Component.
 //
-// SIN <form action={...}> Y SIN useActionState, igual que
-// FormularioEditarProducto (components/admin/formulario-editar-producto.tsx):
-// React RESETEA un <form action> cuando la accion TERMINA, tambien cuando
-// devuelve error, y eso ya costo perder un formulario entero en esta misma
-// tanda (ver el comentario de ese archivo). El alta se dispara con
-// useTransition sobre un onClick, con los campos controlados por useState, asi
-// que un correo mal escrito que la accion rechaza SIGUE en pantalla para
-// corregirlo -- no hay reset de por medio que pueda borrarlo.
+// SIN <form action={...}> Y SIN useActionState: React RESETEA un `<form action>`
+// cuando la accion TERMINA, tambien cuando devuelve error. Con useTransition
+// sobre un onClick y campos controlados, un correo que la accion rechaza SIGUE
+// en pantalla para corregirlo. Ver COMPORTAMIENTO_MEDIDO.md §6.
 import { useId, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -54,9 +47,7 @@ const ETIQUETAS_ROL: Record<RolStaff, string> = {
   operator: "Operador",
 };
 
-// `registro` (created_at) es un instante -- `timestamptz`, no una fecha civil
-// como `disabled_days.date` --, asi que se formatea en America/Lima, igual
-// criterio que FORMATO_FECHA_HORA de components/admin/tabla-reservas.tsx.
+// `registro` es un INSTANTE y no una fecha civil, asi que va en America/Lima.
 // Solo dia: "desde cuando" no necesita la hora.
 const FORMATO_FECHA = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -65,9 +56,8 @@ const FORMATO_FECHA = new Intl.DateTimeFormat("es-PE", {
   year: "numeric",
 });
 
-// El correo de un miembro, o su user_id cuando no hay fila en `alumnos` --
-// ver el comentario de MiembroPersonal.alumno en lib/admin/filtros.ts: puede
-// pasar con una cuenta de personal de otro dominio.
+// El correo, o el user_id cuando no hay fila en `alumnos` -posible con una
+// cuenta de personal de otro dominio, ver MiembroPersonal en lib/admin/filtros.ts-.
 function celdaCorreo(m: MiembroPersonal): string {
   return m.alumno?.email ?? m.userId;
 }
@@ -83,12 +73,9 @@ function celdaNombre(m: MiembroPersonal): string {
 
 type TablaPersonalProps = {
   personal: MiembroPersonal[];
-  // El sub de quien tiene la sesion abierta, leido por page.tsx con
-  // getClaims(). `string | undefined` porque asi sale de
-  // `data?.claims.sub` -- en la practica siempre llega, porque
-  // app/(personal)/layout.tsx ya redirige a quien no tiene sesion antes de
-  // que esta pantalla se pinte, pero el tipo no promete eso y no se le miente
-  // con un `!`.
+  // El sub de quien tiene la sesion abierta. `string | undefined` porque asi
+  // sale de `data?.claims.sub`: en la practica siempre llega, pero el tipo no lo
+  // promete y no se le miente con un `!`.
   miUserId: string | undefined;
 };
 
@@ -118,9 +105,8 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
         return;
       }
 
-      // Solo se limpia en el EXITO. El correo que la accion rechazo se queda
-      // escrito para corregirlo -- no hay ningun reset automatico de por
-      // medio que pueda borrarlo primero.
+      // Solo se limpia en el EXITO: el correo rechazado se queda escrito para
+      // corregirlo.
       setCorreo("");
       setRolAlta("operator");
     });
@@ -159,15 +145,9 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
       <section className="space-y-4">
         <h2 className="font-display text-lg font-semibold">Dar de alta a alguien</h2>
 
-        {/* EL TEXTO DE PANTALLA, en tuteo. NO cuenta el motivo tecnico -- que
-            staff_members.user_id referencia auth.users, que la aplicacion
-            solo ve los esquemas public y graphql_public (supabase/config.toml)
-            y que por eso esta pantalla busca sobre alumnos.auth_user_id, la
-            columna que el trigger handle_new_auth_user
-            (supabase/migrations/20260805194424_alumno_provisioning.sql:26-37)
-            llena al PEDIR el enlace de acceso, no al abrirlo --. Eso queda
-            aca, en el comentario; lo que lee la persona es solo la
-            consecuencia practica. */}
+        {/* El texto NO cuenta el motivo tecnico -que la busqueda va sobre
+            `alumnos.auth_user_id`, que el trigger llena al PEDIR el enlace-:
+            lo que lee la persona es solo la consecuencia practica. */}
         <p className="text-muted-foreground text-sm">
           Solo puedes dar de alta a alguien que ya entró al sistema alguna vez: pídele que abra la
           página de acceso y pida su enlace con su correo @upc.edu.pe. Después, escribe ese correo acá
@@ -213,11 +193,9 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
       </section>
 
       <section className="space-y-4">
-        {/* DOS RECUENTOS Y NO UNO, con plural() los dos: `personal` trae
-            tambien a quien esta desactivado, y esa gente es justo la que NO
-            tiene acceso. Un solo "{n} con acceso" contando el array entero
-            mentiria en cuanto hubiera un desactivado -- mismo genero que
-            "1 activas", que es por lo que existe plural(). */}
+        {/* DOS RECUENTOS Y NO UNO: `personal` trae tambien a quien esta
+            desactivado, que es justo quien NO tiene acceso. Uno solo mentiria
+            en cuanto hubiera un desactivado. */}
         <h2 className="font-display text-lg font-semibold">
           {plural(activos, "persona", "personas")} con acceso
           {desactivados > 0 && <> · {plural(desactivados, "desactivada", "desactivadas")}</>}
@@ -249,28 +227,11 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
               <TableBody>
                 {personal.map((m) => {
                   // LA FILA DE QUIEN ESTA MIRANDO, sin sus dos controles.
-                  //
-                  // ESTO NO ES UN CONTROL: quien decide de verdad es RLS, y RLS
-                  // SI deja al admin tocar su propia fila. MEDIDO hoy
-                  // 2026-08-13 por PostgREST contra el stack local -- ver el
-                  // comentario de cambiarRolPersonal() y
-                  // cambiarActivoPersonal() en lib/admin/acciones.ts, que
-                  // repite esta misma comprobacion en el servidor --:
-                  //
-                  //   - El admin desactivandose a si mismo: HTTP 200 CON LA
-                  //     FILA de vuelta. RLS lo permite.
-                  //   - Ese mismo admin, despues, intentando reactivarse:
-                  //     HTTP 200 con CUERPO VACIO `[]`. private.is_admin()
-                  //     exige `activo` y ya no lo esta, asi que la politica lo
-                  //     deja fuera en silencio.
-                  //
-                  // Sigue viendo su propia fila en esta tabla -- por eso
-                  // veria el problema -- pero no podria arreglarlo desde
-                  // aca. Con UN SOLO administrador en produccion, ese clic
-                  // deja a todo el personal sin panel y sin nadie que pueda
-                  // revertirlo desde la aplicacion. Esconder el boton evita
-                  // pisar ese caso; el agujero por SQL directo SIGUE ABIERTO,
-                  // esto no lo cierra.
+                  // NO ES UN CONTROL: RLS SI deja al admin tocar su propia fila,
+                  // y despues no puede revertirlo. Con UN SOLO administrador en
+                  // produccion, ese clic deja a todo el personal sin panel.
+                  // Esconder el boton evita pisarlo; el agujero por SQL directo
+                  // sigue abierto. Ver COMPORTAMIENTO_MEDIDO.md §2.
                   const esUno = miUserId !== undefined && m.userId === miUserId;
 
                   return (
@@ -318,23 +279,15 @@ export function TablaPersonal({ personal, miUserId }: TablaPersonalProps) {
                         {FORMATO_FECHA.format(new Date(m.registro))}
                       </TableCell>
 
-                      {/*
-                        D-80 / D-85: la fecha del PRIMER magic link, que no la
-                        guarda este proyecto -- la escribe Supabase Auth al
-                        PEDIRLO -- y que la migracion 31 expone.
+                      {/* D-80/D-85: la fecha del PRIMER magic link, que la
+                          escribe Supabase Auth y expone la migracion 31.
 
-                        SE LLAMA "Primer correo" Y NO "Acceso" NI "Desde" a
-                        proposito: esta tabla ya tiene esas dos, y "Desde" es
-                        ademas otra fecha -- cuando se le dio de alta como
-                        personal --. Tres fechas con nombres parecidos se leen
-                        mal.
+                          "Primer correo" y no "Acceso" ni "Desde": la tabla ya
+                          tiene esas dos, y tres fechas con nombres parecidos se
+                          leen mal.
 
-                        EL GUION NO ES UN FALLO: `primerAcceso` es null cuando
-                        la cuenta no paso por Auth -- una fila de personal
-                        insertada por SQL directo -- o cuando quien mira no es
-                        admin, que aqui no puede pasar porque el layout lo para
-                        antes.
-                      */}
+                          EL GUION NO ES UN FALLO: es null cuando la cuenta no
+                          paso por Auth. */}
                       <TableCell className="whitespace-nowrap">
                         {m.primerAcceso === null ? (
                           <span className="text-muted-foreground">—</span>

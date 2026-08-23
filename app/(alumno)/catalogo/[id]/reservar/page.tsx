@@ -1,30 +1,17 @@
-// El calendario de reserva, Task 9 de la tanda 2B. Vive bajo app/(alumno)/,
-// asi que exige sesion igual que el resto del grupo -el layout ya comprobo
-// getClaims() antes de llegar aca (app/(alumno)/layout.tsx)-.
+// El calendario de reserva. Bajo app/(alumno)/, asi que el layout del grupo ya
+// exigio sesion.
 //
-// Next.js 16: `params` y `searchParams` llegan como Promise y hay que
-// esperarlos antes de leer sus propiedades, igual que en
-// app/(alumno)/catalogo/[id]/page.tsx y app/(alumno)/catalogo/page.tsx.
+// Next.js 16: `params` y `searchParams` llegan como Promise y hay que esperarlos
+// antes de leer sus propiedades.
 //
-// La sede llega por query param (`?sede=`) y no por el `params` de la ruta:
-// una reserva es contra la unidad de UNA sede, y esta pantalla no tiene
-// forma propia de saber cual sin que se la digan -a diferencia del detalle,
-// que ensena el stock de todas-. Por eso, sin `?sede=` en la URL esta
-// pagina no tiene nada valido que pintar y sale por notFound(), igual que un
-// id de producto que no existe.
+// LA SEDE VIENE POR `?sede=` y no por el `params` de la ruta: una reserva es
+// contra la unidad de UNA sede, y esta pantalla no tiene forma propia de saber
+// cual. Sin ella no hay nada valido que pintar, asi que sale por notFound().
 //
-// El dia y la duracion tambien son query params -`?dia=` y `?duracion=`- y
-// no estado de React, aunque los dos se puedan cambiar desde botones: el
-// dato que decide que pintar (franjasDelDia) se calcula en el SERVIDOR, asi
-// que el unico lugar donde "el dia elegido" puede vivir es la URL.
-// ~~Los componentes de cliente (SelectorDuracion, Calendario) solo
-// navegan.~~ Cierto para SelectorDuracion y para el selector de dia dentro
-// de Calendario -los dos cambian la URL-, pero desde la Task 10 Calendario
-// TAMBIEN recibe un callback (`onElegirFranja`) para la franja elegida, que
-// no navega a ningun lado: ese estado lo guarda FormularioReserva
-// (components/reservas/formulario-reserva.tsx), el Client Component que
-// ahora monta a Calendario en vez de esta pagina. El motivo de la
-// diferencia esta explicado alli.
+// EL DIA Y LA DURACION TAMBIEN SON QUERY PARAMS y no estado de React: lo que
+// decide que pintar se calcula en el SERVIDOR, asi que el unico sitio donde
+// pueden vivir es la URL. La franja elegida SI es estado de cliente, porque no
+// pide nada nuevo a la base: la guarda FormularioReserva.
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -51,20 +38,17 @@ export default async function ReservarPage({
   const { id } = await params;
   const { sede, dia, duracion } = await searchParams;
 
-  // Sin sede no hay unidad contra la que reservar: no es un valor opcional
-  // con un "por defecto" razonable, a diferencia de la sede del catalogo
-  // (app/(alumno)/catalogo/page.tsx), que si puede caer en la primera activa
-  // porque ahi solo decide que se MUESTRA, no contra que se reserva.
+  // Sin sede no hay unidad contra la que reservar, y no hay "por defecto"
+  // razonable: en el catalogo si lo hay, porque alli solo decide que se MUESTRA.
   if (sede === undefined) {
     notFound();
   }
 
-  // D-79: LA PUERTA DEL PERFIL VIVE AQUI, no en el layout del grupo (alumno).
+  // D-79: LA PUERTA DEL PERFIL VIVE AQUI y no en el layout del grupo.
   //
-  // La sesion se resuelve otra vez, y no es duplicacion: un layout NO le pasa
-  // props a su pagina en el App Router, asi que la comprobacion del layout
-  // -que hay sesion y fila en alumnos- no llega hasta aca. Y lo que se
-  // comprueba tampoco es lo mismo: alli, que exista; aca, que este completa.
+  // Resolver la sesion otra vez NO es duplicacion: un layout no le pasa props a su
+  // pagina, y lo que se comprueba tampoco es lo mismo -alli que exista, aqui que
+  // este completa-.
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const sub = claims?.claims.sub;
@@ -104,37 +88,19 @@ export default async function ReservarPage({
     notFound();
   }
 
-  // La sede NO se pasa cruda a la RPC: primero se comprueba que exista entre
-  // las activas. Sin esta comprobacion, un `?sede=` inventado hace que
-  // available_slots falle con `22P02` -"invalid input syntax for type uuid"-,
-  // y franjasDelDia() se traga ese error y devuelve un array vacio, con lo
-  // que la pantalla diria "no hay franjas para esta duracion" cuando lo que
-  // pasa es que la URL esta mal.
-  //
-  // Es el mismo par de casos que la tarea 2A.6 ya separo en el detalle: un id
-  // malformado y uno inexistente fallan distinto y solo uno es silencioso.
-  // Aqui el silencioso seria peor, porque no se ve como un error sino como
-  // una respuesta legitima.
+  // LA SEDE NO SE PASA CRUDA A LA RPC: un `?sede=` inventado haria fallar
+  // `available_slots` con `22P02`, franjasDelDia() se traga ese error y devuelve
+  // vacio, y la pantalla diria "no hay franjas" cuando lo que pasa es que la URL
+  // esta mal. Ese silencio es peor que un error: parece una respuesta legitima.
   const sedes = await sedesActivas();
   if (!sedes.some((s) => s.id === sede)) {
     notFound();
   }
 
-  // El bloqueo por sancion se comprueba ANTES de pedir nada del calendario
-  // -ajustesReserva(), franjasDelDia(), diasInhabilitados()-, las TRES
-  // consultas que existen solo para pintar la rejilla (ver el comentario al
-  // principio de lib/reservas/consultas.ts). Si el alumno esta sancionado,
-  // `create_reservation` va a rechazar la reserva pase lo que pase -paso 2 de
-  // la RPC, y sigue rechazando aunque se la llame sin pasar por esta
-  // pantalla-, asi que pedir esas tres consultas para terminar enseñando una
-  // rejilla de la que no se puede salir seria trabajo tirado. Y enseñarla de
-  // todos modos seria ofrecer un calendario con el que no se puede terminar:
-  // el mismo criterio con el que la Task 10 dejo el boton "Reservar" del
-  // detalle deshabilitado cuando el producto no tiene unidades en ninguna
-  // sede (app/(alumno)/catalogo/[id]/page.tsx), en vez de fingir que
-  // funcionaba. Ese caso es de la Task 10 y no de la 9, aunque el boton
-  // llevara deshabilitado desde antes por un motivo distinto -entonces no
-  // existia la Server Action-.
+  // ANTES de pedir nada del calendario: si el alumno esta sancionado,
+  // `create_reservation` va a rechazar pase lo que pase, asi que las tres
+  // consultas de la rejilla serian trabajo tirado. Y enseñarla igual seria
+  // ofrecer un calendario con el que no se puede terminar.
   const bannedUntil = await sancionDelAlumno();
   const sancion = sancionVigente(bannedUntil, new Date());
 
@@ -152,10 +118,8 @@ export default async function ReservarPage({
           Reservar {producto.name}
         </h1>
 
-        {/* role="alert", igual que el bloque de error de
-            components/reservas/formulario-reserva.tsx: aca no hay ni
-            calendario, ni selector de duracion, ni formulario -nada que
-            llevaria a una reserva que el motor va a rechazar igual-. */}
+        {/* role="alert": aqui no hay calendario ni formulario, nada que llevara
+            a una reserva que el motor va a rechazar igual. */}
         <p
           role="alert"
           className="bg-destructive/10 text-destructive mt-8 rounded-lg px-4 py-3 text-sm"
@@ -168,8 +132,7 @@ export default async function ReservarPage({
 
   const ajustes = await ajustesReserva();
 
-  // Las mismas dos funciones puras que ya probo Task 8 (lib/reservas/rejilla.test.ts):
-  // ninguna de las dos toca la base, asi que se calculan aca sin await.
+  // Las dos son puras y no tocan la base, asi que se calculan sin await.
   const dias = diasDeLaVentana(new Date(), ajustes.bookingWindowDays);
   const duraciones = duracionesPosibles(
     producto.maxDurationHours,
@@ -177,10 +140,8 @@ export default async function ReservarPage({
     ajustes.minDurationMinutes,
   );
 
-  // Un `?dia=` o `?duracion=` que no casa con lo calculado -viejo, copiado a
-  // mano, o de un producto con otra duracion maxima- cae al primer valor
-  // valido en vez de romper la pagina: mismo criterio que ya uso el catalogo
-  // con una `?sede=` que no existe (`sedes.find(...) ?? sedes[0]`).
+  // Un `?dia=` o `?duracion=` que no casa -viejo, o de un producto con otra
+  // duracion maxima- cae al primer valor valido en vez de romper la pagina.
   const diaElegido = dia !== undefined && dias.includes(dia) ? dia : dias[0];
   const duracionElegida =
     duracion !== undefined && duraciones.includes(Number(duracion))
@@ -220,18 +181,12 @@ export default async function ReservarPage({
       <section className="mt-8">
         <h2 className="font-display text-xl">Elige el día y la hora</h2>
         <div className="mt-3">
-          {/* La `key` combina dia y duracion, y NO es decorativa. Cambiar de
-              dia o de duracion es un router.push() a esta misma ruta -lo
-              hacen SelectorDuracion y el selector de dia dentro de
-              Calendario-, asi que React reconcilia el arbol existente en vez
-              de montar uno nuevo, y el ESTADO DE CLIENTE de FormularioReserva
-              -franjaElegida, motivo- sobrevive al cambio de props. Sin esta
-              key, un alumno podria elegir las 10:00 del martes, cambiar al
-              miercoles, y el hidden `slotStart` seguiria llevando el instante
-              del martes: se reservaria una franja que ya no eligio, sin que
-              nada en pantalla lo delatara. La key fuerza a React a
-              DESMONTAR el componente viejo y montar uno nuevo cada vez que
-              dia o duracion cambian, lo que limpia ese estado por completo. */}
+          {/* La `key` NO es decorativa. Cambiar de dia o de duracion es un
+              router.push() a esta misma ruta, asi que React reconcilia el arbol
+              y el estado de cliente SOBREVIVE. Sin ella, elegir las 10:00 del
+              martes y cambiar al miercoles dejaria el hidden `slotStart` con el
+              instante del martes: se reservaria una franja que ya no se eligio,
+              sin que nada en pantalla lo delatara. */}
           <FormularioReserva
             key={`${diaElegido}-${duracionElegida}`}
             productoId={producto.id}

@@ -2,7 +2,7 @@ import { FormularioAjustes } from "@/components/admin/formulario-ajustes";
 import { leerAjustes, productosConBuffer } from "@/lib/admin/configuracion";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/ajustes, Task 10 de la tanda 3B (D-39 trae esta pantalla y con ella
+// /admin/ajustes (D-39 trae esta pantalla y con ella
 // la segunda mitad de Q-14; D-54 añade la comprobacion de la apertura y DEJA
 // Q-19 ABIERTO para la T4 -Q-19 no se cierra hoy: es el pendiente de que la
 // base defienda con su propio `check` lo que D-54 solo parchea del lado de la

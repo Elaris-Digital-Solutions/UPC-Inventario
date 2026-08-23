@@ -1,4 +1,4 @@
-// La pantalla de la encuesta final de satisfaccion, Task 14 de la tanda 2B
+// La pantalla de la encuesta final de satisfaccion
 // (BR-18). Vive bajo app/(alumno)/, asi que la sesion ya esta resuelta por el
 // layout del grupo -getClaims() y el perfil completo, comprobados en
 // app/(alumno)/layout.tsx- antes de que este Server Component se ejecute.

@@ -9,24 +9,17 @@ import {
   type StaffParaCruce,
 } from '@/lib/admin/filtros';
 
-// La lectura de /admin/personal (Task 9 de la tanda 3B, D-52 y D-53). Misma
-// FORMA que lib/admin/dias.ts: tipo de fila cruda declarado y usado como
-// parametro de una funcion de traduccion, para que TypeScript contraste lo
-// que el `select` infiere, y el error se PROPAGA con throw en vez de
-// devolver un array vacio.
+// La lectura de /admin/personal (D-52, D-53). Misma FORMA que lib/admin/dias.ts,
+// y el error se PROPAGA con throw en las TRES consultas: un array vacio por
+// fallo de red se leeria como "no hay personal", y esta es la unica pantalla
+// desde la que se ve y se arregla quien tiene acceso.
 //
-// DOS CONSULTAS Y NO UN EMBED, y no es eleccion de estilo: MEDIDO el
-// 2026-08-13 por PostgREST contra el stack local con un JWT de admin --
-// `GET staff_members?select=user_id,role,activo,alumnos(email,nombre)`
-// devuelve HTTP 400, code "PGRST200", "Searched for a foreign key
-// relationship between 'staff_members' and 'alumnos' in the schema 'public',
-// but no matches were found" --. `staff_members.user_id` referencia
-// `auth.users`, no `alumnos`, asi que PostgREST no tiene por donde embeber. El
-// cruce lo hace cruzarPersonal() (lib/admin/filtros.ts), una funcion PURA,
-// sobre los dos arrays ya traducidos aca.
+// DOS CONSULTAS Y NO UN EMBED, y no es estilo: `staff_members.user_id`
+// referencia `auth.users`, no `alumnos`, asi que PostgREST no tiene por donde
+// embeber y devuelve PGRST200. El cruce lo hace cruzarPersonal(), una funcion
+// PURA. Ver COMPORTAMIENTO_MEDIDO.md §1.3.
 export type { MiembroPersonal, RolStaff };
 
-// La forma medida de una fila de `staff_members`.
 type FilaStaffCruda = {
   user_id: string;
   role: RolStaff;
@@ -43,15 +36,10 @@ function filaAStaffParaCruce(fila: FilaStaffCruda): StaffParaCruce {
   };
 }
 
-// La forma medida de una fila de `alumnos`. `auth_user_id` es `string | null`
-// en el esquema -- es NULLABLE de verdad, ver lib/database.types.ts -- y se
-// declara igual aca aunque en este uso concreto nunca llegue nulo: la
-// consulta de abajo acota con `.in('auth_user_id', <los user_id de
-// staff_members>)`, y esos ids son siempre NOT NULL -- `staff_members.user_id`
-// referencia `auth.users(id)` --, asi que ninguna fila de `alumnos` con
-// `auth_user_id` en null puede casar con ese filtro: SQL `IN` nunca empareja
-// NULL. Se filtra igual mas abajo, sin ningun `as`, para que sea el TIPO el
-// que lo diga y no una suposicion.
+// `auth_user_id` es NULLABLE en el esquema y se declara igual aunque en este uso
+// nunca llegue nulo: la consulta acota con `.in('auth_user_id', ...)` sobre ids
+// NOT NULL, y SQL `IN` nunca empareja NULL. Se filtra igual, sin ningun `as`,
+// para que lo diga el TIPO y no una suposicion.
 type FilaAlumnoCruda = {
   auth_user_id: string | null;
   email: string;
@@ -68,21 +56,11 @@ function filaAAlumnoParaCruce(fila: FilaAlumnoCruda & { auth_user_id: string }):
   };
 }
 
-// Todo el personal, para /admin/personal. Sin filtro ni busqueda porque no
-// hace falta ninguno: D-53 deja el alta buscando por correo exacto sobre
-// `alumnos`, no sobre esta lista, asi que esta lectura no necesita paginar ni
-// acotar.
+// Todo el personal. Sin filtro ni busqueda: D-53 deja el alta buscando por correo
+// exacto sobre `alumnos`, no sobre esta lista.
 //
-// CUIDADO CON EL ARRAY VACIO: si `staff_members` no trae ninguna fila, esta
-// funcion vuelve con `[]` ANTES de lanzar la segunda consulta, en vez de
-// llamar a `.in('auth_user_id', [])` -- que ademas no esta medido aca que
-// devuelva.
-//
-// El error se PROPAGA con throw en las dos consultas, mismo criterio que
-// listarDiasInhabilitados() y reservasVivas() (lib/admin/dias.ts): un array
-// vacio por un fallo de red o de RLS se leeria exactamente igual que "no hay
-// personal", y esta pantalla es la unica forma de ver -y arreglar- quien
-// tiene acceso al mostrador y a la administracion.
+// CUIDADO CON EL ARRAY VACIO: si no hay personal se vuelve ANTES de lanzar la
+// segunda consulta, en vez de llamar a `.in('auth_user_id', [])`.
 export async function listarPersonal(): Promise<MiembroPersonal[]> {
   const supabase = await createClient();
 
@@ -119,16 +97,10 @@ export async function listarPersonal(): Promise<MiembroPersonal[]> {
     .filter((fila): fila is FilaAlumnoCruda & { auth_user_id: string } => fila.auth_user_id !== null)
     .map(filaAAlumnoParaCruce);
 
-  // TERCERA CONSULTA, y es una RPC y no un select (D-80, migracion 31): la
-  // fecha del primer magic link vive en `auth.users.confirmation_sent_at`, y
-  // ese esquema no tiene grant para `authenticated`. La funcion es
-  // `security definer` y filtra por `private.is_admin()`: a quien no lo sea le
-  // devuelve CERO FILAS, no un error.
-  //
-  // EL ERROR SE PROPAGA con throw, mismo criterio que las dos consultas de
-  // arriba: un array vacio por un fallo de red o de privilegios se leeria
-  // exactamente igual que "nadie ha recibido nunca un correo", y esta es la
-  // pantalla desde la que se arregla quien tiene acceso.
+  // TERCERA CONSULTA, y es una RPC y no un select (D-80): la fecha del primer
+  // magic link vive en `auth.users.confirmation_sent_at`, y ese esquema no tiene
+  // grant para `authenticated`. La funcion es `security definer` y filtra por
+  // `private.is_admin()`: a quien no lo sea le devuelve CERO FILAS, no un error.
   const { data: dataAcceso, error: errorAcceso } = await supabase.rpc('primer_acceso_personal');
 
   if (errorAcceso) {

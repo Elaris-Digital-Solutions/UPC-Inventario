@@ -11,7 +11,7 @@ import { Pie } from "@/components/pie";
 //
 // Tipo escrito a mano y no LayoutProps<"/">: los layouts de un grupo entre
 // parentesis no ocupan segmento de URL, asi que Next no los genera en
-// LayoutRoutes. Es la correccion 37 de la tanda 1, y aqui vuelve a aplicar.
+// LayoutRoutes.
 export default function PublicoLayout({
   children,
 }: {

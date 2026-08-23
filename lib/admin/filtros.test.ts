@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// IMPORTS RELATIVOS, no `@/lib/admin/filtros`: no hay vitest.config.ts, asi que
-// Vitest corre por defecto y NO conoce el alias que declara tsconfig.json. Se
-// midio en la Task 8 de la tanda 3A -- `typecheck` y `build` pasan en verde con
-// el alias y solo `vitest run` se rompe --, y por eso el modulo probado y su
-// prueba se escriben asi.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import {
   cruzarPersonal,
   filtrarYOrdenar,
@@ -98,7 +95,7 @@ describe('pasaBusqueda', () => {
   });
 
   it('tolera el alumno nulo y los campos opcionales vacios', () => {
-    // `alumno` llega `null` cuando RLS bloquea el embed -- medido en la T3A --,
+    // `alumno` llega `null` cuando RLS bloquea el embed,
     // y `categoria` y `activoFijo` son columnas nulables de verdad: 38 de las 92
     // unidades reales no tienen `asset_code`. Buscar no puede reventar por eso.
     const r = reserva({ alumno: null, categoria: null, activoFijo: null });

@@ -1,19 +1,13 @@
 "use client";
 
-// El dialogo de cancelacion, Task 13 de la tanda 2B: un boton "Cancelar
-// reserva" que abre un dialogo modal de Radix con el motivo obligatorio
-// (BR-17, y linea 127 de MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md).
+// El dialogo de cancelacion: motivo obligatorio (BR-17).
 //
-// Vive en su propio archivo, y no dentro de tarjeta-reserva.tsx, por la
-// misma frontera servidor/cliente que separa calendario.tsx de la pagina que
-// lo monta: este componente necesita estado -si el dialogo esta abierto, que
-// escribio el alumno- y useActionState, y TarjetaReserva es un Server
-// Component que no puede llevar ninguno de los dos. Y no se extrae a
-// components/ui/dialog.tsx: hay un UNICO consumidor de un dialogo modal en
-// todo el proyecto hasta ahora, este. Si la T3 del personal necesita otro
-// -por ejemplo para inhabilitar un dia con reservas encima, BR-11-, ES
-// ENTONCES cuando se extrae el envoltorio comun a components/ui/, no antes:
-// generalizar con un unico caso real todavia no es generalizar, es adivinar.
+// EN SU PROPIO ARCHIVO por la frontera servidor/cliente: necesita estado y
+// useActionState, y TarjetaReserva es un Server Component.
+//
+// CONSTRUIDO SOBRE `radix-ui` DIRECTO y no sobre components/ui/dialog.tsx, que
+// nacio despues: cuando se escribio habia un UNICO consumidor de un dialogo modal
+// en el proyecto, y generalizar con un solo caso real es adivinar.
 import { useActionState, useId, useState } from "react";
 import { Dialog } from "radix-ui";
 
@@ -31,19 +25,10 @@ type DialogoCancelarProps = {
   producto: string;
 };
 
-// Ni Dialog.Trigger ni Dialog.Close se envuelven con `asChild` alrededor de
-// <Button>. Podria hacerse -es el patron habitual de shadcn-, pero Button
-// (components/ui/button.tsx) NO usa `React.forwardRef`, y anidar un
-// componente sin forwardRef dentro del `asChild` de OTRO componente depende
-// de que React reenvie la prop `ref` a traves del `...props` que Button
-// esparce sobre su elemento final. Nadie abrio un navegador para confirmar
-// que esa cadena no deja una advertencia en consola -y la consola sin una
-// sola advertencia es el criterio de cierre de este proyecto-, asi que se
-// evita el riesgo por completo: Dialog.Trigger y Dialog.Close ya renderizan
-// su propio <button> nativo -leido en
-// node_modules/@radix-ui/react-dialog/dist/index.mjs, los dos usan
-// `Primitive.button` con `type: "button"` por defecto-, y basta con pintarlo
-// con las clases de `buttonVariants` en vez de anidar el componente.
+// Ni Trigger ni Close se envuelven con `asChild` alrededor de <Button>: Button no
+// usa `React.forwardRef`, y los dos ya renderizan su propio <button> nativo, asi
+// que basta con pintarlos con `buttonVariants`. Mismo patron en los otros
+// dialogos del proyecto.
 export function DialogoCancelar({ reservationId, producto }: DialogoCancelarProps) {
   const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState("");
@@ -53,25 +38,12 @@ export function DialogoCancelar({ reservationId, producto }: DialogoCancelarProp
   );
   const idMotivo = useId();
 
-  // Por que este dialogo se cierra solo tras cancelar bien, SIN ningun
-  // useEffect ni `setAbierto(false)` a mano: cuando cancelar() termina con
-  // exito llama a `revalidatePath('/mi-panel')`, y ese re-fetch trae la
-  // reserva con `status = 'cancelled'`. app/(alumno)/mi-panel/page.tsx
-  // reagrupa con grupoDeReserva() y esta reserva deja el array `proxima`
-  // para pasar a `pasada`, ASI QUE la condicion de mas abajo en
-  // tarjeta-reserva.tsx -hoy la llamada a seOfreceCancelar(),
-  // lib/reservas/agrupar.ts; esta linea citaba la condicion inline vieja
-  // `reserva.estado === "reserved" && grupo === "proxima"`, que la Task 3 de
-  // la tanda 3A extrajo a esa funcion y amplio con un tercer termino- deja
-  // de cumplirse: `cancelled` no es `reserved`, asi que el PRIMER termino ya
-  // basta para que devuelva `false`. React no mueve ese TarjetaReserva de una
-  // seccion a otra: lo desmonta donde estaba -ya no aparece en el array que
-  // pinta "Proximas"- y monta uno nuevo, sin este dialogo, donde ahora
-  // corresponde -"Anteriores"-. Este componente desaparece con el, y con el
-  // desaparece tambien su `abierto = true`: no hay ningun estado que cerrar
-  // a mano porque no queda ningun componente vivo que lo sostenga. Esto es
-  // una propiedad ESTRUCTURAL de como esta escrito el arbol, no algo que se
-  // haya medido en un navegador.
+  // SE CIERRA SOLO tras cancelar bien, sin `setAbierto(false)` a mano: el exito
+  // revalida /mi-panel, la reserva pasa a `cancelled`, seOfreceCancelar() deja de
+  // devolver `true` y React DESMONTA esta tarjeta para montar otra en
+  // "Anteriores". Este componente desaparece con ella, y su `abierto` con el.
+  //
+  // Es una propiedad ESTRUCTURAL del arbol, no algo medido en un navegador.
   return (
     <Dialog.Root open={abierto} onOpenChange={setAbierto}>
       <Dialog.Trigger className={buttonVariants({ variant: "outline", size: "sm" })}>

@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO, no `@/lib/mostrador/columnas`. El proyecto no tiene
-// `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
-// conoce el alias `@/*` que declara `tsconfig.json`. Misma correccion que ya
-// aplican lib/reservas/rejilla.test.ts, lib/reservas/sancion.test.ts y
-// lib/reservas/agrupar.test.ts.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { columnaDeReserva } from './columnas';
 
 describe('columnaDeReserva', () => {

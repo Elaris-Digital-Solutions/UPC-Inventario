@@ -4,15 +4,10 @@ import { DialogoCancelar } from "@/components/reservas/dialogo-cancelar";
 import { etiquetaDeEstado, seOfreceCancelar, type Grupo } from "@/lib/reservas/agrupar";
 import type { ReservaDelAlumno } from "@/lib/reservas/consultas";
 
-// El dia se formatea en America/Lima, y NO en UTC como formatearDia() de
-// components/reservas/calendario.tsx. No es una inconsistencia: `inicio` y
-// `fin` aqui son INSTANTES reales -columnas `timestamptz`, el mismo tipo de
-// dato que `slot_start`-, mientras que las fechas que formatearDia() recibe
-// son civiles (`YYYY-MM-DD`, sin hora ni zona). Convertir un instante real a
-// la zona del alumno es la lectura correcta; forzar una fecha civil a una
-// zona que no tiene seria la reinterpretacion que el comentario de
-// formatearDia() en calendario.tsx ya senala como error, y hacerlo al reves
-// -dejar un instante real en UTC- seria ese mismo error del otro lado.
+// En America/Lima y NO en UTC como formatearDia() del calendario, y no es una
+// inconsistencia: aqui `inicio` y `fin` son INSTANTES reales, y alli las fechas
+// son CIVILES. Convertir un instante a la zona del alumno es correcto; forzar una
+// fecha civil a una zona que no tiene, no.
 const FORMATO_DIA = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
   weekday: "short",
@@ -20,14 +15,8 @@ const FORMATO_DIA = new Intl.DateTimeFormat("es-PE", {
   month: "short",
 });
 
-// `hour12: false` no es un detalle de gusto: el resto del proyecto escribe
-// la hora en 24 -formatearHora() en components/reservas/calendario.tsx y
-// textoDeSancion() en lib/reservas/sancion.ts, los dos con este mismo
-// `hour12: false`-, y en `es-PE` el formato de 12 horas termina en "p. m."
-// con un punto que choca con la puntuacion de alrededor -ya costo un defecto
-// VISIBLE en pantalla en la tarea anterior, documentado en el comentario de
-// textoDeSancion()-. Copiar esa correccion aca evita repetir el mismo
-// defecto en una tercera pantalla.
+// `hour12: false` no es gusto: en `es-PE` el formato de 12 horas termina en
+// "p. m." y choca con la puntuacion de alrededor. Ya costo un defecto visible.
 const FORMATO_HORA = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
   hour: "2-digit",
@@ -37,42 +26,23 @@ const FORMATO_HORA = new Intl.DateTimeFormat("es-PE", {
 
 type TarjetaReservaProps = {
   reserva: ReservaDelAlumno;
-  // El grupo llega YA CALCULADO desde la pagina, y esta tarjeta no lo vuelve
-  // a deducir. Antes lo hacia: llamaba a grupoDeReserva() con su propio
-  // `new Date()`, mientras app/(alumno)/mi-panel/page.tsx ya habia agrupado
-  // con OTRO. Eran dos lecturas del reloj para la misma decision, que es
-  // exactamente el fallo M-7 que este proyecto persigue por todos lados -y
-  // contradecia al comentario de lib/reservas/agrupar.ts, que dice que el
-  // grupo se decide en un solo sitio-. Una reserva que venciera entre las dos
-  // llamadas habria salido bajo "Proximas" pintada como pasada.
+  // YA CALCULADO desde la pagina. Deducirlo aqui con un `new Date()` propio
+  // serian dos lecturas del reloj para la misma decision -el fallo M-7-, y una
+  // reserva que venciera entre las dos saldria bajo "Proximas" pintada como
+  // pasada.
   grupo: Grupo;
-  // El reloj llega YA CALCULADO desde la pagina, igual que `grupo` dos lineas
-  // arriba y por el mismo motivo: esta tarjeta NO vuelve a leer el reloj con
-  // un `new Date()` propio. Se usa para decidir si se ofrece el boton de
-  // cancelar -ver seOfreceCancelar(), lib/reservas/agrupar.ts- comparandolo
-  // contra `reserva.inicio` (D-38).
+  // El reloj, tambien desde la pagina y por el mismo motivo. Decide si se ofrece
+  // el boton de cancelar, comparado contra `reserva.inicio` (D-38).
   ahora: Date;
-  // El margen minimo de cancelacion (M-12/D-70), en minutos. Llega YA LEIDO
-  // desde la pagina, igual que `grupo` y `ahora` y por el mismo motivo: una
-  // sola fuente por decision. Su valor real vive en
-  // `app_settings.min_cancel_minutes` y quien DECIDE es cancel_reservation;
-  // esta tarjeta solo oculta el boton para no ofrecer algo que la base va a
-  // rechazar.
+  // El margen minimo de cancelacion (M-12/D-70). Quien DECIDE es
+  // `cancel_reservation`; esta tarjeta solo oculta el boton para no ofrecer algo
+  // que la base va a rechazar.
   margenCancelacion: number;
 };
 
-// Componente de servidor: no necesita estado ni eventos propios -solo pinta
-// una reserva ya resuelta por lib/reservas/consultas.ts-, asi que NO lleva
-// "use client". La misma razon por la que TarjetaProducto
-// (components/catalogo/tarjeta-producto.tsx) tampoco lo lleva. Que ahora
-// pinte <DialogoCancelar> -que SI es Client Component, Task 13- no cambia
-// esto: un Server Component puede renderizar un Client Component sin
-// volverse cliente el mismo, que es exactamente lo que hace falta aca.
-//
-// DESDE ESTA TAREA SI TIENE BOTON DE CANCELAR -este comentario decia lo
-// contrario; se corrige aca porque un comentario caducado compila igual que
-// uno cierto y enseña lo contrario de lo que pasa-, pero NO en toda reserva:
-// ver la condicion de mas abajo, justo antes de pintar <DialogoCancelar>.
+// Componente de SERVIDOR: solo pinta una reserva ya resuelta, asi que no lleva
+// "use client". Que monte <DialogoCancelar>, que si es de cliente, no cambia
+// nada: un Server Component puede renderizar uno de cliente sin volverse uno.
 export function TarjetaReserva({ reserva, grupo, ahora, margenCancelacion }: TarjetaReservaProps) {
   return (
     <Card>

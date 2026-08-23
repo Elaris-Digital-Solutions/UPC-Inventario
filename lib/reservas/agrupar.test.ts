@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO, no `@/lib/reservas/agrupar`. El proyecto no tiene
-// `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
-// conoce el alias `@/*` que declara `tsconfig.json`. Misma correccion que ya
-// aplicaron lib/reservas/rejilla.test.ts y lib/reservas/sancion.test.ts.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { etiquetaDeEstado, grupoDeReserva, seOfreceCancelar } from './agrupar';
 
 describe('grupoDeReserva', () => {

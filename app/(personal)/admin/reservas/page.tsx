@@ -2,7 +2,7 @@ import { FiltrosReservas } from "@/components/admin/filtros-reservas";
 import { listarReservas } from "@/lib/admin/reservas";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/reservas, Task 6 de la tanda 3B (F6 de ESPECIFICACION_FUNCIONAL.md).
+// /admin/reservas (F6 de ESPECIFICACION_FUNCIONAL.md).
 //
 // Server Component: la lectura de las reservas se hace aca, en el servidor, y
 // los filtros viven en un Client Component que recibe el array ya traido. Es la

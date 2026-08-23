@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { listarInventario } from "@/lib/admin/consultas";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/inventario, Task 1 de la tanda 3B.
+// /admin/inventario.
 //
 // ESTA RUTA CIERRA UN 404 QUE EL PROYECTO ARRASTRABA DESDE LA TANDA 1:
 // lib/auth/destino.ts manda al admin aca nada mas canjear su magic link, y
