@@ -8,7 +8,7 @@ import { registrarImagen } from "@/lib/admin/acciones";
 //
 // EL ARCHIVO NO PASA POR EL SERVIDOR DE NEXT, y ese es el punto del diseño:
 //
-//   1. Se pide la firma a /api/cloudinary/firma. El secreto se queda alli.
+//   1. Se pide la firma a /api/cloudinary/firmas. El secreto se queda alli.
 //   2. El NAVEGADOR sube el archivo DIRECTO a Cloudinary con esa firma.
 //   3. Cloudinary devuelve public_id, secure_url, format, width, height, bytes.
 //   4. registrarImagen() escribe la fila en `product_images`.
@@ -36,7 +36,7 @@ export function SubidaImagenes({ productoId }: SubidaImagenesProps) {
 
     // Las credenciales UNA vez para todo el lote: el `timestamp` firmado vale
     // para todas, y una firma por archivo serian N viajes sin ganancia.
-    const respuesta = await fetch("/api/cloudinary/firma", { method: "POST" });
+    const respuesta = await fetch("/api/cloudinary/firmas", { method: "POST" });
 
     if (!respuesta.ok) {
       // El cuerpo puede no ser JSON: sin sesion el proxy contesta un 307 a /login

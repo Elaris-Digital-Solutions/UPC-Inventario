@@ -287,7 +287,7 @@ export async function editarProducto(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Imagenes (F7). EL ARCHIVO NUNCA PASA POR ESTE SERVIDOR: el navegador pide la
-// firma a /api/cloudinary/firma, sube DIRECTO a Cloudinary y solo entonces llama
+// firma a /api/cloudinary/firmas, sube DIRECTO a Cloudinary y solo entonces llama
 // a registrarImagen(). Por eso ninguna de estas acciones recibe un binario.
 // ─────────────────────────────────────────────────────────────────────────────
 

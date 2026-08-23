@@ -742,6 +742,7 @@ export type Database = {
         }
         Returns: string
       }
+      pedir_firma_cloudinary: { Args: never; Returns: undefined }
       primer_acceso_personal: {
         Args: never
         Returns: {
