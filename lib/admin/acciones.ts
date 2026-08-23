@@ -12,13 +12,20 @@ import { revalidatePath } from 'next/cache';
 import { reservasVivas } from '@/lib/admin/dias';
 import { particionarPorDia, type RolStaff } from '@/lib/admin/filtros';
 import { hoyEnLima } from '@/lib/reservas/rejilla';
+import { reportar } from '@/lib/seguridad/reportar';
 import { createClient } from '@/lib/supabase/server';
 
 // CINCO REGLAS QUE VALEN PARA TODO EL ARCHIVO. Se escriben una vez aqui en vez
 // de repetirse en cada funcion que las aplica.
 //
 // 1. TRADUCCION DE RECHAZOS: texto propio SOLO para lo alcanzable desde la
-//    pantalla; lo demas cae al mensaje CRUDO del motor, nunca a un generico.
+//    pantalla; lo demas pasa por `reportar()`, que manda el CRUDO al log bajo
+//    un id y devuelve un generico CON ese id.
+//    ⚠ CORREGIDA EL 2026-08-23 (H-3). Antes decia "cae al mensaje CRUDO del
+//    motor, nunca a un generico", y ese "nunca" era deliberado: un mapa de
+//    traducciones que se queda viejo tiene que VERSE. El argumento se conserva
+//    entero -- el crudo sigue completo, solo cambia de destinatario--, y el id
+//    es lo que lo une al generico. Sin ese id esto seria un retroceso.
 // 2. `.select()` Y VACIO COMO ERROR en cada escritura: RLS no deniega con 403,
 //    devuelve 200 con `[]`. Sin el chequeo, "no tienes permiso" y "no habia
 //    nada que cambiar" contestan igual. Ver COMPORTAMIENTO_MEDIDO.md §1.1.
@@ -175,7 +182,7 @@ export async function cambiarEstadoUnidad(
     .insert({ unit_id: unitId, note: nota.trim() });
 
   if (errorNota) {
-    return { error: errorNota.message };
+    return { error: reportar('cambiarEstadoUnidad', errorNota) };
   }
 
   const { error: errorEstado } = await supabase
@@ -232,7 +239,7 @@ export async function agregarUnidad(
 
     // La unidad YA existe: la nota que no entra no invalida el alta.
     if (errorNota) {
-      return { error: errorNota.message };
+      return { error: reportar('agregarUnidad', errorNota) };
     }
   }
 
@@ -312,7 +319,7 @@ export async function registrarImagen(
     .eq('product_id', productoId);
 
   if (errorConteo) {
-    return { error: errorConteo.message };
+    return { error: reportar('registrarImagen', errorConteo) };
   }
 
   const yaHabia = count ?? 0;
@@ -330,7 +337,7 @@ export async function registrarImagen(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: reportar('registrarImagen', error) };
   }
 
   revalidatePath(`/admin/inventario/${productoId}`);
@@ -360,7 +367,7 @@ export async function fijarPrincipal(
     .eq('is_main', true);
 
   if (errorApagar) {
-    return { error: errorApagar.message };
+    return { error: reportar('fijarPrincipal', errorApagar) };
   }
 
   const { error: errorEncender } = await supabase
@@ -369,7 +376,7 @@ export async function fijarPrincipal(
     .eq('id', imagenId);
 
   if (errorEncender) {
-    return { error: errorEncender.message };
+    return { error: reportar('fijarPrincipal', errorEncender) };
   }
 
   revalidatePath(`/admin/inventario/${productoId}`);
@@ -402,7 +409,7 @@ export async function reordenarImagenes(
     // Se corta al primer fallo: seguir dejaria un orden a medias y el admin no
     // sabria cual de las dos mitades esta viendo.
     if (error) {
-      return { error: error.message };
+      return { error: reportar('reordenarImagenes', error) };
     }
   }
 
@@ -423,7 +430,7 @@ export async function borrarImagen(
   const { error } = await supabase.from('product_images').delete().eq('id', imagenId);
 
   if (error) {
-    return { error: error.message };
+    return { error: reportar('borrarImagen', error) };
   }
 
   revalidatePath(`/admin/inventario/${productoId}`);
@@ -701,7 +708,7 @@ export async function inhabilitarDia(fecha: string, motivo: string): Promise<Res
       .eq('status', 'reserved');
 
     if (errorCancelar) {
-      return { error: errorCancelar.message };
+      return { error: reportar('inhabilitarDia', errorCancelar) };
     }
   }
 
@@ -723,7 +730,7 @@ export async function habilitarDia(fecha: string): Promise<ResultadoAdmin> {
   const { data, error } = await supabase.from('disabled_days').delete().eq('date', fecha).select();
 
   if (error) {
-    return { error: error.message };
+    return { error: reportar('habilitarDia', error) };
   }
 
   if (data.length === 0) {
@@ -790,7 +797,7 @@ export async function darDeAltaPersonal(correo: string, rol: RolStaff): Promise<
     .eq('email', correoNormalizado);
 
   if (errorAlumno) {
-    return { error: errorAlumno.message };
+    return { error: reportar('darDeAltaPersonal', errorAlumno) };
   }
 
   if (alumnos.length === 0) {
@@ -847,7 +854,7 @@ export async function cambiarRolPersonal(userId: string, rol: RolStaff): Promise
     .select();
 
   if (error) {
-    return { error: error.message };
+    return { error: reportar('cambiarRolPersonal', error) };
   }
 
   if (data.length === 0) {
@@ -881,7 +888,7 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
     .select();
 
   if (error) {
-    return { error: error.message };
+    return { error: reportar('cambiarActivoPersonal', error) };
   }
 
   if (data.length === 0) {

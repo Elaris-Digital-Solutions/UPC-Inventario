@@ -3,15 +3,23 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import { reportar } from '@/lib/seguridad/reportar';
 import { createClient } from '@/lib/supabase/server';
 import { MOTIVOS, type Motivo } from '@/lib/reservas/motivos';
 
 // TRES REGLAS QUE VALEN PARA TODO EL ARCHIVO.
 //
 // 1. TRADUCCION DE RECHAZOS: texto propio SOLO para lo que un alumno puede
-//    provocar navegando de verdad; lo inalcanzable y lo desconocido caen al
-//    mensaje CRUDO del motor, nunca a un generico. Un mapa que se quede viejo
-//    tiene que VERSE, no esconderse detras de un texto amable que miente.
+//    provocar navegando de verdad; lo inalcanzable y lo desconocido pasan por
+//    `reportar()`. Un mapa que se quede viejo tiene que VERSE, no esconderse
+//    detras de un texto amable que miente -- y sigue viendose: el crudo va
+//    ENTERO al log bajo un id, y el usuario recibe ese mismo id.
+//    ⚠ CORREGIDA EL 2026-08-23 (H-3). Antes decia "nunca a un generico", y era
+//    la eleccion correcta mientras la unica alternativa fuera un generico MUDO.
+//    Con el id no hay que elegir entre diagnosticable y no revelador.
+//    ⚠ Y aca importaba mas que en lib/admin/acciones.ts: los trece sitios de
+//    aquel solo los alcanza personal autenticado; el de este -guardarEncuesta()-
+//    devolvia el crudo de Postgres a CUALQUIER ALUMNO.
 // 2. EL EMPAREJAMIENTO VA POR EL TEXTO del mensaje, nunca por el SQLSTATE:
 //    `23514` lo comparten varios rechazos distintos en las dos RPC.
 // 3. EL CLIENTE NUNCA AFIRMA UNA IDENTIDAD. Las RPC deducen quien llama con
@@ -372,7 +380,7 @@ export async function guardarEncuesta(
   // tres que existen -23505, violacion de RLS y los CHECK de rango- exigirian un
   // defecto en otro sitio, y el crudo lo dice mejor (regla 1).
   if (error) {
-    return { error: error.message };
+    return { error: reportar('guardarEncuesta', error) };
   }
 
   // `/encuesta` para que la proxima carga la ofrezca como "editar" y no como
