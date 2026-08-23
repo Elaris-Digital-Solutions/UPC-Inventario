@@ -66,7 +66,7 @@ export function DialogoEstadoUnidad({
 
   // Barrera del CLIENTE. cambiarEstadoUnidad() repite la misma regla del lado
   // del SERVIDOR, por si algo llega hasta alla sin pasar por este boton --
-  // mismo patron que anotar() y dialogo-nota.tsx en la T3A.
+  // mismo patron que anotar() y dialogo-nota.tsx.
   const notaVacia = nota.trim() === "";
 
   function confirmar() {

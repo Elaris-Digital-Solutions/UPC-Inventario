@@ -2,7 +2,7 @@ import { PanelDias } from "@/components/admin/panel-dias";
 import { listarDiasInhabilitados, reservasVivas } from "@/lib/admin/dias";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/dias, Task 7 de la tanda 3B (F8 de ESPECIFICACION_FUNCIONAL.md,
+// /admin/dias (F8 de ESPECIFICACION_FUNCIONAL.md,
 // corregida por D-40).
 //
 // Server Component: las dos lecturas se hacen aca, en el servidor, y el

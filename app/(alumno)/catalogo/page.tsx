@@ -1,5 +1,5 @@
 // El catalogo de verdad, tarea 2A.5. REEMPLAZA al marcador de posicion de la
-// tanda 1 -aquel decia en su comentario "El catalogo llega en la tanda 2";
+// el marcador de posicion que hubo antes;
 // esta es esa tanda-.
 //
 // A diferencia de la landing (app/(publico)/page.tsx), esta pagina exige

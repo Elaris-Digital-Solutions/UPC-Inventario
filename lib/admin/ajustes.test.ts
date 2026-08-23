@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO y no `@/lib/admin/ajustes`: Vitest no conoce el alias que
-// declara tsconfig.json -no hay vitest.config.ts-, y el modo de fallo es el
-// peligroso: `typecheck` y `build` pasan en verde con el alias y solo
-// `vitest run` se rompe. Medido en la Task 8 de la tanda 3A.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { aperturaDesalineada, multiplosDeSlot, productosDesalineados } from './ajustes';
 
 describe('multiplosDeSlot', () => {
@@ -33,7 +31,7 @@ describe('multiplosDeSlot', () => {
 });
 
 // Las tres pruebas de esta seccion se copian TAL CUAL las escribio el plan
-// -MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md, Step 2 de la Task 10-, comentarios
+// -ver el plan de la F2-T3B-, comentarios
 // incluidos: son las pruebas que se pensaron ANTES de escribir la funcion.
 describe('productosDesalineados', () => {
   // Los OCHO valores que el check `60 % slot_minutes = 0` permite, con el rango
@@ -50,7 +48,7 @@ describe('productosDesalineados', () => {
   });
 
   it('un buffer de 30 SI se rompe, y con tres de los ocho: 12, 20 y 60', () => {
-    // El caso que la Task 2 permite crear -- con slot 30, un buffer de 30 es
+    // El caso que el alta permite crear -- con slot 30, un buffer de 30 es
     // valido -- y que hace falta la comprobacion. Es el ejemplo de
     // MIGRATION_DOCS/FASE_2_DISENO.md:711.
     const p = [{ id: 'a', nombre: 'Tripode', bufferMinutos: 30 }];

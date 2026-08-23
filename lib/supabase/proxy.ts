@@ -2,11 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/lib/database.types'
 
-// Tipo de las claims que devuelve getClaims(), derivado del propio cliente
-// tipado con Database en vez de importado a mano: @supabase/auth-js, donde
-// vive JwtPayload, no es una dependencia directa del proyecto (solo llega
-// via @supabase/supabase-js), y no hay razon para atarse a un paquete que
-// package.json no declara pudiendo derivar el tipo del que si declara.
+// El tipo de las claims se DERIVA del cliente tipado en vez de importarse:
+// @supabase/auth-js, donde vive JwtPayload, no es una dependencia directa de
+// package.json -solo llega via @supabase/supabase-js-.
 type SupabaseServerClient = ReturnType<typeof createServerClient<Database>>
 type Claims = NonNullable<
   Awaited<ReturnType<SupabaseServerClient['auth']['getClaims']>>['data']
@@ -21,15 +19,10 @@ export async function updateSession(
   request: NextRequest,
   cabecerasExtra: Record<string, string> = {},
 ): Promise<UpdateSessionResult> {
-  // Construye los headers del request DE NUEVO cada vez que se llama, no una
-  // sola vez guardada en una variable. Dentro de `setAll`, unas lineas mas
-  // abajo, se hace `request.cookies.set(...)` ANTES de reconstruir la
-  // respuesta, y eso actualiza la cabecera `cookie` del propio `request`. Si
-  // aca se copiaran los headers una unica vez al principio, esa copia seria
-  // anterior a las cookies nuevas y se perderia la propagacion de la sesion
-  // refrescada al request -justo lo que el comentario de `setAll` de mas
-  // abajo dice que no puede pasar-. Al ser una funcion que se invoca en cada
-  // uso, `new Headers(request.headers)` siempre lee el estado del momento.
+  // ES UNA FUNCION Y NO UNA VARIABLE guardada una sola vez: `setAll` hace
+  // `request.cookies.set(...)` antes de reconstruir la respuesta, y eso cambia la
+  // cabecera `cookie` del request. Una copia tomada al principio seria anterior a
+  // las cookies nuevas y se perderia la propagacion de la sesion refrescada.
   const cabecerasDelRequest = () => {
     const cabeceras = new Headers(request.headers)
     for (const [clave, valor] of Object.entries(cabecerasExtra)) {
@@ -49,12 +42,9 @@ export async function updateSession(
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // Las cookies tienen que volver por los dos lados. Al `request`
-          // primero, para que esta misma peticion vea las cookies ya
-          // actualizadas si algo mas adelante vuelve a leerlas; al
-          // `response` despues (reconstruido desde ese `request`), para que
-          // el navegador las reciba en el viaje de vuelta. Falta cualquiera
-          // de los dos lados y la sesion se desincroniza.
+          // LAS COOKIES VUELVEN POR LOS DOS LADOS: al `request` para que esta
+          // misma peticion las vea actualizadas, y al `response` para que las
+          // reciba el navegador. Falta cualquiera y la sesion se desincroniza.
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request: { headers: cabecerasDelRequest() } })
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -64,25 +54,17 @@ export async function updateSession(
     },
   )
 
-  // No se ejecuta NADA entre crear el cliente y llamar a getClaims(). Lo
-  // exige la documentacion de Supabase: cualquier linea intermedia puede
-  // dejar pasar el refresco de token antes de que el cliente este listo
-  // para escribirlo, y el efecto es un cierre de sesion intermitente y al
-  // azar, de los fallos mas caros de diagnosticar porque el sintoma nunca
-  // apunta a la causa.
+  // NO SE EJECUTA NADA entre crear el cliente y llamar a getClaims(): cualquier
+  // linea intermedia puede dejar pasar el refresco de token antes de que el
+  // cliente pueda escribirlo, y el sintoma es un cierre de sesion intermitente
+  // que nunca apunta a su causa.
+  //
+  // getClaims() y no getSession() (D-25): getSession() lee la cookie sin
+  // revalidar la firma, y decidir con eso es el defecto P0-3 con otro nombre.
   const { data } = await supabase.auth.getClaims()
 
-  // getClaims() y no getSession(). getSession() lee la cookie sin revalidar
-  // la firma, y decidir con eso es otra vez el defecto P0-3 que esta fase
-  // existe para cerrar, con otro nombre. Los propios tipos de la libreria
-  // avisan de que el user que devuelve getSession() no debe considerarse de
-  // fiar. (Decision D-25.)
-
-  // Los refrescos de token escriben Set-Cookie en esta respuesta. Si la
-  // aplicacion queda detras de un CDN o proxy inverso (Vercel, Netlify,
-  // Cloudflare), una respuesta cacheada con la cookie de sesion de alguien
-  // dentro se le serviria a otra persona. El aviso sale de los propios
-  // tipos de @supabase/ssr 0.12.4.
+  // Los refrescos escriben Set-Cookie aqui. Detras de un CDN, una respuesta
+  // cacheada con la cookie de sesion de alguien dentro se le serviria a otro.
   response.headers.set('Cache-Control', 'private, no-store')
 
   return { response, claims: data?.claims ?? null }

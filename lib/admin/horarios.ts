@@ -2,41 +2,29 @@ import { createClient } from '@/lib/supabase/server';
 
 import { DIAS_SEMANA, type HorarioDia, type SedeConHorario } from '@/lib/admin/semana';
 
-// La lectura de /admin/horarios (F3-T4, D-74/D-75): el horario de cada sede,
-// dia por dia.
+// La lectura de /admin/horarios (D-74/D-75): el horario de cada sede, dia a dia.
 //
-// SIN 'use server' A PROPOSITO, mismo criterio y mismo motivo que
-// lib/admin/dias.ts deja escrito: con 'use server' TODO export del modulo se
-// vuelve invocable desde el navegador como un endpoint, y esto es un SELECT,
-// no una accion. Las Server Actions de esta pantalla -guardarHorarioDia() y
-// cerrarDia()- viven en lib/admin/acciones.ts, con las demas.
+// SIN 'use server' A PROPOSITO, mismo motivo que lib/admin/dias.ts: esto es un
+// SELECT, no una accion.
 //
-// LA AUTORIZACION LA PONE RLS Y NO ESTA CAPA. `campus_hours` deja LEER a
-// cualquiera con sesion -el alumno necesita saber si su sede abre el jueves- y
-// deja ESCRIBIR solo al admin, via private.is_admin(), en la migracion 33.
-// Que esta pantalla solo la alcance un admin lo garantiza
-// app/(personal)/admin/layout.tsx, y eso es VISIBILIDAD: si alguien llamara a
-// la accion por su cuenta, quien lo para es la politica.
+// LA AUTORIZACION LA PONE RLS. `campus_hours` deja LEER a cualquiera con sesion
+// -el alumno necesita saber si su sede abre el jueves- y ESCRIBIR solo al admin.
+// Que a esta pantalla solo llegue un admin es VISIBILIDAD, no control.
 //
-// LA SEMANA Y LOS TIPOS VIVEN EN lib/admin/semana.ts y no aca, y el motivo
-// esta medido: este archivo importa createClient(), asi que un Client
-// Component que importara de aqui una sola constante se llevaria
-// `next/headers` al navegador y el `build` cortaria. Lo destapo el build y
-// no el typecheck.
+// LA SEMANA Y LOS TIPOS VIVEN EN lib/admin/semana.ts y no aca: este archivo
+// importa createClient(), asi que un Client Component que importara de aqui una
+// sola constante se llevaria `next/headers` al navegador y el `build` cortaria.
+// Lo destapo el build, no el typecheck.
 //
-// EL ERROR SE PROPAGA, mismo criterio que listarDiasInhabilitados(), y aca
-// pesa tanto como alli o mas: un array vacio por un fallo de red se leeria
-// como "ninguna sede tiene horario", que es exactamente la situacion que
-// D-76 existe para hacer visible. El admin no podria distinguir la pantalla
-// rota del estado que tiene que corregir, y "no hay horarios" es justo lo que
-// le pediria ir a cargarlos encima de los que ya hay.
+// EL ERROR SE PROPAGA: un array vacio se leeria como "ninguna sede tiene
+// horario", que es justo la situacion que D-76 existe para hacer visible, y le
+// pediria al admin ir a cargar horarios encima de los que ya hay.
 
 export type { HorarioDia, SedeConHorario };
 
-// DOS CONSULTAS Y NO UN EMBED de PostgREST, y es deliberado: son 2 sedes y 14
-// horarios en produccion -medido-, asi que juntarlos en memoria es gratis, y
-// un embed obligaria a que la sede SIN ninguna fila de horario siguiera
-// apareciendo. Aca esa sede es justamente la que hay que ver.
+// DOS CONSULTAS Y NO UN EMBED: son 2 sedes y 14 horarios, asi que juntarlos en
+// memoria es gratis, y un embed obligaria a que la sede SIN ninguna fila de
+// horario siguiera apareciendo. Esa sede es justamente la que hay que ver.
 export async function listarHorariosPorSede(): Promise<SedeConHorario[]> {
   const supabase = await createClient();
 
@@ -58,9 +46,8 @@ export async function listarHorariosPorSede(): Promise<SedeConHorario[]> {
   return (sedes.data ?? []).map((sede) => {
     const dias: Record<number, HorarioDia> = {};
 
-    // Se inicializan los SIETE en `null` antes de rellenar. Sin esto, un dia
-    // sin fila quedaria `undefined` en vez de `null`, y la pantalla tendria
-    // que tratar dos ausencias distintas como la misma cosa.
+    // Los SIETE en `null` antes de rellenar: sin esto, un dia sin fila quedaria
+    // `undefined` y la pantalla tendria que tratar dos ausencias como una.
     for (const { weekday } of DIAS_SEMANA) {
       dias[weekday] = null;
     }
@@ -79,11 +66,9 @@ export async function listarHorariosPorSede(): Promise<SedeConHorario[]> {
 // Los turnos (D-74, D-90, D-92)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// La sede vive SOLO en el turno y no en `staff_members`, cuyas columnas son
-// user_id, role, activo, created_at y updated_at. Eso decide algo que conviene
-// dejar dicho para que nadie "arregle" la falta de campus_id en el personal: un
-// mismo operador puede tener turnos en LAS DOS sedes, y el modelo lo permite sin
-// anadir nada.
+// LA SEDE VIVE SOLO EN EL TURNO y no en `staff_members`, y conviene dejarlo
+// dicho para que nadie "arregle" esa falta: un mismo operador puede tener turnos
+// en LAS DOS sedes, y el modelo lo permite sin añadir nada.
 export type TurnoAdmin = {
   id: string;
   staffId: string;

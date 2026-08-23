@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO, no `@/lib/imagenes/principal`. El proyecto no tiene
-// `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
-// conoce el alias `@/*` que declara `tsconfig.json`. Misma correccion que ya
-// aplican los otros diez archivos de prueba.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { imagenPrincipal, type ImagenElegible } from './principal';
 
 // Constructor de filas para no repetir las tres columnas en cada caso. La URL

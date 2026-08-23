@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// IMPORTS RELATIVOS, no `@/lib/admin/estadisticas`: no hay vitest.config.ts,
-// asi que Vitest no conoce el alias que declara tsconfig.json. Mismo motivo
-// que ya dejo escrito filtros.test.ts en la Task 8 de la tanda 3A.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import {
   calcularEstadisticas,
   contarPorEstado,

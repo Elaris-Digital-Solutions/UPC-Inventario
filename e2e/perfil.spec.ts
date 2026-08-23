@@ -3,27 +3,18 @@ import { expect, test } from '@playwright/test';
 import { iniciarSesionComo } from './apoyo/sesion';
 
 // D-79: el formulario de datos salta en la PRIMERA RESERVA, no al entrar.
-// Antes lo disparaba app/(alumno)/layout.tsx al pisar el grupo (alumno), o sea
-// que nadie podia ni mirar el catalogo sin llenarlo.
 //
-// POR QUE ESTA PRUEBA EXISTE (Q-25, cerrado en la F3-T2): las otras cuatro
-// specs entran como alumno.a, que el seed siembra con confirmo_facultad = true,
-// asi que NINGUNA pasa por esta puerta. Hasta hoy se comprobaba a mano -- se
-// hizo el 2026-08-18 al cerrar la F3-T1 --, o sea que dependia de que alguien
-// se acordara.
+// POR QUE EXISTE (Q-25): las otras specs entran como alumno.a, que el seed
+// siembra ya confirmado, asi que NINGUNA pasa por esta puerta. Antes se
+// comprobaba a mano, o sea que dependia de que alguien se acordara.
 //
-// ⚠ ESTA PRUEBA DEJA A BRUNO CONFIRMADO, y por eso EXIGE BASE LIMPIA: al
-// terminar, confirmo_facultad queda en true y una segunda corrida sin
-// `db reset` NO veria el rebote -- entraria directo a reservar y la asercion
-// de la URL fallaria sin que nada este roto --. No es una deuda nueva: Q-26 ya
-// dice que el E2E entero necesita base limpia, y la correccion 8 del plan de
-// la F3-T1 midio que tres corridas seguidas sin resetear bajan de 6/6 a 3/6.
-// El orden que funciona es: db reset -> calentar Auth -> E2E.
+// ⚠ DEJA A BRUNO CONFIRMADO, y por eso EXIGE BASE LIMPIA: una segunda corrida
+// sin `db reset` NO veria el rebote y la asercion de la URL fallaria sin que
+// nada este roto. El arnes lo detecta y aborta (ver e2e/apoyo/entorno.ts).
 //
 // NO SE TOCA LA BASE PARA DEJARLA COMO ESTABA (D-62): el arnes entra por la
-// superficie real y solo por ella. Deshacerlo por psql seria arreglar con una
-// herramienta lo que la prueba hizo con otra, y taparia justo la dependencia
-// que este comentario declara.
+// superficie real y solo por ella. Deshacerlo por psql taparia justo la
+// dependencia que este comentario declara.
 const ALUMNO_SIN_CONFIRMAR = 'alumno.b@upc.edu.pe';
 
 test.describe('la puerta de perfil de la primera reserva', () => {

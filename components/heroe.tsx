@@ -1,16 +1,13 @@
-// El heroe de las pantallas publicas, recuperado del Vite el 2026-08-13.
+// El heroe de las pantallas publicas.
 //
-// `bg-gradient-hero` y el halo radial estaban DECLARADOS en globals.css desde
-// la tanda 0 y no los llamaba nadie: la utilidad existia, el color existia, y
-// la landing abria con un <h1> negro sobre el gris de fondo. Comparando las
-// dos versiones en un navegador, esto es lo que mas distancia marcaba -el
-// Vite abria con una franja carmesi a sangre de casi toda la altura de
-// pantalla-.
+// `bg-gradient-hero` y el halo radial estaban DECLARADOS en globals.css y no los
+// llamaba nadie: la utilidad existia, el color existia, y la landing abria con un
+// <h1> negro sobre el gris de fondo. Es lo que mas distancia marcaba contra el
+// original.
 //
-// Dos variantes porque el Vite tenia dos: la landing usaba casi la pantalla
-// entera con el halo desplazado a la izquierda
-// (MIGRATION_GUIDE/src/pages/Index.tsx:75), y la FAQ una franja mas baja con
-// el halo abajo y centrado (MIGRATION_GUIDE/src/pages/FAQ.tsx:42).
+// DOS VARIANTES porque el original tenia dos: la landing con casi la pantalla
+// entera y el halo a la izquierda, y la FAQ con una franja mas baja y el halo
+// abajo y centrado.
 //
 // `100svh` y no `100vh`: en un movil la barra del navegador entra y sale, y
 // `vh` mide la ventana con la barra ESCONDIDA, asi que un heroe a `100vh`

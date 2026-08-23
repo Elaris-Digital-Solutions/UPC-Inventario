@@ -1,6 +1,6 @@
 "use client";
 
-// El formulario de la encuesta final de satisfaccion, Task 14 de la tanda 2B
+// El formulario de la encuesta final de satisfaccion
 // (BR-18). Sirve para las DOS situaciones a la vez -crear y editar-: recibe
 // la encuesta existente por props (o `null`) y pinta los valores ya rellenos
 // cuando el alumno vuelve a abrirla, exactamente como pide el Step 3 del

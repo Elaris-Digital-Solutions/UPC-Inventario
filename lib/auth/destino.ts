@@ -1,9 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 
-// A donde manda el sistema a alguien recien identificado. admin y operador
-// van a sus paneles; alumno con el perfil incompleto va a completarlo; alumno
-// completo va al catalogo; y sin ninguna fila reconocible, a la pantalla de
-// error.
+// A donde manda el sistema a alguien recien identificado.
 export type Destino =
   | '/admin/inventario'
   | '/mostrador'
@@ -11,17 +8,13 @@ export type Destino =
   | '/catalogo'
   | '/auth/error';
 
-// La lectura UNICA que reparte. Si el reparto se duplicara en varios
-// layouts, dos copias se desincronizarian con el tiempo, y la que decidiria
-// seria la que se ejecute primero -que depende del arbol de rutas, no de
-// ninguna decision tomada a proposito-. Por eso cada sitio que necesita
-// mandar a alguien a algun lado llama a esta funcion en vez de repetir la
-// logica.
+// LA LECTURA UNICA QUE REPARTE. Si el reparto se duplicara en varios layouts,
+// dos copias se desincronizarian y decidiria la que se ejecute primero -que
+// depende del arbol de rutas, no de ninguna decision tomada a proposito-.
 //
-// Esto NO autoriza nada: solo elige a donde mandar a alguien despues de que
-// ya tiene sesion. Quien decide que puede ver y escribir es RLS, en la base.
-// Si borrar esta funcion abriera un agujero, el agujero estaba en la base, no
-// aqui.
+// Esto NO autoriza nada: solo elige a donde mandar a alguien que YA tiene
+// sesion. Quien decide que puede ver y escribir es RLS. Si borrar esta funcion
+// abriera un agujero, el agujero estaba en la base.
 export async function destino(): Promise<Destino> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -31,16 +24,14 @@ export async function destino(): Promise<Destino> {
     return '/auth/error';
   }
 
-  // Personal antes que alumno: alguien puede tener fila en las dos tablas, y
-  // en ese caso el panel manda. El orden de estas dos consultas es la
-  // decision.
+  // Personal antes que alumno: alguien puede tener fila en las dos tablas, y en
+  // ese caso el panel manda. El orden de estas dos consultas ES la decision.
   const { data: staff } = await supabase
     .from('staff_members')
     .select('role')
-    // Un miembro DESACTIVADO no se manda a un panel donde RLS le negaria
-    // todo de todas formas: cae por la rama de alumnos. Es comodidad para
-    // que no vea una pantalla vacia, no un control -el control ya esta en
-    // las politicas que lo bloquearian ahi dentro.
+    // Un miembro DESACTIVADO cae por la rama de alumnos en vez de ir a un panel
+    // donde RLS le negaria todo. Es comodidad para que no vea una pantalla
+    // vacia, no un control.
     .eq('user_id', sub)
     .eq('activo', true)
     .maybeSingle();
@@ -52,10 +43,7 @@ export async function destino(): Promise<Destino> {
     return '/mostrador';
   }
 
-  // maybeSingle() y no single(): no tener fila en staff_members ni en
-  // alumnos es un caso ESPERADO -la mayoria de quienes entran son alumnos, o
-  // recien se registraron-, no un error. single() lanzaria una excepcion
-  // para un caso normal.
+  // maybeSingle() y no single(): no tener fila es un caso ESPERADO, no un error.
   const { data: alumno } = await supabase
     .from('alumnos')
     .select('nombre, apellido, carrera_id')
@@ -67,7 +55,6 @@ export async function destino(): Promise<Destino> {
   }
 
   // D-79: entrar ya NO desvia por perfil incompleto. Los datos se piden en la
-  // primera reserva, en /catalogo/[id]/reservar. Antes esta funcion devolvia
-  // '/completar-perfil' cuando faltaba nombre, apellido o carrera.
+  // primera reserva.
   return '/catalogo';
 }

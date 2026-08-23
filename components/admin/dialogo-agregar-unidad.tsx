@@ -26,14 +26,6 @@ import { agregarUnidad, type ResultadoAdmin } from "@/lib/admin/acciones";
 
 // Alta de una unidad suelta sobre un producto que ya existe (F7: "alta
 // individual -- codigo, sede, anotacion --").
-//
-// ARCHIVO QUE EL PLAN NO PREVIO. La Task 3 de FASE_2_TANDA_3B.md enumera
-// `panel-unidades.tsx` y `dialogo-estado-unidad.tsx`, y pide `agregarUnidad()`
-// y `editarProducto()` en acciones.ts -- pero no asigna ningun componente a
-// esas dos acciones. Una Server Action sin pantalla que la llame no la puede
-// usar nadie, asi que la interfaz hace falta igual. Es el mismo genero de
-// hueco que la Task 1 de la T3A ya registro sobre mostrador/page.tsx: la
-// estructura de archivos del plan no es exhaustiva.
 
 type DialogoAgregarUnidadProps = {
   productoId: string;

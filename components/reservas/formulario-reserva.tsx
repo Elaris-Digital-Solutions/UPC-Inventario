@@ -1,7 +1,7 @@
 "use client";
 
-// El formulario de reserva, Task 10 de la tanda 2B. Envuelve al Calendario de
-// la Task 9 y le anade lo que faltaba para poder terminar: el motivo, el
+// El formulario de reserva. Envuelve al Calendario y le
+// anade lo que falta para poder terminar: el motivo, el
 // boton de confirmar, y la Server Action que llama a `create_reservation`
 // (lib/reservas/acciones.ts).
 //

@@ -1,28 +1,18 @@
-// La landing de verdad, tarea 2A.3. REEMPLAZA al marcador de posicion de la
-// tanda 0 -aquel decia en su primera linea "NO es la landing"; este archivo
-// es la landing-.
+// La landing.
 //
-// Es VITRINA y no catalogo (D-21): ensena que equipos existen, nunca cuantos
-// quedan. La frontera es que la vitrina es promocion y el catalogo es una
-// herramienta de decision -y una herramienta de decision sin datos es peor
-// que ninguna-. Por eso llama a productosVitrina() y no toca
-// product_availability, y por eso TarjetaProducto se usa aqui SIN href: la
-// vitrina no lleva a ningun lado, entrar es el unico paso siguiente.
+// ES VITRINA Y NO CATALOGO (D-21): enseña que equipos existen, nunca cuantos
+// quedan. La vitrina es promocion y el catalogo es una herramienta de decision, y
+// una herramienta de decision sin datos es peor que ninguna. Por eso no toca
+// `product_availability` y por eso TarjetaProducto va SIN href: entrar es el
+// unico paso siguiente.
 //
-// Se ve EXACTAMENTE IGUAL con sesion y sin ella, y es intencional: si
-// cambiara segun quien mira, estaria prometiendo algo que depende de la
-// sesion, que es justo lo que D-21 descarta.
+// SE VE IGUAL CON SESION Y SIN ELLA, y es intencional: si cambiara segun quien
+// mira, prometeria algo que depende de la sesion.
 //
-// CORRECCION medida al escribir este archivo (2026-08-08): NO se
-// prerenderiza como estatica. `npm run build` la marca "ƒ /" -dinamica-, no
-// "○ /". No es por leer sesion -esta pagina no llama a getClaims() ni nada
-// que dependa de quien mira-, sino porque productosVitrina() llama a
-// createClient() (lib/supabase/server.ts), que hace `await cookies()` para
-// poder construir el cliente aunque la consulta sea anonima. Next.js trata
-// cookies() como una Dynamic API sin mirar si el valor se usa: el simple
-// hecho de pedirla ya saca la ruta del prerender. Cabecera y Pie no leen
-// cookies -eso sigue siendo cierto-, pero ya no basta: cualquier consulta a
-// Supabase desde el arbol de '/', lea o no sesion, la vuelve dinamica.
+// NO SE PRERENDERIZA, y no por leer sesion -esta pagina no la lee-: cualquier
+// consulta a Supabase la vuelve dinamica, porque createClient() hace
+// `await cookies()` para construirse aunque la consulta sea anonima, y Next trata
+// cookies() como Dynamic API sin mirar si el valor se usa.
 import Link from "next/link";
 import Image from "next/image";
 

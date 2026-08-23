@@ -3,7 +3,7 @@ import { listarPersonal } from "@/lib/admin/personal";
 import { createClient } from "@/lib/supabase/server";
 import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 
-// /admin/personal, Task 9 de la tanda 3B (D-52, D-53).
+// /admin/personal (D-52, D-53).
 //
 // Server Component: la lectura del personal se hace aca, en el servidor, y
 // el formulario de alta mas la tabla viven en un Client Component que recibe

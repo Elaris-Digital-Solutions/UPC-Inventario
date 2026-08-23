@@ -1,10 +1,7 @@
-// Detalle de un producto, tarea 2A.6. Vive bajo app/(alumno)/, asi que exige
-// sesion: el layout de este grupo (app/(alumno)/layout.tsx) ya comprobo
-// getClaims() y redirigio a /login a quien no la tenia, y antes de eso
-// proxy.ts ya rebota cualquier ruta que no este en RUTAS_PUBLICAS. Por eso
-// esta pantalla SI puede leer `product_availability` -algo que la landing no
-// puede porque a `anon` se le revoco el SELECT (D-18)- y ensenar cuantas
-// unidades hay por sede.
+// Detalle de un producto. Bajo app/(alumno)/, asi que el layout ya exigio sesion.
+// Por eso esta pantalla SI puede leer `product_availability` y enseñar cuantas
+// unidades hay por sede: a `anon` se le revoco ese SELECT (D-18), que es lo que
+// impide lo mismo en la landing.
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,14 +15,12 @@ import {
 } from "@/lib/catalogo/consultas";
 
 // Next.js 16: `params` llega como Promise y hay que esperarla antes de leer
-// `id`. Escribirlo como un objeto sincrono -como en versiones anteriores de
-// Next- no compila bajo `strict`: el tipo generado para esta ruta ya no es
-// ese.
-// `searchParams` se anadio en la tanda 2B para arrastrar la sede -correccion
-// 32 de la 2A-. Es OPCIONAL a proposito: a esta pantalla se puede llegar por
-// un enlace compartido sin `?sede=`, y el detalle no la necesita para nada de
-// lo que muestra -ensena el stock de TODAS las sedes-. Solo la usa para no
-// perderla al volver al catalogo.
+// `id`; escribirlo sincrono no compila bajo `strict`.
+//
+// `searchParams` es OPCIONAL a proposito: a esta pantalla se llega por un enlace
+// compartido sin `?sede=`, y el detalle no la necesita para nada de lo que
+// muestra -enseña el stock de TODAS las sedes-. Solo la arrastra para no perderla
+// al volver al catalogo.
 export default async function DetalleProductoPage({
   params,
   searchParams,
@@ -37,22 +32,16 @@ export default async function DetalleProductoPage({
   const { sede } = await searchParams;
   const producto = await detalleProducto(id);
 
-  // notFound() y no un mensaje sobrio en la propia pagina: desde la tarea
-  // 2A.4 el proyecto tiene su propia pantalla 404 (app/not-found.tsx), asi
-  // que un id malformado o un UUID que no existe en la base -detalleProducto
-  // no distingue los dos casos hacia afuera, solo hacia el log, ver el
-  // comentario de esa funcion- enseñan ese 404 propio y no uno generico de
-  // fabrica.
+  // notFound() y no un mensaje en la propia pagina: el proyecto tiene su 404
+  // propio, y los dos casos -id malformado y UUID inexistente- acaban ahi.
   if (producto === null) {
     notFound();
   }
 
   const sedes = await disponibilidadPorSede(producto.id);
 
-  // D-77: el salon de devolucion vive en `campuses`, y `disponibilidadPorSede`
-  // sale de la VISTA `product_availability`, que no lo trae ni lo va a traer
-  // sin tocar la vista. Se pide aparte a `sedesActivas()` -que si consulta
-  // campuses- y se casa por id.
+  // D-77: el salon vive en `campuses` y la disponibilidad sale de una VISTA que
+  // no lo trae. Se pide aparte y se casa por id.
   const activas = await sedesActivas();
   const salonPorSede = new Map(activas.map((s) => [s.id, s.salonDevolucion]));
 
@@ -201,17 +190,12 @@ export default async function DetalleProductoPage({
               </p>
             </>
           ) : (
-            // La sede del enlace: la de la URL SI vino y el producto tiene
-            // unidades ahi -comprobado contra `sedes`, que ya sale filtrada a
-            // `in_stock = true` por disponibilidadPorSede()-; si no, la
-            // PRIMERA de `sedes`. Nunca se manda `?sede=` vacio o inventado:
-            // esta pantalla ya sabe, por `sedes`, en cuales SI hay algo que
-            // reservar.
+            // La de la URL si vino Y el producto tiene unidades ahi; si no, la
+            // primera de `sedes`. Nunca se manda un `?sede=` vacio o inventado:
+            // esta pantalla ya sabe en cuales hay algo que reservar.
             //
-            // Este boton NO comprueba sancion (Task 11, tanda 2B): quien
-            // llega por aca cae en /catalogo/[id]/reservar, que si la
-            // comprueba y muestra el mensaje de bloqueo alla. No hay ningun
-            // camino sin explicacion.
+            // NO comprueba sancion: quien llega por aqui cae en la pantalla de
+            // reserva, que si la comprueba y explica el bloqueo alli.
             <Button asChild size="lg" className="mt-8 w-full sm:w-auto">
               <Link
                 href={`/catalogo/${producto.id}/reservar?sede=${

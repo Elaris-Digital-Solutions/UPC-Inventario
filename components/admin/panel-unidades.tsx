@@ -23,7 +23,7 @@ import type { NotaUnidad } from "@/lib/mostrador/notas";
 // que cambiaba era que ruta revalidar despues, y eso se resolvio agregandole
 // un parametro con valor por defecto en vez de duplicar el dialogo entero.
 // Que viva bajo `components/mostrador/` es una herencia del sitio donde nacio
-// (Task 7 de la T3A), no una afirmacion de que solo sirva alli.
+// donde nacio, no una afirmacion de que solo sirva alli.
 
 type PanelUnidadesProps = {
   productoId: string;

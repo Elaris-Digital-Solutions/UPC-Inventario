@@ -45,7 +45,7 @@ function SelectTrigger({
       data-size={size}
       className={cn(
         // ESCALA ALINEADA con el resto de los primitivos el 2026-08-13, tras
-        // fusionar la T3B: este Select llego con la escala compacta de shadcn
+        // este Select llego con la escala compacta de shadcn
         // 4 -h-8 y h-7- mientras <Input> y <Button> ya habian vuelto a la del
         // Vite -h-10 y h-9-. Se ven JUNTOS en cada formulario de
         // administracion: el desplegable de categoria al lado del campo de

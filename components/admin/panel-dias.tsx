@@ -1,17 +1,11 @@
 "use client";
 
-// El panel de /admin/dias (F8, corregida por D-40): elegir una fecha futura,
-// escribir por que se inhabilita (D-46) y ver ANTES de confirmar cuantas
-// reservas se van a cancelar y cuantos prestamos ya entregados siguen
-// vigentes. Debajo, la lista de dias ya inhabilitados con su boton de
-// revertir para los futuros.
+// El panel de /admin/dias (F8, D-40): elegir una fecha futura, escribir por que
+// se inhabilita (D-46) y ver ANTES de confirmar cuantas reservas se cancelan.
 //
-// PINTA TAMBIEN LA LISTA, mismo motivo que FiltrosReservas
-// (components/admin/filtros-reservas.tsx): el formulario de alta y la lista
-// comparten estado -- inhabilitar un dia tiene que hacer aparecer la fila
-// nueva sin recargar --, y separarlos en dos componentes hermanos obligaria a
-// subir ese estado a un padre comun que igual tendria que ser Client
-// Component.
+// PINTA TAMBIEN LA LISTA porque comparten estado: inhabilitar un dia tiene que
+// hacer aparecer la fila sin recargar, y separarlos obligaria a subir ese estado
+// a un padre comun que seria Client Component igual.
 import { useId, useState, useTransition } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -33,21 +27,11 @@ import { particionarPorDia } from "@/lib/admin/filtros";
 import { plural } from "@/lib/admin/plural";
 import { hoyEnLima } from "@/lib/reservas/rejilla";
 
-// Formato de fecha para pantalla, misma FORMA que FORMATO_FECHA_HORA de
-// components/admin/tabla-reservas.tsx, FORMATO_DIA de
-// components/mostrador/tarjeta-mostrador.tsx y FORMATO_FECHA_NOTA de
-// components/mostrador/historial-notas.tsx: la constante de
-// Intl.DateTimeFormat se declara a nivel de modulo, no dentro del
-// componente.
-//
-// PERO con una zona horaria DISTINTA a esas tres, y no por descuido: `fecha`
-// y `dia.fecha` son columnas `date` -- fechas CIVILES sin hora
-// (`YYYY-MM-DD`) --, no instantes (`timestamptz`) como los que formatean
-// esos tres archivos. `new Date('2026-09-15')` lo interpreta como
-// medianoche UTC, asi que formatear con `America/Lima` (UTC-5) retrocede un
-// dia -- medido con node -e: "15 set. 2026" en UTC contra "14 set. 2026" en
-// America/Lima, misma fecha de entrada --. La zona correcta para leer de
-// vuelta una fecha civil es la misma en la que `Date` la interpreto: UTC.
+// EN UTC y no en America/Lima como las otras pantallas, y no por descuido:
+// `fecha` es una columna `date` -una fecha CIVIL-, no un instante.
+// `new Date('2026-09-15')` la interpreta como medianoche UTC, asi que formatearla
+// en Lima retrocederia un dia. La zona correcta para leer de vuelta una fecha
+// civil es la misma en la que `Date` la interpreto.
 const FORMATO_FECHA = new Intl.DateTimeFormat("es-PE", {
   timeZone: "UTC",
   day: "numeric",
@@ -58,14 +42,10 @@ const FORMATO_FECHA = new Intl.DateTimeFormat("es-PE", {
 type PanelDiasProps = {
   dias: DiaInhabilitadoAdmin[];
   reservasVivas: ReservaViva[];
-  // El instante actual, como STRING ISO y no como `Date`. page.tsx hace la
-  // UNICA lectura del reloj DE LA PAGINA (regla M-7) y este componente la
-  // recibe, igual que `ahora` en FiltrosReservas. El boton de inhabilitar SI
-  // vuelve a leer el reloj, pero DENTRO de inhabilitarDia(), en el servidor
-  // -- ver el comentario de esa funcion en lib/admin/acciones.ts --: si el
-  // admin deja la pestaña abierta de un dia para otro, la comprobacion de
-  // "fecha pasada" tiene que usar el instante REAL del envio, no el de cuando
-  // se pinto esta pagina.
+  // El instante actual como STRING ISO: la pagina hace la UNICA lectura del reloj
+  // (regla M-7). El boton SI vuelve a leerlo, pero dentro de inhabilitarDia(), en
+  // el servidor: con la pestaña abierta de un dia para otro, "fecha pasada" tiene
+  // que usar el instante REAL del envio.
   ahora: string;
 };
 
@@ -85,20 +65,16 @@ export function PanelDias({ dias, reservasVivas, ahora }: PanelDiasProps) {
   const idFecha = useId();
   const idMotivo = useId();
 
-  // El valor de <input type="date"> sale en `YYYY-MM-DD` -- el formato que
-  // el estandar HTML fija para ese control -- que coincide con el que
-  // devuelve fechaEnLima(). No hay ninguna conversion entre la pantalla y
-  // particionarPorDia().
+  // `<input type="date">` sale en `YYYY-MM-DD`, el mismo formato que devuelve
+  // fechaEnLima(): no hay ninguna conversion de por medio.
   const { reservadas, activas } =
     fecha === "" ? { reservadas: [], activas: [] } : particionarPorDia(reservasVivas, fecha);
 
   const motivoVacio = motivo.trim() === "";
   const puedeAbrirConfirmacion = fecha !== "" && !motivoVacio;
 
-  // Vista previa del motivo para que el admin vea el texto exacto ANTES de
-  // confirmar (D-47). Es una COPIA para pintar, no la fuente de verdad: el
-  // texto AUTORITATIVO lo calcula textoCancelacionPorDiaInhabilitado() en el
-  // servidor (lib/admin/acciones.ts), con el motivo que de verdad llego alli.
+  // Vista previa para que el admin vea el texto exacto ANTES de confirmar (D-47).
+  // Es una COPIA para pintar: el texto autoritativo lo calcula el servidor.
   const razonCancelacion = `Cancelado por la administración (Día inhabilitado: ${motivo.trim()})`;
 
   function confirmarInhabilitar() {

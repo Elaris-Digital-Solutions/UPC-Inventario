@@ -23,7 +23,7 @@ import type { ProductoDetalle } from "@/lib/admin/consultas";
 //
 // NO usa useActionState y su <form action={...}>, al reves que
 // formulario-producto.tsx: se dispara con useTransition sobre un onClick. El
-// motivo es el defecto que se midio en la Task 2 -- React RESETEA un
+// motivo es un defecto medido -- React RESETEA un
 // <form action> cuando la accion termina, tambien al fallar --, que alli
 // obligo a controlar todos los campos. Aca los campos ya nacen controlados
 // porque arrancan con los valores del producto, asi que no hay nada que
@@ -58,7 +58,7 @@ export function FormularioEditarProducto({
 
   // EL BUFFER GUARDADO PUEDE NO ESTAR ENTRE LOS POSIBLES, y eso no es un caso
   // teorico: es exactamente la SEGUNDA MITAD de Q-14 vista desde esta
-  // pantalla. Si alguien cambia `slot_minutes` en /admin/ajustes (Task 10),
+  // pantalla. Si alguien cambia `slot_minutes` en /admin/ajustes,
   // los productos con un buffer que ya no es multiplo quedan con un valor que
   // este desplegable no puede ofrecer. Se le agrega su propio valor para que
   // el desplegable pueda MOSTRAR lo que hay -- si no, el <Select> aparecería

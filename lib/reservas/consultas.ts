@@ -1,71 +1,32 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/database.types';
 
-// Tres consultas para pintar el calendario, y no una, y el motivo esta
-// medido y no es gusto de diseno.
+// LA AFIRMACION QUE SOSTIENE EL DISEÑO DE LA PANTALLA:
+// CERO FILAS DE `available_slots` NUNCA SIGNIFICA "LLENO".
 //
-// `available_slots(p_product_id, p_campus_id, p_date, p_duration_minutes)`
-// devuelve CERO FILAS por TRES causas distintas -medido el 2026-08-10 con
-// cuatro sondas contra el STACK LOCAL, que es donde se puede montar el
-// escenario porque produccion no tiene ni una reserva-: un dia de
-// `disabled_days`, un dia fuera de la ventana movil (hoy +
-// `booking_window_days`), o -la que nadie esperaria- HOY MISMO cuando ya no
-// cabe ninguna franja de esa duracion. Esa tercera se midio a las 19:31 de
-// Lima: pedir 30 minutos ese dia dio 4 filas (20:00, 20:30, 21:00, 21:30) y
-// pedir 240 dio CERO, porque la unica franja de 4 horas que quedaba habria
-// empezado a las 18:00 y esa hora ya paso. Ese mismo dia NO estaba en
-// `disabled_days`.
-//
-// El local y produccion comparten los cinco valores de `app_settings` -7,
-// 08:00, 22:00, 30, 30, comprobados en los dos-, asi que la forma de la
-// rejilla es la misma en ambos. Lo que NO se puede medir en produccion es el
-// efecto de una reserva, porque alli no hay ninguna.
-//
-// EL SEXTO VALOR, `min_cancel_minutes`, NO ENTRA EN ESA FRASE, y hay que
-// decir por que en vez de estirar el "comprobados en los dos" a una columna
-// mas: la migracion 26 que lo crea esta aplicada SOLO EN LOCAL mientras se
-// escribe esto, asi que en produccion la columna todavia NO EXISTE. En
-// cuanto la rama se mergee y se empuje, la fila pasa a tener seis valores
-// iguales en los dos lados y esta salvedad sobra.
-//
-// Con solo la RPC, franjasDelDia() no puede distinguir esos tres casos: los
-// tres le llegan identicos, un array vacio. Por eso hace falta
-// diasInhabilitados() APARTE -la unica forma de saber si el motivo es "no
-// hay atencion" y no "se acabo el dia para esta duracion"-. Quien junta las
-// dos respuestas y decide el mensaje es el componente de calendario, no esta
-// capa: aqui solo se traduce cada tabla/RPC a un tipo mas comodo.
-//
-// Y la tercera consulta, ajustesReserva(), existe por `booking_window_days`:
-// `diasDeLaVentana()` (lib/reservas/rejilla.ts) lo necesita como parametro y
-// no lo asume.
-//
-// OJO -F3-T4, D-91-: esta consulta YA NO LEE EL HORARIO, y hasta la migracion
-// 35 leia `opening_time` y `closing_time` de `app_settings`. El horario dejo
-// de ser global: vive en `campus_hours` por sede y por dia, recortado por
-// `staff_shifts` (D-74), y quien lo aplica es `available_slots` dentro de la
-// base. Nadie del lado del cliente lo necesita -las dos columnas tenian CERO
-// consumidores cuando se borraron, contado con grep sobre `app`, `lib` y
-// `components`-, asi que aqui no se sustituyen por una lectura equivalente:
-// se van y ya.
-//
-// La afirmacion que sostiene todo el diseño de la pantalla:
-// CERO FILAS NUNCA SIGNIFICA "LLENO".
-//
-// Medido dos veces, y la segunda cerro lo que la primera dejaba abierto:
-//
-//   - Un dia con la unica unidad ocupada por la manana devolvio sus
-//     VEINTIOCHO filas -el dia entero con `slot_minutes` 30 y el horario
-//     08:00-22:00-, nueve de ellas con `free = 0`. La RPC no omite las
-//     franjas ocupadas: las devuelve con su conteo en cero.
-//   - Un dia SIN NINGUNA unidad activa -la unica puesta en `maintenance`-
-//     devolvio las 28 filas con las 28 en `free = 0`.
-//
-// El segundo escenario se monto justamente porque el primero solo permitia
-// DEDUCIR como se ve un dia lleno del todo, y una deduccion escrita como si
-// fuera una medicion es la clase de afirmacion que este proyecto persigue.
-// Ahora los dos extremos estan medidos: parcialmente ocupado y lleno entero.
+// Un dia lleno devuelve TODAS sus franjas con `free = 0`; la RPC no omite las
+// ocupadas. Cero filas significa otra cosa, y son TRES causas indistinguibles
+// desde la RPC: dia en `disabled_days`, dia fuera de la ventana movil, o HOY
+// cuando ya no cabe ninguna franja de esa duracion. Por eso hacen falta tres
+// consultas y no una: diasInhabilitados() es la unica forma de saber si el
+// motivo es "no hay atencion". Quien junta las respuestas y decide el mensaje es
+// el componente de calendario, no esta capa.
 //
 // "Lleno" se lee en los datos y jamas se infiere de una respuesta vacia.
+//
+// CUANDO SE PROPAGA EL ERROR Y CUANDO SE DEVUELVE VACIO. La regla no es de
+// estilo, es de que significa el vacio para quien llama:
+//   - SE PROPAGA cuando un vacio se leeria como un permiso -sin sancion, sin
+//     encuesta, sin ajustes-: ajustesReserva(), sancionDelAlumno(), miEncuesta().
+//     Un fallo de red no puede dejar pasar a quien tiene una sancion.
+//   - SE REGISTRA Y SE DEVUELVE VACIO cuando el vacio es una pantalla sin datos,
+//     que ya tiene su propio diseño: franjasDelDia(), diasInhabilitados(),
+//     misReservas(). El console.error es lo que distingue los dos casos para
+//     quien lea los logs.
+//
+// OJO (D-91): esta capa YA NO LEE EL HORARIO. Dejo de ser global y vive en
+// `campus_hours` por sede y por dia, recortado por `staff_shifts` (D-74); quien
+// lo aplica es `available_slots` dentro de la base.
 
 export type AjustesReserva = {
   bookingWindowDays: number;
@@ -74,20 +35,13 @@ export type AjustesReserva = {
   minCancelMinutes: number;
 };
 
-// Fila unica de `app_settings` -PK booleana con `check (id)`, insertada en la
-// migracion 20260806002459 y no en `seed.sql`, asi que existe igual en local
-// y en produccion-. No hay "todavia no existe" que manejar, a diferencia de
-// disponibilidadPorSede en lib/catalogo/consultas.ts.
+// Fila unica de `app_settings`, creada por migracion y no por `seed.sql`, asi
+// que existe igual en local y en produccion: no hay "todavia no existe" que
+// manejar.
 //
-// Si la consulta falla, esta funcion NO devuelve un valor por defecto,
-// aunque sea tentador: tres de los CUATRO numeros que quedan estan medidos
-// arriba en este mismo archivo (7, 30, 30) -el cuarto es el margen de M-12,
-// que nace con `default 60` en la migracion 26- y copiarlos aca seria
-// exactamente lo que D-19 prohibe para las duraciones -una constante que se
-// separa del dato real sin que nada avise-. Si `app_settings` no responde,
-// el calendario no sabe ni cuantos dias ofrecer ni de que tamano es el
-// bloque, asi que el error se propaga y la pagina falla de forma visible en
-// vez de pintar una ventana inventada.
+// NO devuelve valores por defecto si falla, aunque sea tentador: copiarlos aqui
+// seria lo que D-19 prohibe, una constante que se separa del dato real sin que
+// nada avise. Sin `app_settings` el calendario no sabe ni cuantos dias ofrecer.
 export async function ajustesReserva(): Promise<AjustesReserva> {
   const supabase = await createClient();
 
@@ -116,20 +70,7 @@ export type Franja = {
   free: number;
 };
 
-// Llama a la RPC tal cual -`grant execute to authenticated`, asi que esta
-// pantalla (bajo app/(alumno)/) puede pedirla-. No hay interpretacion de
-// negocio aqui: solo se traducen los nombres de columna a camelCase. Que
-// "cero filas" NO significa "lleno" -ver el comentario de arriba del
-// archivo- es una lectura que necesita TAMBIEN diasInhabilitados() y
-// ajustesReserva(), que esta funcion no tiene, asi que esa lectura vive en
-// el componente que junta las tres, no aca.
-//
-// Un error de red o de RLS se traga igual que en el resto de
-// lib/catalogo/consultas.ts -se registra con console.error y se devuelve
-// vacio-, con la misma consecuencia: el componente ve un array vacio
-// identico al de un dia inhabilitado o agotado. El `console.error` es lo que
-// distingue los dos casos para quien lea los logs; la pantalla, a proposito,
-// no necesita distinguirlos para el alumno.
+// La RPC tal cual: aqui no hay interpretacion de negocio, solo camelCase.
 export async function franjasDelDia(
   productId: string,
   campusId: string,
@@ -161,15 +102,11 @@ export type DiaInhabilitado = {
   reason: string | null;
 };
 
-// Entre `desde` y `hasta` (`YYYY-MM-DD`, los dos extremos incluidos) y no la
-// tabla entera: al calendario solo le importan los dias que YA VA A OFRECER
-// -los de `diasDeLaVentana()`-, y `disabled_days` puede tener filas fuera de
-// ese rango que no pintan nada aqui.
+// Acotada al rango que el calendario va a ofrecer, no la tabla entera.
 //
-// `reason` sale `| null` en el tipo y se deja asi a proposito: las DOS filas
-// que hay hoy en produccion, medidas el 2026-08-10, tienen el motivo en
-// NULL. Un mensaje que diera por hecho que siempre hay motivo se rompería
-// con los unicos datos reales que existen.
+// `reason` va `| null` a proposito: las filas reales de produccion lo tienen en
+// NULL, asi que un mensaje que diera por hecho que siempre hay motivo se
+// romperia con los unicos datos que existen.
 export async function diasInhabilitados(desde: string, hasta: string): Promise<DiaInhabilitado[]> {
   const supabase = await createClient();
 
@@ -188,53 +125,27 @@ export async function diasInhabilitados(desde: string, hasta: string): Promise<D
   return data;
 }
 
-// Lo que el alumno de la sesion tiene en `banned_until`, SIN interpretar.
-// Task 11 de la tanda 2B.
+// El `banned_until` del alumno de la sesion, SIN interpretar: decidir si es
+// "infinity", pasado o futuro es trabajo de sancionVigente(), que es pura y esta
+// probada aparte.
 //
-// `auth_user_id` y NUNCA `id`: son columnas DISTINTAS de la misma tabla
-// `alumnos` -`id` es la clave primaria propia de la fila, `auth_user_id` es
-// la del usuario en `auth.users`-, y confundirlas NO da error. Un
-// `.eq('id', sub)` con el UUID de sesion, que no coincide con ningun `id` de
-// `alumnos`, devuelve CERO FILAS en silencio: `maybeSingle()` no distingue
-// "este alumno no existe" de "consultaste por la columna equivocada". Ya
-// costo un falso positivo en esta tanda que parecia un agujero de seguridad
-// y no lo era: era esta misma confusion.
+// `auth_user_id` y NUNCA `id`: son columnas DISTINTAS de `alumnos` y confundirlas
+// NO da error, devuelve cero filas en silencio. Ya costo un falso positivo que
+// parecia un agujero de seguridad y no lo era.
 //
-// ESTO NO ES UN CONTROL DE AUTORIZACION, y el nombre de esta funcion invita a
-// pensar lo contrario. `create_reservation` ya rechaza con sancion vigente en
-// su paso 2, adentro del motor. Esta funcion solo ANTICIPA ese rechazo para
-// no pintar un calendario y un boton de reservar que van a fallar seguro. Si
-// alguien borrara esta funcion entera, NO se abriria ningun agujero: la
-// reserva seguiria rechazandose exactamente igual, solo que sin avisar
-// antes. Esa es la prueba de que el control esta en el sitio correcto.
-//
-// Devuelve el valor CRUDO -tal cual sale de la columna- y no lo interpreta:
-// decidir que es "infinity", que es una fecha pasada o que es una fecha
-// futura es trabajo de sancionVigente() (lib/reservas/sancion.ts), que es
-// pura y esta probada aparte. Esta capa solo traduce la fila.
-//
-// Si la consulta FALLA, esta funcion NO sigue el patron de `console.error` +
-// vacio que usan franjasDelDia() y diasInhabilitados() mas arriba en este
-// mismo archivo, y es a proposito: alla un resultado vacio es una pantalla
-// sin datos que pintar, una degradacion razonable. ACA un vacio -`null`-
-// significa "sin sancion" para quien llama, y devolverlo por un error
-// dejaria pasar a alguien cuya sancion no se pudo leer, no por no tenerla
-// sino porque la consulta fallo. Por eso se PROPAGA el error -igual que
-// ajustesReserva(), mas arriba en este archivo- y la pagina falla de forma
-// visible en vez de ofrecer, por un fallo de red o de RLS, una reserva que
-// no deberia ofrecerse.
+// ESTO NO ES UN CONTROL DE AUTORIZACION, aunque el nombre lo sugiera:
+// `create_reservation` ya rechaza con sancion vigente dentro del motor. Esto solo
+// ANTICIPA el rechazo para no pintar un boton que va a fallar seguro. Borrar esta
+// funcion no abriria ningun agujero, y esa es la prueba de que el control esta en
+// el sitio correcto.
 export async function sancionDelAlumno(): Promise<string | null> {
   const supabase = await createClient();
 
   const { data } = await supabase.auth.getClaims();
   const sub = data?.claims.sub;
 
-  // Sin sesion no hay alumno de quien leer la sancion. En la practica esta
-  // rama es INALCANZABLE bajo app/(alumno)/: el layout del grupo
-  // (app/(alumno)/layout.tsx) ya redirigio a /login a quien no tiene sesion
-  // antes de que esta funcion llegue a llamarse. Se comprueba igual porque
-  // el tipo de `sub` es `string | undefined` y no hay forma de afirmarle al
-  // compilador lo contrario sin un `as` que estaria mintiendo.
+  // Inalcanzable bajo app/(alumno)/: el layout del grupo ya redirigio. Se
+  // comprueba igual porque `sub` es `string | undefined`.
   if (!sub) {
     return null;
   }
@@ -252,13 +163,9 @@ export async function sancionDelAlumno(): Promise<string | null> {
   return alumno?.banned_until ?? null;
 }
 
-// El enum de verdad, leido del esquema generado, y NO una union escrita a
-// mano. lib/reservas/agrupar.ts necesita los SEIS valores para un switch
-// exhaustivo, y escribirlos ahi Y aca serian dos listas que se separan del
-// esquema real sin que nada avise: si una migracion futura le agrega un
-// septimo valor al enum, este alias lo hereda con solo regenerar
-// lib/database.types.ts, mientras que una union tecleada a mano se quedaria
-// en seis sin que el typecheck se quejara.
+// El enum leido del esquema generado y NO una union escrita a mano: agrupar.ts
+// necesita los seis valores para un switch exhaustivo, y una lista tecleada se
+// quedaria corta ante una migracion futura sin que el typecheck se quejara.
 export type EstadoReserva = Database['public']['Enums']['reservation_status'];
 
 export type ReservaDelAlumno = {
@@ -267,44 +174,25 @@ export type ReservaDelAlumno = {
   fin: string; // ISO, tal cual llega
   estado: EstadoReserva;
   motivo: string | null;
-  // El motivo de la CANCELACION, que no es el mismo dato que `motivo` -ese es
-  // el proposito de uso que el alumno eligio al reservar-. Se trae porque una
-  // reserva cancelada sin decir por que deja al alumno sin la unica
-  // informacion que le importa de ella, y el caso no es hipotetico por dos
-  // lados: la cancelacion del alumno exige un motivo obligatorio (BR-17, y es
-  // la Task 13), y el personal tambien puede cancelar reservas -BR-11, cuando
-  // se inhabilita un dia que ya tenia reservas hechas-. En ese segundo caso
-  // es la unica explicacion que el alumno va a recibir.
+  // No es el mismo dato que `motivo` -ese es el proposito de uso-. Se trae
+  // porque el personal tambien cancela (BR-11, al inhabilitar un dia), y ahi
+  // esta es la unica explicacion que el alumno va a recibir.
   motivoCancelacion: string | null;
   producto: string;
   sede: string;
   unidad: string;
 };
 
-// La forma medida de la fila que devuelve el embed -misma tecnica que
-// FilaProducto en lib/catalogo/consultas.ts: se declara la forma esperada y
-// se usa como tipo del parametro de filaAReserva() mas abajo, para que
-// TypeScript la CONTRASTE contra lo que el `select` de misReservas() infiere
-// en vez de imponerla con `.returns<>()`, que seria un `as` con otro
-// nombre. Si el select cambia y este tipo no, el typecheck falla en vez de
-// mentir en silencio -D-26-.
+// La forma de la fila que devuelve el embed, declarada para que TypeScript la
+// CONTRASTE contra lo que el `select` infiere. No se usa `.returns<>()`: eso es
+// un `as` con otro nombre, y sustituye el tipo en vez de comprobarlo (D-26).
 //
-// `products` e `inventory_units`, y adentro `campuses`, llegan como OBJETO y
-// no como array. Esto SI esta medido -el 2026-08-11, contra el stack local,
-// con un JWT firmado de la alumna Ana-: la consulta exacta de abajo devolvio
-// `"products":{"name":"Laptop Dell XPS 15"}` y
-// `"inventory_units":{"campuses":{"name":"Monterrico"},"unit_code":"LAP-001"}`.
-// Tiene sentido con el esquema: la FK vive en `inventory_reservations` y en
-// `inventory_units` -no en la tabla embebida-, asi que cada fila trae COMO
-// MUCHO una relacionada. Es lo contrario de `product_images` en
-// lib/catalogo/consultas.ts, donde la FK vive en la tabla embebida y por eso
-// llega como array.
+// `products` e `inventory_units` llegan como OBJETO y no como array porque la FK
+// vive en la tabla que consulta, no en la embebida -al reves que
+// `product_images` en lib/catalogo/consultas.ts-.
 //
-// Los tres campos embebidos se tipan `| null` aunque las TRES filas medidas
-// -las unicas que existen en el escenario- trajeran los tres completos: esto
-// es DEDUCCION, no medicion. Si el producto, la unidad o la sede de una
-// reserva se borraran, PostgREST devolveria `null` en ese embed en vez de
-// omitir la fila entera -es como se comporta un LEFT JOIN-, y nadie ha
+// Los tres embeds van `| null` por DEDUCCION y no por medicion: si el producto o
+// la sede se borraran, PostgREST devolveria `null` como un LEFT JOIN, y nadie ha
 // borrado un producto con una reserva encima para comprobarlo.
 type FilaReserva = {
   id: string;
@@ -317,14 +205,9 @@ type FilaReserva = {
   inventory_units: { unit_code: string; campuses: { name: string } | null } | null;
 };
 
-// Traduce una fila cruda al tipo que pinta la pantalla, o la DESCARTA -null-
-// si falta alguno de los tres embeds. Ver el comentario de FilaReserva
-// arriba: esa caida es una deduccion sobre un caso que nunca ocurrio en el
-// escenario medido, no un hecho comprobado. Se descarta en vez de pintarse
-// con un nombre vacio porque una tarjeta sin nombre de equipo o sin sede no
-// le dice nada util al alumno: es preferible que falte la fila a que se vea
-// rota. El console.error deja rastro de que paso, igual que el resto de
-// funciones de este archivo que se tragan un fallo.
+// DESCARTA la fila si falta algun embed, en vez de pintarla con un nombre vacio:
+// una tarjeta sin equipo ni sede no le dice nada util al alumno, y es preferible
+// que falte a que se vea rota.
 function filaAReserva(fila: FilaReserva): ReservaDelAlumno | null {
   if (
     fila.products === null ||
@@ -351,22 +234,14 @@ function filaAReserva(fila: FilaReserva): ReservaDelAlumno | null {
   };
 }
 
-// Las reservas del alumno de la sesion, para /mi-panel. Task 12 de la tanda 2B.
+// Las reservas del alumno de la sesion, para /mi-panel.
 //
-// NO SE FILTRA POR `alumno_id` en el cliente, y es a proposito -no un
-// descuido-. Medido el 2026-08-11 contra el stack local con un JWT firmado
-// de la alumna Ana: la tabla tenia TRES reservas -dos de Ana y una de
-// Bruno-, y esta misma consulta, sin ningun `.eq()` de por medio, devolvio
-// EXACTAMENTE las dos de Ana; la de Bruno no aparecio. La politica
-// `reservations_select_own` ya hace ese filtro DENTRO de RLS, evaluada como
-// el alumno que consulta y no como este codigo, asi que anadir aca un
-// `.eq('alumno_id', ...)` redundante no reforzaria nada: solo sugeriria que
-// el aislamiento hace falta en el cliente, cuando la prueba es que ya esta
-// resuelto un nivel mas abajo.
+// NO SE FILTRA POR `alumno_id` en el cliente, y es a proposito:
+// `reservations_select_own` ya lo hace DENTRO de RLS, evaluada como el alumno que
+// consulta. Un `.eq()` redundante no reforzaria nada: solo sugeriria que el
+// aislamiento hace falta en el cliente, cuando ya esta resuelto un nivel abajo.
 //
-// El embed es el exacto medido arriba en el comentario de FilaReserva, y el
-// orden es por `start_at` para que agrupar.ts reciba las reservas ya en
-// orden cronologico dentro de cada grupo.
+// Ordenadas por `start_at` para que agrupar.ts las reciba ya cronologicas.
 export async function misReservas(): Promise<ReservaDelAlumno[]> {
   const supabase = await createClient();
 
@@ -377,16 +252,6 @@ export async function misReservas(): Promise<ReservaDelAlumno[]> {
     )
     .order('start_at');
 
-  // Igual que franjasDelDia() y diasInhabilitados() mas arriba en este
-  // archivo, y A DIFERENCIA de sancionDelAlumno(): aca un array vacio es una
-  // pantalla sin reservas, que es exactamente el estado real de produccion
-  // hoy -cero reservas creadas fuera de un escenario de prueba- y ya tiene
-  // su propio diseno en app/(alumno)/mi-panel/page.tsx. No es un permiso que
-  // se le escape a nadie por leerse vacio: a diferencia de la sancion, donde
-  // un `null` por fallo de red se leeria como "no tiene sancion" y dejaria
-  // pasar a alguien que si la tiene, aca un vacio por fallo de red y un
-  // vacio por no tener reservas se ven identicos EN LA PANTALLA CORRECTA
-  // para los dos casos: ninguno le da al alumno algo que no deberia tener.
   if (error) {
     console.error('misReservas: fallo la consulta a inventory_reservations', error.message);
     return [];
@@ -395,10 +260,6 @@ export async function misReservas(): Promise<ReservaDelAlumno[]> {
   return data.map(filaAReserva).filter((reserva): reserva is ReservaDelAlumno => reserva !== null);
 }
 
-// La forma medida de `final_satisfaction_surveys` -leida en
-// lib/database.types.ts-: NUEVE columnas de contenido, todas nulables salvo
-// `alumno_id`, que ni siquiera se pide aca porque `surveys_select_own` ya lo
-// resuelve. Camel case, igual que el resto de tipos de este archivo.
 export type EncuestaDelAlumno = {
   platformRating: number | null;
   serviceRating: number | null;
@@ -412,37 +273,15 @@ export type EncuestaDelAlumno = {
 };
 
 // La encuesta del alumno de la sesion, o `null` si todavia no la contesto.
-// Task 14 de la tanda 2B.
 //
-// SIN `.eq('alumno_id', ...)` en el `select`, igual que misReservas() mas
-// arriba en este archivo y por el mismo motivo: la politica
-// `surveys_select_own` ya filtra por `alumno_id = private.current_alumno_id()`
-// DENTRO de RLS, evaluada como el alumno que consulta. Anadir aca un `.eq()`
-// redundante no reforzaria nada, solo sugeriria que el aislamiento hace falta
-// en el cliente cuando ya esta resuelto un nivel mas abajo.
+// SIN `.eq('alumno_id', ...)`, mismo motivo que misReservas().
 //
-// `.maybeSingle()` y no `.single()`: CERO FILAS es el estado NORMAL de quien
-// todavia no respondio, no un error, y hoy ese es el estado de TODO alumno.
-// `.single()` lanzaria una excepcion para ese caso exacto.
+// `.maybeSingle()` y no `.single()`: cero filas es el estado NORMAL de quien no
+// respondio, y hoy ese es el estado de todo alumno. `.single()` lanzaria.
 //
-// Las dos mediciones que sostienen esa frase son de DIAS DISTINTOS, y conviene
-// no juntarlas bajo una sola fecha: el **stack local** se midio el 2026-08-11
-// -cero encuestas-, y **produccion** el 2026-08-10, anotada en la tabla "La
-// forma real de los datos" de MIGRATION_DOCS/PLANES/FASE_2_TANDA_2B.md, que
-// tambien es donde se midio el `UNIQUE (alumno_id)` (correccion 4). Una
-// version anterior de este comentario decia que las dos se habian medido el
-// 2026-08-11; el dato es cierto en las dos, la fecha no.
-//
-// Si la consulta FALLA, esta funcion PROPAGA el error -igual que
-// ajustesReserva() y sancionDelAlumno() mas arriba en este archivo, y AL
-// CONTRARIO que misReservas()-. El motivo es el mismo que el de
-// sancionDelAlumno(): un `null` devuelto por un fallo de red se leeria
-// exactamente igual que "no ha contestado", y la pantalla ofreceria un
-// formulario VACIO a alguien que en realidad ya tiene una fila. Enviarlo
-// chocaria con el `UNIQUE (alumno_id)` -sonda 2 del set medido el 2026-08-11
-// contra el stack local, `duplicate key value violates unique constraint
-// "final_satisfaction_surveys_alumno_id_key"`- y el alumno veria un rechazo
-// que no tiene como entender, por un problema que no fue suyo.
+// Propaga el error (ver la regla de la cabecera): un `null` por fallo de red se
+// leeria como "no ha contestado", la pantalla ofreceria un formulario vacio a
+// quien ya tiene fila, y al enviarlo chocaria con el `UNIQUE (alumno_id)`.
 export async function miEncuesta(): Promise<EncuestaDelAlumno | null> {
   const supabase = await createClient();
 

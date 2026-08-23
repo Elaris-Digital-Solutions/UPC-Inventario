@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO y no `@/lib/cloudinary/firma`: Vitest no conoce el alias que
-// declara tsconfig.json. Medido en la Task 8 de la tanda 3A.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { cadenaAFirmar, firmar } from './firma';
 
 describe('cadenaAFirmar', () => {
@@ -34,7 +34,7 @@ describe('firmar', () => {
   // secreto 'abcd'. NO es "el ejemplo de la documentacion de Cloudinary": los
   // parametros salen de alli, pero el secreto y por tanto el hash son de esta
   // medicion. Decirlo importa, porque una fuente inventada sobre un hecho
-  // cierto es el genero de error que este proyecto persigue desde la T2B.
+  // cierto es el genero de error que este proyecto persigue.
   //
   // Vale como regresion de verdad: si alguien cambia el algoritmo, el orden de
   // concatenacion o mete un separador entre la cadena y el secreto, este

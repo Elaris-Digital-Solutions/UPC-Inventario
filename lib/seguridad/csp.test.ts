@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO y no `@/lib/seguridad/csp`: el proyecto no tiene
-// `vitest.config.ts` y Vitest no conoce el alias `@/*` que declara
-// tsconfig.json. Misma correccion que ya aplican ajustes.test.ts y
-// filtro.test.ts.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { construirCSP } from './csp';
 
 const NONCE = 'abc123';

@@ -1,19 +1,12 @@
 "use client";
 
-// El formulario de /admin/ajustes (Task 10, D-39 y D-54; M-12 le suma la
-// septima en la Tanda 5): las siete columnas
-// editables de app_settings, con dos avisos de naturaleza distinta -ver el
-// comentario largo de aperturaDesalineada() y de productosDesalineados() en
-// lib/admin/ajustes.ts para el porque completo de cada uno-.
+// El formulario de /admin/ajustes (D-39, D-54, M-12): las columnas editables de
+// `app_settings`.
 //
-// TODOS LOS CAMPOS CONTROLADOS, con useState + useTransition, y NUNCA
-// <form action={...}> con useActionState. Motivo medido en la Task 2 de esta
-// misma tanda -ver el comentario de FormularioProducto-: React resetea un
-// <form action> cuando la accion termina, TAMBIEN cuando devuelve error, y
-// esta pantalla nace con los valores YA GUARDADOS -no con un formulario en
-// blanco-, asi que un reseteo los borraria. PanelDias (components/admin/panel-dias.tsx)
-// ya usa este mismo patron por el mismo motivo, aunque su formulario si nace
-// vacio.
+// TODOS LOS CAMPOS CONTROLADOS y NUNCA <form action={...}> con useActionState:
+// React resetea un `<form action>` cuando la accion termina, TAMBIEN con error, y
+// esta pantalla nace con los valores YA GUARDADOS, asi que un reseteo los
+// borraria. Ver COMPORTAMIENTO_MEDIDO.md §6.
 import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 
@@ -41,11 +34,9 @@ import { guardarAjustes } from "@/lib/admin/acciones";
 import type { AjustesAdmin, ProductoConBuffer } from "@/lib/admin/configuracion";
 import { plural } from "@/lib/admin/plural";
 
-// Los OCHO valores que el check `app_settings_slot_divisor` permite -60 %
-// slot_minutes = 0, con el rango 5..60-. El desplegable NO es un campo libre
-// a proposito: 45 pasaria el rango 5-60 y moriria en ese check con un mensaje
-// del motor, en vez de nunca poder escribirse. Mismos ocho valores que ya usan
-// las pruebas de aperturaDesalineada() en lib/admin/ajustes.test.ts.
+// Los OCHO valores que permite `app_settings_slot_divisor`. Desplegable y NO
+// campo libre a proposito: 45 pasaria el rango 5-60 y moriria en ese check con un
+// mensaje del motor, en vez de nunca poder escribirse.
 const SLOTS_LEGALES = [5, 6, 10, 12, 15, 20, 30, 60];
 
 type FormularioAjustesProps = {
@@ -64,29 +55,16 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciarGuardado] = useTransition();
 
-  // SEÑAL DE EXITO, y hace falta ACA aunque PanelDias no la necesite -y hay
-  // que decir por que, no solo copiar el patron-. En PanelDias, guardar con
-  // exito hace aparecer una fila NUEVA en la lista de dias inhabilitados: el
-  // cambio se VE solo, sin ningun mensaje aparte. Aca no hay ninguna lista:
-  // los siete campos YA muestran, antes de guardar, exactamente lo que el
-  // admin acaba de escribir -son controlados y nacen con los valores
-  // guardados-, asi que guardar bien y no guardar nada se ven EXACTAMENTE
-  // IGUAL sin esta señal. Es el mismo genero que el fallo silencioso del
-  // PATCH que devuelve HTTP 200 con `[]`, que esta misma tanda ya trata como
-  // defecto en habilitarDia() y cambiarRolPersonal() (lib/admin/acciones.ts):
-  // alli el chequeo es en el servidor porque el silencio viene de RLS; aca es
-  // en el cliente porque el silencio viene de que no hay nada que redibujar.
+  // SEÑAL DE EXITO, y hace falta AQUI aunque otras pantallas no la necesiten:
+  // los campos ya muestran, antes de guardar, lo que el admin acaba de escribir,
+  // asi que guardar bien y no guardar nada se ven EXACTAMENTE IGUAL sin ella.
   //
-  // DESAPARECE EN CUANTO SE EDITA CUALQUIER CAMPO -via editar(), mas abajo-,
-  // no solo cuando se reintenta guardar. Si se quedara fija tras editar,
-  // seguiria diciendo "guardado" sobre valores que ya NO son los que estan
-  // guardados en la base, que es la misma clase de mentira que el mensaje
-  // existe para evitar.
+  // DESAPARECE al editar cualquier campo, no solo al reintentar: fija, seguiria
+  // diciendo "guardado" sobre valores que ya no son los guardados.
   const [guardadoOk, setGuardadoOk] = useState(false);
 
-  // Wrapper de cada setter de campo: apaga la señal de exito ANTES de aplicar
-  // el cambio. Un solo punto para las siete, en vez de repetir
-  // `setGuardadoOk(false)` en cada `onChange`/`onValueChange`.
+  // Apaga la señal de exito ANTES de aplicar el cambio, en un solo punto para
+  // todos los campos.
   function editar<T>(setter: (valor: T) => void, valor: T) {
     setGuardadoOk(false);
     setter(valor);
@@ -100,20 +78,13 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
 
   const slotElegido = Number(slotMinutos);
 
-  // OJO -F3-T4, migracion 35, D-91-: AQUI HABIA LA COMPROBACION DE D-54 y ya
-  // no puede estar, porque esta pantalla dejo de tener hora de apertura. La
-  // regla no se perdio: la aplican dos disparadores de la migracion 33, y uno
-  // de ellos -app_settings_respeta_horarios- vigila justo el campo que SI
-  // queda aqui, `slot_minutes`. Si el bloque elegido desalinea algun horario
-  // de sede, el rechazo llega del servidor y lo traduce
-  // mensajeDeRechazoAjustes() (lib/admin/acciones.ts).
+  // LA COMPROBACION DE D-54 YA NO ESTA AQUI (D-91): esta pantalla dejo de tener
+  // hora de apertura, y la regla la aplican dos disparadores de la migracion 33.
+  // Si el bloque elegido desalinea algun horario, el rechazo llega del servidor.
 
-  // El aviso de buffers, que NO bloquea: la base permite cualquier
-  // combinacion de slot_minutes y buffer_minutes -no hay ningun check que las
-  // relacione-, asi que impedir el guardado aca inventaria una regla que el
-  // motor no tiene. Se calcula en cada render -es barato: recorre el
-  // catalogo una vez- para que el dialogo de confirmacion siempre enumere los
-  // productos que el slot ELEGIDO en este momento desalinearia.
+  // El aviso de buffers NO bloquea: la base permite cualquier combinacion, asi
+  // que impedir el guardado inventaria una regla que el motor no tiene. Se
+  // recalcula en cada render, que es barato.
   const productosAfectados = productosDesalineados(productos, slotElegido);
 
   function confirmarGuardar() {
@@ -143,11 +114,8 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
       <section className="space-y-4">
         <div>
           <Label htmlFor={idVentana}>Ventana de reserva (días)</Label>
-          {/* `min`/`max` son VISIBILIDAD, no control -mismo criterio que el
-              `min` de fecha en PanelDias-: el navegador los puede saltar, y
-              quien impide de verdad 0 o 61 es el check
-              `app_settings_booking_window_days_check`, traducido en
-              mensajeDeRechazoAjustes() (lib/admin/acciones.ts). */}
+          {/* `min`/`max` son VISIBILIDAD, no control: el navegador los puede
+              saltar, y quien impide de verdad 0 o 61 es el `check`. */}
           <Input
             id={idVentana}
             type="number"
@@ -163,11 +131,9 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
           </p>
         </div>
 
-        {/* D-91: el horario de atencion ESTUVO AQUI y se fue. Quien venga a
-            buscarlo donde siempre estuvo tiene que encontrar adonde fue, o va
-            a concluir que se perdio. El enlace entra ahora y no antes porque
-            /admin/horarios existe desde la misma tanda: un enlace a una
-            pantalla que todavia no esta es un 404, peor que no ponerlo. */}
+        {/* D-91: el horario ESTUVO AQUI y se fue. Quien venga a buscarlo donde
+            siempre estuvo tiene que encontrar adonde fue, o concluira que se
+            perdio. */}
         <p className="text-muted-foreground text-xs">
           El horario de atención ya no se configura aquí: ahora es por sede y por día de la semana.
           Se edita en{" "}
@@ -179,10 +145,8 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
 
         <div>
           <Label htmlFor={idSlot}>Tamaño del bloque (minutos)</Label>
-          {/* Desplegable de los ocho valores, mismo patron que el selector de
-              buffer de FormularioProducto (components/admin/formulario-producto.tsx):
-              Select controlado, sin <input type="hidden">, porque acá el valor
-              se manda a mano al llamar guardarAjustes() y no via FormData. */}
+          {/* Select controlado, sin <input type="hidden">: el valor se manda a
+              mano al llamar guardarAjustes(), no via FormData. */}
           <Select value={slotMinutos} onValueChange={(v) => editar(setSlotMinutos, v)}>
             <SelectTrigger id={idSlot} className="mt-1">
               <SelectValue />
@@ -258,13 +222,9 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
           Guardar ajustes
         </Button>
 
-        {/* `role="status"`, no "alert": es una confirmacion, no un error, y
-            mismo patron que formulario-editar-producto.tsx (`{guardado &&
-            !error && (...)}`). Se apaga sola al editar cualquier campo -ver
-            editar() y el comentario de guardadoOk mas arriba-, asi que no
-            hace falta condicionarla tambien a `!error`: mientras hay un error
-            visible el usuario ya volvio a intentar guardar, y confirmarGuardar()
-            ya puso guardadoOk en false antes de reintentar. */}
+        {/* `role="status"` y no "alert": es una confirmacion, no un error. No
+            hace falta condicionarla a `!error` porque confirmarGuardar() ya la
+            apaga antes de reintentar. */}
         {guardadoOk && (
           <p role="status" className="bg-muted rounded-lg px-4 py-3 text-sm">
             Ajustes guardados.
@@ -282,11 +242,9 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
             </DialogDescription>
           </DialogHeader>
 
-          {/* Ningun valor de aca puede estar vacio al abrirse el dialogo: los
-              cinco campos nacen con los valores YA GUARDADOS. No hay ningun
-              Date ni Intl.format en este bloque -al reves que el dialogo de
-              PanelDias- que pudiera lanzar con un valor vacio, asi que no hace
-              falta guardia. */}
+          {/* Sin guardia: los campos nacen con los valores YA GUARDADOS y aqui
+              no hay ningun Date ni Intl.format que pudiera lanzar con uno
+              vacio. */}
           <div className="space-y-2 text-sm">
             <p>Vas a guardar estos ajustes:</p>
             <ul className="list-disc space-y-1 pl-5">
@@ -307,12 +265,7 @@ export function FormularioAjustes({ ajustes, productos }: FormularioAjustesProps
               </li>
             </ul>
 
-            {/* El aviso de buffers, D-39/Q-14: enumera CON NOMBRES, y NO
-                impide confirmar -al reves que aperturaInvalida, que ni
-                siquiera deja llegar hasta aca-. Texto del Step 3 del plan
-                (MIGRATION_DOCS/PLANES/FASE_2_TANDA_3B.md), CORREGIDO de
-                "Podés" a "Puedes": la interfaz de este proyecto tutea, y el
-                voseo del plan era un error suyo, no una decision. */}
+            {/* D-39/Q-14: enumera CON NOMBRES y NO impide confirmar. */}
             {productosAfectados.length > 0 && (
               <p role="alert" className="bg-destructive/10 text-destructive rounded-lg px-4 py-3">
                 Cambiar el bloque a <strong>{slotMinutos} minutos</strong> dejará{" "}

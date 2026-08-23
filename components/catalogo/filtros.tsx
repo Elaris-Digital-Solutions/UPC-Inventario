@@ -2,23 +2,14 @@
 
 // Filtros del catalogo: busqueda por texto y chips de categoria.
 //
-// Este componente NO decide permisos. Buscar y filtrar por categoria son
-// comodidad de navegacion sobre datos que el SERVIDOR ya acoto a una sede
-// -app/(alumno)/catalogo/page.tsx llama a productosConStock(sedeActiva.id)
-// antes de que este componente exista-. La frontera de verdad esta en la
-// sede, y esa va en la consulta del servidor (BR-14, ver el comentario en
-// lib/catalogo/consultas.ts): filtrar la sede AQUI, en el cliente, habria
-// significado mandarle a cada alumno el inventario de las dos sedes y
-// esconder la mitad con CSS. La busqueda si puede vivir aqui sin ese coste,
-// porque el universo sobre el que busca ya llego recortado por el servidor.
+// ESTE COMPONENTE NO DECIDE PERMISOS. Buscar y filtrar por categoria es comodidad
+// sobre datos que el SERVIDOR ya acoto a una sede. La frontera de verdad es la
+// sede y va en la consulta (BR-14): filtrarla aqui habria significado mandarle a
+// cada alumno el inventario de las dos y esconder la mitad con CSS.
 //
-// TarjetaProducto no lleva "use client" en su propio archivo -es un
-// componente de servidor por defecto- pero al importarse desde este archivo
-// entra en el bundle de cliente igualmente, porque todo lo que un Client
-// Component importa se empaqueta con el. Es valido: TarjetaProducto solo usa
-// Image, Link, Card y Badge, ninguno exclusivo de servidor. Asi que el MISMO
-// componente es de servidor cuando lo usa la landing (app/(publico)/page.tsx)
-// y de cliente cuando lo usa este archivo, sin que su propio codigo cambie.
+// TarjetaProducto no lleva "use client" pero entra en el bundle de cliente al
+// importarse desde aqui, y es valido: solo usa Image, Link, Card y Badge. El
+// MISMO componente es de servidor en la landing y de cliente aqui.
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -28,25 +19,15 @@ import type { ProductoVitrina } from "@/lib/catalogo/consultas";
 
 type FiltrosCatalogoProps = {
   productos: ProductoVitrina[];
-  // La sede que el servidor ya aplico a `productos`. Viaja hasta el `href` de
-  // cada tarjeta para que el detalle -y desde el, la pantalla de reserva- no
-  // tengan que adivinarla.
-  //
-  // Es la correccion 32 de la tanda 2A, que aquella tanda dejo anotada y sin
-  // arreglar a proposito. El motivo de cerrarla ahora y no antes: mientras la
-  // sede solo decidia que se MUESTRA, perderla era un detalle de navegacion
-  // que el boton "atras" del navegador ya resolvia. Desde la tanda 2B deja de
-  // ser cosmetica -una reserva es contra la unidad de UNA sede-, asi que la
-  // cadena catalogo -> detalle -> reservar tiene que conservarla entera.
+  // La sede que el servidor ya aplico. Viaja hasta el `href` de cada tarjeta para
+  // que el detalle -y desde el, la reserva- no tengan que adivinarla: una reserva
+  // es contra la unidad de UNA sede, asi que la cadena tiene que conservarla.
   sedeId: string;
 };
 
-// Los nombres reales en la base van SIN tilde -"Camara Sony A7 III",
-// "Microfono Rode NTG4", "Tripode Manfrotto MT055"- pero un alumno escribe
-// como se le ocurre, y lo natural es escribir "cámara" con tilde. Sin
-// normalizar, la busqueda mas obvia no encuentra nada, aunque el termino este
-// literalmente en el nombre. Se normalizan los DOS lados -el texto guardado y
-// lo que escribe el alumno- para que la comparacion sea justa en ambos.
+// Los nombres en la base van SIN tilde y el alumno escribe "cámara" con ella, asi
+// que sin normalizar la busqueda mas obvia no encuentra nada. Se normalizan los
+// DOS lados para que la comparacion sea justa en ambos.
 const normalizar = (texto: string) =>
   texto
     .normalize("NFD")
@@ -57,10 +38,8 @@ export function FiltrosCatalogo({ productos, sedeId }: FiltrosCatalogoProps) {
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
 
-  // No hay tabla de categorias: salen de `products.category` de lo que ya
-  // llego en `productos`. Por eso la lista de chips es EXACTAMENTE la de lo
-  // que existe en esta sede -nunca una categoria de la otra sede, ni una que
-  // hoy no tendria ningun producto que mostrar-.
+  // No hay tabla de categorias: salen de lo que ya llego. Por eso los chips son
+  // exactamente los de esta sede, sin ninguno que no tendria nada que mostrar.
   const categorias = useMemo(() => {
     const vistas = new Set<string>();
     for (const producto of productos) {
@@ -122,11 +101,8 @@ export function FiltrosCatalogo({ productos, sedeId }: FiltrosCatalogoProps) {
       </div>
 
       {filtrados.length === 0 ? (
-        // Cero resultados tras filtrar es distinto de cero productos en la
-        // sede -eso ya lo cubre app/(alumno)/catalogo/page.tsx antes de
-        // montar este componente-. Mismo estilo sobrio que usa la landing
-        // para su vacio, para que el proyecto tenga una unica forma de decir
-        // "no hay nada que mostrar".
+        // Cero tras filtrar es distinto de cero productos en la sede, que ya cubre
+        // la pagina antes de montar esto.
         <p className="text-muted-foreground border-border mt-8 rounded-lg border border-dashed py-12 text-center">
           Ningún equipo coincide con tu búsqueda.
         </p>

@@ -1,18 +1,10 @@
 "use client";
 
-// El filtro de fecha sobre "Por entregar" (F5, Task 8 de la tanda 3A) -y
-// TAMBIEN la lista filtrada de tarjetas de esa columna. El plan nombra este
-// archivo solo como "el filtro" en su "Estructura de archivos", asi que hay
-// que dejar dicho por que acaba pintando tambien las tarjetas: el estado del
-// filtro (`useState`) y la lista que depende de el NO se pueden separar en
-// dos componentes hermanos sin subir ese estado a un padre comun -y ese
-// padre tendria que ser Client Component igual, porque `useState` no existe
-// en un Server Component-. La alternativa habria sido mover el `useState` a
-// app/(personal)/mostrador/page.tsx entero, convirtiendo TODA la pagina en
-// Client Component -las columnas "Activas" y "Por devolver" incluidas-, y
-// perdiendo la lectura de datos en el servidor que la Task 4 ya dejo
-// escrita para las tres columnas. Montar el selector Y la lista aca es lo
-// que deja esas otras dos columnas exactamente como estaban.
+// El filtro de fecha sobre "Por entregar" (F5) Y TAMBIEN la lista filtrada de esa
+// columna, y no es un exceso de alcance: el `useState` del filtro y la lista que
+// depende de el no se pueden separar sin subir ese estado a un padre comun, y ese
+// padre seria toda la pagina. Convertirla entera en Client Component perderia la
+// lectura en servidor de las otras dos columnas.
 import { useState } from "react";
 
 import { TarjetaMostrador } from "@/components/mostrador/tarjeta-mostrador";
@@ -27,34 +19,20 @@ import {
 import type { NotaUnidad } from "@/lib/mostrador/notas";
 
 type FiltroPorEntregarProps = {
-  // Las reservas de "Por entregar", ya agrupadas por
-  // app/(personal)/mostrador/page.tsx -este componente no vuelve a llamar
-  // columnaDeReserva() ni reservasMostrador(), mismo criterio que ya sigue
-  // TarjetaMostrador con su prop `columna`: la agrupacion es del servidor.
+  // Ya agrupadas por la pagina: la agrupacion es del servidor.
   reservas: ReservaMostrador[];
-  // El instante actual, como STRING ISO y no como `Date`. Es la frontera
-  // servidor->cliente: page.tsx (Server Component) hace la UNICA lectura
-  // del reloj de toda la pagina (regla M-7) y este componente la recibe por
-  // props en vez de volver a leerla. Viaja en ISO y no como `Date` porque
-  // eso saca de la ecuacion COMO el framework decida serializar un `Date`
-  // al cruzar de Server a Client Component -no medido aca, y no hace falta
-  // medirlo-: un string ISO es texto llano, sin ninguna forma de llegar
-  // distinto del otro lado. Se reconstruye con `new Date(...)` aca dentro,
-  // una sola vez por render.
+  // El instante actual como STRING ISO y no como `Date`: la pagina hace la UNICA
+  // lectura del reloj (regla M-7), y un string es texto llano, sin depender de
+  // como el framework serialice un `Date` al cruzar al cliente.
   ahora: string;
-  // Las notas de TODAS las unidades que puede necesitar esta columna, ya
-  // resueltas por notasPorUnidad() en la pagina -mismo Record que reciben
-  // las otras dos columnas, no una copia recortada-. Cada tarjeta busca la
-  // suya por `unidadId`, igual que ya hace page.tsx para "Activas" y "Por
-  // devolver".
+  // Ya resueltas por la pagina, en el mismo Record que reciben las otras dos
+  // columnas. Cada tarjeta busca la suya por `unidadId`.
   notasPorUnidad: Record<string, NotaUnidad[]>;
 };
 
 export function FiltroPorEntregar({ reservas, ahora, notasPorUnidad }: FiltroPorEntregarProps) {
-  // Arranca en "todas": el filtro NO debe esconder nada hasta que alguien lo
-  // pida. Un operador que abre el mostrador por primera vez en su turno
-  // tiene que ver TODO su trabajo pendiente en "Por entregar", no una
-  // rebanada que dependa de que alguien haya tocado el filtro antes que el.
+  // Arranca en "todas": el filtro no debe esconder nada hasta que alguien lo pida.
+  // Quien abre el mostrador tiene que ver TODO su trabajo pendiente.
   const [filtro, setFiltro] = useState<FiltroFecha>("todas");
 
   const instante = new Date(ahora);
@@ -82,10 +60,8 @@ export function FiltroPorEntregar({ reservas, ahora, notasPorUnidad }: FiltroPor
               type="button"
               aria-pressed={opcion === filtro}
               onClick={() => setFiltro(opcion)}
-              // El boton activo se distingue con una `variant` distinta -no
-              // es una eleccion de estetica: saber cual filtro esta aplicado
-              // es lo que evita creer que no hay reservas cuando en realidad
-              // estan filtradas.
+              // La `variant` distinta no es estetica: saber cual filtro esta
+              // aplicado es lo que evita creer que no hay reservas.
               className={buttonVariants({ variant: opcion === filtro ? "default" : "outline", size: "xs" })}
             >
               {ETIQUETAS_FILTRO_FECHA[opcion]}
@@ -101,17 +77,9 @@ export function FiltroPorEntregar({ reservas, ahora, notasPorUnidad }: FiltroPor
         reservas.length === 0 ? (
           <p className="text-muted-foreground text-sm">Nada pendiente en esta columna.</p>
         ) : (
-          // Distinto del mensaje de arriba A PROPOSITO: aca SI hay
-          // reservas, solo que el filtro las esconde. Decir "nada
-          // pendiente" seria una afirmacion FALSA -el equipo pendiente
-          // existe, el filtro solo lo tapa- con una consecuencia real: un
-          // operador podria pensar que no le queda nada por entregar cuando
-          // en realidad tiene reservas fuera de la ventana elegida.
-          // El texto TUTEA, como todos los de esta aplicacion -"Actualiza la
-          // pagina", "Describe abajo que paso con el equipo", "no escribas
-          // datos personales"-. Los comentarios y los documentos del proyecto
-          // vosean; la interfaz no, y mezclar los dos registros en la misma
-          // pantalla se lee como un descuido.
+          // Distinto del mensaje de arriba A PROPOSITO: aqui SI hay reservas y el
+          // filtro las esconde. Decir "nada pendiente" seria FALSO, y un operador
+          // podria dar por cerrado un turno con equipos por entregar.
           <p className="text-muted-foreground text-sm">
             Hay reservas pendientes de entregar, pero ninguna entra en «
             {ETIQUETAS_FILTRO_FECHA[filtro]}». Prueba con otro filtro para verlas.

@@ -38,17 +38,14 @@ export default function LoginPage() {
 
     const supabase = createClient();
 
-    // No se pasa `emailRedirectTo`: la plantilla de correo apunta a
-    // `{{ .SiteURL }}/auth/confirm` con el `token_hash`, asi que el destino ya
-    // esta fijado del lado del servidor y no depende de un parametro que viaje
-    // en la peticion. Menos superficie: ningun valor controlable por quien
-    // pide el enlace decide a donde va el enlace.
+    // SIN `emailRedirectTo`: el destino ya lo fija la plantilla de correo del
+    // lado del servidor, asi que ningun valor controlable por quien pide el
+    // enlace decide a donde va el enlace.
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // Tiene que ser true: si no, nadie podria entrar la primera vez. A
-        // quien se cuele por aqui sin ser de la UPC lo para el enganche antes
-        // de crear la cuenta, no este formulario.
+        // True o nadie podria entrar la primera vez. A quien no sea de la UPC lo
+        // para el enganche antes de crear la cuenta, no este formulario.
         shouldCreateUser: true,
       },
     });
@@ -103,8 +100,8 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           {estado === "enviado" ? (
-            // Se muestra el mismo mensaje exista o no la cuenta detras de ese
-            // correo, para no revelar que direcciones estan registradas.
+            // El MISMO mensaje exista o no la cuenta: no se revela que
+            // direcciones estan registradas.
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">
                 Revisa tu correo: te enviamos un enlace de acceso. Es de un
@@ -127,13 +124,10 @@ export default function LoginPage() {
                 </label>
                 <Input
                   id="email"
-                  // `name` no lo usa el camino normal -React lee el valor del
-                  // estado-, pero decide COMO falla esto cuando no hay
-                  // JavaScript: sin manejador, el navegador hace un envio
-                  // nativo, y sin `name` ese envio no lleva nada, asi que
-                  // recarga /login identico y el fallo es mudo. Con `name`
-                  // queda `?email=...` en la URL, que es un rastro. Costo una
-                  // hora de diagnostico el 2026-08-07 (D-33).
+                  // `name` no lo usa el camino normal, pero decide COMO falla
+                  // esto sin JavaScript: el navegador hace un envio nativo, y sin
+                  // `name` recarga /login identico y el fallo es MUDO. Con el
+                  // queda `?email=` en la URL, que es un rastro (D-33).
                   name="email"
                   type="email"
                   required

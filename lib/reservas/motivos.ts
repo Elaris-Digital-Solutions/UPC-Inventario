@@ -1,27 +1,17 @@
-// Las seis opciones fijas de motivo, Task 10 de la tanda 2B.
+// Las seis opciones fijas de motivo.
 //
-// Vive en su propio archivo y no dentro de acciones.ts, por un motivo tecnico
-// y no de gusto: acciones.ts lleva `'use server'` en la cabecera, y Next
-// exige que TODO lo que ese archivo exporte sea una funcion async -una
-// constante exportada ahi no compila-. Esta lista la necesitan DOS sitios que
-// no comparten esa restriccion: el componente de cliente
-// (components/reservas/formulario-reserva.tsx), para pintar el grupo de
-// radios, y la Server Action (lib/reservas/acciones.ts), para validar que el
-// valor recibido sea uno de los seis. De ahi que tenga que ser un archivo
-// aparte, sin `'use server'`, importable desde los dos.
+// EN SU PROPIO ARCHIVO Y NO EN acciones.ts por un motivo tecnico: aquel lleva
+// `'use server'`, y Next exige que TODO lo que ese archivo exporte sea una
+// funcion async -una constante exportada ahi no compila-. Esta lista la
+// necesitan un Client Component, para pintar los radios, y la Server Action,
+// para validar lo que llega.
 //
-// Son las seis opciones del sistema Vite anterior
-// (MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md §F3, paso 5), y se conservan
-// fijas en vez de texto libre por dos motivos que se sostienen entre si: el
-// panel del personal las muestra (§F6, "propósito" en la fila expandible), y
-// un desplegable cerrado deja el dato comparable entre reservas -un campo de
-// texto libre no se puede agrupar ni filtrar con sentido-.
+// FIJAS Y NO TEXTO LIBRE: el panel del personal las muestra, y un desplegable
+// cerrado deja el dato comparable entre reservas.
 //
-// La columna `inventory_reservations.purpose` es `text` NULLABLE y no tiene
-// ningun `CHECK`: la base acepta cualquier texto, asi que esta lista es una
-// regla de la APLICACION y no del motor. Si algun dia se quisiera relajar a
-// texto libre, no haria falta ninguna migracion -la base ya lo permite-, solo
-// cambiar esta pantalla. Decidido con Alejandro el 2026-08-11.
+// `purpose` es `text` NULLABLE y sin ningun CHECK, asi que esta lista es una
+// regla de la APLICACION y no del motor: relajarla a texto libre no exigiria
+// ninguna migracion.
 export const MOTIVOS = [
   "Práctica de laboratorio",
   "Proyecto de curso",

@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Import RELATIVO, no `@/lib/reservas/rejilla`. El proyecto no tiene
-// `vitest.config.ts`, asi que Vitest corre con los valores por defecto y NO
-// conoce el alias `@/*` que declara `tsconfig.json`. Escribirlo con alias
-// compilaria -`tsc` si lo resuelve- y fallaria solo al ejecutar, que es
-// exactamente la clase de fallo que esta tanda tiene que evitar.
-//
-// Se deja asi a proposito en vez de anadir configuracion: un archivo de
-// configuracion nuevo es superficie que mantener, y un test junto a su codigo
-// no necesita alias para encontrarlo.
+// Import RELATIVO y no `@/`: bajo Vitest el alias no resuelve.
+// Ver MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md §5.
 import { diasDeLaVentana, duracionesPosibles, fechaEnLima, hoyEnLima, sumarDias } from './rejilla';
 
 describe('fechaEnLima', () => {

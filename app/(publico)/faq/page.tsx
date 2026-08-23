@@ -1,39 +1,23 @@
-// Pagina de preguntas frecuentes. No hace ninguna consulta a la base, ni
-// siquiera a la configuracion.
+// Pagina de preguntas frecuentes. NO hace ninguna consulta a la base, ni
+// siquiera a la configuracion, asi que sus numeros estan escritos A MANO.
 //
-// Fue ESTATICA a proposito hasta el 2026-08-13 -Server Component sin async,
-// servido desde el prerender-. Dejo de serlo con la CSP por nonce de la tanda
-// 4: el nonce se genera por peticion, y una pagina generada en el build no
-// puede tener ninguno, asi que sus scripts llegarian sin nonce y la CSP los
-// bloquearia. Lo que cambio es DONDE se renderiza, no que datos usa: sigue
-// sin consultar nada.
+// ⚠ ESA MANO TIENE UN COSTO VIVO, Y HAY QUE DECIRLO CON PRECISION. Los tres
+// numeros que quedan -bloque de 30 minutos, ventana de 7 dias, una reserva por
+// equipo y dia- salen de `app_settings`, que HOY SI tiene interfaz de
+// administracion en /admin/ajustes. Un admin puede cambiarlos y esta pagina no
+// se entera, porque nada la vuelve a comparar contra la base.
 //
-// Los numeros de aqui abajo estan escritos a mano, medidos contra la
-// configuracion real el 2026-08-08: ~~horario 08:00-22:00 hora de Lima,~~
-// bloques de 30 minutos, ventana de reserva de 7 dias movil, una reserva por
-// equipo y por dia.
+// SE ACEPTA porque una FAQ que consulta la base deja de poder servirse barata.
+// LA CONTRAPARTIDA es esta regla: quien toque /admin/ajustes tiene que pasar por
+// aqui. Ultima comprobacion contra produccion, 2026-08-22: 7 dias, 30 minutos,
+// limite 1. Los tres coinciden.
 //
-// ⚠ CORREGIDO el 2026-08-13: EL HORARIO YA NO SE ANUNCIA COMO UN NUMERO.
-// Aquel 08:00-22:00 era cierto como lectura de la configuracion de ese dia,
-// pero falso como promesa: la franja se ajusta por semana y los feriados se
-// cierran desde `disabled_days`. La respuesta remite ahora al calendario, que
-// es el unico sitio que sabe lo que hay para un dia concreto. Los otros tres
-// numeros siguen escritos a mano y siguen teniendo el problema que describe
-// el parrafo siguiente. La duracion maxima NO se escribe como un numero unico:
-// es un limite por equipo, no global. Hoy todos los equipos coinciden en el
-// mismo valor, pero escribir ese numero aqui prometeria una regla que no es
-// la real -la regla real vive en la ficha de cada equipo-.
-//
-// Esa mano tiene un costo, y se acepta con el costo dicho por delante: si
-// alguien cambia el horario o la ventana desde la configuracion del
-// sistema, esta pagina se queda desactualizada y nadie se entera, porque
-// nada la vuelve a comparar contra la base. Se acepta porque hoy esa
-// configuracion no tiene interfaz de administracion -llega en la tanda 3-, y
-// porque una FAQ que consulta la base deja de ser estatica, que es
-// justamente lo que la hace barata de servir.
-//
-// CUANDO LA TANDA 3 LE DE INTERFAZ AL ADMIN PARA CAMBIAR ESA CONFIGURACION,
-// HAY QUE VOLVER AQUI Y COMPROBAR SI ESTOS NUMEROS SIGUEN SIENDO CIERTOS.
+// EL HORARIO NO SE ANUNCIA COMO UN NUMERO, y esa correccion ya se pago: el
+// 08:00-22:00 que habia era cierto como lectura de un dia y falso como promesa,
+// porque la franja se ajusta y los feriados se cierran desde `disabled_days`. La
+// respuesta remite al calendario. La duracion maxima tampoco: es un limite POR
+// EQUIPO, y escribir el valor que hoy comparten todos prometeria una regla que no
+// es la real.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -65,20 +49,16 @@ type SeccionFaq = {
   preguntas: Pregunta[];
 };
 
-// Contenido medido contra la configuracion real el 2026-08-08 (ver el
-// comentario de cabecera de este archivo). Vive como datos y no como JSX
-// repetido para que agregar o corregir una pregunta sea editar una fila, no
-// duplicar marcado.
+// Como DATOS y no como JSX repetido, para que corregir una pregunta sea editar
+// una fila y no duplicar marcado.
 const SECCIONES: SeccionFaq[] = [
   {
     titulo: "Quién puede reservar",
     preguntas: [
       {
         pregunta: "¿Necesito crear una cuenta?",
-        // CAMBIADO el 2026-08-18 por D-79. Antes decia "La primera vez se te
-        // piden nombre, apellido y carrera", y eso era cierto AL ENTRAR.
-        // Desde D-79 los datos se piden en la PRIMERA RESERVA -mirar el
-        // catalogo ya no pide nada- y son dos mas.
+        // D-79: los datos se piden en la PRIMERA RESERVA y no al entrar. Mirar
+        // el catalogo ya no pide nada.
         respuesta:
           "No. No hay registro. Entras con tu correo institucional @upc.edu.pe y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. Mirar el catálogo no pide nada más: los datos se te piden la primera vez que reservas.",
       },
@@ -94,11 +74,9 @@ const SECCIONES: SeccionFaq[] = [
       },
       {
         pregunta: "¿Cómo se comprueba que soy de esas carreras?",
-        // D-78: el sistema NO lo comprueba. La verificacion es presencial y
-        // con el TIU, en el mostrador. Esta respuesta dice la verdad a
-        // proposito: prometer una comprobacion automatica que no existe seria
-        // peor que no decir nada, porque quien la creyera reservaria pensando
-        // que el sistema ya lo valido.
+        // D-78: el sistema NO lo comprueba, la verificacion es presencial con el
+        // TIU. Prometer una comprobacion automatica que no existe seria peor que
+        // no decir nada: quien la creyera reservaria pensando que ya se valido.
         respuesta:
           "Con tu TIU, en el mostrador, cuando recoges el equipo. El sistema no lo verifica al reservar: si reservas sin pertenecer a esas carreras, no se te entrega el equipo.",
       },
@@ -119,12 +97,8 @@ const SECCIONES: SeccionFaq[] = [
     preguntas: [
       {
         pregunta: "¿En qué horario puedo reservar?",
-        // CAMBIADO el 2026-08-13 a peticion del equipo. Antes decia "De
-        // 08:00 a 22:00, hora de Lima", que es la franja que hay hoy en la
-        // configuracion, pero prometia como fija una cosa que no lo es: el
-        // horario se ajusta por semana y los feriados se cierran desde
-        // `disabled_days`. Un numero exacto en una FAQ es una promesa, y esta
-        // no se podia cumplir.
+        // Sin horario exacto: un numero en una FAQ es una promesa, y esta no se
+        // podia cumplir -la franja se ajusta y los feriados se cierran-.
         respuesta:
           "Cambian según la disponibilidad de cada semana y los feriados. El calendario de reserva te muestra las franjas que hay para el día que elijas.",
       },
@@ -165,11 +139,8 @@ const SECCIONES: SeccionFaq[] = [
       },
       {
         pregunta: "¿Dónde devuelvo el equipo?",
-        // D-77. Medido contra produccion el 2026-08-18:
-        // campuses.salon_devolucion vale 'MO-UH40' en Monterrico y 'SM-SB608'
-        // en San Miguel. Va ESCRITO y no consultado porque esta pagina no
-        // habla con la base (ver la cabecera del archivo). Si algun dia se
-        // cambia el salon en la base, esta respuesta hay que tocarla a mano:
+        // D-77. Los salones estan ESCRITOS y no consultados, porque esta pagina
+        // no habla con la base. Si se cambian ahi, hay que tocar esto a mano:
         // se dice aca para que no se descubra tarde.
         respuesta:
           "En el mismo salón donde lo recogiste: MO-UH40 en Monterrico y SM-SB608 en San Miguel. La devolución es presencial y la registra el operador delante tuyo.",
