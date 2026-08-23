@@ -80,6 +80,7 @@ export default async function CompletarPerfilPage({
                 id="nombre"
                 name="nombre"
                 required
+                maxLength={80}
                 defaultValue={alumno?.nombre ?? ""}
                 autoComplete="given-name"
               />
@@ -92,6 +93,7 @@ export default async function CompletarPerfilPage({
                 id="apellido"
                 name="apellido"
                 required
+                maxLength={80}
                 defaultValue={alumno?.apellido ?? ""}
                 autoComplete="family-name"
               />

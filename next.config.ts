@@ -55,6 +55,37 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          // H-5 de la auditoria del 2026-08-23. Las dos que faltaban.
+          //
+          // `strict-origin-when-cross-origin` manda la URL completa dentro del
+          // propio sitio -que es donde hace falta para los enlaces internos- y
+          // solo el origen hacia fuera. Importa porque las fotos salen hacia
+          // res.cloudinary.com y las URLs del panel llevan identificadores de
+          // reserva y de alumno: sin esta cabecera, Cloudinary recibe
+          // `/admin/reservas?...` entero en el `Referer`.
+          //
+          // NO es la que protege el magic link, y conviene no atribuirselo:
+          // /auth/confirm?token_hash=... responde un 307 SIN documento, asi que
+          // esa URL nunca llega a ser la pagina que pide recursos externos. Lo
+          // que protege el token es el `Location` relativo armado desde cero en
+          // app/auth/confirm/route.ts, y sigue siendo lo que lo protege.
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          // Apaga tres capacidades que NINGUNA pantalla de este proyecto usa
+          // -comprobado: cero llamadas a getUserMedia y cero a geolocation en
+          // todo el arbol-, asi que no puede romper nada hoy. Lo que compra es
+          // que un script inyectado manana tampoco pueda pedirlas.
+          //
+          // El dia que alguna pantalla necesite la camara -leer un codigo de
+          // barras en el mostrador seria el candidato-, hay que volver aqui: el
+          // sintoma sera un permiso denegado sin dialogo, que no se parece a un
+          // fallo de codigo.
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
           // Sin `preload`: esa lista solo se sale con meses de espera, y este
           // proyecto todavia no tiene dominio ni despliegue. Comprometerse
           // antes de tenerlo es firmar por otro.
