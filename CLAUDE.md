@@ -10,6 +10,14 @@ reconstruyendo primero la base de datos.
 > aplicación Next.js, y `PLANES/` guarda el desglose paso a paso de cada tanda. **Los planes no se
 > reescriben tras ejecutar:** lo que la ejecución desmiente va en una cabecera de correcciones.
 >
+> **Para publicar el sitio: [`MIGRATION_DOCS/DESPLIEGUE.md`](./MIGRATION_DOCS/DESPLIEGUE.md)**, que es
+> Netlify y Cloudflare y **se consulta por tarea, no por fase**. Nació el 2026-08-23 con la auditoría
+> de seguridad. Lleva dos avisos que cuestan caro si se pasan por alto: **el SSL de Cloudflare tiene
+> que ser `Full (strict)`** —con `Flexible`, el HSTS y el `upgrade-insecure-requests` de la CSP
+> producen un bucle de redirecciones que parece un fallo de Netlify—, y **nada de *Cache Everything*
+> ni *Rocket Loader***: el primero puede servirle a un visitante la sesión de otro, y el segundo
+> reordena los scripts y les quita el nonce, dejando la aplicación en blanco con el build en verde.
+>
 > ⚠ **Y antes de diagnosticar un fallo raro de plataforma:
 > [`MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md`](./MIGRATION_DOCS/COMPORTAMIENTO_MEDIDO.md).** Contesta *cómo
 > se comporta de verdad* PostgREST, RLS, `@supabase/ssr`, Next.js 16 y la zona horaria de Lima **en este

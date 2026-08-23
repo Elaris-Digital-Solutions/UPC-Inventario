@@ -73,22 +73,28 @@ export function DialogoCancelar({ reservationId, producto }: DialogoCancelarProp
                 estilizado -NO un textarea nuevo, y NO
                 components/ui/textarea.tsx: ver el comentario de arriba del
                 archivo sobre por que un unico consumidor no justifica
-                extraer nada todavia-. Y SIN `maxLength`: `cancellation_reason`
-                es `text` sin ningun limite de longitud, y el UNICO `CHECK` de
-                `inventory_reservations` es `chk_reservation_dates`
-                (`end_at > start_at`), que no tiene nada que ver con el
-                motivo. MEDIDO el 2026-08-11 contra el stack local, sobre
-                `information_schema.columns` y `pg_constraint` -y NO leido de
-                MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md, que es donde una
-                version anterior de este comentario decia haberlo leido: esa
-                especificacion solo dice, en su linea 127, que la razon "se
-                guarda en `cancellation_reason`", y no dice ni el tipo de la
-                columna ni que no tenga `CHECK`-. Poner un limite aca seria la
-                interfaz inventando una regla que el motor no tiene. */}
+                extraer nada todavia-.
+
+                CON `maxLength` DESDE EL 2026-08-23, y antes NO. Hasta esa
+                fecha este comentario decia que ponerlo seria "la interfaz
+                inventando una regla que el motor no tiene", y era CIERTO
+                cuando se escribio: medido el 2026-08-11, el unico `CHECK` de
+                `inventory_reservations` era `chk_reservation_dates`
+                (`end_at > start_at`). Lo que cambio no es la medida sino el
+                esquema: la migracion `20260823145500_topes_de_texto.sql`
+                anadio `reservations_motivo_largo`, que limita esta columna a
+                300 caracteres. Ahora el 300 de abajo NO inventa nada -copia.
+
+                Y SIGUE SIN SER EL CONTROL. El tope que cuenta es el del motor,
+                que se cumple aunque nadie pase por este formulario; este
+                atributo es cortesia, para que quien escriba vea el limite en
+                vez de llevarse un 23514 con el parrafo ya escrito. Si los dos
+                numeros se separan alguna vez, manda el de la migracion. */}
             <Input
               id={idMotivo}
               name="motivo"
               type="text"
+              maxLength={300}
               autoComplete="off"
               value={motivo}
               onChange={(evento) => setMotivo(evento.target.value)}

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 //
 // ESTE ARCHIVO NO DECIDE NADA SOBRE PERMISOS y no conoce ninguna sesion: firma lo
 // que le den con el secreto que le den. Quien decide SI hay que firmar es
-// app/api/cloudinary/firma/route.ts.
+// app/api/cloudinary/firmas/route.ts.
 //
 // SIN LA DEPENDENCIA `cloudinary`: el SDK oficial trae el cliente de subida
 // entero, y aqui no se sube nada -sube el NAVEGADOR, directo-. Hacen falta estas

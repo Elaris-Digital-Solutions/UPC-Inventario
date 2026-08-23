@@ -155,10 +155,16 @@ export function FormularioEncuesta({ encuestaExistente }: FormularioEncuestaProp
         {/* Los tres textos son OPCIONALES -decision de Alejandro, 2026-08-11-,
             asi que van sin marcar como obligatorios y no cuentan para
             `faltaAlgunCampoObligatorio` de arriba. `Input` de
-            components/ui/input.tsx, ya existente, y SIN `maxLength`: las tres
-            columnas son `text` sin ningun limite, y ponerlo aca inventaria
-            una regla que el motor no tiene -mismo razonamiento que ya dejo
-            escrito dialogo-cancelar.tsx para el motivo de cancelacion-. */}
+            components/ui/input.tsx, ya existente.
+
+            CON `maxLength` DESDE EL 2026-08-23. Hasta esa fecha este
+            comentario decia que las tres columnas eran `text` sin limite y que
+            ponerlo aca inventaria una regla que el motor no tiene. Era cierto y
+            dejo de serlo: `20260823145500_topes_de_texto.sql` limita
+            `best_feature` e `improvement_area` a 500 y `comments` a 1000. Los
+            tres numeros de abajo COPIAN esos topes, no los inventan, y siguen
+            sin ser el control -- ese vive en el motor. Mismo razonamiento y
+            misma correccion que dialogo-cancelar.tsx. */}
         <div className="mt-3 space-y-4">
           <div>
             <label htmlFor={idMejor} className="text-sm font-medium">
@@ -168,6 +174,7 @@ export function FormularioEncuesta({ encuestaExistente }: FormularioEncuestaProp
               id={idMejor}
               name="bestFeature"
               type="text"
+              maxLength={500}
               autoComplete="off"
               defaultValue={encuestaExistente?.bestFeature ?? ""}
               className="mt-1"
@@ -182,6 +189,7 @@ export function FormularioEncuesta({ encuestaExistente }: FormularioEncuestaProp
               id={idMejorar}
               name="improvementArea"
               type="text"
+              maxLength={500}
               autoComplete="off"
               defaultValue={encuestaExistente?.improvementArea ?? ""}
               className="mt-1"
@@ -196,6 +204,7 @@ export function FormularioEncuesta({ encuestaExistente }: FormularioEncuestaProp
               id={idComentarios}
               name="comments"
               type="text"
+              maxLength={1000}
               autoComplete="off"
               defaultValue={encuestaExistente?.comments ?? ""}
               className="mt-1"
