@@ -86,10 +86,21 @@ configuración y sin cambios respecto a la 15.**
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://zqfkzgdyeqxzgzpxgadi.supabase.co` | Pública |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | La clave publicable | Pública, viaja al navegador |
 | `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | El cloud name | Pública |
-| `CLOUDINARY_API_KEY` | La API key | **Sin** `NEXT_PUBLIC_` |
+| `CLOUDINARY_API_KEY` | La API key | **Sin** `NEXT_PUBLIC_`. **NO se marca *secret*** — ver abajo |
 | `CLOUDINARY_API_SECRET` | El secreto | ⚠ **Secreto. Marcar como *secret* en Netlify** |
 | `CLOUDINARY_FOLDER` | La carpeta | — |
 | `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
+
+⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
+**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
+JSON junto con la firma, porque el navegador la necesita para el POST a Cloudinary. **Lo que autoriza
+la subida no es la key: es la firma**, calculada en el servidor con el secreto, atada a un `timestamp`
+y a unos parámetros exactos. La key **identifica**, el secreto **autoriza** —el mismo reparto que
+`client_id` y `client_secret` en OAuth—, y por eso filtrar la key sola no permite subir nada. Marcarla
+*secret* en Netlify no añade seguridad **y arriesga el build**: Netlify escanea el output buscando los
+valores marcados como secretos y falla si los encuentra. *No medido en este proyecto; es motivo para no
+hacerlo, no un fallo previsto.* **El único que no puede llevar `NEXT_PUBLIC_` ni salir del servidor es
+`CLOUDINARY_API_SECRET`** *(D-28, P0-4)*.
 
 ⚠ **Son siete y sólo siete: `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` y `NEXT_PUBLIC_CLOUDINARY_FOLDER`
 NO van aquí.** Estaban en `.env.example` hasta el 2026-08-24 y **el código no las lee en ningún sitio**
