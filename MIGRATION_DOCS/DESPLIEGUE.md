@@ -258,6 +258,16 @@ git checkout main
 ```
 
 ```powershell
+git pull --ff-only origin main
+```
+
+⚠ **Este paso no es de adorno, y se midió el 2026-08-24: `main` local estaba 4 commits atrás de
+`origin/main`** —los cuatro propios, los mismos que este §3.1 dice más abajo que no cubre ningún tag—.
+**Contra ese `main` viejo el merge da 0 conflictos, no 18.** O sea: se pierde la señal de que el
+documento habla del árbol correcto, y el `push` posterior sale *non-fast-forward*. **Si el paso
+siguiente no informa de 18 conflictos, no se sigue: se está mergeando contra otro `main`.**
+
+```powershell
 git merge --no-ff --no-commit develop
 ```
 
