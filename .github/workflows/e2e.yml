@@ -1,0 +1,121 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# POR QUE UN WORKFLOW PROPIO Y NO UN PASO MAS EN ci.yml (D-63, 2026-08-14).
+#
+# ci.yml tarda un minuto y sirve para saber rapido si el codigo compila y si
+# pasan las pruebas. Este job levanta Supabase entero, instala un navegador y
+# compila la aplicacion antes de la primera asercion, asi que tarda varias
+# veces mas. Metido dentro de ci.yml, una intermitencia del E2E enrojeceria
+# tambien el aviso de typecheck y de build, que no tienen la culpa.
+#
+# Es el mismo criterio que ya separo db.yml, donde esta escrito: "va aqui y
+# no en ci.yml porque este workflow ya tiene la base en pie".
+#
+# Y NO LLEVA continue-on-error. La opcion conservadora -dejarlo informando la
+# primera semana- se considero y se descarto con motivo: `develop` NO tiene
+# proteccion de rama, comprobado contra la API de GitHub, que responde 404
+# "Branch not protected". Asi que un workflow rojo hoy no frena ningun merge:
+# solo avisa, y lo unico que cuesta es mirarlo. Un paso no bloqueante, en
+# cambio, es exactamente lo que D-7 dejo podrido durante tres tandas.
+
+jobs:
+  playwright:
+    name: Los cinco flujos criticos
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # v7 en las tres, por lo mismo que en ci.yml: las v4 declaran
+      # `using: node20` en su manifiesto y el runner ya no soporta ese
+      # runtime, asi que las forzaba a Node 24 con un aviso de deprecacion.
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7
+
+      - name: Preparar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Solo Chromium: es el unico proyecto declarado en playwright.config.ts.
+      # `--with-deps` instala ademas las librerias de sistema que el navegador
+      # necesita y que el runner no trae de serie.
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Misma version fijada que en db.yml, y por el mismo motivo: que el CI sea
+      # REPRODUCIBLE. NO es la de local -alla `npx supabase` baja la ultima- y
+      # el comentario que prometia esa igualdad se corrigio en D-65.
+      #
+      # v3 y no v1 por lo mismo que en db.yml: la v1 declara `using: node20`, un
+      # runtime que el runner ya no soporta, y la v3 es composite (D-64). Los
+      # dos workflows se tocaron juntos a proposito: eran dos sitios, no uno.
+      - name: Instalar la CLI de Supabase
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.111.0
+
+      # SIN `-x`, al reves que db.yml. Aquel excluye gotrue, kong, postgrest y
+      # mailpit porque las pruebas pgTAP corren dentro de Postgres y no tocan
+      # la API. El E2E los necesita todos: entra por magic link (gotrue), lee
+      # el correo en Mailpit, y la aplicacion consulta por PostgREST a traves
+      # de Kong.
+      #
+      # Un `start` en frio SI aplica supabase/config.toml, asi que el enganche
+      # before_user_created queda activo (D-32). Es justo la diferencia con
+      # `db reset`, que NO lo aplica: fue uno de los cinco fallos de la T1 que
+      # pasaron con los cuatro comandos en verde.
+      - name: Levantar el stack local completo
+        run: supabase start
+
+      # EL RUNNER NO TIENE NINGUN ARCHIVO DE ENTORNO. `.gitignore` ignora
+      # `.env*`, asi que ni `.env` ni `.env.local` llegan hasta aca. Sin este
+      # paso, el cortafuegos de e2e/apoyo/entorno.ts leeria `undefined` y
+      # abortaria la corrida entera.
+      #
+      # MEDIDO antes de escribir esto, y con control negativo: `loadEnvConfig`
+      # de @next/env -el mismo cargador que usan el cortafuegos y Next- NO
+      # pisa lo que ya esta en process.env. Exportar aca gana incluso contra
+      # un `.env` que diga lo contrario; sin exportar nada, la variable queda
+      # sin definir y el cortafuegos aborta. Las dos puntas se comprobaron.
+      #
+      # Los valores se LEEN del stack recien levantado en vez de copiarse a
+      # mano: si el CLI cambia el formato de la clave, esto sigue funcionando
+      # y una constante pegada no.
+      - name: Apuntar la aplicacion al stack local
+        run: |
+          eval "$(supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY)=')"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" >> "$GITHUB_ENV"
+
+      # Aca no se compila nada a mano: playwright.config.ts levanta su propio
+      # webServer con `npm run build && npm run start`, sin reusar ninguno que
+      # ya este corriendo (D-60). Y `retries: 2` se activa solo, porque GitHub
+      # Actions define CI=true.
+      - name: Los flujos criticos en navegador
+        run: npm run test:e2e
+
+      # Sin esto, un fallo aca es indiagnosticable: el rastro y las capturas
+      # se quedan en el runner y se van con el. Es lo que hace ACCIONABLE que
+      # este workflow se ponga rojo, que es la mitad que le faltaria a la
+      # decision de no ponerle continue-on-error.
+      - name: Guardar el informe si algo fallo
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -1,3 +1,19 @@
+# Dependencias
+node_modules
+/.pnp
+.pnp.*
+
+# Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+
+# Pruebas
+/coverage
+
 # Logs
 logs
 *.log
@@ -7,24 +23,74 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Variables de entorno. NEXT_PUBLIC_* viaja al navegador (D-28), pero el archivo
+# no se versiona igualmente: CLOUDINARY_API_SECRET vive aqui.
+#
+# El patron general `.env*` esta aqui por un fallo medido el 2026-08-13: al
+# renombrar .env.local a .env.local.apagado, el archivo salio de la proteccion
+# y quedo listo para entrar en un `git add .` con el secreto dentro. Quien lo
+# cubria era `*.local` -no `.env` ni `.env.*.local`-, y el nombre nuevo ya no
+# termina en .local. Comprobado que ni el archivo ni el secreto llegaron nunca
+# al historial. La leccion es la que fija la regla: un secreto protegido por
+# como se llama el archivo deja de estarlo en cuanto alguien lo renombra.
 .env
-.env.*
-.env.local
-.env.development
-.env.production
+.env*
+.env.*.local
+*.local
+!.env.example
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.pem
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 /CMS
+
+# Volcados de Git Bash en Windows
+*.stackdump
+
+# Instantaneas que deja Playwright al conducir el navegador en las
+# verificaciones. Son artefactos de una sesion concreta -refs y marcas de
+# tiempo-, no del proyecto, y aparecen solas en cuanto alguien abre una
+# pantalla para comprobarla.
+.playwright-mcp/
+
+# Supabase CLI: estado local del enlace, propio de cada máquina.
+supabase/.temp
+supabase/.branches
+
+# Excel sueltos: ignorados por defecto para que no se acumulen exports temporales.
+*.xlsx
+
+# Excepción: los inventarios fuente SÍ se versionan (decisión D-8, 2026-08-04).
+# Son el origen de los datos de catálogo de las dos sedes y pesan 182 kB en total.
+# Además, tenerlos en una rama y no en otra hace que git los borre del disco al
+# saltar entre ramas — pasó el 2026-08-04 con el pull a develop.
+!Monterrico.xlsx
+!San Miguel.xlsx
+!Inventario_Unificado.xlsx
+!Inventario_2026_CC_ISW_V1 1.xlsx
+
+# Artefactos de una corrida de Playwright: reporte HTML, trazas y capturas.
+# Son de la corrida, no del proyecto.
+test-results/
+playwright-report/
+
+# Configuración del agente, propia de cada máquina: ajustes locales, skills
+# instaladas y su fichero de bloqueo.
+#
+# `.mcp.json` NO entra aquí y es deliberado: declara el servidor MCP de
+# Supabase de este proyecto —`project_ref=zqfkzgdyeqxzgzpxgadi`, en modo
+# `read_only`— y no lleva ningún secreto; el token viaja por variable de
+# entorno. Versionarlo hace que apunte al proyecto correcto para cualquiera
+# que clone, que es justo el fallo que costó una sesión el 2026-08-19: sin él,
+# la conexión se resolvió contra la cuenta equivocada.
+.claude/
+.agents/
+skills-lock.json

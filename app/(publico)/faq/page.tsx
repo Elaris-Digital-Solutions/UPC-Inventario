@@ -1,0 +1,304 @@
+// Pagina de preguntas frecuentes. NO hace ninguna consulta a la base, ni
+// siquiera a la configuracion, asi que sus numeros estan escritos A MANO.
+//
+// ⚠ ESA MANO TIENE UN COSTO VIVO, Y HAY QUE DECIRLO CON PRECISION. Los tres
+// numeros que quedan -bloque de 30 minutos, ventana de 7 dias, una reserva por
+// equipo y dia- salen de `app_settings`, que HOY SI tiene interfaz de
+// administracion en /admin/ajustes. Un admin puede cambiarlos y esta pagina no
+// se entera, porque nada la vuelve a comparar contra la base.
+//
+// SE ACEPTA porque una FAQ que consulta la base deja de poder servirse barata.
+// LA CONTRAPARTIDA es esta regla: quien toque /admin/ajustes tiene que pasar por
+// aqui. Ultima comprobacion contra produccion, 2026-08-22: 7 dias, 30 minutos,
+// limite 1. Los tres coinciden.
+//
+// EL HORARIO NO SE ANUNCIA COMO UN NUMERO, y esa correccion ya se pago: el
+// 08:00-22:00 que habia era cierto como lectura de un dia y falso como promesa,
+// porque la franja se ajusta y los feriados se cierran desde `disabled_days`. La
+// respuesta remite al calendario. La duracion maxima tampoco: es un limite POR
+// EQUIPO, y escribir el valor que hoy comparten todos prometeria una regla que no
+// es la real.
+
+import type { Metadata } from "next";
+import Link from "next/link";
+import { connection } from "next/server";
+import { ChevronDown } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Heroe,
+  HeroeAntetitulo,
+  HeroeBajada,
+  HeroeTitular,
+} from "@/components/heroe";
+
+export const metadata: Metadata = {
+  title: "Preguntas frecuentes · Reserva UPC",
+  description:
+    "Cómo entrar, cuándo y por cuánto tiempo reservar equipos, en qué sedes, y qué pasa si cancelas o no te presentas.",
+};
+
+type Pregunta = {
+  pregunta: string;
+  respuesta: string;
+};
+
+type SeccionFaq = {
+  titulo: string;
+  preguntas: Pregunta[];
+};
+
+// Como DATOS y no como JSX repetido, para que corregir una pregunta sea editar
+// una fila y no duplicar marcado.
+const SECCIONES: SeccionFaq[] = [
+  {
+    titulo: "Quién puede reservar",
+    preguntas: [
+      {
+        pregunta: "¿Necesito crear una cuenta?",
+        // D-79: los datos se piden en la PRIMERA RESERVA y no al entrar. Mirar
+        // el catalogo ya no pide nada.
+        respuesta:
+          "No. No hay registro. Entras con tu correo institucional @upc.edu.pe y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. Mirar el catálogo no pide nada más: los datos se te piden la primera vez que reservas.",
+      },
+      {
+        pregunta: "¿Puedo entrar con otro correo?",
+        respuesta:
+          "No. Solo se acepta el correo @upc.edu.pe. Cualquier otro dominio se rechaza al pedir el enlace.",
+      },
+      {
+        pregunta: "¿Cualquier alumno de la UPC puede pedir equipos prestados?",
+        respuesta:
+          "No. El préstamo es solo para la Facultad de Ingeniería, y dentro de ella para las carreras de Ciencias de la Computación e Ingeniería de Software.",
+      },
+      {
+        pregunta: "¿Cómo se comprueba que soy de esas carreras?",
+        // D-78: el sistema NO lo comprueba, la verificacion es presencial con el
+        // TIU. Prometer una comprobacion automatica que no existe seria peor que
+        // no decir nada: quien la creyera reservaria pensando que ya se valido.
+        respuesta:
+          "Con tu TIU, en el mostrador, cuando recoges el equipo. El sistema no lo verifica al reservar: si reservas sin pertenecer a esas carreras, no se te entrega el equipo.",
+      },
+      {
+        pregunta: "¿Qué datos se me piden en la primera reserva?",
+        respuesta:
+          "Nombre, apellido y carrera; si eres profesor, lo indicas ahí mismo y señalas tu carrera en el mismo desplegable. Y confirmas que perteneces a la Facultad de Ingeniería. El correo no se te vuelve a pedir: ya lo tenemos de tu acceso.",
+      },
+      {
+        pregunta: "¿Por qué un enlace por correo y no una contraseña?",
+        respuesta:
+          "Porque abrir el correo en tu buzón UPC ya demuestra que la cuenta es tuya, así no hay ninguna contraseña que se te pueda olvidar ni filtrar.",
+      },
+    ],
+  },
+  {
+    titulo: "Cuándo y por cuánto tiempo",
+    preguntas: [
+      {
+        pregunta: "¿En qué horario puedo reservar?",
+        // Sin horario exacto: un numero en una FAQ es una promesa, y esta no se
+        // podia cumplir -la franja se ajusta y los feriados se cierran-.
+        respuesta:
+          "Cambian según la disponibilidad de cada semana y los feriados. El calendario de reserva te muestra las franjas que hay para el día que elijas.",
+      },
+      {
+        pregunta: "¿En bloques de cuánto tiempo?",
+        respuesta:
+          "De 30 minutos. Una reserva dura 30, 60, 90 minutos, y así sucesivamente: siempre un múltiplo de 30.",
+      },
+      {
+        pregunta: "¿Cuál es el máximo que puedo reservar?",
+        respuesta:
+          "Depende del equipo. Cada equipo tiene su propio límite y lo ves en su ficha, así que no hay un número único para todo el catálogo.",
+      },
+      {
+        pregunta: "¿Con cuánta anticipación puedo reservar?",
+        respuesta:
+          "Hasta 7 días por delante, contados desde este momento. La ventana se mueve contigo, día a día: no queda fija a una fecha de la semana.",
+      },
+      {
+        pregunta: "¿Puedo reservar el mismo equipo dos veces el mismo día?",
+        respuesta:
+          "No. Es una reserva por equipo y por día. Sí puedes reservar equipos distintos el mismo día.",
+      },
+    ],
+  },
+  {
+    titulo: "Dónde",
+    preguntas: [
+      {
+        pregunta: "¿En qué sedes puedo reservar?",
+        respuesta:
+          "En Monterrico y en San Miguel. Eliges la sede al buscar en el catálogo, y solo se te muestran los equipos que hay en esa sede.",
+      },
+      {
+        pregunta: "¿Puedo recoger en una sede lo que reservé en otra?",
+        respuesta:
+          "No. El equipo que reservas es el de esa sede, y ahí se recoge.",
+      },
+      {
+        pregunta: "¿Dónde devuelvo el equipo?",
+        // D-77. Los salones estan ESCRITOS y no consultados, porque esta pagina
+        // no habla con la base. Si se cambian ahi, hay que tocar esto a mano:
+        // se dice aca para que no se descubra tarde.
+        respuesta:
+          "En el mismo salón donde lo recogiste: MO-UH40 en Monterrico y SM-SB608 en San Miguel. La devolución es presencial y la registra el operador delante tuyo.",
+      },
+    ],
+  },
+  {
+    titulo: "Cancelar y no presentarse",
+    preguntas: [
+      {
+        pregunta: "¿Puedo cancelar una reserva?",
+        respuesta:
+          "Sí, mientras no te hayan entregado el equipo, y se te pide un motivo. Una vez entregado ya no se puede cancelar: lo que corresponde es devolverlo.",
+      },
+      {
+        pregunta: "¿Qué pasa si no recojo lo que reservé?",
+        // "pierdes el acceso" y no "quedas bloqueado": el participio concuerda
+        // en genero con quien lee, y aqui no se sabe cual es. La forma verbal
+        // no marca ninguno.
+        respuesta:
+          "A la segunda vez en 90 días, pierdes el acceso durante 15 días. Una sola vez no bloquea nada.",
+      },
+      {
+        pregunta: "¿Y si me llevo el equipo y no lo devuelvo?",
+        respuesta: "Bloqueo permanente, y hay que resolverlo con el personal.",
+      },
+      {
+        pregunta: "¿Por qué existen estas reglas?",
+        respuesta:
+          "Porque un equipo reservado y no recogido es un equipo que nadie más pudo usar.",
+      },
+    ],
+  },
+  {
+    titulo: "El día de la reserva",
+    preguntas: [
+      {
+        pregunta: "¿Qué llevo el día de la reserva?",
+        // CONCRETADO el 2026-08-18 por D-78. Antes decia "Tu carne o
+        // identificacion", que es vago justo donde no conviene serlo: el TIU
+        // es lo que el operador usa para comprobar la facultad y la carrera,
+        // porque el sistema no las comprueba.
+        respuesta:
+          "Tu TIU, a la sede que elegiste y dentro de tu franja horaria. Es con el TIU con lo que el operador comprueba que perteneces a la Facultad de Ingeniería.",
+      },
+      {
+        pregunta: "¿Qué pasa paso a paso, desde que reservo hasta que devuelvo?",
+        respuesta:
+          "Reservas una franja para una sede. Vas al salón de esa sede dentro de tu horario, muestras tu TIU y el operador te entrega el equipo y registra la entrega. Al terminar lo devuelves en el mismo salón, el operador lo revisa y registra la recepción. Si no lo recoges, o no lo devuelves a tiempo, queda anotado y afecta a tus próximas reservas.",
+      },
+      {
+        pregunta: "¿Puedo extender la reserva?",
+        respuesta:
+          "No desde la plataforma. Si necesitas más tiempo, consúltalo en el mostrador.",
+      },
+    ],
+  },
+];
+
+export default async function FaqPage() {
+  // Dinamica por la CSP con nonce: el nonce se genera por peticion en
+  // proxy.ts, y esta pagina se generaba en el prerender, cuando no habia
+  // ninguna peticion -sus scripts quedaban sin nonce y la CSP los bloqueaba-.
+  await connection();
+
+  return (
+    <main className="flex-1">
+      {/* Heroe de seccion, recuperado el 2026-08-13. El Vite le daba a la FAQ
+          el MISMO dispositivo que a la portada -franja con `bg-gradient-hero`,
+          halo radial, antetitulo en versalitas y titular en Playfair
+          (MIGRATION_GUIDE/src/pages/FAQ.tsx:42-55)-, o sea que era un patron
+          de pagina y no un adorno de la landing. Aqui abria con texto negro
+          sobre el gris de siempre. */}
+      <Heroe variante="seccion">
+        <HeroeAntetitulo>Soporte y ayuda</HeroeAntetitulo>
+        <HeroeTitular>Preguntas frecuentes</HeroeTitular>
+        <HeroeBajada>
+          Todo lo que necesitas saber antes de tu primera reserva.
+        </HeroeBajada>
+      </Heroe>
+
+      <div className="container py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl">
+        {SECCIONES.map((seccion, index) => (
+          <section key={seccion.titulo} className={index > 0 ? "mt-12" : ""}>
+            {index > 0 && <Separator className="mb-12" />}
+            <h2 className="font-display text-2xl font-bold sm:text-3xl">
+              {seccion.titulo}
+            </h2>
+
+            {/* ACORDEON, recuperado el 2026-08-13. El Vite plegaba las
+                preguntas (MIGRATION_GUIDE/src/pages/FAQ.tsx:60) y aqui se
+                volcaban todas las respuestas abiertas: en el mismo alto de
+                pantalla entraban TRES preguntas donde el original ensenaba
+                SIETE. No es solo estetica, es poder recorrer la lista.
+                Va con <details> y no con el Accordion de Radix porque ese
+                exige estado de cliente, y anadir "use client" a esta pagina
+                la sacaria del prerender estatico -es una de las tres rutas
+                que `next build` marca como estaticas-. <details> es HTML
+                puro: se pliega sin JavaScript y es accesible por teclado. */}
+            {/* SIN CAJA REDONDEADA, corregido el 2026-08-13: iba dentro de un
+                `rounded-xl border` y quedaba como una pastilla flotando en
+                medio de una pagina cuyo idioma es de reglas rectas -las
+                tarjetas de sede son cuadradas, el antetitulo es una regla de
+                2px, la llamada a la accion no tiene radio-. Aqui las
+                preguntas se separan con hairlines y nada mas.
+                El original tambien la metia en una caja redondeada, asi que
+                esto se aparta de el a proposito y queda dicho. */}
+            <div className="border-border divide-border mt-6 divide-y border-y">
+              {seccion.preguntas.map((item) => (
+                <details key={item.pregunta} className="group/faq">
+                  <summary className="marker:content-none hover:text-primary flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                    {item.pregunta}
+                    <ChevronDown
+                      className="text-muted-foreground size-4 shrink-0 transition-transform duration-300 group-open/faq:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  {/* La regla roja de siempre, aqui marcando la respuesta
+                      abierta: el mismo hairline de 1px que crece en las
+                      tarjetas y que sostiene el antetitulo. */}
+                  <div className="pb-6">
+                    <div className="bg-primary mb-4 h-px w-8" />
+                    <p className="text-muted-foreground leading-relaxed">
+                      {item.respuesta}
+                    </p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {/* Llamada discreta: nada de la caja destacada de la landing. Quien
+            llego hasta aca ya esta leyendo, no hace falta convencerlo con
+            un bloque grande. */}
+        {/* El cierre invita a entrar, asi que la linea de arriba tiene que
+            llevar ahi. "¿No encontraste lo que buscabas?" seguido de un boton
+            de acceso no encaja: si no encontro la respuesta, entrar no se la
+            da. Se pregunta por lo que el boton si resuelve. */}
+        <section className="border-border/60 mt-16 border-t pt-12 text-center">
+          <p className="text-muted-foreground">
+            ¿Ya sabes qué equipo necesitas?
+          </p>
+          <Button asChild size="lg" className="mt-4">
+            <Link href="/login">Entrar con mi correo UPC</Link>
+          </Button>
+          <p className="mt-4 text-sm">
+            <Link
+              href="/"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Volver al inicio
+            </Link>
+          </p>
+        </section>
+      </div>
+      </div>
+    </main>
+  );
+}

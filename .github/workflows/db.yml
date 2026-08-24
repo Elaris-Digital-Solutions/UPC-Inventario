@@ -1,0 +1,77 @@
+name: Base de datos
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pgtap:
+    name: Migraciones y pruebas pgTAP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7
+
+      # v3 y no v1 (D-64, 2026-08-15). La v1 declara `using: node20` en su
+      # manifiesto -leido de su action.yml, no supuesto- y el runner ya no
+      # soporta ese runtime: es el mismo caso que checkout y setup-node, que
+      # subieron a v7 por esto mismo. La v3 es `using: composite`, o sea que no
+      # declara ningun runtime de accion y el problema desaparece de raiz en vez
+      # de aplazarse a la siguiente mayor.
+      #
+      # La v3 instala la CLI desde npm en vez de desde las releases de GitHub.
+      # COMPROBADO ANTES DE CAMBIARLO: `supabase@2.111.0` existe en npm, que es
+      # de donde la baja ahora.
+      #
+      # Y la version se fija para que el CI sea REPRODUCIBLE, no para igualar la
+      # de local (D-65). El comentario anterior prometia esa igualdad y habia
+      # caducado: en local se corre con `npx supabase`, que baja la ultima
+      # siempre, y el dia que se midio eran 2.111.0 aca y 2.114.0 alla. Una
+      # promesa que depende de que nadie actualice nada envejece sola.
+      - name: Instalar la CLI de Supabase
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.111.0
+
+      # Las pruebas pgTAP corren dentro de Postgres y no tocan la API, asi que se
+      # excluye todo lo demas. La lista sale de `supabase start --help` en la 2.111.0;
+      # un nombre que no exista hace fallar el arranque.
+      #
+      # analytics y storage NO se apagan desde aca: no responden al flag -x. Su
+      # interruptor esta en supabase/config.toml, donde ya quedaron en enabled = false.
+      - name: Levantar Postgres y aplicar migraciones y seed
+        run: >
+          supabase start
+          -x gotrue,realtime,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,supavisor
+
+      # Aca NO va un `supabase db reset`. En un runner limpio no hace falta: el
+      # `start` de arriba ya crea la base desde cero, aplica las migraciones y
+      # carga el seed. Ademas `db reset` termina reiniciando contenedores y falla
+      # con "failed to bootstrap the local database" cuando faltan los servicios
+      # excluidos. En local, con el stack completo, si funciona.
+      - name: Pruebas pgTAP
+        run: supabase test db
+
+      # D-26. Un tipo desactualizado NO rompe la compilacion: da un `any`
+      # silencioso o, peor, un campo que el editor autocompleta y la base no
+      # tiene. Es el mismo modo de fallo -efecto silencioso en vez de excepcion-
+      # contra el que se escribio media bateria de la Fase 1, asi que se vigila
+      # igual: afirmando la propiedad, no confiando en que alguien se acuerde.
+      #
+      # Va aqui y no en ci.yml porque este workflow ya tiene la base en pie.
+      # MEDIDO el 2026-08-06 antes de escribirlo: `gen types --local` funciona
+      # con la lista recortada de arriba. Se comprobo parando el contenedor de
+      # postgres-meta y volviendo a generar; la CLI anuncia "Connecting to db
+      # 5432" y sale por conexion directa a Postgres. No hace falta devolverle
+      # ningun servicio al `-x`.
+      - name: Los tipos coinciden con el esquema
+        run: |
+          supabase gen types typescript --local > /tmp/types.ts
+          diff -u lib/database.types.ts /tmp/types.ts

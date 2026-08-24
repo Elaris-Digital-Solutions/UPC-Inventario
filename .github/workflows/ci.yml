@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+# Un PR con varios push seguidos cancela las corridas viejas en vez de encolarlas.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verificación
+    runs-on: ubuntu-latest
+
+    steps:
+      # v7 en ambas: las v4 declaran `using: node20` en su manifiesto y el runner
+      # ya no soporta ese runtime, así que las forzaba a Node 24 con un aviso de
+      # deprecación. Ojo, esto es el Node que ejecuta LAS ACTIONS; el `node-version`
+      # de abajo es el Node que ejecuta nuestro código. Son dos capas distintas.
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7
+
+      - name: Preparar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # BLOQUEANTE desde la tanda 0 de la Fase 2 (2026-08-06).
+      #
+      # D-7 lo dejó sin bloquear con un motivo concreto: «los 59 errores viven en
+      # código que la migración elimina», así que corregirlos sería trabajo
+      # tirado. Ese motivo murió en la tanda 0.3, cuando ese código dejó de
+      # existir. El diseño lo colocaba en la tanda 4; adelantarlo evita acumular
+      # deuda nueva durante tres tandas, que es justo lo que D-7 no quería.
+      #
+      # El árbol de Next.js sale limpio de lint, así que esto no frena nada hoy.
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      # BLOQUEANTE desde la tanda 4 de la Fase 2 (2026-08-14). Es D-57, y el
+      # precio va dicho por delante: algún día esto se pondrá rojo sin que
+      # nadie haya tocado el código. No es un defecto que haya que «arreglar»
+      # devolviéndole el continue-on-error, es lo que se aceptó al decidirlo;
+      # se arregla actualizando el paquete que el aviso señala.
+      #
+      # Por qué puede pasar eso, medido y no supuesto: el 2026-08-13, sobre el
+      # mismo commit, este paso dijo «found 0 vulnerabilities» mientras el
+      # mismo comando en local salía con código 1 por nanoid. Los árboles no
+      # diferían —lockfile y disco decían los dos nanoid@3.3.17—. `npm audit`
+      # no consulta una base local: le pregunta a un servicio de avisos, y las
+      # dos puntas pueden estar mirando fotos distintas del mismo árbol.
+      #
+      # El interruptor se movió sobre un árbol verde y no rojo: nanoid subió
+      # de 3.3.17 a 3.3.18 —un parche dentro del rango que postcss ya pedía,
+      # tres líneas de package-lock.json— y la auditoría local pasó a código
+      # 0. Cierra Q-10.
+      - name: Auditoría de dependencias
+        run: npm audit --audit-level=high

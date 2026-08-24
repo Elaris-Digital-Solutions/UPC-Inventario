@@ -1,0 +1,25 @@
+# Finales de linea: LF en el repositorio y LF en el disco (cierra Q-15).
+#
+# El entorno de desarrollo es Windows con core.autocrlf = true y el CI es Linux.
+# Sin esto, clonar en Windows materializa lib/database.types.ts con CRLF, y el paso
+# "los tipos coinciden con el esquema" de db.yml da un diff falso AL CORRERLO EN
+# LOCAL: el blob versionado es LF, lo que escribe `supabase gen types` es LF, y lo
+# que hay en el disco no. El CI de Linux pasa; quien lo compruebe en su maquina
+# antes de abrir un PR, no. Es el peor sitio para un falso positivo, porque ensena
+# a desconfiar de una comprobacion que funciona.
+#
+# Medido el 2026-08-06: el blob versionado YA era LF y coincide byte a byte con lo
+# que genera la CLI. Asi que esto no cambia lo que hay en el repositorio; fija que
+# se siga cumpliendo y arregla lo que se materializa en el disco.
+* text=auto eol=lf
+
+# Binarios. Git no los normaliza ni intenta diferenciarlos.
+#
+# Los cuatro .xlsx son la excepcion D-8: desaparecieron del disco una vez, se
+# recuperaron desde legacy/vite-final y se versionaron a proposito. Una regla de
+# texto aplicada sobre ellos los corrompe sin dar error, que es exactamente la
+# clase de fallo que este proyecto persigue.
+*.xlsx binary
+*.png  binary
+*.webp binary
+*.ico  binary

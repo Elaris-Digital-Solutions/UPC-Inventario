@@ -1,0 +1,1548 @@
+# Fase 2 · Tanda 4 — El endurecimiento · Plan de implementación
+
+---
+
+## ⚠ Correcciones tras ejecutar — se añaden sobre la marcha
+
+> Esta sección nace vacía y se llena **durante** la ejecución, no al final. Lo que la ejecución desmienta
+> se anota acá con su fecha; el plan de abajo **no se reescribe**. Van 145 correcciones en la T3B, 127 en
+> la T3A y 57 en la T2B, y ninguna se perdió por haber corregido el original en silencio.
+
+### Estado de la ejecución *(al 2026-08-15)*
+
+| Task | Estado |
+|---|---|
+| **0 · La deuda documental** | ✅ **Cerrada el 2026-08-13.** Los seis Steps. `.gitignore` verificado **por su efecto y con contraejemplo** —`.env.local.apagado` pasa a ignorado, `.env.example` sigue versionable—. **Las doce mejoras verificadas una por una abriendo el código**, no por `grep`: **diez hechas**. `ESPECIFICACION_FUNCIONAL.md` con la columna «Estado» nueva y el enunciado original intacto, `PLANES/README.md` de dos filas a siete, y **una cifra caducada de `CLAUDE.md`** que el plan no preveía. **Nueve correcciones**, y **el error 22 de quien dicta** |
+| **1 · Migración 24: Q-19** | ✅ **Cerrada el 2026-08-13.** Los siete Steps. **PV-1 y PV-2 resueltos midiendo**: la expresión es inmutable, y producción abre a las 08:00 con bloques de 30, así que la migración no fallará en el `db push`. La base pasa de 23 migraciones y 147 aserciones en 24 archivos a **24 migraciones y 150 aserciones en 25 archivos**, exacto contra la predicción escrita. **Once correcciones**, el **error 23 de quien dicta** y el **décimo instrumento que miente** |
+| **2 · Las cabeceras de seguridad** | ✅ **Cerrada el 2026-08-13, los siete Steps.** CSP con nonce por petición, más `X-Frame-Options`, `X-Content-Type-Options` y HSTS solo en producción. **El `build` pasa de 3 estáticas a 0**, con las 23 rutas intactas. **Los cinco puntos de verificación resueltos midiendo**, PV-5 incluido —y su predicción escrita era incorrecta—. **Cero violaciones de CSP en DIEZ pantallas y los tres perfiles, en modo producción, con control positivo validado.** Vitest de 138 a **152 en 11 archivos**. **D-59** por un defecto que el plan no preveía. **Veintitrés correcciones** y el **error 24 de quien dicta** |
+| **3 · Playwright y el flujo de entrada** | ✅ **Cerrada el 2026-08-14, los siete Steps.** Playwright instalado, el cortafuegos de entorno, el arnés de magic link por Mailpit y las dos pruebas del flujo de entrada, contraejemplo incluido. **PV-8 y PV-9 resueltos midiendo**: el enlace pedido por la aplicación se canjea donde se pidió, y Playwright añade cuatro paquetes y **cero vulnerabilidades**. **El cortafuegos llegaba tarde** —el `webServer` arranca antes que el `globalSetup`—, medido por las dos formas y arreglado. **Vitest necesitó un `exclude` que el plan no preveía.** Ninguna cifra se movió: 23 rutas, 0 estáticas, 152 pruebas en 11 archivos. **Doce correcciones**, el **hecho falso 32** y las decisiones **D-60 y D-61** |
+| **4 · Los cuatro flujos restantes** | ✅ **Cerrada el 2026-08-14, los seis Steps.** Los tres specs y el ayudante de escenario: el E2E pasa de dos pruebas en un spec a **seis en cuatro**, con **cuatro corridas en verde** —tres sobre el histórico acumulado y una sobre la base reseteada—. **D-62**: el arnés no escribe nunca directo en la base, así que el contraejemplo de cancelar es una reserva ya entregada. **La primera corrida en verde escondía un defecto de repetibilidad** que solo destapó la segunda. **Ninguna otra cifra se movió y las cuatro predicciones se cumplieron exactas.** **Dieciséis correcciones**, el **hecho falso 33** con tres instancias, y los **errores 27 y 28 de quien dicta** |
+| **5 · La auditoría bloqueante (Q-10)** | ✅ **Cerrada el 2026-08-15, los cinco Steps.** `npm audit --audit-level=high` pasa a **bloqueante**, y **el interruptor se movió sobre un árbol verde y no rojo**: `nanoid` de 3.3.17 a 3.3.18 —tres líneas de `package-lock.json`, un parche dentro del rango que `postcss` ya pedía— y la auditoría local **de código 1 a código 0**. El Step 1 no hizo falta como estaba escrito: **había parche**, así que qué conteste el servicio de avisos dejó de decidir nada. **D-63**: el E2E entra en un **workflow propio**, `e2e.yml`, y **sin `continue-on-error`**, porque `develop` **no tiene protección de rama** —404, «Branch not protected»— y un rojo hoy solo avisa. **La hipótesis del entorno se confirmó midiendo, con control negativo**, y apareció de paso que en el runner **no hay ningún archivo de entorno**. **Diecinueve correcciones** y el **decimoquinto instrumento que miente**, que esta vez fue el informe del subagente |
+| **6 · Q-13, con el código que ya consulta** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** Los advisors de rendimiento pasan de **22 avisos a 18**: los índices sin usar bajan de 7 a 3, y los otros dos bloques —6 claves foráneas sin índice y 9 políticas permisivas múltiples— **no se movieron ni podían moverse**, porque ninguna migración posterior al 2026-08-05 toca índices, políticas ni claves foráneas. **La premisa de Q-13 ya es falsa** —cuatro índices sí se usan, uno de ellos 1087 veces— **y su conclusión aguanta por un motivo mejor y nuevo**: la base de producción **nunca ha corrido `ANALYZE` ni autovacuum**, así que el planificador decide sin estadísticas y «índice usado» no mide utilidad. **Ningún aviso cambió de naturaleza y no se crea ningún índice**, así que no hay desvío de D-55: Q-13 **se cierra como decisión consciente**, con la condición escrita de que la reevaluación tras el despliegue empiece por un `ANALYZE`. **Diez correcciones**, y **la predicción escrita falló en un bloque de tres** |
+| **7 · Los pendientes menores** | ✅ **Cerrada el 2026-08-15, los cuatro Steps.** `supabase/setup-cli` de **v1 a v3** en los **dos** sitios —`db.yml` y `e2e.yml`—, con el `using: node20` de la v1 **leído de su manifiesto y no supuesto**; el comentario que prometía «la misma versión que se usa en local» **corregido** *(D-65)*, porque el CI usa 2.111.0 y local 2.114.0; `vitest.config.ts` renombrado a **`.mts`**, que apaga el aviso de ESM sin tocar `package.json`; y el comentario de `lib/mostrador/filtro.ts` con su **premisa caducada** corregida. **El Step 2 no se puede cumplir como está escrito** —la protección de contraseñas filtradas **requiere plan Pro** y la organización está en `free`, medido— **y lo cierra un motivo de producto**: el sistema no tiene contraseñas porque el cliente lo pidió así *(D-66)*. **El Step 3 ya lo había hecho la Task 0.** **Ninguna cifra se movió** —152 pruebas en 11 archivos, 23 rutas y 0 estáticas— y **las cuatro predicciones se cumplieron exactas**. **Dieciocho correcciones**, **tres decisiones nuevas —D-64, D-65 y D-66—** y **un falso negativo de mi propio grep** |
+| **8 · Verificación de punta a punta** | ✅ **Cerrada el 2026-08-15, los seis Steps.** **El E2E NO estaba en verde:** tres de seis pruebas fallaban —las tres que reservan— por una **carrera con la navegación**, y la Task 4 no podía verla porque sus cuatro corridas verdes variaban el estado de la base y **corrieron todas a la misma hora**. La prueba pasaba por una propiedad **del reloj**: a las 21:47 «hoy» no ofrece franjas y el localizador se veía obligado a esperar; a las 02:43 sí las ofrece, se clica una franja del día viejo y el re-montaje la descarta. **Y el Step 2 cobró su redundancia**, que nadie estaba buscando: los cuatro comandos **dos veces** destaparon que **ESLint no ignora lo que Playwright genera** —`lint` limpio antes del E2E y en 3031 problemas después, todos de `playwright-report/`—, un hueco que la Task 3 dejó al instalar Playwright y que **el propio `eslint.config.mjs` predecía en su comentario**. **Dos desvíos declarados del «no escribe código»**, los dos aprobados antes de tocar nada y **los dos verificados con control positivo**. Todo lo demás salió **exacto contra la predicción escrita**: **15 pantallas y los tres perfiles con cero violaciones de CSP**, las cuatro cabeceras con **nonce distinto en dos peticiones** y coincidiendo con el de los trece atributos del HTML, la firma en **403 / 403 / 200**, **24 migraciones y 150 aserciones en 25 archivos**, **152 pruebas en 11 archivos** y **23 rutas con 0 estáticas**. **Veinte correcciones** y **cuatro fallos de mi propia sonda, dos de ellos el mismo error repetido** |
+| **9 · Cierre y documentación** | ✅ **Cerrada el 2026-08-15, los seis Steps.** **El Step 4 se hizo primero, y esta vez encontró algo distinto de un duplicado:** de lo que pide el Step 1 **no había nada hecho**, pero las dos filas de advisors caducadas **no estaban donde el briefing decía** —viven en el cuadro de cierre de la Fase 1, junto a «19 migraciones» y «124 aserciones», igual de caducadas y sin tocar en cinco tandas—, así que corregir dentro lo habría dejado mitad histórico y mitad actual. Se resolvió con **una nota fechada debajo**, decisión de Alejandro. **Y el Step 4 sí evitó el duplicado que buscaba:** la fila de M-12 en la especificación ya decía lo correcto desde el 2026-08-13 y no se tocó. **El Step 1 se quedó corto por diez:** pedía «D-55 a D-58» y las decisiones pendientes eran **catorce**, D-55 a D-68, con **D-67 y D-68 decididas en esta misma tarea**; no nombraba **Q-13**, que la Task 6 cerró; y pedía «la fila de bitácora» en singular cuando hacían falta **seis**, porque la bitácora **no tenía ni una línea de la T4**. **Los dos números caducados se remidieron contra el proyecto real en vez de citarse** —7 de seguridad y 18 de rendimiento, exacto contra la predicción escrita— y **Q-19 se verificó en producción por el efecto**, no por el registro de migraciones. **Catorce correcciones**, **dos falsos de mi propia sonda** y el **informe del subagente metiendo entidades HTML por CUARTA vez** |
+
+### Task 0 · La deuda documental *(2026-08-13)*
+
+1. **M-5 se sospechó a medias y está entera.** `in_stock` aparecía en `lib/database.types.ts` y parecía
+   una columna superviviente de `products`, que es justo lo que M-5 mandaba quitar. **Vive en la vista
+   `product_availability`**, y en la tabla ya no existe ninguna de las dos columnas viejas. **Leer un
+   nombre en el archivo de tipos no dice en qué objeto vive:** hay que mirar si cae bajo `Tables` o bajo
+   `Views`. La sospecha se escribió antes de mirar y se deshizo mirando; **si se hubiera dictado, habría
+   metido un defecto inexistente en la especificación**.
+2. **M-6 tiene un residuo que el plan no preveía, y es benigno.** La landing lista las dos sedes a mano, y
+   no por descuido: **empareja cada una con una imagen de `public/` que la base no guarda**, así que leer
+   `campuses` no le daría la foto. Medido contra producción: los nombres coinciden exactos —Monterrico y
+   San Miguel— y los dos archivos existen. **La landing no miente.** Y encima ese archivo lo tocó el
+   compañero de la fase visual en sus dos commits, así que además es terreno ajeno: se anota y no se toca.
+3. **El mecanismo del `.gitignore` no era el que se deduce leyendo el archivo.** Quien protegía
+   `.env.local` era **`*.local`**, no `.env` ni `.env.*.local`, y por eso `.env.local.apagado` —que ya no
+   termina en `.local`— se quedó fuera. **Lo dijo `git check-ignore -v`, que nombra la regla que decide;**
+   deducirlo leyendo los patrones daba la respuesta equivocada. Misma lección que Q-15 en su día: dos
+   herramientas pueden contestar bien a la pregunta equivocada.
+4. **Y se verificó con contraejemplo, que es lo que hace válida la medición.** Que `.env.local.apagado`
+   pase a ignorado no prueba nada por sí solo —una regla `*` lo haría igual—; lo que lo prueba es que
+   **`.env.example` sigue NO ignorado** y la excepción funciona.
+5. **ERROR 22 DE QUIEN DICTA: el PR de la T2A no es el #24, es el #25.** El **#24 fue el PR del plan** de
+   la T2A, y la tanda entró por el #25. Se destapó **listando los PR reales del repositorio** antes de
+   escribir la fila, no releyendo la memoria. El mismo par existe en las otras tandas —#26 plan y #27
+   tanda, #28 plan y #29 tanda—, así que era un error con tres formas de haberse repetido.
+6. **Una cifra que NO se escribió, por no estar declarada en ninguna parte: las correcciones de la T3A.**
+   `CLAUDE.md` declara las de la T1, la T2A, la T2B y la T3B, y **de la T3A ninguna**; contarlas con un
+   `grep` de líneas numeradas dio 14 y esa sonda no es fiable, porque captura cualquier lista. **La fila se
+   escribió sin número.** Un hueco declarado es mejor que una cifra plausible — y el primer borrador
+   llevaba «127», que es la de la T3B.
+7. **UNA CIFRA CADUCADA EN `CLAUDE.md`, y el plan no la preveía.** Dice **«127 correcciones al plan»** de
+   la T3B y ese plan llega a **145**: la frase se escribió en la Task 11 y la Task 12 añadió dieciocho más.
+   **Importa más que otras porque `CLAUDE.md` se carga solo al abrir cada sesión**, así que una cifra falsa
+   ahí se propaga a todas. Se corrige en esta tarea aunque no estuviera en su lista, por el criterio que la
+   define: se arregla lo que afirma algo falso **sobre hoy**. **Tercera vez en la fase que un pendiente
+   documental resulta más grande que su enunciado.**
+8. **UN SUBAGENTE VIOLÓ LA PROHIBICIÓN DE DAR CIFRAS: uno de los cinco de la sesión.** El encargo la
+   prohibía con todas las letras y aun así informó de un rango de líneas y de tres recuentos. **No se
+   comprobó si eran ciertos: se descartaron**, que cuesta menos y es la salvaguarda que de verdad funciona.
+   **Y el dato afina lo que ya sabía el proyecto:** con la prohibición explícita van **cuatro de cinco
+   cumpliendo** en esta sesión, contra dos de tres en la T3B. Sigue valiendo la conclusión de entonces
+   —prohibirlo ayuda y no garantiza—, y sigue sin poder ser la salvaguarda.
+   *Escrito primero como «van tres de cinco», que era falso: cumplieron cuatro. **Sobre-afirmación de
+   alcance de quien registra**, cazada contando los subagentes en vez de estimarlos.*
+9. **La aritmética del diff cuadró exacto, y esta vez medida por archivo y no inferida del total.**
+   `ESPECIFICACION_FUNCIONAL.md` **36 insertadas y 16 borradas** —las 12 filas, la cabecera de la tabla y
+   el párrafo final—; `PLANES/README.md` **6 y 1**. **El README suma 7 y no 9 porque la fila de la T0 se
+   reescribió idéntica y git no la cuenta**, que es justo el tipo de descuadre que hay que saber explicar
+   antes de darlo por bueno. El desglose se había deducido restando del total; `--numstat` lo confirmó, y
+   **restar del total es una inferencia, no una medición**.
+
+### Task 1 · Migración 24, la apertura cae en un bloque *(2026-08-13)*
+
+1. **PV-1 y PV-2 resueltos, los dos midiendo y ninguno deduciendo.** La expresión
+   `extract(epoch from opening_time)::int % (slot_minutes * 60) = 0` **es inmutable**: no se dedujo de la
+   documentación, se le preguntó a Postgres montando el `CHECK` dentro de una transacción y revirtiéndola.
+   Y **producción pasa**: abre a las 08:00 con bloques de 30, igual que local, así que la migración 24 no
+   fallará en el `db push`. Las dos comprobaciones costaron un comando cada una.
+2. **LA DIVISIÓN POR CERO ERA IMPOSIBLE DESDE EL PRINCIPIO, y no por suerte.** El plan no lo consideraba, y
+   un `%` con un divisor que valga 0 aborta la sentencia. No puede pasar: `app_settings_slot_minutes_check`
+   **ya acota `slot_minutes` entre 5 y 60**. El riesgo se descartó leyendo las restricciones que ya
+   existían, no suponiendo que no lo había.
+3. **EL TERCER CASO DE PRUEBA DEL PLAN NO SE PUEDE MONTAR DESDE LA FILA REAL, y el motivo es otra
+   restricción vieja.** `app_settings_slot_divisor` obliga a que el bloque divida a 60, así que los únicos
+   valores posibles son **5, 6, 10, 12, 15, 20, 30 y 60** — y **los ocho dividen a 3600**. Desde la apertura
+   por defecto de las 08:00, o desde cualquier hora en punto, **ningún `slot_minutes` válido la desalinea**.
+   La aserción 3 tuvo que mover antes la apertura a 08:30. Escrita como la dictaba el plan, habría pasado en
+   verde **sin probar nada**.
+4. **LA BARRERA DE LA APLICACIÓN Y LA RESTRICCIÓN DE LA BASE RECHAZAN EL MISMO CONJUNTO, y son equivalentes
+   por una TERCERA restricción.** `aperturaDesalineada()` comprueba `minutos % slotMinutos !== 0 ||
+   segundos !== 0`, que **ignora las horas**; el `CHECK` cuenta los segundos desde medianoche, que **no las
+   ignora**. Coinciden únicamente porque `slot_divisor` garantiza que `60 · h` sea siempre múltiplo del
+   bloque. **Si algún día se relajara esa restricción, las dos barreras divergirían en silencio**: con
+   bloque de 45, la apertura de las 10:00 la aceptaría la aplicación y la rechazaría la base.
+5. **`mensajeDeRechazoAjustes()` NO TRADUCE LA RESTRICCIÓN NUEVA, y su caso por defecto devuelve el mensaje
+   crudo del motor.** Traduce cuatro —ventana, horario, duración mínima y límite diario— y el resto cae en
+   `return mensajeDelMotor`, así que el admin leería `violates check constraint
+   "app_settings_apertura_alineada"` en pantalla. **Hoy es inalcanzable**, porque la barrera de servidor de
+   `guardarAjustes()` corta antes con su mensaje en castellano. **No se toca** —el Step 5 manda no tocarlo—,
+   pero se anota: el día que alguien cambie `aperturaDesalineada()` o `slot_divisor`, la jerga aparece.
+6. **DÉCIMO INSTRUMENTO MINTIENDO, y es una herramienta de lectura.** La salida de `Grep` con contexto
+   mostró `\` donde el archivo tiene `/`: tres líneas de comentario aparecían empezando por `\ ` en vez de
+   `// `, y un `crearProducto()/editarProducto()` salía con barra invertida. **Habría sido TypeScript
+   inválido**, y por un momento pareció un archivo roto que el CI había dejado pasar. **Lo dirimió leer el
+   mismo rango con `Read`**, que es otra herramienta. La causa no se determinó y no se finge. Van diez:
+   `PGRST303`, `PGRST102`, `$?` con stderr nativo, el servidor de desarrollo degradado, `$_.To.Address` de
+   Mailpit, la máquina entera con su UTC−5, la sonda de texto sobre HTML de React,
+   `browser_console_messages`, `npm audit` con el mismo lockfile, y este.
+7. **ERROR 23 DE QUIEN DICTA, y es del género más incómodo: contradice un hallazgo propio de veinte minutos
+   antes.** Al escribir el control positivo predije que la apertura de las 09:00 con bloque de 20 daría
+   **400**, y da **200**: 32400 % 1200 = 0. Es exactamente el hecho de la corrección 3 —desde una hora en
+   punto ningún bloque válido desalinea—, medido por mí y olvidado al escribir la sonda siguiente. **La
+   propiedad quedó probada igual**, porque la aserción 3 del test la cubre y pasó en verde, y porque el caso
+   correcto —apertura 08:30 y bloque a 20— dio el 400 esperado al medirlo bien. **Medir algo no vacuna
+   contra contradecirlo después.**
+8. **UN DEFECTO DE PROSA DEL SUBAGENTE, DEL GÉNERO DE LA RELACIÓN INVERTIDA.** El comentario del test decía
+   «08:30 no divide a 3600», cuando lo cierto es lo contrario: **3600 no divide a 30600**. El fondo era
+   correcto y la frase que lo justificaba estaba del revés. **Ninguna herramienta del proyecto puede verlo**
+   —vive dentro de un `--` y el test pasa igual—, así que lo encontró leer. Corregido antes de comitear.
+9. **LOS CINCO SERVICIOS PARADOS DEL STACK LOCAL NO SON UN FALLO.** `supabase status` los lista como
+   «Stopped» y `supabase start` no los levanta, lo cual parecía chocar con la regla de CLAUDE.md de que
+   `db reset` exige el stack completo. **Están deshabilitados a propósito en `config.toml`** —`[storage]`,
+   `[analytics]` y `[db.pooler]` con `enabled = false`—, que es distinto de arrancar con `-x`. **El
+   `db reset` funcionó con ellos parados**, así que la preocupación se disolvió midiendo.
+10. **LA PREDICCIÓN DEL STEP 4 SE CUMPLIÓ EXACTA:** 24 migraciones aplicadas y `Files=25, Tests=150, PASS`,
+    desde 23 y 147 en 24. Y de paso resolvió la única duda que el subagente declaró no haber verificado
+    —que `throws_ok` acepte `null` como tercer parámetro en esta instalación de pgTAP—: **sí lo acepta**,
+    confirmado por el efecto y no por el precedente de `20_settings.sql` del que lo copió.
+11. **EL PLAN SE CONTRADICE A SÍ MISMO SOBRE LOS SUBAGENTES, en dos sitios separados por su propia
+    ejecución.** Su cierre dice «de cuatro subagentes con la prohibición explícita, uno la cumplió y tres
+    no»; la corrección 8 de la Task 0, en el mismo archivo, dice **«cuatro de cinco cumpliendo»**. La
+    primera cifra se escribió al planificar y la segunda al ejecutar la Task 0. **Se deja el enunciado
+    original y se corrige acá fechado**, como todo lo demás. Es el mismo defecto que la T3B encontró en
+    `ESTADO_Y_PLAN.md`: **un documento largo se contradice a sí mismo antes de quedarse obsoleto.**
+
+### Task 2 · Las cabeceras de seguridad *(2026-08-13)*
+
+1. **PV-4 RESUELTO, Y LA SONDA QUE LO PRUEBA NO ES LA OBVIA.** Que la cabecera lleve un nonce no dice nada
+   por sí solo: lo que decide es si Next se lo pone a los scripts. Se midió pidiendo **una sola petición** y
+   comparando su cabecera con su cuerpo — el nonce de las dos es **el mismo**, y de las etiquetas `<script>`
+   del HTML **no queda ni una sin nonce**, ni en la FAQ ni en la landing. Con la cabecera puesta y los
+   scripts sin nonce, la aplicación se habría roto entera con los cuatro comandos en verde, que es
+   exactamente lo que el plan avisaba.
+2. **PV-3 RESUELTO, Y EL PLAN SE EQUIVOCABA SOBRE EL TERRENO.** Daba por hecho que `/_not-found` «la genera
+   Next» y por eso dejaba abierto si se podía forzar. **`app/not-found.tsx` existe y es del proyecto**
+   —hay otro más en `(alumno)`—, así que basta con volverlo `async` con `await connection()`. **Las
+   estáticas quedan en 0, no en 1**, y no hubo que decidir nada de lo que el punto de verificación temía.
+3. **EL STEP 4 MANDABA EDITAR UN ARCHIVO QUE NO PUEDE HACER LO QUE SE LE PIDE.** Decía `await connection()`
+   en `app/(auth)/login/page.tsx`, y esa página es **`'use client'`**: un componente de cliente no puede
+   llamar a `connection()`, que es una API de servidor, y las configuraciones de segmento tampoco se le
+   aplican. Se resolvió en **`app/(auth)/layout.tsx`**, que sí es Server Component: **un layout dinámico
+   arrastra a toda su rama**, incluida una página de cliente que por sí sola no tiene forma de declararse
+   dinámica. **La ruta del plan era correcta y el archivo era el equivocado**, que es un grado más fino que
+   el error 21 —allí la ruta no existía; acá existe y no sirve—.
+4. **LA DOCUMENTACIÓN DE NEXT 16 CONTRADICE AL PLAN EN DOS DIRECTIVAS, Y LAS DOS ROMPEN EL DESARROLLO.**
+   `script-src` necesita **`'unsafe-eval'` en desarrollo** —React usa `eval` ahí para reconstruir los stacks
+   de error del servidor— y `style-src` necesita **`'unsafe-inline'` en desarrollo en vez del nonce**. El
+   plan no mencionaba ninguna de las dos. **Leerla es obligación de `AGENTS.md` y esta vez se cobró sola:**
+   sin esas dos excepciones, el entorno local queda sin estilos y sin depuración, y eso en esta tanda es
+   funcionalidad, no estética.
+5. **D-59, Y EL DEFECTO QUE LA OBLIGA: `next/image` GENERA ATRIBUTOS `style` Y AL NONCE NO LE LLEGAN.**
+   Medido sobre el HTML de producción: **ocho en la landing**, tres en `/login`, dos en la FAQ. Siete son
+   `color:transparent` y **uno no es cosmético** —`position:absolute;height:100%;width:100%;…`, que es lo
+   que Next emite para una imagen con `fill` y lo que hace que ocupe su contenedor—. Un atributo `style` lo
+   gobierna **`style-src-attr`**, que hereda de `style-src` si no se declara, y **el nonce solo vale para
+   elementos `<style>` y `<script>`**. Decisión de Alejandro: `style-src-attr 'unsafe-inline'`, en los dos
+   modos y sin condicional, para que desarrollo y producción no difieran. Los elementos `<style>` siguen
+   exigiendo nonce.
+6. **«CERO `style={{...}}` EN TODO EL ÁRBOL» ES CIERTO Y ENGAÑOSO, y es el punto de método de esta tarea.**
+   Esa medición del plan es correcta sobre los archivos `.tsx` y **no predice el HTML**: las librerías
+   generan los suyos. **La pregunta no era qué escribe el proyecto, era qué sale por el cable.** Se midió
+   contando `<script>`, `<style>` y atributos `style` en la respuesta servida, y solo ahí apareció.
+7. **PV-5 NO SE PUEDE RESOLVER CON `curl`, Y ESTUVO A PUNTO DE DARSE POR RESUELTO.** El servidor de
+   producción contesta **200** con `upgrade-insecure-requests` puesta, y eso invita a concluir que no rompe.
+   **No prueba nada: `curl` no aplica CSP.** Es D-33 por la otra puerta —allí la herramienta era más
+   *privilegiada* que el navegador, acá es más *permisiva*—. **PV-5 queda abierto y solo lo cierra un
+   navegador.** La directiva se condicionó a producción igualmente, que era la decisión correcta con o sin
+   la medición.
+8. **PV-6 Y PV-7 RESUELTOS LEYENDO LA RESPUESTA.** `connect-src` llega con **`http://127.0.0.1:54321`**, la
+   URL local leída del entorno y no escrita a mano, que es lo que evita romper el desarrollo en silencio. Y
+   `Strict-Transport-Security` **está en la respuesta de producción y ausente en la de desarrollo**, que es
+   todo lo que se puede afirmar sin despliegue: **se verificó leyéndola, no por su efecto**, y así se dice.
+9. **HSTS SOLO EN PRODUCCIÓN: desvío del plan, con motivo y asimétrico.** El plan no lo pedía. El navegador
+   ignora HSTS sobre `http`, así que mandarla en local no haría daño **hoy**; pero un HSTS con
+   `includeSubDomains` que un navegador llegue a recordar para `127.0.0.1` deja la máquina sin poder abrir
+   nada local por http, y se arregla a mano. **No mandarla en desarrollo no cuesta nada.**
+10. **ERROR 24 DE QUIEN DICTA, y lo destapó leer el comentario que yo mismo había encargado.** Mandé copiar
+    la CSP al `redirect` **por analogía con el `Cache-Control`**, y la analogía no se sostiene: el
+    `Cache-Control` importa de verdad en un 307 —un CDN puede cachearlo con la cookie dentro— y **la CSP
+    no protege el destino**, porque un 307 no lleva documento y el navegador hace una petición **nueva** a
+    `/login` que recibe su propia política. El código es inocuo y se queda; **lo falso era el porqué**, y
+    lo escribió el subagente porque yo se lo dicté.
+11. **DOS DE CINCO SUBAGENTES INCUMPLIERON LA PROHIBICIÓN DE DAR CIFRAS**, con la prohibición escrita y
+    motivada en los cinco encargos. Sus números **se descartaron sin comprobarlos** y se remidió, que
+    cuesta menos. Sumado a la Task 0, la sesión va **siete de diez cumpliendo**. Sigue valiendo lo de
+    siempre: **prohibirlo ayuda, no garantiza, y no puede ser la salvaguarda.**
+12. **UN SUBAGENTE CAZÓ UN COMENTARIO CADUCADO QUE EL ENCARGO NO LE PEDÍA MIRAR.** La cabecera de
+    `faq/page.tsx` decía «**ESTÁTICA a propósito … Server Component normal, sin async, para que se sirva
+    desde el prerender**», y acababa de volverse falsa por su propio cambio. **Lo encontró porque el
+    encargo le mandaba conservar los comentarios existentes**, y al conservarlos los leyó. Tercer caso de
+    la fase en que un subagente encuentra algo antes de que haga daño.
+13. **LOS STEPS 5 Y 6 NO SE CERRARON, y se dice en vez de disimularlo.** Esta sesión **no tiene ninguna
+    herramienta de navegador disponible**, así que ni el recorrido con la consola abierta ni la subida real
+    a Cloudinary se hicieron. Lo que sí se hizo es **todo lo que el navegador habría comprobado y se puede
+    comprobar por HTTP** —las cuatro cabeceras, el nonce por petición, el reparto de nonces en el HTML—, y
+    lo que queda es exactamente lo que solo se ve en pantalla: violaciones en consola y una subida de punta
+    a punta. **Quedan como entrega a Alejandro, con su control positivo escrito.**
+14. **EL MODO PRODUCCIÓN LOCAL NO HABLA CON LA BASE REAL, comprobado y no supuesto.** `next start` carga
+    `.env.local` igual que `next dev`, y la CSP servida lo demuestra sola: su `connect-src` lleva
+    `127.0.0.1:54321`. **La cabecera sirvió de sonda del entorno**, que no era para lo que se escribió.
+15. **PV-5 RESUELTO EN NAVEGADOR, Y LA PREDICCIÓN ESCRITA DEL PLAN ERA INCORRECTA.** El plan predecía que
+    `upgrade-insecure-requests` **rompe** el desarrollo local y por eso mandaba condicionarla a producción.
+    **No rompe:** con la directiva puesta, la landing cargó por `http://127.0.0.1:3000` y **las veinticuatro
+    peticiones salieron por `http`, ninguna intentó `https`**. El motivo es que los navegadores tratan
+    `127.0.0.1` como origen confiable y lo excluyen del ascenso. **La decisión de condicionarla a producción
+    se mantiene igual**, porque su motivo verdadero era otro —no dejar que un navegador recuerde un HSTS
+    para `127.0.0.1`—, pero **la razón que el plan le daba era falsa** y conviene no heredarla.
+16. **EL PRIMER CONTROL POSITIVO ESTABA MAL DISEÑADO, Y NINGUNA HERRAMIENTA LO DIJO.** Se inyectó un
+    `<script>` externo desde el depurador esperando una violación de `script-src`, **y no hubo ninguna**:
+    el bloqueo que apareció era de **CORB**, no de CSP. La causa es que **el código que ejecuta el depurador
+    corre en un contexto privilegiado que no está sujeto a la CSP de la página**. Un cero de violaciones ahí
+    no significaba «la política funciona», significaba «la sonda no puede violarla». **Lo delató que el
+    mensaje citara CORB y no CSP**, y que la petición llegara a hacerse.
+17. **Y LA DISTINCIÓN QUE LO ARREGLA ESTÁ MEDIDA, NO SUPUESTA: no todas las directivas se comportan igual
+    frente al depurador.** Un `<script>` inyectado desde él **no** dispara `script-src`, pero **una imagen
+    con `src` externo sí dispara `img-src`, y un `fetch` a un host no permitido sí dispara `connect-src`** —
+    las dos capturadas con el evento `securitypolicyviolation`, que es la sonda oficial y no la consola.
+    **La regla práctica: el control positivo hay que hacerlo con una directiva de recurso, no con
+    `script-src`.**
+18. **CERO VIOLACIONES EN OCHO PANTALLAS, y esta vez el cero vale.** Landing, `/login`, `/admin/inventario`,
+    `/admin/reservas`, `/admin/ajustes`, `/admin/estadisticas`, `/mostrador` y `/completar-perfil`, todas en
+    **modo producción**, que es donde `style-src` va con nonce y donde el modo desarrollo no prueba nada.
+    En las ocho: **ningún script sin nonce** y **la hoja de estilos con sus 145 reglas accesibles**, o sea
+    que el CSS no está bloqueado. El flujo de entrada completo funcionó con la CSP puesta —magic link
+    pedido, correo leído de Mailpit **por el cuerpo y no por el listado**, enlace `pkce_` canjeado en el
+    mismo navegador que lo pidió, y reparto a `/admin/inventario`—.
+19. **EL STEP 6 SE CERRÓ SIN SUBIR NINGUNA IMAGEN, y con control positivo en la misma medición.** Lo que la
+    CSP gobierna en esa pantalla es una sola cosa: si el navegador puede hablar con `api.cloudinary.com`.
+    Medido con las dos puntas: **`example.com` queda bloqueado por `connect-src`** —el control, sin el cual
+    lo otro no prueba nada— y **`api.cloudinary.com` pasa, con HTTP 400 devuelto por el propio Cloudinary**,
+    que es lo que demuestra que la petición salió. Que la firma sea válida **ya se probó en la T3B con dos
+    subidas reales** y la CSP no toca esa lógica, así que subir una tercera solo habría añadido otra imagen
+    huérfana a la cuenta real.
+20. **DOS `404` EN LA LANDING QUE NO SON DE LA CSP, y distinguirlo importa.** Son las imágenes del seed, que
+    apuntan a `res.cloudinary.com/demo/...` —una cuenta de demostración que no las tiene—, y la aplicación
+    cae en su `placeholder.svg`. **Si la CSP las bloqueara no habría petición ni respuesta**, y lo que hay es
+    un 404 del servidor: son dos fallos con la misma apariencia en la consola y causas distintas. **Quinta
+    vez en la fase que el `seed.sql` contradice a producción**, ahora por el lado de las URL de imagen.
+21. **EL DOM TIENE MÁS ATRIBUTOS `style` QUE EL HTML SERVIDO.** Contados sobre el HTML de la landing salían
+    **ocho**; contados en el DOM ya hidratado salen **nueve**. La diferencia la añade el propio cliente
+    después de hidratar. No cambia ninguna decisión —`style-src-attr` los cubre a todos—, pero **afina el
+    punto de la corrección 6**: ni el código fuente ni el HTML servido son la última palabra sobre lo que
+    la CSP acaba evaluando.
+22. **EL RECORRIDO ACABÓ EN DIEZ PANTALLAS Y LOS TRES PERFILES, no en ocho.** La corrección 18 se escribió
+    con ocho y **era cierta al escribirla**; caducó en la misma tarea, al continuar con el perfil que
+    faltaba. El Step 5 pide «los tres perfiles» y con las ocho primeras solo estaban cubiertos **dos**:
+    faltaba el alumno, que es justo quien usa **el catálogo con imágenes remotas y el calendario de
+    reserva**, la pantalla con más JavaScript del proyecto. Se entró como alumna por su propio magic link,
+    y `/catalogo` y `/catalogo/[id]/reservar` dieron lo mismo que las otras ocho: **cero violaciones, ningún
+    script sin nonce, las 145 reglas de CSS accesibles** y las **21 franjas** del calendario pintadas. **Diez
+    pantallas, cero violaciones, con el control positivo validado antes y después.**
+23. **`/auth/signout` DEVUELVE 405 A UN `GET` Y ESTUVO A PUNTO DE PARECER UN DEFECTO DE LA CSP.** Navegar
+    ahí con el navegador dio una página de error de Chrome, justo en mitad de la verificación de una tanda
+    que toca cabeceras. **No es un defecto y no es de esta tanda:** el handler declara `export async
+    function POST()` y nada más, así que el `GET` da **405** y el `POST` da **303**, medido por las dos
+    puntas. **Es el diseño correcto** —un cierre de sesión por `GET` lo dispararía cualquier prefetch o
+    cualquier `<img>`—. Lo dirimió medir el endpoint y abrir el archivo **antes** de escribir que algo
+    fallaba, que es la misma regla de siempre: verificar la propia sonda antes de acusar a la pantalla.
+
+### Task 3 · Playwright y el flujo de entrada *(2026-08-14)*
+
+1. **EL CORTAFUEGOS LLEGABA TARDE, y es un defecto de ORDEN que ningún comando puede ver.** Playwright
+   levanta el `webServer` **antes** de correr el `globalSetup`, así que engancharlo solo ahí no protege
+   nada. Medido apuntando el arnés a producción a propósito: la corrida tardó **unos treinta segundos** en
+   abortar —el tiempo de `npm run build`— y la salida traía una línea `[WebServer]` con **la propia
+   aplicación consultando producción** y recibiendo `Invalid API key`. **La aplicación se compiló, arrancó
+   y emitió tráfico hacia la base equivocada antes de que el guardia dijera nada**, y lo único que impidió
+   que hablara de verdad fue que la clave del `.env.local` no sirve allí: **suerte, no diseño**. Se arregló
+   llamando al cortafuegos en el **ámbito del módulo** de `playwright.config.ts`, que Playwright tiene que
+   evaluar para saber qué servidor levantar. Remedido sobre el código definitivo: **seis segundos y cero
+   líneas `[WebServer]`**.
+2. **Y EL COMENTARIO AFIRMABA LA PROPIEDAD QUE EL CÓDIGO NO TENÍA: hecho falso 32.** Decía que el
+   cortafuegos «lanza una excepcion **ANTES de que arranque el webServer**». Es el género de la **falsedad
+   sobre la propia salvaguarda** —el mismo del hecho falso 26—, y este es el peor sitio donde puede
+   aparecer: **una advertencia que promete un orden que no se cumple es peor que no tenerla**, porque el
+   próximo lector deja de comprobarlo. Ninguna herramienta puede verlo: vive dentro de un `//`, el código
+   compila igual y los cuatro comandos siguen en verde. **Lo destapó ejercitar la salvaguarda en vez de
+   leerla** — y no basta con preguntar *si* aborta, hay que medir **cuándo**: el guardia abortaba con el
+   mensaje correcto, así que quien mirara solo el resultado lo habría dado por bueno.
+3. **VITEST SE TRAGA LOS `.spec.ts`, Y EL PLAN NO LO PREVEÍA.** Su Step 6 pedía un script `test:e2e`
+   «separado de `test`», y **eso no basta**: no existía `vitest.config.ts`, así que Vitest corría con su
+   patrón por defecto —`**/*.{test,spec}.?(c|m)[jt]s?(x)`, leído del paquete instalado—, que **incluye los
+   specs de Playwright**. Sin arreglarlo, `npm test` los habría ejecutado con el runner equivocado.
+   **Medido con contraejemplo antes de escribir una línea**: un `.spec.ts` de sonda dentro de `e2e/` hizo
+   subir el recuento de Vitest, y al borrarlo volvió al de antes. Hizo falta un archivo de configuración
+   nuevo que **extiende** `configDefaults.exclude` en vez de pisarlo.
+4. **PLAYWRIGHT NO VE `.env.local`, y el cortafuegos habría leído `undefined`.** Next carga ese archivo por
+   su cuenta; el proceso que corre las pruebas, no. Un guardia que lee `process.env` a pelo recibe
+   `undefined`, y según cómo esté escrita la comparación **o aborta siempre o pasa siempre** — ninguno de
+   los dos es el comportamiento pedido. Se resolvió con `loadEnvConfig` de `@next/env`, que es el mismo
+   cargador que usa Next y respeta la misma precedencia. **Así el guardia mira exactamente lo que mira la
+   aplicación**, que es la única forma de que su respuesta signifique algo. Estaba en el árbol solo como
+   transitiva de Next; se declaró en `devDependencies` con la versión exacta para no depender de un
+   hoisting accidental en un `npm ci` limpio.
+5. **PV-9 RESUELTO, Y LA CIFRA BASE DEL PLAN NO ES REPRODUCIBLE CON ESTA SONDA.** El plan escribe «hoy
+   **708 paquetes**»; `npm audit --json` da **805** antes de instalar Playwright y **809** después. **Lo
+   que importa no es cuál de las dos es la buena, sino que las dos puntas de la comparación usen la misma
+   sonda** — y el plan no decía cuál era, que es justo lo que hace inútil un número base. Con la sonda
+   fijada: **Playwright añade cuatro paquetes y cero vulnerabilidades**. La única alta sigue siendo
+   `nanoid`, la misma de antes, así que **la Task 5 no hereda ninguna deuda de esta**.
+6. **PV-8 CONFIRMADO POR EL EFECTO Y POR LAS DOS PUNTAS.** El enlace pedido desde el propio navegador de
+   Playwright se canjeó en ese mismo contexto y la alumna cayó en `/catalogo`. Y quedó medida la otra
+   punta al preparar el terreno: el enlace pedido con un `POST` directo a `/auth/v1/otp` llega con un token
+   **sin** el prefijo `pkce_`, mientras que el de la aplicación sí lo lleva. **Son dos enlaces distintos
+   para el mismo correo**, y solo uno sirve para el arnés.
+7. **EL SEÑUELO NO PODÍA RESPONDER LO QUE SE LE PREGUNTABA, y darlo por bueno habría acusado al arnés de un
+   defecto que no tiene.** Se dejó a propósito un magic link válido y sin usar en la bandeja, para ver si
+   el arnés leía un correo ajeno y pasaba en verde sin ejercitar el suyo. Al terminar la corrida ese token
+   daba **403**, y la lectura inmediata —«lo consumió el arnés»— era **falsa**: **pedir un enlace nuevo
+   para el mismo correo invalida el anterior**, así que el 403 **no distingue** una causa de la otra. La
+   sonda no separaba las dos hipótesis que existía para separar. **Lo dirimió otra**: vaciar Mailpit y
+   correr con la bandeja en cero. Pasó, y dejó **exactamente un correo, el suyo**. Cuarta vez en la sesión
+   que verificar la propia sonda evita un diagnóstico falso.
+8. **LA FORMA DE LA API DE MAILPIT SE MIDIÓ, NO SE DEDUJO, y de paso se explicó un instrumento viejo.** El
+   listado devuelve los mensajes bajo `messages`, cada uno con `ID`, `Created` y un **`To` que es un
+   arreglo de objetos** `{Name, Address}` — de ahí viene que `$_.To.Address` mintiera en su día: se le
+   pedía un campo a una lista. El mensaje completo trae `Text` y `HTML`. **Y los dos cuerpos no son
+   equivalentes:** el `HTML` lleva el enlace con `&amp;type=magiclink` **escapado**, y el `Text` lo lleva
+   con `&` limpio. El arnés lee el `HTML` y desescapa, que es correcto — pero **el aviso que se dictó
+   («desescapá siempre») solo vale para uno de los dos campos**, y se dictó antes de poder medirlo.
+9. **LA ARITMÉTICA DEL DIFF CUADRÓ, CON UN DESCUADRE QUE TENÍA DUEÑO.** `package.json` traía **una línea
+   insertada más** de las que el subagente escribió: la cuarta era la entrada de `@playwright/test`,
+   instalada por quien verifica **antes** de dictar el encargo y todavía sin comitear. **Un descuadre
+   pequeño no es «casi bien», es «pasó algo que no sabés qué es»** — y este se explicó antes de darlo por
+   bueno, no después.
+10. **`.gitignore` VERIFICADO POR EFECTO Y CON CONTRAEJEMPLO**, igual que en la Task 0. `test-results/` y
+    `playwright-report/` quedan ignorados **por las reglas nuevas**, nombradas por `git check-ignore -v`; y
+    **`e2e/entrar.spec.ts` NO queda ignorado**, que es lo que prueba que la regla no se pasó de ancha. Que
+    algo quede ignorado no dice nada por sí solo: una regla `*` lo haría igual.
+11. **DOS DECISIONES NUEVAS, D-60 y D-61**, las dos de Alejandro y tomadas antes de escribir el código.
+    **D-60:** el `webServer` **compila siempre** —`npm run build && npm run start`, sin reusar ningún
+    servidor—, y se paga la compilación en cada corrida a propósito: el servidor de desarrollo de este
+    proyecto ya mintió dos veces y el árbitro es el `build`. **D-61:** el flujo de entrada usa
+    `alumno.a@upc.edu.pe`, del seed, en vez de un correo nuevo por corrida: escenario estable y sin dejar
+    filas huérfanas. **Las dos se llevan a `ESTADO_Y_PLAN.md` en la Task 9.**
+12. **NINGUNA CIFRA SE MOVIÓ, y era la predicción escrita.** El `build` sigue en **23 rutas y cero
+    estáticas**; Vitest sigue en **11 archivos y 152 pruebas**, que es lo que prueba que el `exclude`
+    funciona sin recortar de más. **Las tres corridas de E2E terminaron en verde**, la tercera con la
+    bandeja vacía. Los dos `404` de `res.cloudinary.com/demo/...` aparecen en la salida del servidor y
+    **siguen sin ser de esta tanda**: son las imágenes del seed, ya registradas al cerrar la Task 2.
+
+### Task 4 · Los cuatro flujos restantes *(2026-08-14)*
+
+1. **EL CORTAFUEGOS SE REMIDIÓ ANTES DEL PRIMER SPEC QUE ESCRIBE, Y APARECIÓ UNA TERCERA VÍA DE
+   COMPROBARLO.** La Task 3 lo dejó verificado por dos: **cinco o seis segundos** hasta abortar y **cero
+   líneas `[WebServer]`**. Las dos son indirectas —miden el reloj y una ausencia—. La tercera es
+   estructural y salió sola al remedirlo: la **traza de pila** del error sitúa la excepción dentro de
+   `loadConfigFromFile`, **antes de `runTests`**. Ya no hay que inferir el orden desde el tiempo: la propia
+   pila lo dice. Remedido apuntando el entorno a producción a propósito, con `.env.local` renombrado y
+   restaurado en el mismo comando: **exit 1, cinco segundos, ninguna línea `[WebServer]`**.
+
+2. **«DEJAR LA BASE SIN NADA VIVO» NO ES «DEJARLA COMO SE ENCONTRÓ», Y LA PRIMERA CORRIDA EN VERDE LO
+   ESCONDIÓ.** Se midió que `daily_limit_per_product` y el `EXCLUDE` anti-solape **solo cuentan `reserved` y
+   `active`**, así que una reserva `cancelled` o `completed` libera el cupo y la franja. Eso es cierto y
+   está comprobado por el efecto: **las cuatro reservas de una corrida tomaron la misma franja del mismo
+   producto**, imposible si cada una no liberase la suya. **Pero libera la capacidad de CREAR, no la de
+   IDENTIFICAR.** Las filas terminales se acumulan y `/mi-panel` las pinta todas bajo «Anteriores», así
+   que un localizador que busque por nombre de producto encuentra una por cada corrida anterior: la
+   **segunda** corrida falló con `strict mode violation` **resolviendo a cinco elementos**, y la tercera a
+   nueve. **La primera corrida en verde no probaba la repetibilidad**, que es justo lo que el Step 4 de la
+   Task 8 pide comprobar corriendo dos veces.
+
+3. **ERROR 28 DE QUIEN DICTA, y es del género de la sobre-afirmación de alcance.** De medir que el cupo y
+   el solape se liberan concluí por escrito que **«el E2E es repetible sin limpieza»**, y lo dicté como
+   hecho medido en dos encargos. Lo medido cubría **la mitad**: nada de aquello decía nada sobre poder
+   volver a encontrar la fila. **La medición era correcta y la inferencia se pasó de largo** — y encima la
+   primera corrida en verde la confirmó falsamente. Se arregla identificando la reserva por un **motivo de
+   cancelación único por corrida**, que la prueba ya escribe y la tarjeta ya pinta; de paso la prueba gana
+   una aserción que antes no tenía: que el motivo escrito **llegó a la base y volvió a la pantalla**.
+
+4. **«HOY» NO ES UN DÍA VÁLIDO PARA UNA PRUEBA DE RESERVA, y depende de la hora a la que se corra.** Medido
+   a las 21:47 de Lima con cierre a las 22:00: `available_slots` devuelve **cero filas para hoy y
+   veintiocho para mañana**. La pantalla de reserva **abre en «hoy» por defecto** *(contrato de
+   `diasDeLaVentana()`)*, así que un spec que confíe en el día por defecto **pasa por la mañana y falla por
+   la noche**. Los tres specs eligen el botón de índice 1 y **afirman antes que está habilitado**, con un
+   mensaje que explica la asunción para que un día inhabilitado no se lea como un timeout ciego.
+
+5. **AUTO-ESPERAR NO ES ESPERAR A LA NAVEGACIÓN, y es un grado más fino que lo que se dictó.** El encargo
+   avisaba de que `page.url()` no reintenta. El defecto real fue otro: `locator('h1').textContent()`
+   **sí auto-espera**, pero auto-esperar solo garantiza que el elemento **exista** — y un `<h1>` existe
+   también en `/catalogo`, cuyo texto es «Catálogo». La espera se satisfizo al instante con el título de la
+   pantalla de partida, y la prueba terminó buscando una tarjeta llamada «Catálogo». **El flujo entero
+   había funcionado**: la reserva quedó escrita en la base, comprobada por consulta directa. Lo único roto
+   era la aserción. **La regla que se lleva: cuando el selector casa en las dos pantallas, la espera del
+   localizador no protege nada** — hay que esperar la URL de destino, que sí reintenta.
+
+6. **D-62, decisión de Alejandro tomada antes de escribir una línea: el arnés no escribe nunca directo en
+   la base.** El Step 2 pide probar que una reserva **ya empezada** no se cancela *(D-38)*, y esa fila **no
+   la puede crear ninguna pantalla**: la RPC solo crea reservas futuras. La alternativa era meter la clave
+   `service_role` en el árbol, detrás del cortafuegos. Se descartó: el contraejemplo pasa a ser una reserva
+   **ya entregada**, que sí se monta por pantalla —el operador la entrega y el botón «Cancelar reserva»
+   desaparece del panel del alumno—. **Se anota lo que eso NO prueba**, y está escrito en el propio spec:
+   cubre la **primera** de las tres condiciones de `seOfreceCancelar()`, no D-38, que ya lo prueban la
+   migración 23 en pgTAP y el test de Vitest de esa misma función.
+
+7. **`workers: 1` SIEMPRE, no solo en el CI, y el motivo no es el que decía el comentario.** El config
+   heredado ponía un worker **solo en CI**, «para no mezclar corridas concurrentes». La razón verdadera no
+   depende del CI: **hay un único stack local que comparten todos los specs**, el cupo diario por producto
+   vale 1 —así que dos specs que reserven el mismo producto el mismo día chocan— y **pedir un magic link
+   nuevo para un correo invalida el anterior**, así que dos specs que entren con el mismo usuario a la vez
+   pueden canjear el enlace equivocado. En local Playwright usaba varios workers por defecto.
+
+8. **HECHO FALSO 33, y tenía TRES instancias en un solo archivo.** Un comentario justificaba acotar la
+   búsqueda a la sección «Próximas» *«para no confundirla con una reserva pasada del mismo producto que ya
+   estuviera en el seed»*. **`supabase/seed.sql` no siembra ninguna reserva**, y lo dice explícitamente en
+   su última línea, con su motivo: una reserva sembrada rompe una prueba pgTAP de `14_rls_alumnos.sql`. El
+   fondo era correcto —acotar por sección está bien— y **lo falso era el motivo**, que además existía y era
+   mejor: quien deja una reserva anterior del mismo producto es **una corrida previa de esta misma prueba**.
+   Al corregir la primera apareció una segunda con la misma premisa, y **la tercera solo apareció al barrer
+   el archivo entero**. Dos menciones más al seed resultaron **ciertas** y se dejaron intactas: comprobar
+   una por una es lo que separa el barrido de la sustitución a ciegas.
+
+9. **ERROR 27 DE QUIEN DICTA, y es una reincidencia exacta del error 10 de la fase.** El encargo de la
+   corrección decía **«son DOS arreglos y nada más»**. El subagente hizo los dos, encontró **un tercer
+   comentario de la misma familia** y **no lo tocó, porque el encargo se lo prohibía** — y lo dijo en la
+   pregunta final. Es literalmente el error 10 —«UN SOLO archivo», que prohibió el barrido que habría
+   encontrado una cita caducada— cometido otra vez con otra forma. **Cerrar un encargo con un número exacto
+   de arreglos compra precisión y paga con el barrido.** El encargo siguiente pidió el barrido de la
+   familia entera y encontró la tercera. **Cuarta vez en la fase que un subagente caza algo antes de que
+   haga daño, y las cuatro por la misma pregunta.**
+
+10. **LA COMPROBACIÓN «EN LA BASE» DEL STEP 1, SIN `service_role`, ES UNA SEGUNDA SUPERFICIE — y se dice lo
+    que es y lo que no.** El Step 1 pide comprobar en la base «no solo en la pantalla», porque una prueba
+    que solo lee la interfaz afirma que la interfaz dice algo. Con D-62 no hay lectura directa posible, así
+    que la evidencia es otra: la reserva que crea **la sesión de la alumna** la encuentra **la sesión del
+    operador**, en otra pantalla, por otra consulta y **bajo otra política de RLS**. Si la fila no existiera,
+    no aparecería ahí. **Es sustancialmente más fuerte que releer la misma pantalla y no es una lectura de
+    la base**, y así queda escrito en `mostrador.spec.ts` en vez de dejarlo creer.
+
+11. **EL STEP 4 NO SE PUEDE CUMPLIR AL PIE DE LA LETRA, y se cumple su intención.** Dice que «cada spec
+    monta su escenario» porque el seed es una fixture de valores convenientes. Montar los **datos maestros**
+    —producto y unidades— exigiría darlos de alta como admin, y **la baja del proyecto es lógica** *(M-11)*:
+    cada corrida dejaría un producto `retired` imborrable en la base. Lo que se hizo es lo que el Step
+    protege de verdad: **ningún spec lleva escrito un UUID ni un nombre de producto**. Toman la primera
+    tarjeta del catálogo y leen su nombre de la pantalla. Lo que la prueba monta es **la reserva**, que es
+    su escenario; el catálogo es terreno, no escenario.
+
+12. **UN COMENTARIO CADUCADO FUERA DE ESTA TAREA, y se anota en vez de tocarlo.** `lib/mostrador/filtro.ts`
+    dice **«El proyecto no tiene `vitest.config.ts`»** para justificar por qué importa con ruta relativa en
+    vez del alias `@/`. **La Task 3 creó ese archivo.** La conclusión sigue siendo cierta —ese config no
+    declara el alias, comprobado— pero **la premisa ya es falsa**. Es una frase, toca `lib/` y el alcance de
+    esta tarea son los specs: se registra acá y se decide al cerrar.
+
+13. **LAS CUATRO PREDICCIONES ESCRITAS ANTES DE MIRAR SE CUMPLIERON EXACTAS.** Vitest **152 pruebas en 11
+    archivos**, sin moverse, que es lo que prueba que el `exclude` de la Task 3 sigue sin recortar de más;
+    el `build` en **23 rutas y cero estáticas**; la base en **24 migraciones y 150 aserciones en 25
+    archivos**, medida con `db reset` y `supabase test db`; y el E2E de **dos pruebas en un spec a seis en
+    cuatro**. Y una confirmación de paso del hecho falso 21: el **`(22/22)`** de «Generating static pages»
+    **no es el número de rutas** —son 22 páginas contra 23 rutas, porque `/api/cloudinary/firma` es un route
+    handler y no genera página—.
+
+14. **CUATRO CORRIDAS EN VERDE TRAS EL ARREGLO, Y A PROPÓSITO EN LOS DOS EXTREMOS.** Tres seguidas **sobre
+    el histórico ya acumulado** —el escenario que rompía, creciendo en cada una— y una **sobre la base
+    recién reseteada**. Probar solo en limpio habría vuelto a esconder el defecto, que es exactamente lo que
+    pasó la primera vez.
+
+15. **DE CINCO SUBAGENTES CON LA PROHIBICIÓN EXPLÍCITA DE DAR CIFRAS, CUATRO CUMPLIERON.** Las del quinto
+    —números de línea— **se descartaron sin comprobarlas** y se remidió por cuenta propia; el hecho de fondo
+    resultó cierto igual, que es justo por lo que descartarlas cuesta menos que verificarlas. Sigue
+    valiendo lo de siempre: **prohibirlo ayuda, no garantiza, y no puede ser la salvaguarda.**
+
+16. **UN RIESGO CONOCIDO QUE SE DECLARA EN VEZ DE ARREGLARSE: la limpieza del contraejemplo vive en un
+    `finally`.** Si ese test fallara **antes** de que el operador entregue, la limpieza buscaría la tarjeta
+    en «Activas», no la encontraría, y **el error reportado sería el suyo y no el original**. Es el mismo
+    género que el hecho falso 32 —una salvaguarda que estorba el diagnóstico que pretende facilitar—, con la
+    diferencia de que acá no afirma nada falso. **No se cambió**: cada verificación cuesta una corrida
+    completa de casi dos minutos y el escenario es hipotético, así que se registra con su costo por delante
+    en vez de arreglarlo sin poder medirlo. **Candidato de la Task 8.**
+
+### Task 5 · La auditoría bloqueante *(2026-08-15)*
+
+1. **EL STEP 1 NO HACÍA FALTA COMO ESTABA ESCRITO, PORQUE HABÍA PARCHE.** El plan mandaba relanzar a mano
+   el paso de auditoría en el CI —tarea de Alejandro— para dirimir la contradicción entre el código 1 de
+   local y el `found 0` del CI. Remedido hoy, local **sigue saliendo con código 1** por `nanoid`. Pero la
+   sonda que faltaba era otra: **`npm audit fix` cambia exactamente un paquete**, `nanoid` de 3.3.17 a
+   3.3.18, **un parche dentro del rango que `postcss` ya pedía** —`^3.3.16` y `^3.3.17`—, y deja la
+   auditoría en **código 0**. Con el paquete parcheado, **qué conteste hoy el servicio de avisos deja de
+   decidir nada**. Y la pregunta que sí importa —¿pasa la auditoría bloqueante en el CI?— **la mide gratis
+   la primera corrida de esta rama**, que además la mide de verdad en vez de por analogía.
+2. **LAS «99 PACKAGES» DEL `--dry-run` NO EXISTEN.** `npm audit fix --dry-run` anuncia «added 99
+   packages», y **el lockfile ya las contenía**: son binarios de otras plataformas —`lightningcss-linux-*`,
+   `@unrs/resolver-binding-*`, `@tailwindcss/oxide-*`— que el `--dry-run` cuenta porque no están en el
+   `node_modules` de esta máquina, que es Windows. **El diff real son tres líneas** —`version`, `resolved`
+   e `integrity` de `nanoid`— y **`package.json` no se toca**. Creerle al anuncio de la herramienta habría
+   hecho abortar un arreglo de tres líneas por miedo a uno de noventa y nueve paquetes.
+3. **EL `found 0` DEL CI ESTÁ MEDIDO, no heredado del plan.** La corrida del 2026-08-13 a las 12:47 UTC
+   —la del merge del PR #32 en `develop`— imprime `found 0 vulnerabilities` en el paso «Auditoría de
+   dependencias», leído del log con `gh run view --log`; y el `npm ci` de esa misma corrida imprime lo
+   mismo. **La contradicción del plan era real y seguía viva**, así que parchear el paquete no es
+   cosmético: sin eso, cuál de las dos puntas manda seguía sin estar decidido.
+4. **`develop` NO TIENE PROTECCIÓN DE RAMA, y eso es lo que decide el Step 4.** La API de GitHub responde
+   **404, «Branch not protected»** —es Q-5, abierto desde antes de la Fase 2—. Así que hoy «bloqueante» no
+   significa que impida un merge: significa que **el workflow se pone rojo y alguien lo mira**. Eso
+   **abarata la opción estricta y encarece la conservadora**: un `continue-on-error` compra exactamente el
+   modo de fallo que D-7 dejó podrido durante tres tandas, y a cambio no evita ningún bloqueo, porque no
+   hay ninguno que evitar. **La opción conservadora del plan se consideró y se descartó con motivo**, que
+   es lo que el Step pedía.
+5. **D-63, decisión de Alejandro: el E2E va en un workflow PROPIO, `e2e.yml`, y sin `continue-on-error`.**
+   La estructura de archivos del plan decía `ci.yml`, y el desvío va con su motivo: `ci.yml` tarda **un
+   minuto** y el E2E le sumaría levantar Supabase entero, instalar Chromium y compilar la aplicación antes
+   de la primera aserción. Metido ahí dentro, **una intermitencia del E2E enrojecería también el aviso de
+   `typecheck` y de `build`**, que no tienen la culpa. **El precedente está escrito en el propio
+   repositorio**: `db.yml` existe porque «va aquí y no en ci.yml porque este workflow ya tiene la base en
+   pie».
+6. **LA HIPÓTESIS DEL BRIEFING SE CONFIRMÓ, Y EL CONTROL NEGATIVO ES LO QUE LA HACE VALER.**
+   `loadEnvConfig` de `@next/env` **no pisa lo que ya está en `process.env`**: con la variable exportada
+   gana lo exportado, **incluso contra un `.env` que dice lo contrario**; sin exportar nada, gana el
+   archivo. Medido con una sonda desechable sobre una raíz falsa, **las dos puntas**. Sin la segunda, una
+   sonda que dijera siempre «gana lo exportado» habría dado el mismo resultado y no habría probado nada.
+7. **Y EL TERRENO DEL CI ES MÁS SEGURO DE LO QUE SUPONÍA EL PROPIO BRIEFING: allí no hay NINGÚN archivo de
+   entorno.** `.gitignore` ignora `.env*`, así que **ni `.env` ni `.env.local` están versionados**
+   —comprobado con `git ls-files` y `git check-ignore`, no por el nombre—. La consecuencia buena: **las
+   credenciales de producción no existen en el runner**, así que el escenario que el cortafuegos teme no se
+   puede montar allí por accidente. La operativa: **hay que exportar las dos variables o el E2E no
+   arranca**, porque el cortafuegos leería `undefined` y abortaría. **El briefing daba por sentado que el
+   `.env` llegaba al runner y no llega.**
+8. **LAS CLAVES SE LEEN DEL STACK, NO SE PEGAN.** `supabase status -o env` emite `API_URL` y
+   `PUBLISHABLE_KEY` en formato asignable por el shell. La clave publicable del stack local **coincide
+   exactamente** con la del `.env.local` —es la constante de demostración del stack, no un secreto—, así
+   que pegarla habría funcionado igual; **leerla sobrevive a que el CLI cambie el formato de la clave y una
+   constante pegada no**.
+9. **MI PROPIO GREP DE VERIFICACIÓN ESTABA MAL DISEÑADO Y DIO UN FALSO POSITIVO.** Buscar «la frase vieja»
+   con `grep -c "continue-on-error"` devolvió **1** sobre el `ci.yml` ya corregido. No era un resto: **el
+   comentario nuevo nombra la bandera vieja a propósito**, para decir que devolvérsela no es el arreglo.
+   **Una búsqueda de la frase vieja falla cuando el texto nuevo la cita**, y hay que anclarla a la forma
+   que importa —`^\s*continue-on-error:`, la directiva— en vez de al texto. Quinta vez en la fase que
+   verificar la propia sonda evita un diagnóstico falso.
+10. **DECIMOQUINTO INSTRUMENTO QUE MIENTE, Y ES EL INFORME DEL SUBAGENTE.** Devolvió el contenido de
+    `e2e.yml` con **`&gt;&gt;` donde el archivo tiene `>>`** y `&amp;&amp;` donde tiene `&&`: entidades HTML
+    metidas al renderizar el informe, no escritas en el disco. **Un `>>` escapado habría roto el paso del
+    shell que exporta las variables**, así que la lectura obvia era un defecto grave. Se dirimió **abriendo
+    el archivo**: cero entidades HTML, cero doble codificación, y `diff` y `sha256sum` **idénticos** contra
+    el original del scratchpad. **Creerle al informe habría hecho «arreglar» un defecto que no existe** —el
+    error simétrico del que este proyecto persigue, y el primero de esa dirección en la fase.
+11. **LA ARITMÉTICA DEL DIFF CUADRÓ EXACTA CONTRA LA PREDICCIÓN ESCRITA**: **17 líneas añadidas y 8
+    borradas** en `ci.yml`. Las dos del step —`- name:` y `run:`— son idénticas antes y después, así que
+    git las toma como contexto y solo cuenta el comentario viejo más el `continue-on-error`. Predecir el
+    reparto **antes** de mirar es lo que convierte el número en una comprobación y no en una lectura.
+12. **EL YAML SE VALIDÓ PARSEÁNDOLO, NO LEYÉNDOLO.** Los tres workflows cargan con `js-yaml`: `ci.yml` con
+    ocho pasos, `e2e.yml` con nueve y `db.yml` con cinco, y **cero pasos con `continue-on-error` en los
+    tres**. Un YAML mal indentado es exactamente el género de defecto que **se ve bien al leerlo y falla en
+    el runner**, y este proyecto no tiene forma de correr Actions en local.
+13. **EL SUBAGENTE CUMPLIÓ LA PROHIBICIÓN DE DAR CIFRAS, y sus dos respuestas finales no destaparon nada.**
+    Dijo que el bloque a reemplazar coincidía carácter por carácter con lo dictado y que no tuvo que tomar
+    ninguna decisión propia. **Se verificó igual sin depender del informe** — y menos mal, porque el
+    informe traía lo del punto 10.
+14. **LOS CUATRO COMANDOS Y EL E2E SE CORRIERON POR EL CAMBIO DE `nanoid`, no por los workflows.**
+    `typecheck` y `lint` limpios, **152 pruebas en 11 archivos**, **23 rutas y 0 estáticas**, y **las seis
+    pruebas de E2E en verde** en una corrida completa de 1,3 minutos. **Las cuatro predicciones, escritas
+    antes de mirar, se cumplieron exactas.** Un cambio en `.github/` no puede mover ninguna de esas cifras
+    —ni `eslint .` ni el `build` leen esa carpeta—, así que **no se volvieron a correr después**, salvo el
+    `lint`, que sí se repitió sobre el árbol final. Se dice de dónde sale cada número en vez de dejar creer
+    que se remidieron todos.
+15. **LA SESIÓN CRUZÓ LA MEDIANOCHE, y se dice.** El trabajo empezó el **2026-08-14 a las 23:31** y estas
+    correcciones se escriben ya el **2026-08-15**. Los comentarios de los dos workflows llevan fecha
+    **2026-08-14**, que es la de la sesión y la de la decisión D-63. Queda dicho acá en vez de dejar que la
+    fecha del commit lo contradiga en silencio.
+16. **UN AVISO NUEVO QUE NO ES DE ESTA TAREA Y QUEDA ANOTADO.** `npm test` imprime que `vitest.config.ts`
+    usa sintaxis ESM en un archivo cargado como CommonJS, y que el cargador nativo —que será el de por
+    defecto en una versión mayor futura de Vite— no lo soporta. **Hoy es un aviso y las 152 pruebas pasan.**
+    Nació con el archivo que creó la Task 3. **Candidato de la Task 7**, junto al `setup-cli` deprecado.
+17. **Y LA TASK 7 HEREDA UN SITIO MÁS DEL QUE CREÍA.** Su Step 1 manda actualizar `supabase/setup-cli@v1`
+    en `db.yml`; desde esta tarea **la misma acción se usa también en `e2e.yml`**, fijada a la misma versión
+    a propósito. **Son dos sitios que hay que tocar juntos**, y se anota acá para que el Step no se cierre
+    creyendo que era uno.
+18. **LA DECISIÓN ESTRICTA TIENE UN MARGEN QUE YA ESTABA PUESTO, y conviene decirlo: `retries: 2`.**
+    `playwright.config.ts` reintenta dos veces cuando `CI=true` —que GitHub Actions define— y ninguna en
+    local, decidido así en la Task 3. Con el workflow bloqueante eso pesa en la balanza: **una intermitencia
+    suelta no debería poner el workflow en rojo**, porque Playwright la marca `flaky` y la corrida sigue.
+    **Eso abarata todavía más la opción estricta**, y el precio que deja es el simétrico: **un fallo que
+    solo desaparece con reintento pasa disimulado**, y solo se ve abriendo el informe que guarda el último
+    paso. **Leído de la configuración, no medido:** que el proceso salga con código 0 tras un reintento
+    exitoso se comprueba en la primera corrida real del CI, y hasta entonces no se afirma.
+19. **A `ESTADO_Y_PLAN.md` NO LE FALTAN TRES DECISIONES: LE FALTAN NUEVE.** El Step 1 de la Task 9 manda
+    registrar «D-55 a D-58», y el briefing de esta sesión daba por pendientes D-60, D-61 y D-62. **Medido
+    contra el documento, la última decisión que tiene escrita es la D-54**, así que lo que falta es **D-55 a
+    D-63 entero** — con la **D-59** incluida, que es de la Task 2 y no figuraba en ninguna de las dos
+    cuentas. **Ni el plan ni el briefing tenían el número bien**, y los dos erraban por defecto. Es
+    exactamente el género que el Step 4 de esa misma tarea manda vigilar, aplicado a su Step 1.
+
+### Task 6 · Q-13, con el código que ya consulta *(2026-08-15)*
+
+1. **EL CUADRO SÍ CAMBIÓ, Y LA PREDICCIÓN ESCRITA FALLÓ EN UN BLOQUE DE LOS TRES.** Los advisors de
+   rendimiento pasan de **22 avisos a 18**, y el reparto de **7 índices sin usar, 6 claves foráneas sin
+   índice y 9 políticas permisivas múltiples** pasa a **3, 6 y 9**. La predicción escrita antes de mirar
+   decía **7, 6 y 9**: acertó los dos bloques estructurales, acertó que el de índices era **el único que
+   podía moverse** y que si se movía sería **hacia abajo**, y acertó dos de los cuatro índices que se
+   fueron —`idx_inventory_units_product_id` e `idx_product_images_product_id`—. **Falló el número**, que
+   se comprometió con «sigue en 7» y son 3, y **falló el motivo**: predecía que el tamaño de las tablas
+   impediría que el planificador los eligiera.
+
+2. **LOS DOS BLOQUES QUE NO SE MOVIERON NO PODÍAN MOVERSE, y eso se midió ANTES de mirar el resultado.**
+   Las cinco migraciones posteriores a la medición del 2026-08-05 —la 20 `duration_slot_multiple`, la 21
+   `available_slots`, la 22 `signup_domain_hook`, la 23 `cancel_before_start` y la 24
+   `opening_time_aligned`— tienen **cero** `create index`, `create policy`, `create table`, `drop policy`,
+   `alter policy`, `drop index`, `add constraint … foreign key` y `add column` **entre las cinco**. El
+   conjunto de índices, políticas y claves foráneas es **idéntico** al de entonces. **Una predicción con un
+   mecanismo detrás vale más que una con corazonada:** los dos bloques acertados lo estaban por
+   construcción, y el que falló era justo el que dependía de algo que no está en el repositorio.
+
+3. **LA PREMISA DE Q-13 YA ES FALSA, Y SU CONCLUSIÓN AGUANTA POR OTRO MOTIVO.** Su enunciado dice «la base
+   nunca ha servido una consulta, así que "sin usar" significa "sin tráfico"». Hoy
+   `idx_product_images_product_id` lleva **1087** usos, `idx_inventory_units_product_id` **92**,
+   `idx_reservations_start_at` **16** e `idx_reservations_alumno_id` **7**. **Es una conclusión correcta
+   sostenida por una premisa caducada** — exactamente el género que este proyecto persigue en los
+   subagentes, encontrado esta vez en su propio registro.
+
+4. **EL INSTRUMENTO SE VERIFICÓ POR LAS DOS PUNTAS EN VEZ DE CREERLE.** `pg_stat_user_indexes` concuerda
+   exacto con el advisor: los **tres** índices que el aviso nombra tienen `idx_scan = 0`, y los **cuatro**
+   ausentes tienen 1087, 92, 16 y 7. **Control positivo y control negativo en la misma consulta.** Y
+   `pg_stat_database.stats_reset` es **`null`**: las estadísticas **nunca se reiniciaron**, así que «sin
+   usar» significa «nunca desde que existe la base» y no «no últimamente» — sin esa segunda comprobación,
+   cualquiera de los dos números sería una ventana de duración desconocida.
+
+5. **EL HALLAZGO QUE CAMBIA EL CIERRE: LA BASE DE PRODUCCIÓN DECIDE SIN ESTADÍSTICAS.** En las cinco tablas
+   medidas —`products`, `inventory_units`, `product_images`, `inventory_reservations` e
+   `inventory_unit_notes`— `last_analyze`, `last_autoanalyze` y `last_autovacuum` están **en `null`**:
+   **nunca ha corrido ninguno de los tres**. Y dos de ellas, `product_images` e `inventory_reservations`,
+   tienen **`reltuples = -1` y `relpages = 0`**, o sea **ninguna estadística en absoluto**. Postgres elige
+   entre recorrer la tabla y usar el índice **comparando costos estimados**, y sin estadísticas no puede
+   estimar el recorrido. **Así que «índice usado» e «índice sin usar» hoy no miden utilidad: miden a qué se
+   inclina un planificador que no puede calcular la alternativa.** Los cuatro avisos que desaparecieron
+   **pueden volver con un solo `ANALYZE`**.
+
+6. **Y LA EXPLICACIÓN ES PLAUSIBLE, NO MEDIDA, ASÍ QUE SE DICE.** Las dos tablas sin estadísticas son las
+   dueñas de los índices más usados, y las tres con `relpages` de 1 o 2 —donde recorrer la tabla entera
+   cuesta casi nada— concentran los que siguen sin usarse. **Encaja, y tiene dos excepciones:**
+   `idx_inventory_units_product_id` se usa 92 veces sobre una tabla que **sí** tiene estadísticas, y
+   `idx_reservations_unit_status_dates` no se usa **nunca** sobre una que no las tiene. **La causa exacta
+   no se determinó y no se finge.** Tampoco hacía falta para decidir: que no haya estadísticas basta, y
+   perseguir el plan de cada consulta habría sido alcance nuevo sin efecto sobre el desenlace.
+
+7. **NINGÚN AVISO CAMBIÓ DE NATURALEZA, que es lo que pregunta el Step 3.** Las dos claves foráneas que el
+   enunciado de Q-13 señala como las únicas que valdrán la pena con datos —`reservation_status_log.
+   reservation_id` e `inventory_reservations.product_id`— **siguen las dos en la lista y siguen sin
+   datos**: **3** filas en el log de estados y **8** reservas, contadas y no citadas. **No se crea ningún
+   índice, así que la tanda sigue con una sola migración y no hay desvío de D-55.**
+
+8. **EL VOLUMEN SE CONTÓ EN VEZ DE CITARSE, y tres tablas no las declaraba ningún documento.**
+   `inventory_units` **92** y `products` **34** coinciden con lo que `CLAUDE.md` dice desde el 2026-08-05.
+   Pero en producción hay además **59 filas en `inventory_unit_notes`**, **8 reservas** y **5 alumnos**, y
+   ninguna de esas tres cifras está declarada en ninguna parte. **No se afirma qué son** —el pendiente de
+   borrar los datos de demostración del proyecto real ya existe y es manual—, se afirma que existen y que
+   el registro no las tenía.
+
+9. **LA DECISIÓN, CON SU CONDICIÓN ESCRITA: Q-13 SE CIERRA COMO DECISIÓN CONSCIENTE.** Se reevalúa **tras
+   el despliegue**, y **la reevaluación empieza por correr un `ANALYZE`**: sin eso, volver a leer los
+   advisors mediría lo mismo que hoy. Decisión de Alejandro el 2026-08-15, tomada sobre las dos
+   alternativas —abrir el hallazgo del planificador como pendiente propio, o dejarlo pegado al cierre de
+   Q-13—. **Va pegado a Q-13 porque es la condición para reevaluarlo**, y un pendiente aparte se leería
+   como trabajo independiente que no lo es.
+
+10. **EL STEP 1 DE LA TASK 9 SE QUEDA CORTO POR TERCERA VEZ.** Ya estaba anotado que manda registrar
+    «D-55 a D-58» cuando lo que falta es **D-55 a D-63 entero**. Ahora hay que sumarle **el cierre de
+    Q-13**, que no figura en su lista —solo están Q-10 y Q-19—. **Un plan escrito antes no sabe lo que sus
+    propias tareas van a cerrar**, que es literalmente lo que su Step 4 manda vigilar.
+
+### Task 7 · Los pendientes menores *(2026-08-15)*
+
+1. **EL PENDIENTE ERAN DOS SITIOS Y EL STEP DECÍA UNO, confirmado y acotado.** La Task 5 ya lo había
+   anotado; medido acá con un barrido sobre `.github/`, los sitios son exactamente **dos** —`db.yml` y
+   `e2e.yml`— **y no hay un tercero**. Saber que no hay más vale tanto como saber que hay dos: el Step
+   podría haberse cerrado creyendo que quedaba algo suelto.
+
+2. **LA v1 DECLARA `using: node20`, Y ESO SE LEYÓ EN SU MANIFIESTO.** No se dedujo del aviso de
+   deprecación ni se heredó del enunciado del pendiente: se abrió el `action.yml` de la v1 por la API de
+   GitHub y ahí está. **El pendiente era cierto**, que es lo primero que había que comprobar antes de
+   gastar una tarea en él.
+
+3. **`v1` Y `v2` SON RAMAS; `v3` ES UN TAG. Y esto podría haber roto los dos workflows a la vez.**
+   `git/ref/tags/v1` y `git/ref/tags/v2` responden **404**, y la lista de ramas del repositorio trae `v1`
+   y `v2`. El único alias móvil publicado **como tag** es `v3`. **Escribir `@v2` habría funcionado por
+   casualidad** —porque existe la rama—, y escribir un alias inexistente rompe el workflow **en su primer
+   paso**, en los dos archivos, sin que ningún comando local lo vea antes.
+
+4. **LAS DOS ALTERNATIVAS ARREGLABAN EL PROBLEMA, ASÍ QUE SE ELIGIÓ POR OTRA COSA.** La v2 y la v3 son
+   las dos `using: composite`, o sea que **cualquiera de las dos quita el `node20`**. **D-64 elige la v3**
+   porque es la única que sigue moviéndose —su último commit es del **2026-07-07**, contra el
+   **2026-05-21** de v1 y de v2— y porque su propia release la llama «the moving major-version alias».
+   **Cuando dos opciones resuelven el problema, el criterio ya no es el problema.**
+
+5. **LA v3 CAMBIA DE DÓNDE SALE LA CLI, Y ESO SE COMPROBÓ ANTES DE CAMBIAR NADA.** Instala desde **npm**
+   en vez de desde las releases de GitHub. `npm view supabase@2.111.0` devuelve la versión, así que **el
+   pin sobrevive al cambio de fuente**. Si esa versión no existiera en npm, el CI se rompería en el primer
+   paso de **dos** workflows y el diagnóstico sería «actualizamos la acción y todo dejó de andar».
+
+6. **UN COMENTARIO QUE PROMETÍA UNA IGUALDAD YA IMPOSIBLE — D-65.** Los dos workflows decían que la CLI
+   estaba «fijada a la misma version que se usa en local». Medido: el CI usa **2.111.0** y
+   `npx supabase --version` en local da **2.114.0**. **La promesa no era falsa por descuido, era
+   insostenible por construcción**: en local no hay versión fijada en ninguna parte —`npx` baja la última—
+   así que la igualdad se rompe sola cada vez que alguien corre un comando. Se deja el pin, que sí compra
+   reproducibilidad, y el comentario pasa a decir lo que el pin hace de verdad.
+
+7. **Y MI PROPIO GREP DIO UN FALSO NEGATIVO BUSCANDO JUSTAMENTE ESO.** Buscar `misma version` en
+   `.github/` devolvió **un** sitio, y son **dos**: `e2e.yml` lo escribe **«Misma version»**, con
+   mayúscula inicial. **Lo salvó tener el archivo ya leído, no la sonda.** Misma familia que el grep de
+   `continue-on-error` de la Task 5: **una búsqueda mal anclada devuelve un cero que parece una
+   respuesta.** Y hubo un segundo caso el mismo día: un `grep -c` que cuenta **cero** sale con código 1,
+   así que el `&&` siguiente **no llegó a ejecutarse** y el comando de verificación quedó sin correr sin
+   que nada lo dijera.
+
+8. **EL AVISO DE ESM LO ARREGLA LA EXTENSIÓN, Y EL PROPIO AVISO DICTA LAS DOS OPCIONES.** Su texto
+   literal: «Use a `.mjs` extension or set `"type": "module"` in the closest package.json». La segunda
+   **arrastraría a `next.config.ts` y a los demás archivos de raíz**, así que se tomó la primera en su
+   forma TypeScript: **`vitest.config.mts`**. **`tsconfig.json` ya incluye `**/*.mts`, comprobado antes de
+   renombrar**, así que el archivo no se cae del `typecheck` — que era el único riesgo real del cambio.
+
+9. **Y EL RENOMBRE TRAE SU PROPIO CONTROL, QUE NO HUBO QUE FABRICAR.** Si Vitest dejara de leer el
+   config, los `.spec.ts` de `e2e/` volverían a entrar y el recuento cambiaría. **Se midió justo después
+   de renombrar**: el aviso desapareció y siguen **152 pruebas en 11 archivos**. El control ya estaba
+   puesto desde la Task 3; solo había que acordarse de leerlo.
+
+10. **EL STEP 3 YA ESTABA CUMPLIDO POR LA TASK 0, y comprobarlo costó un comando.** La media apertura de
+    M-12 está escrita en la especificación, con **D-38** y **D-55** citados. **Un plan escrito antes no
+    sabe lo que sus propias tareas ya hicieron** —es el Step 4 de la Task 9 aplicado por adelantado—, y
+    dictarlo habría dejado dos filas diciendo lo mismo con fechas distintas.
+
+11. **EL STEP 2 NO SE PUEDE CUMPLIR COMO ESTÁ ESCRITO: EL INTERRUPTOR NO EXISTE EN ESTA CUENTA.** Dice
+    «se activa en el panel de Supabase y es tarea manual de Alejandro». **La documentación de Supabase
+    dice que la protección de contraseñas filtradas está disponible desde el plan Pro**, y la organización
+    de este proyecto está en **`free`**, medido contra la API. **El plan daba por hecho un interruptor que
+    la cuenta no tiene**, y eso no se ve leyendo el advisor: el advisor solo dice que está desactivada.
+
+12. **PERO LO QUE DE VERDAD LO CIERRA ES UN MOTIVO DE PRODUCTO, NO DE PLAN — D-66.** Alejandro:
+    **el sistema no tiene contraseñas porque el cliente lo pidió así**; se entra solo por magic link. Un
+    advisor que protege contraseñas **no protege nada acá**, y eso vale con cualquier plan. El límite del
+    plan Free queda como motivo secundario y medido, no como el principal. **El pendiente llevaba abierto
+    desde el 2026-08-12 por falta de esta frase, no por falta de trabajo.**
+
+13. **AUNQUE LA BASE SÍ GUARDA UN HASH DE CONTRASEÑA, y se anota sin perseguirlo.** `auth.users` tiene
+    **un solo usuario** —el admin sembrado el 2026-08-08— y su `encrypted_password` **no está vacío**.
+    **De dónde salió no se determinó y no se finge.** Decisión de Alejandro: se anota y no se investiga,
+    porque medir si esa vía esquiva el enganche de dominio *(D-32)* es alcance nuevo dentro de una tarea
+    de pendientes menores. **La afirmación de producto y la medición conviven**: la aplicación no ofrece
+    contraseña en ninguna pantalla, y la base guarda una igual.
+
+14. **LOS TRES DIFF CUADRARON EXACTOS CONTRA LA PREDICCIÓN, y cada número tiene su desglose.** `db.yml`
+    **17 y 3**, `e2e.yml` **8 y 3**, `filtro.ts` **13 y 5**. En los dos YAML las líneas `- name:`,
+    `with:` y `version:` son idénticas antes y después, así que git las toma como contexto y solo cuenta
+    el comentario nuevo más el `uses:`. **Predecir el reparto antes de mirar es lo que convierte el número
+    en una comprobación.**
+
+15. **LOS TRES WORKFLOWS SE VALIDARON PARSEÁNDOLOS, no leyéndolos.** `ci.yml` ocho pasos, `db.yml` cinco
+    y `e2e.yml` nueve —**los mismos que midió la Task 5**, que es lo que prueba que la edición no movió
+    ninguna estructura— y **cero pasos con `continue-on-error` en los tres**.
+
+16. **NINGUNA CIFRA SE MOVIÓ, Y ERA LA PREDICCIÓN ESCRITA ANTES DE CORRER NADA.** `typecheck` y `lint`
+    limpios, **152 pruebas en 11 archivos** y el `build` en **23 rutas y cero estáticas**. Lo que esta
+    tarea toca —dos YAML, un comentario y la extensión de un archivo de configuración— no puede mover
+    ninguna de esas cifras, y por eso la predicción era barata y aun así valía la pena escribirla.
+
+17. **`CLAUDE.md` QUEDA AFIRMANDO ALGO QUE YA ES FALSO, y se deja para la Task 9 a propósito.** Dice que
+    la T4 hereda «`supabase/setup-cli@v1` apuntando a Node.js 20, ya deprecado». **El Step 3 de la Task 9
+    cubre ese archivo**, y tocarlo por partes es exactamente lo que en la T3B metió tres duplicados con
+    fechas distintas en las mismas filas. **Y la cuenta de decisiones pendientes de registrar sube de
+    nueve a DOCE**: D-55 a D-66.
+
+18. **EL SUBAGENTE CUMPLIÓ LA PROHIBICIÓN DE CIFRAS, y su respuesta final fue del tipo útil.** Declaró
+    que **no comprobó ninguna de las afirmaciones que copió** —que la v3 exista, que `supabase@2.111.0`
+    esté en npm, que `tsconfig.json` incluya `**/*.mts`—. **Es la respuesta correcta y no un hallazgo**:
+    las tres las midió quien dictaba, **antes** de dictar. Un subagente que declara lo que no verificó
+    deja ver dónde apoyarse y dónde no.
+
+### Task 8 · Verificación de punta a punta *(2026-08-15)*
+
+1. **EL E2E NO ESTABA EN VERDE, Y ESTA TAREA EXISTE PARA ESO.** La primera corrida dio **tres pruebas
+   fallidas de seis**, y las tres fallidas eran exactamente **las tres que reservan** —`reservar.spec.ts`,
+   `mostrador.spec.ts` y el segundo test de `cancelar.spec.ts`—. Las tres morían en el mismo punto: el
+   botón «Confirmar reserva» deshabilitado. **La Task 4 lo había dejado con cuatro corridas en verde**, así
+   que el rojo no venía de un cambio de código: ninguna de las Tasks 5, 6 y 7 tocó los specs ni la
+   aplicación.
+
+2. **LA CAUSA ES UNA CARRERA CON LA NAVEGACIÓN, Y ESTÁ MEDIDA POR EL DOM.** Elegir un día **empuja la
+   URL** a `...&dia=<AAAA-MM-DD>&duracion=<n>`. Medido inmediatamente después del click, sin esperar: la
+   URL **todavía no había cambiado** y el DOM **seguía trayendo las franjas del día anterior**. El
+   localizador `ul button[aria-pressed]` resuelve al instante contra una de esas franjas viejas, se la
+   clica, llega la navegación, el componente se re-monta y **la selección se descarta**. El botón nunca se
+   habilita y el fallo aparece tres pasos más adelante, lejos de su causa.
+
+3. **LA PISTA LA DIO EL LOG, NO LA HIPÓTESIS.** `mostrador.spec.ts` registró la secuencia exacta: el botón
+   resuelto **habilitado**, después `element was detached from the DOM, retrying`, y al re-resolverlo
+   **deshabilitado**. Un botón que se habilita y luego se deshabilita **no es una franja que falte: es una
+   selección que se pierde**. Sin esa línea, la lectura obvia habría sido «no hay franjas» y el diagnóstico
+   habría ido al lado contrario.
+
+4. **Y ESTO ES LO QUE VALE PARA TODA PRUEBA FUTURA: LA PRUEBA PASABA POR UNA PROPIEDAD DE LA HORA, NO DEL
+   CÓDIGO.** La Task 4 midió a las **21:47**, y a esa hora «hoy» ofrece **cero** franjas. Con cero franjas
+   viejas en el DOM, el localizador **no tenía nada que clicar y se veía OBLIGADO a esperar**: la carrera se
+   ganaba sola. A las **02:43** «hoy» ya trae la rejilla entera —28 franjas—, la carrera se pierde, y las
+   tres pruebas caen. **Las cuatro corridas verdes de la Task 4 variaban a propósito el estado de la base
+   —tres sobre el histórico acumulado y una sobre la base reseteada— y las cuatro corrieron a la misma
+   hora. Se estaba variando la variable equivocada.**
+
+5. **MI PROPIA SONDA FALLÓ CUATRO VECES, Y DOS FUERON EL MISMO ERROR REPETIDO A CONCIENCIA.** El grave:
+   `npm run test:e2e | tail` imprimió `EXIT = 0` **con tres pruebas rojas**, porque en una tubería `$?`
+   devuelve el código de **`tail`** y no el de `npm` — y la notificación de fondo dijo «exit code 0» por lo
+   mismo. Lo delató el **texto** de la salida, no el código. **Se cazó, se anotó, y quince minutos después
+   se repitió idéntico con el `lint`.** Los otros dos: un `bc` que no existe en este shell dejó una suma sin
+   calcular saliendo con código 127, y un `grep` del símbolo `ƒ` de la tabla del `build` devolvió **cero**
+   sobre una tabla que lo tiene en las 23 filas, por la codificación multibyte —la misma tabla que se ve
+   bien al imprimirla—. **La lección no es prestar más atención: es cambiar el comando.** Desde acá el
+   código de salida se captura redirigiendo a un archivo, nunca detrás de una tubería, y los conteos con
+   símbolos no ASCII se hacen con `node` y no con `grep`. Es la hermana en Bash de la Global Constraint que
+   el plan ya escribió para PowerShell — y el recordatorio de que **verificar la propia sonda antes de
+   acusar a nadie** vale también cuando la sonda es la que trae la buena noticia.
+
+6. **EL STEP 2 COBRÓ SU REDUNDANCIA, Y NADIE LA ESTABA BUSCANDO.** Pedir los cuatro comandos **dos veces**
+   parecía burocracia. La primera pasada dio el `lint` limpio; la segunda, **3031 problemas —257 errores y
+   2774 avisos—**. La diferencia entre las dos pasadas **era la tarea misma**: correr el E2E. Un defecto que
+   ninguna de las dos pasadas por separado podía mostrar.
+
+7. **ESLINT NO LEE `.gitignore`, Y SON DOS LISTAS QUE HAY QUE MANTENER POR SEPARADO.** Los 3031 problemas
+   salían **todos** de `playwright-report/`, en siete archivos: es el reporte HTML de Playwright, con
+   JavaScript minificado dentro, y el script es `eslint .`. **`.gitignore` sí lo cubría desde la Task 3**
+   —`git status` estaba limpio— y eso es justo lo que hacía el defecto invisible: la carpeta no aparece en
+   `git status`, así que nada la delata hasta que el `lint` la recorre.
+
+8. **EL PROPIO ARCHIVO PREDECÍA ESTE DEFECTO, ESCRITO ANTES DE QUE PLAYWRIGHT EXISTIERA EN EL PROYECTO.**
+   El comentario del `globalIgnores` dice literalmente que sin los ignores «el lint recorre cosas que no son
+   codigo de la aplicacion y reporta errores que nadie puede arreglar», y que **«un ignore que falte no es
+   ruido, es un PR que no entra»**. La Task 3 instaló Playwright, lo agregó al `.gitignore` **y no al
+   `eslint.config.mjs`**. *Una advertencia escrita en el sitio correcto no impidió el defecto que describe.*
+
+9. **EL ALCANCE DEL DEFECTO DEL LINT, DICHO SIN ESTIRARLO.** **Hoy el CI no se rompe por esto**, y se midió
+   leyendo los dos workflows: `ci.yml` corre `lint` pero **no** el E2E, así que en su runner
+   `playwright-report/` no existe; `e2e.yml` corre el E2E y sube el reporte como artefacto, pero **no**
+   lintea. La separación lo protege, **pero es como quedaron repartidos los workflows y no una protección
+   deliberada**. Donde sí rompía hoy es en local, y ahí bloqueaba el Step 2.
+
+10. **EL ARREGLO DEL LINT SE VERIFICÓ CON CONTROL POSITIVO, Y ESA ERA LA PARTE FÁCIL DE ARRUINAR.** El
+    `lint` se volvió a correr **con `playwright-report/` y `test-results/` todavía en disco**, tres entradas
+    cada una. **Borrar las carpetas habría dado el mismo verde sin probar nada.** Antes: 3031 problemas con
+    esas carpetas presentes. Después: cero, con las mismas carpetas presentes. La única variable que cambió
+    es el ignore.
+
+11. **DOS DESVÍOS DECLARADOS DEL «NO ESCRIBE CÓDIGO», los dos aprobados por Alejandro antes de tocar
+    nada.** La tarea dice que si al terminar el árbol no está limpio, algo se coló — y acá se coló a
+    propósito y con motivo escrito. El primero: la espera de navegación en `e2e/reservar.spec.ts` y
+    `e2e/apoyo/reserva.ts`, **los dos sitios que repiten el recorrido a propósito** *(el propio ayudante
+    explica por qué está duplicado)*. El segundo: los dos ignores en `eslint.config.mjs`. **Sin el primero,
+    `e2e.yml` —que es bloqueante desde D-63— pondría el PR rojo o verde según la hora a la que corriera el
+    CI.**
+
+12. **EL ARREGLO ES EL PATRÓN QUE EL PROPIO SPEC YA USABA TRES LÍNEAS ANTES.** `await
+    expect(page).toHaveURL(...)`, exactamente como el spec ya esperaba la navegación al detalle, con su
+    comentario ya escrito explicando que **auto-esperar garantiza que el elemento EXISTA, no que sea el de
+    la pantalla nueva**. **El defecto no era desconocer la regla: era no haberla aplicado en el segundo
+    sitio donde hacía falta.** `expect` ya estaba importado en los dos archivos, comprobado antes de editar.
+
+13. **UN 404 EN CONSOLA QUE NO ES UN DEFECTO, Y CONFIRMADO POR DOS INSTRUMENTOS.** El recorrido dejó un
+    `404` de `/_next/image` sobre `res.cloudinary.com/demo/.../seed/cam-001.jpg`. **Medido en la fuente: esa
+    URL da 404 en Cloudinary mismo**, igual que `lap-001.jpg`. Salen de `supabase/seed.sql`, que las escribe
+    contra la cuenta `demo` de Cloudinary: **son URL de fixture que nunca existieron**. La aplicación se
+    comporta bien —propaga el 404 de un recurso ausente— y **no es de esta tanda**. Lo confirmó de forma
+    independiente el `[WebServer]` de Playwright, que reporta el mismo `upstream image response failed`.
+    *Es otra cara de lo que ya está escrito: el `seed.sql` no es una muestra de los datos reales.*
+
+14. **EL NONCE SE VERIFICÓ CONTRA EL HTML, QUE ES LO QUE EL STEP 5 NO PEDÍA Y PV-4 SÍ TEMÍA.** Los dos
+    nonces de dos peticiones seguidas son distintos, que es lo que el Step exige. Pero **PV-4 advierte de un
+    fallo distinto y silencioso**: que la cabecera lleve un nonce y los scripts otro rompe la aplicación
+    entera con el `build` en verde. Medido: el nonce de la cabecera coincide **exacto** con el de los trece
+    atributos `nonce` del HTML —**once `<script>` y dos `<link>`**, contados y explicados en vez de dejar el
+    número suelto—, y las once etiquetas `<script>` lo llevan todas.
+
+15. **EL MODO PRODUCCIÓN NO SE SUPUSO: SE CONFIRMÓ POR TRES SEÑALES INDEPENDIENTES.** HSTS presente,
+    `upgrade-insecure-requests` al final, y `style-src` con nonce en vez de `'unsafe-inline'` —más la
+    ausencia de `'unsafe-eval'`—. Las tres dependen de que `NODE_ENV` sea `production`, y se leyeron del
+    código **antes** de medir, para no medir en el modo equivocado y darlo por bueno.
+
+16. **LAS TRES RESPUESTAS DE LA FIRMA, CON TRES CONTROLES QUE EL STEP NO PEDÍA.** Alumna **403**, operador
+    **403**, admin **200 con firma**, medidas con `fetch()` desde el navegador y no con un JWT, porque el
+    handler lee la sesión de cookies. Se comprobó además que la firma tiene **cuarenta caracteres** —el
+    largo de un SHA-1—, que el `timestamp` es entero y está **en segundos** *(la trampa del epoch que ya
+    costó un PGRST303)*, y que la respuesta **no filtra el secreto**. **Un 403 y un 200 dicen quién entra;
+    no dicen que lo que sale sea una firma.**
+
+17. **EL CERO DE VIOLACIONES DE CSP SE MIDIÓ CON CONTROL POSITIVO Y CON LA SONDA OFICIAL.** Quince
+    pantallas y los tres perfiles, cero violaciones. El capturador se instaló con `initScript` **antes de
+    que corriera ningún script de la página**, que es la única forma de no perderse las violaciones de la
+    carga. Y el control positivo: una imagen de un host externo hizo pasar la sonda **de cero a uno**,
+    capturando `img-src`. **Sin eso, un cero y una sonda muerta se ven igual.**
+
+18. **EL ORDEN QUE EL PLAN CORRIGIÓ ERA EL CORRECTO, Y ESTA VEZ SE PUDO SEGUIR.** El Step 1 manda el
+    recorrido primero y el `db reset` al final, porque el plan de la T3B se equivocó justo ahí. Se cumplió,
+    y **el reset hizo de limpieza además de comprobación**: el recorrido y las dos corridas de E2E se
+    hicieron sobre la base con el histórico acumulado, que es el escenario que en la Task 4 escondía
+    defectos.
+
+19. **EL INFORME DEL SUBAGENTE VOLVIÓ A METER ENTIDADES HTML, Y VAN TRES VECES CONFIRMADAS.** Devolvió
+    `&lt;id&gt;` y `[?&amp;]` donde el disco tiene `<id>` y `[?&]`. **El disco estaba perfecto las tres
+    veces**, comprobado con `grep` de entidades, `grep` de doble codificación y `diff` byte a byte contra el
+    original del scratchpad. Las tres ediciones cuadraron exactas contra la predicción escrita —**18/0, 9/0
+    y 11/0**—. *Creerle al informe habría hecho «arreglar» un defecto que no existe, que es exactamente lo
+    que la Task 5 ya dejó anotado.*
+
+20. **LOS SUBAGENTES CUMPLIERON LA PROHIBICIÓN DE CIFRAS Y CONTESTARON LAS DOS PREGUNTAS CON PRECISIÓN.**
+    El primero declaró que **no había corrido Playwright**, así que no sabía si su aserción resolvía la
+    carrera ni si el regex casaba con la URL real — las dos cosas ciertas, y las dos las midió quien
+    verifica. **Un subagente que declara bien lo que no comprobó vale más que uno que acierta por
+    casualidad.** Se le coló una sola coordenada («la línea 1» del import), menor y verificada aparte.
+
+### Task 9 · Cierre y documentación *(2026-08-15)*
+
+1. **EL STEP 1 SE QUEDÓ CORTO POR DIEZ, Y ES LA CUARTA VEZ QUE SE MIDE CORTO.** Pedía registrar «D-55 a
+   D-58». La tabla de `ESTADO_Y_PLAN.md` terminaba en **D-54**, así que lo pendiente era **D-55 a D-66**
+   —doce— y **D-67 y D-68 se decidieron en esta misma tarea**, con lo que son **catorce**. Las Tasks 5, 6 y
+   7 ya lo habían anotado corto tres veces, cada una con un número distinto y todas por defecto. **Un Step
+   escrito antes no puede saber cuántas decisiones van a tomarse después de él**, así que lo que hay que
+   leer no es su lista sino la última fila de la tabla real.
+2. **Y NO NOMBRABA Q-13, QUE ERA UNO DE LOS TRES CIERRES.** Su lista decía «Q-10 y Q-19»; la Task 6 cerró
+   **Q-13** el mismo día. Son tres pendientes cerrados, no dos.
+3. **«LA FILA DE BITÁCORA» ERA SINGULAR Y HACÍAN FALTA SEIS.** La bitácora se cortaba el **2026-08-13** con
+   el cierre de la T3B: **no tenía ni una línea de la T4**, ni del plan, ni de las nueve tareas. Un cierre
+   que añadiera una sola fila habría dejado nueve tareas sin registro, incluidas las dos que encontraron
+   defectos reales.
+4. **EL STEP 4 ENCONTRÓ ALGO, PERO NO UN DUPLICADO: UN ERROR DE UBICACIÓN.** De lo que pide el Step 1 **no
+   había nada hecho** —las dos casillas sin marcar, la fila de la T4 en «pendiente», los tres pendientes
+   abiertos—. Lo que sí destapó es que **las dos filas de advisors caducadas no están en el inventario de
+   hoy**: viven en el **cuadro de cierre de la Fase 1**, y sus vecinas dicen «19 migraciones» y «124
+   aserciones», igual de caducadas y **sin que nadie las tocara en cinco tandas**. Se leen como registro
+   fechado, no como estado. **Corregir solo las de advisors habría dejado el cuadro mitad histórico y mitad
+   actual.** Decisión de Alejandro: **una nota fechada debajo**, con las cuatro cifras de hoy y el motivo
+   por el que el cuadro no se reescribe. *La regla que sale de acá: antes de corregir una celda caducada
+   hay que mirar qué describe la tabla entera, no solo la celda.*
+5. **Y EL STEP 4 SÍ EVITÓ EL DUPLICADO QUE BUSCABA, en el otro documento.** La fila de **M-12** en
+   `ESPECIFICACION_FUNCIONAL.md` ya decía «La T4 no la construye *(D-55: una sola migración esta tanda)*»,
+   escrito el 2026-08-13 y **todavía cierto**. No se tocó. **Comprobarlo costó un comando y evitó una
+   segunda frase con otra fecha diciendo lo mismo.**
+6. **D-67 Y D-68, SOBRE UNA PREGUNTA QUE EL PLAN NO HACE.** Los dos arreglos de la Task 8 fueron desvíos
+   declarados del «esta tarea no escribe código», aprobados antes de tocar nada, y quedaba abierto si
+   merecían número. **Decisión de Alejandro: sí.** El argumento que decide no es que el arreglo fuera
+   difícil sino que **lo decidido fue el desvío de alcance**, y el propio plan ya manda registrar los
+   desvíos con número — **D-55 lo dice por escrito para el SQL**. La alternativa considerada era dejarlas
+   solo como correcciones del plan, por no diluir una tabla que gobierna el sistema con arreglos de prueba.
+7. **LOS DOS NÚMEROS CADUCADOS SE REMIDIERON EN VEZ DE CITARSE, y salieron exactos contra la predicción
+   escrita antes de mirar.** **7 avisos de seguridad** —las seis RPC de `authenticated` más
+   `auth_leaked_password_protection`— y **18 de rendimiento** —3 índices sin usar, 6 claves foráneas sin
+   índice y 9 políticas permisivas múltiples—. El briefing los daba por 7 y 18 y **acertaba**; medirlos
+   igual costó dos llamadas.
+8. **Q-19 SE VERIFICÓ EN PRODUCCIÓN POR EL EFECTO, NO POR EL REGISTRO DE MIGRACIONES.** Que una migración
+   figure aplicada no dice que la regla exista: se consultó `pg_constraint` sobre `app_settings` y está
+   **`app_settings_apertura_alineada`**, con `((extract(epoch from opening_time))::integer % (slot_minutes *
+   60)) = 0`. La tabla pasa de **ocho restricciones a nueve**. Es la misma disciplina con la que se verificó
+   la migración 23 en la T3A.
+9. **UNA DECISIÓN LLEVA FECHA DISTINTA A LA DE SU COMMIT, Y SE DICE.** **D-63** se registra con fecha
+   **2026-08-14** aunque el commit de la Task 5 sea del **2026-08-15 a las 00:18**: la sesión cruzó la
+   medianoche y los comentarios de los dos workflows llevan esa fecha. **La fecha se toma del artefacto y
+   no del commit**, y se anota entre paréntesis en la propia fila para que nadie lo lea como un descuido.
+10. **DOS FALSOS DE MI PROPIA SONDA, LOS DOS DE FORMA Y NINGUNO DE CONTENIDO.** (a) Un `grep -cF "$s"` con
+    un anclaje que **empieza por `-`** lo tomó por una opción: devolvió el uso de `grep` y **una salida
+    vacía, no un cero** — un cero habría parecido una respuesta. (b) Un regex con un **espacio parásito** en
+    la segunda alternativa cortó la lista de decisiones en **D-59**, haciendo parecer que faltaban nueve.
+    **Lo que salvó a los dos fue la forma del resultado y no la atención**, que es la misma cura que la
+    Task 8 anotó para `cmd | tail`: cambiar el comando, no mirar más fuerte.
+11. **UN DESCUADRE DE UNA LÍNEA EN LA ARITMÉTICA DEL DIFF, Y EL ERROR ERA DE QUIEN PREDICE.** La predicción
+    escrita daba **14 inserciones** en `FASE_2_DISENO.md` y fueron **13**: había contado siete líneas de
+    cita donde el bloque tiene seis. **Perseguirlo costó un comando y confirmó el archivo en vez de
+    acusarlo.** *Un descuadre pequeño sigue siendo «pasó algo que no sabés qué es» — y a veces lo que pasó
+    es que la predicción estaba mal.* Las otras tres mediciones salieron exactas: **17/3** y **50/4** en
+    `ESTADO_Y_PLAN.md` y **8/0** en la especificación.
+12. **EL INFORME DEL SUBAGENTE VOLVIÓ A METER ENTIDADES HTML: VAN CUATRO VECES CONFIRMADAS** —Tasks 5, 7,
+    8 y esta—. Devolvió `&gt;` donde el archivo tiene el `>` de las citas de Markdown. **El disco estuvo
+    perfecto las cuatro veces**, comprobado con `grep` de entidades, `grep` de doble codificación, `grep`
+    de contaminación del scratchpad y `diff` byte a byte contra el original. **Es un defecto del renderizado
+    del informe, no del archivo**, y el género ya está anotado desde la Task 5: **este inventa un defecto
+    que no existe**, y creerle habría hecho «arreglar» seis líneas sanas.
+13. **UNA CORRECCIÓN QUE NINGÚN STEP PEDÍA, del mismo género que las cuatro de la Task 12 de la T3B.** La
+    fila de la **T2** en `FASE_2_DISENO.md` decía «**T2B** —…; pendiente—» y **llevaba caducada desde el
+    2026-08-11**. Se corrigió tachada y fechada. **Aparece por leer la tabla entera al ir a tocar la fila
+    vecina**, que es exactamente lo que el Step 4 obliga a hacer.
+14. **EL STEP 5 SE CUMPLE Y SE DICE DE DÓNDE SALEN LAS CIFRAS.** Esta tarea **no escribe una línea de
+    código** —los archivos tocados son todos `.md`, comprobado con `git diff --name-only`—, así que **los
+    cuatro comandos no se volvieron a correr**. Las cifras que entran en los documentos —**152 pruebas en
+    11 archivos**, **23 rutas y cero estáticas**, **24 migraciones y 150 aserciones en 25 archivos** y las
+    **6 pruebas de E2E en 4 specs**— son las que midió la **Task 8 el 2026-08-15**, y se citan diciéndolo
+    en vez de dejar creer que se remidieron. **Los dos números de advisor son la excepción**, y por eso se
+    midieron: no dependen del árbol sino del proyecto real, que puede cambiar sin que nadie toque el código.
+
+---
+
+## Lo que ya está medido, antes de escribir una línea
+
+Todo lo de esta sección se midió el **2026-08-13**, al escribir el plan. Son hechos con fecha, no
+suposiciones heredadas del diseño.
+
+**1 · `develop` no está donde decía el encargo.** Está en **`42b26af`**, no en `be39683`. Después de
+mergear la T3B entraron **dos PR del compañero que hace la fase visual** —#31 y #32—, con 38 archivos,
+**+1182 / −274**, seis componentes nuevos y `public/upc-logo.png`. **No movieron ninguna cifra:** el
+`build` sigue en **23 rutas y 3 estáticas** y Vitest en **138 pruebas en 10 archivos**, medidos después de
+los merges. El CI de `develop` está verde sobre `42b26af`.
+
+**2 · D-23 sobrevivió al trabajo visual, y había motivo para dudarlo.** El compañero tocó
+`app/globals.css` (+56) y `app/layout.tsx`, que son exactamente los dos archivos donde viviría un
+`@import` de Google Fonts. **No lo reintrodujo:** las fuentes siguen entrando por `next/font/google`, que
+las descarga en el build y las sirve desde el propio dominio. **Esto es lo que hace barata la CSP de esta
+tanda**, y por eso se comprobó antes de diseñarla en vez de darlo por hecho.
+
+**3 · Las dos ramas de la T3A y la T3B ya no están en el remoto.** `git ls-remote --heads origin` devuelve
+`main`, `develop` y `feature/estilos-sistema-visual`. **D-29 está cumplido** y ese pendiente del encargo
+ya no existe. La tercera rama es del compañero y no es deuda de este flujo.
+
+**4 · La auditoría de dependencias da resultados distintos con el mismo lockfile.**
+`npm audit --audit-level=high` **sale con código 1 acá y ahora** —un aviso alto sobre `nanoid`—, y el paso
+equivalente del CI, corrido nueve horas antes sobre el mismo commit, escribió `found 0 vulnerabilities` en
+su log. **No es que los árboles difieran:** `package-lock.json` y `node_modules/nanoid/package.json` dicen
+los dos **`3.3.17`**, y el lockfile no está modificado desde el 2026-08-06. **Lo que cambió está fuera del
+repositorio.** `npm audit` no lee una base local: consulta el servicio de avisos, y ese servicio cambia sin
+que nadie toque el código.
+
+> **Y esto reformula Q-10.** La pregunta no era «¿hay vulnerabilidades hoy?» sino **«¿aceptamos que un
+> aviso publicado por un tercero ponga el CI en rojo sin que nadie haya tocado el código?»**. La respuesta
+> es **D-57**, y se toma con el precio dicho por delante.
+>
+> **La causa exacta no está determinada y no se finge que lo esté.** Se comprobó que `nanoid@3.3.18` se
+> publicó el **2026-08-07**, seis días antes de las dos ejecuciones, así que la fecha del **parche** no
+> explica la diferencia; la del **aviso** sí podría, y no se midió. **Lo que decide el diseño de la Task 5
+> es el hecho, no la causa:** dos ejecuciones iguales dieron resultados distintos. La comprobación que lo
+> dirimiría —relanzar el paso en el CI— la ejecuta Alejandro, y es el Step 1 de esa tarea.
+
+**5 · La aplicación no tiene despliegue, ni carpeta `e2e/`, ni Playwright.** No hay `netlify.toml`, ni
+`vercel.json`, ni `Dockerfile`. `package.json` no declara `@playwright/test`. **Playwright existe en el
+entorno de trabajo desde el 2026-08-11, pero eso es la herramienta de conducir un navegador, no una
+dependencia del proyecto**, y confundir las dos cosas haría creer que la tarea 2.11 está medio hecha.
+
+**6 · Los terceros reales del sistema son tres hosts, y ninguno sirve scripts.**
+`res.cloudinary.com` (las 34 imágenes del catálogo, declarado ya en `next.config.ts`),
+`api.cloudinary.com` (la subida desde el navegador, en `components/admin/subida-imagenes.tsx`) y
+`zqfkzgdyeqxzgzpxgadi.supabase.co` (la API y la sesión). **Cero `<Script>`, cero
+`dangerouslySetInnerHTML`, cero `style={{...}}` en todo el árbol `.tsx`** — medido. Los únicos elementos
+inline que hay que autorizar son los que genera Next.js, que es justo lo que el nonce cubre.
+
+**7 · `.env.local` NO EXISTE: está renombrado a `.env.local.apagado`.** Con lo cual el `.env` manda, y el
+`.env` apunta a **`https://zqfkzgdyeqxzgzpxgadi.supabase.co`**, que es **producción**. Hoy `npm run dev`
+habla con la base real. **Es el segundo de los cinco fallos de la T1, otra vez presente**, y esta vez con
+una consecuencia nueva: **un E2E que entrega, recibe y sanciona, corrido con el entorno así, escribiría
+sobre datos reales.** Ver la restricción global sobre esto: no es un aviso, es una condición de arranque.
+
+**8 · La tabla de «Mejoras propuestas» de la especificación describe un sistema que ya no existe.** El
+encargo señalaba M-11; al comprobarlo se vio que el problema es mayor. Medido contra
+`supabase/migrations/`: **M-1** (`exclude using gist`, en `blocked_range.sql`), **M-2**
+(`reservation_status_log` y su trigger), **M-3** (`apply_penalties`), **M-4** (`disabled_days` dentro de
+`create_reservation`), **M-5** (`product_availability`), **M-6** (`campus_id`), **M-7** (`America/Lima`),
+**M-8** y **M-9** (`'operator'`) **están todas implementadas**. **M-8 es el caso más claro y el que obliga
+a mirar el código en vez de la tabla:** su fila dice «Corregir el `SKIP LOCKED`: hoy aborta con "no hay
+unidades disponibles" aunque queden libres», y la RPC vigente recorre las unidades de menos usada a más
+usada con un `continue` en la ocupada — **y el propio SQL cita el identificador**:
+`-- 8 · rotacion justa (M-8, BR-12)`. **La tabla lleva meses contradiciendo al código que la cita.**
+
+**9 · Un secreto fuera del `.gitignore`, y es de arreglo trivial.** `.env.local` está renombrado a
+`.env.local.apagado` *(punto 7)*, y ese nombre **ya no casa con ninguna regla del `.gitignore`**: medido
+con `git check-ignore`, de los cinco archivos de entorno probados es **el único** desprotegido — `.env`,
+`.env.local` y `.env.production.local` sí lo están, y `.env.example` queda fuera a propósito por la regla
+`!.env.example`. El archivo contiene `CLOUDINARY_API_SECRET`. **Un `git add .` lo publicaría.**
+**Lo que NO ha pasado, comprobado y no supuesto:** el archivo no está en el historial, y **el propio
+secreto tampoco** — `git log --all -S` sobre su valor literal no devuelve ningún commit. **El riesgo es
+prospectivo, no consumado**, y es la misma propiedad que la Fase 0 verificó para P0-4 por la otra puerta:
+allí, que el secreto no llegara al navegador; acá, que no llegue al repositorio. **Lección que se lleva
+esta tanda: renombrar un archivo puede sacarlo de una protección que nadie recordaba que dependía del
+nombre.**
+
+**10 · Una ruta de este mismo plan estaba mal escrita, y se corrigió antes de dictarla.** La estructura de
+archivos decía `app/login/page.tsx`; la ruta real es **`app/(auth)/login/page.tsx`**, y aparecía mal en
+**dos** sitios. Se destapó comprobando una por una las ocho rutas citadas —siete existían—, no releyendo
+el plan. **Es el error 21 de quien dicta**, y del género más caro de los conocidos: una coordenada falsa
+que un subagente fiel habría intentado editar, creando el archivo en el sitio equivocado o parándose sin
+saber por qué. **La comprobación costó un comando.**
+
+**11 · Y la deuda documental tiene una tercera cara, que es la omisión.** La tabla de la Fase 2 en
+`MIGRATION_DOCS/PLANES/README.md` lista **dos planes** —T0 y T1— de los **siete** que existen en la
+carpeta, y marca la T1 como **«sin ejecutar»** cuando cerró y se mergeó el 2026-08-07. **M-11 miente
+diciendo algo falso; este índice miente dejando de decir algo verdadero**, y el segundo es más difícil de
+ver porque no hay ninguna frase que contradecir: hay que comparar el índice con el `ls` de su propia
+carpeta. **Se encontró buscando dónde había que anunciar el plan de esta tanda**, no auditando.
+
+---
+
+## Decisiones tomadas el 2026-08-13, al aprobar este plan
+
+Las cuatro se tomaron **antes** de escribir el plan que las aplica, con el costo de cada una por delante.
+
+| # | Decisión | Fecha |
+|---|---|---|
+| **D-55** | **La T4 toca SQL, pero solo Q-19: la migración 24.** Es un `CHECK` sobre `app_settings` que ata `opening_time` a `slot_minutes`. **Q-18 NO entra**, y el motivo que decide no es el costo de escribir la política: es que recortar la lectura de `inventory_unit_notes` **obliga a reverificar la T3A entera**, porque el historial del mostrador lee esa misma tabla. Separarlas paga el costo caro una sola vez y no mezclado con las cabeceras y el E2E. **Q-18 pasa a una tanda propia.** | 2026-08-13 |
+| **D-56** | **La CSP se implementa con `nonce`, y las tres rutas estáticas pasan a dinámicas.** Es lo que recomienda la doc de Next 16 instalada, y el precio está medido: de 23 rutas ya hay 20 dinámicas, así que lo que se pierde son **dos páginas reales**, `/faq` y `/login`. La alternativa —`'unsafe-inline'` en `script-src`— conserva las estáticas y deja la CSP casi sin valor contra XSS, que es lo único para lo que existe. La tercera vía, SRI, la marca **experimental** su propia documentación, y endurecer sobre terreno que puede desaparecer no es endurecer. | 2026-08-13 |
+| **D-57** | **`npm audit --audit-level=high` pasa a bloqueante**, y se asume el precio dicho arriba: algún día el CI se pondrá rojo sin que nadie toque el código, y se arreglará actualizando el paquete. **Falla cerrada, como el resto del proyecto.** Cierra Q-10. | 2026-08-13 |
+| **D-58** | **El E2E cubre los cinco flujos críticos** —entrar, reservar, cancelar, entregar, recibir—, que es lo que pide §13 del diseño y lo que cierra la tarea 2.11 de verdad. Es aproximadamente la mitad del trabajo de la tanda, y por eso va en dos tareas y no en una. | 2026-08-13 |
+
+---
+
+## Puntos a verificar
+
+Se resuelven **midiendo**, y cada uno lleva escritos sus dos desenlaces. Ninguno se da por sabido.
+
+**PV-1 · ¿Es inmutable la expresión del `CHECK` de Q-19?** Un `CHECK` de tabla solo admite expresiones
+inmutables. La candidata es `extract(epoch from opening_time)::int % (slot_minutes * 60) = 0`.
+**Si lo es**, la migración 24 es una línea. **Si no**, hay que reescribirla en aritmética de hora y minuto,
+y entonces hay que decidir qué se hace con los segundos —que `time` admite y la pantalla no ofrece—.
+
+**PV-2 · ¿Pasa la fila que ya existe, en local y en producción?** Un `CHECK` nuevo se valida contra las
+filas presentes, así que **si producción tiene una apertura desalineada, la migración 24 falla al
+aplicarse allí** y el fallo aparece en el `db push`, no en local. Se mide por PostgREST **antes** de
+escribir el SQL, no después. El valor por defecto —08:00 con bloques de 30— sí pasa: 28800 % 1800 = 0.
+
+**PV-3 · ¿Sobrevive `/_not-found` a la CSP con nonce?** `/faq` y `/login` son páginas propias y se fuerzan
+a dinámicas con `await connection()`. `/_not-found` la genera Next. **Si se puede forzar**, las estáticas
+quedan en 0. **Si no**, queda una estática servida con scripts sin nonce, y hay que decidir entre
+excluirla del matcher —con lo que esa página se queda sin CSP— o aceptar que se rompa el 404.
+
+**PV-4 · ¿Dónde tiene que ir el nonce para que Next lo aplique?** La doc dice que Next lo extrae de la
+cabecera `Content-Security-Policy` **del request**, no del response. `updateSession()` construye su
+`NextResponse.next({ request })` por dentro, así que **hay que cambiarle la firma** para que reciba los
+headers ya modificados. **Si se pone solo en el response**, las páginas se sirven con la cabecera correcta
+y los scripts sin nonce: la aplicación se rompe entera con el `build` en verde.
+
+**PV-5 · ¿Rompe `upgrade-insecure-requests` el desarrollo local?** El entorno se prueba por
+`http://127.0.0.1:3000` (D-33). Esa directiva convierte cada petición a https. **Predicción: rompe**, y por
+eso la CSP se escribe con la directiva condicionada a producción. Se mide, no se supone.
+
+**PV-6 · ¿Qué hosts hay que abrir, y con qué valor en local?** En producción la API es
+`https://zqfkzgdyeqxzgzpxgadi.supabase.co`; en local es `http://127.0.0.1:54321`. **Una CSP con el host de
+producción escrito a mano rompe el desarrollo en silencio**, así que `connect-src` se construye leyendo
+`NEXT_PUBLIC_SUPABASE_URL`. Se verifica que la consola del navegador no reporte ni una violación, **con
+control positivo**: una directiva deliberadamente estrecha tiene que producir la violación, o la sonda no
+sirve.
+
+**PV-7 · ¿Tiene HSTS algún sitio donde verificarse?** No hay despliegue, y en `http://` el navegador
+**ignora** la cabecera. **Si se confirma que la ignora**, la cabecera se escribe y se verifica leyendo la
+respuesta, no por su efecto — y se dice así en el cierre, en vez de dejar creer que se probó. **Nunca se
+prueba HSTS apuntando a `127.0.0.1` con `includeSubDomains`:** el navegador lo recuerda y deja la máquina
+sin poder abrir nada local por http.
+
+**PV-8 · ¿El magic link de Playwright se canja donde se pidió?** Está medido que el enlace pedido **por la
+aplicación** llega con token `pkce_` y **solo se canjea en el mismo navegador que lo pidió**, mientras que
+el de un `POST` directo a `/auth/v1/otp` se canjea desde cualquier cliente. **Si Playwright pide el enlace
+desde su propio navegador y lo abre en ese mismo contexto**, funciona. **Si lo pide por API y lo abre en
+Playwright**, no. Es la diferencia entre un E2E que existe y uno que no arranca.
+
+**PV-9 · ¿Añade Playwright vulnerabilidades al árbol?** Hoy son **708 paquetes**. **Si añade alguna alta**,
+la Task 5 no puede cerrarse hasta resolverla, y por eso Playwright se instala **antes** de hacer bloqueante
+la auditoría. Al revés, el CI se rompería en la tarea siguiente por culpa de la anterior.
+
+**PV-10 · ¿Sigue Q-13 siendo prematuro?** Su enunciado dice «revisar con tráfico real», y **tráfico real
+sigue sin haber**: el sistema no está desplegado y no tiene usuarios. **Si al medir los advisors los 22
+avisos siguen siendo los mismos**, lo honesto es cerrarlo como decisión consciente —«sigue prematuro,
+se reevalúa tras el despliegue»— y no fingir una optimización. **Si alguno cambió de naturaleza**, se
+trata ese.
+
+---
+
+## Global Constraints
+
+- **La autorización no se replica.** El proxy redirige, el layout es comodidad, el componente oculta, y
+  **quien decide es RLS**. Esta tanda añade cabeceras, que son defensa en profundidad del navegador: no
+  autorizan nada y no pueden sustituir a una política.
+- **La única excepción sigue siendo `/api/cloudinary/firma`**, que habla con Cloudinary y no tiene ninguna
+  política detrás. No se toca en esta tanda.
+- **Una migración esta tanda, y solo una: la 24** *(D-55)*. Si aparece una segunda necesidad de SQL se
+  registra como desvío **antes** de escribirlo, con el costo por delante. Q-18 **no** entra.
+- **ANTES DE CORRER UN E2E, VERIFICAR A QUÉ BASE APUNTA EL ENTORNO.** Hoy `.env.local` no existe —está en
+  `.env.local.apagado`— y el `.env` apunta a producción. Un flujo de entrega y sanción corrido así escribe
+  sobre datos reales. **El arnés debe negarse a arrancar si la URL no es la local**, y esa negativa es
+  código de la tarea, no una nota en un documento: una advertencia escrita no ha frenado nunca a nadie.
+- **La aplicación nunca usa `service_role`.** Si un flujo la pide, falta una política, no una clave.
+- **El árbitro de si una pantalla funciona es `npm run build`**, no el navegador ni `npm run dev`.
+- **Abrir la pantalla en un navegador de verdad sigue siendo obligatorio.** Es lo único que ha encontrado
+  los fallos de esta fase. Y a partir de esta tanda hay un segundo instrumento —Playwright— que **no lo
+  sustituye**: un E2E afirma lo que se le escribió, no lo que se ve.
+- **Se prueba siempre por `http://127.0.0.1:3000`**, nunca por `localhost:3000` *(D-33)*.
+- **Borrar `.next/`** al mover, renombrar o borrar algo dentro de `app/`. Y recordar que `.next/` miente en
+  tres direcciones: `typecheck` en verde falso, `typecheck` en rojo falso, y **504 en el navegador donde en
+  caliente hay 404**.
+- **Nada de estética.** Sí funcionalidad, visibilidad y textos. La CSP puede romper estilos, y eso **no es
+  estética: es funcionalidad**, porque una hoja bloqueada por una directiva es un defecto de esta tanda.
+- **En PowerShell, `if (comando)` evalúa la salida, no el código de salida.** Para comandos que no imprimen
+  nada, mirar `$LASTEXITCODE`. Y `$?` **miente con el stderr de un ejecutable nativo**.
+- Mensajes de commit **sin acentos**; los documentos **con** tildes. **Claude no toca el remoto.**
+
+---
+
+## Estructura de archivos
+
+Es un **mínimo, no un contrato**. La T3B dejó escrito que un plan puede pedir una función y olvidarse de
+la pantalla que la llama; lo que falte se añade y se anota como corrección.
+
+```
+supabase/migrations/<ts>_opening_time_aligned.sql   nuevo   (Task 1, migración 24)
+supabase/tests/32_opening_time_aligned.sql          nuevo   (Task 1)
+proxy.ts                                            modif.  (Task 2, el nonce)
+lib/supabase/proxy.ts                               modif.  (Task 2, firma de updateSession)
+lib/seguridad/csp.ts                                nuevo   (Task 2, la política en un solo sitio)
+lib/seguridad/csp.test.ts                           nuevo   (Task 2, lógica pura)
+next.config.ts                                      modif.  (Task 2, HSTS y las dos X-)
+app/(publico)/faq/page.tsx                          modif.  (Task 2, connection())
+app/(auth)/login/page.tsx                           modif.  (Task 2, connection())
+playwright.config.ts                                nuevo   (Task 3)
+e2e/apoyo/entorno.ts                                nuevo   (Task 3, el cortafuegos de producción)
+e2e/apoyo/sesion.ts                                 nuevo   (Task 3, magic link por Mailpit)
+e2e/entrar.spec.ts                                  nuevo   (Task 3)
+e2e/reservar.spec.ts                                nuevo   (Task 4)
+e2e/cancelar.spec.ts                                nuevo   (Task 4)
+e2e/mostrador.spec.ts                               nuevo   (Task 4, entregar y recibir)
+.github/workflows/ci.yml                            modif.  (Task 5, y el E2E)
+.github/workflows/db.yml                            modif.  (Task 7, setup-cli)
+```
+
+---
+
+## Task 0 — La deuda documental
+
+**Va primera y no última**, como la Task 0 de la T3B: **los documentos son falsos hoy**, y las ediciones de
+documentación se cierran antes de pasar comandos de git.
+
+**Files:** Modificar `MIGRATION_DOCS/ESPECIFICACION_FUNCIONAL.md`
+
+- [ ] **Step 0: `.env.local.apagado` al `.gitignore`, antes que ninguna otra cosa de la tanda.** Es una
+      línea y cierra el hallazgo 9. Va primero **porque la tanda entera va a hacer `git add`**, y una
+      protección que llega después del commit no protege de nada. La regla se escribe para cubrir **el caso
+      general** —un archivo de entorno apagado, y cualquier otro renombre del mismo género—, no solo ese
+      nombre exacto. Y se comprueba **el efecto con `git check-ignore`**, que es quien decide: leer el
+      `.gitignore` y dar por hecho que se entendió el patrón es exactamente lo que falló acá.
+- [ ] **Step 1: verificar fila por fila antes de tocar ninguna.** Están medidas M-1 a M-9 y M-11 como
+      cumplidas *(ver «Lo que ya está medido», punto 8)*, pero **esa medición se hizo con `grep` sobre las
+      migraciones y eso prueba que el identificador aparece, no que la mejora esté hecha**. Para cada fila,
+      abrir el código y comprobar el **efecto**. El contraejemplo de por qué hace falta: M-8 tenía el
+      `skip locked` desde el principio y aun así **estaba mal** hasta que se añadió el bucle. Encontrar el
+      texto no es encontrar la propiedad.
+- [ ] **Step 2:** corregir las filas que afirman algo falso **sobre hoy**, con la marca fechada de siempre
+      y **sin borrar el enunciado original**: es el registro de dónde se partía. El criterio es el de la
+      Task 0 de la T3B: se corrige lo que miente sobre el presente, se deja lo que solo describe el pasado.
+- [ ] **Step 3:** M-10 y M-12 **no se tocan como cumplidas**. M-10 sigue propuesta y es **Q-4**. M-12 tiene
+      **la mitad cerrada por D-38** —no se cancela una reserva que ya empezó— y **la otra mitad abierta**:
+      falta el margen mínimo *antes* de empezar. Esa media fila se escribe explícita, porque «medio hecho»
+      registrado como «hecho» es peor que no registrarlo.
+- [ ] **Step 4:** revisar la frase que cierra la tabla —«Las mejoras M-1 a M-8 corrigen defectos. M-9 a
+      M-12 son decisiones de producto que requieren tu criterio»—. **Describe un reparto que ya se
+      resolvió**, y una frase de cierre envejece igual que una celda.
+- [ ] **Step 5: el índice de planes también miente, y por omisión.** La tabla de la Fase 2 en
+      `MIGRATION_DOCS/PLANES/README.md` tiene **dos filas** —T0 y T1—, y la de la T1 dice **«sin
+      ejecutar»** cuando esa tanda cerró y se mergeó el 2026-08-07. **Faltan cinco filas:** T2A, T2B, T3A,
+      T3B y esta misma. Se añaden con el estado real de cada una. **Un índice que no lista lo que existe
+      está afirmando que no existe**, y eso es exactamente el mismo defecto que M-11 por otra puerta: no
+      dice algo falso, deja de decir algo verdadero.
+- [ ] **Step 6:** commit `Tanda 4.0: la deuda documental de las mejoras propuestas`.
+
+> **Punto de método, y es el que da valor a esta tarea:** el encargo señalaba **una** fila y el problema
+> resultó ser **la tabla**. La Task 0 de la T3B enseñó lo mismo por el otro lado: fue a corregir cuatro
+> líneas y el documento se contradecía en cuatro sitios más que nadie había pedido. **Un pendiente
+> documental es casi siempre más grande que su enunciado**, y el enunciado no es el alcance.
+
+---
+
+## Task 1 — Migración 24: la apertura cae en un bloque *(cierra Q-19)*
+
+**Files:** Create `supabase/migrations/<ts>_opening_time_aligned.sql`,
+`supabase/tests/32_opening_time_aligned.sql`
+
+- [ ] **Step 0: medir antes de escribir, y en los dos entornos.** Leer `opening_time` y `slot_minutes` de
+      `app_settings` **en local y en el proyecto real**, por PostgREST. Resuelve **PV-2**. Si producción
+      tiene una apertura desalineada, la migración falla al aplicarse **allí y no acá**, y conviene saberlo
+      antes de escribir el SQL y no durante el `db push`.
+- [ ] **Step 1: las aserciones que fallan, primero.** Archivo nuevo `32_opening_time_aligned.sql`, no un
+      añadido a los que ya existen. Casos: una apertura desalineada se **rechaza**; una alineada se
+      **acepta** —el contraejemplo, sin el cual el rechazo no prueba nada—; y **cambiar solo
+      `slot_minutes`** a un valor que desalinea la apertura guardada **también se rechaza**, que es la
+      puerta de atrás que la pantalla no vigila.
+- [ ] **Step 2:** la migración. `alter table public.app_settings add constraint
+      app_settings_apertura_alineada check (...)`. Resuelve **PV-1**: si la expresión con `extract(epoch
+      from ...)` no es inmutable, reescribirla y **anotar el desvío**, no forzarla.
+- [ ] **Step 3:** el comentario de la migración dice **qué medición la motivó**, no solo qué hace: apertura
+      09:10 con bloque 20 → la base acepta, `available_slots` ofrece **35 franjas con 3 unidades libres** y
+      `create_reservation` rechaza las 35. **Y dice también el contraejemplo que acota la regla a esta sola
+      columna:** con la apertura alineada y el **cierre** desalineado, la última franja se reservó con HTTP
+      200, porque `generate_series` arranca en la apertura y el cierre solo recorta. Sin esa segunda frase,
+      el próximo lector ampliará la restricción al cierre sin motivo.
+- [ ] **Step 4:** `npx supabase db reset` y `npx supabase test db`. **Predicción escrita: 24 migraciones y
+      150 aserciones en 25 archivos**, desde 23 y 147 en 24. Si el número de aserciones no cuadra, se mira
+      qué pasó **antes** de seguir.
+- [ ] **Step 5:** `D-54` ya mitiga esto por la aplicación. **La migración no lo sustituye, lo respalda**, y
+      el código de `guardarAjustes()` **no se toca**: el aviso de pantalla sigue siendo mejor experiencia
+      que un error de Postgres. Comprobar que la pantalla de ajustes sigue comportándose igual.
+- [ ] **Step 6:** commit `Tanda 4.1: migracion 24, la apertura cae en un bloque`.
+
+> **Esto contradice por CUARTA VEZ la frase «desde aquí ninguna tanda vuelve a tocar SQL» de la T0.** Se
+> corrige fechada en el cierre, **no se borra**. Las tres anteriores fueron D-32 (migración 22), D-38
+> (migración 23) y la propia constatación de la T3B. **Lo que la promesa enseñó ya está escrito en el
+> diseño y sigue valiendo:** una intención escrita en presente se lee después como un hecho, y lo que hay
+> que fechar son los documentos, no evitar las intenciones.
+
+---
+
+## Task 2 — Las cabeceras de seguridad *(tarea 2.10)*
+
+La tarea central de la tanda, y la que puede romper la aplicación entera de un modo silencioso.
+
+**Files:** Create `lib/seguridad/csp.ts`, `lib/seguridad/csp.test.ts` · Modificar `proxy.ts`,
+`lib/supabase/proxy.ts`, `next.config.ts`, `app/(publico)/faq/page.tsx`, `app/(auth)/login/page.tsx`
+
+- [ ] **Step 1: la política en un módulo puro y con pruebas.** `lib/seguridad/csp.ts` construye la cadena a
+      partir del nonce, del modo —desarrollo o producción— y de `NEXT_PUBLIC_SUPABASE_URL`. **Es lógica
+      pura, así que se prueba con Vitest**, y ahí está el valor: se puede afirmar que en desarrollo **no**
+      aparece `upgrade-insecure-requests` *(PV-5)* y que `connect-src` lleva el host que toca *(PV-6)* sin
+      levantar un navegador. **El módulo no puede contener una Server Action ni importar
+      `@/lib/supabase/server`**: Vitest no resuelve el alias `@/` y el test se rompería con `typecheck` y
+      `build` en verde.
+- [ ] **Step 2: el nonce, y por los DOS lados.** Resuelve **PV-4**. `proxy.ts` genera el nonce y
+      `updateSession()` cambia de firma para recibir los headers del request ya modificados, porque
+      construye su `NextResponse.next({ request })` por dentro. **La regla de oro de ese archivo no se
+      toca:** entre crear el cliente de Supabase y llamar a `getClaims()` **no se ejecuta nada**. El nonce
+      se prepara **antes** de crear el cliente, no en medio.
+- [ ] **Step 3: las otras tres cabeceras**, en `next.config.ts` con `headers()`, que es donde deben ir
+      porque no dependen de la petición: `Strict-Transport-Security`, `X-Frame-Options: DENY` y
+      `X-Content-Type-Options: nosniff`. Resuelve **PV-7**. **HSTS sin `preload`** mientras no haya
+      despliegue: `preload` es una lista de la que se sale con meses de espera, y comprometerse antes de
+      tener dominio es firmar por otro.
+- [ ] **Step 4: las tres estáticas a dinámicas** *(D-56)*. `await connection()` en `/faq` y `/login`.
+      Resuelve **PV-3** con `/_not-found`. **Predicción escrita: el `build` sigue en 23 rutas y las
+      estáticas pasan de 3 a 0.** Si sale 1, es `/_not-found` y hay que decidir; si sale otra cosa, se mira
+      qué pasó antes de seguir.
+- [ ] **Step 5: verificar en el navegador con control positivo** *(PV-6)*. Recorrer las pantallas de los
+      tres perfiles con la consola abierta y **cero violaciones de CSP**. Y después **estrechar una
+      directiva a propósito** para ver la violación aparecer: **un cero no vale sin control positivo**, y
+      «cero violaciones» es también lo que devuelve una sonda que no está mirando. Recordar que
+      `browser_console_messages` **se contradice dentro de la misma respuesta** —encabeza «Errors: 0» y
+      lista 22 líneas `[ERROR]` de la sesión anterior—: se dirime leyendo los logs por navegación y
+      separando por marca de tiempo.
+- [ ] **Step 6: la pantalla que más puede romperse es la subida de imágenes**, porque es la única que habla
+      con un tercero desde el navegador (`api.cloudinary.com`) y la única que maneja `blob:`. Se prueba
+      **con una subida real de punta a punta**, no abriendo el formulario.
+- [ ] **Step 7:** `typecheck`, `lint`, `test`, `build` y commit `Tanda 4.2: cabeceras de seguridad con CSP
+      por nonce`.
+
+> **Por qué esta tarea es peligrosa y conviene decirlo antes:** una CSP mal escrita no da error de
+> compilación. Da una pantalla en blanco, o una hoja de estilos que no carga, o un formulario que no envía
+> — **exactamente el género de los cinco fallos de la T1**, que son fallos de *a qué se conecta* el código
+> y no de *qué dice*. Los cuatro comandos pueden estar en verde con la aplicación inutilizable, y ya pasó:
+> **los chunks de `/_next/*` respondiendo 403 a un navegador y 200 a `curl`** *(D-33)* dejaron la
+> aplicación rota durante ocho tareas en verde.
+
+---
+
+## Task 3 — Playwright y el flujo de entrada *(tarea 2.11, primera mitad)*
+
+**Files:** Create `playwright.config.ts`, `e2e/apoyo/entorno.ts`, `e2e/apoyo/sesion.ts`,
+`e2e/entrar.spec.ts` · Modificar `package.json`, `.gitignore`
+
+- [ ] **Step 1: el cortafuegos, antes que la primera prueba.** `e2e/apoyo/entorno.ts` lee
+      `NEXT_PUBLIC_SUPABASE_URL` y **aborta la corrida si no apunta a la base local**. No es una advertencia
+      en un comentario: es una excepción que impide arrancar. **Motivo medido:** hoy `.env.local` no existe
+      y el `.env` apunta a producción, así que el estado por defecto del repositorio es el peligroso. Un
+      E2E que entrega y sanciona corrido así escribe sobre datos reales, y **la mitad de esas escrituras no
+      se deshacen con un `update`**: una sanción tiene fecha de fin y un log tiene su fila.
+- [ ] **Step 2:** instalar `@playwright/test` y los navegadores. **Antes, `npm audit` para tener la línea
+      base**; después, otra vez. Resuelve **PV-9**. Anotar los dos números de paquetes —hoy **708**— porque
+      la Task 5 los necesita.
+- [ ] **Step 3:** `playwright.config.ts` apuntando a `http://127.0.0.1:3000` *(D-33, nunca `localhost`)*,
+      con `webServer` para que levante la aplicación sola. **Contra el `build`, no contra `next dev`**: el
+      servidor de desarrollo ya mintió dos veces —un proceso viejo degradado con `500`, y un arranque en
+      frío que no registra una ruta y da `404` sin escribir `Compiling`—. Un E2E sobre un instrumento que
+      miente produce fallos que nadie puede reproducir.
+- [ ] **Step 4:** `e2e/apoyo/sesion.ts` — pedir el magic link **desde el propio navegador de Playwright**,
+      leer el correo de Mailpit y abrir el enlace **en ese mismo contexto**. Resuelve **PV-8**, que es la
+      diferencia entre un arnés que arranca y uno que no. **Y `$_.To.Address` de Mailpit ya mintió una
+      vez**: se lee el cuerpo del mensaje, no se confía en el campo del listado.
+- [ ] **Step 5:** `e2e/entrar.spec.ts` — entrar como alumna, comprobar que cae donde debe, y **el
+      contraejemplo: una ruta privada sin sesión rebota a `/login`**. Sin esa segunda mitad, la prueba no
+      distingue «la sesión funciona» de «no hay ninguna protección».
+- [ ] **Step 6:** el script `test:e2e` en `package.json` —**separado de `test`**, que es Vitest y tiene que
+      seguir corriendo en segundos—, y `test-results/` y `playwright-report/` al `.gitignore`.
+- [ ] **Step 7:** `typecheck`, `lint`, `test`, `build` y commit `Tanda 4.3: playwright y el flujo de
+      entrada`.
+
+---
+
+## Task 4 — Los cuatro flujos restantes *(tarea 2.11, segunda mitad)*
+
+**Files:** Create `e2e/reservar.spec.ts`, `e2e/cancelar.spec.ts`, `e2e/mostrador.spec.ts`
+
+- [ ] **Step 1:** reservar. El calendario, la franja, la duración, y **la comprobación en la base**, no
+      solo en la pantalla: una prueba que solo lee la interfaz afirma que la interfaz dice algo, no que
+      haya pasado.
+- [ ] **Step 2:** cancelar. Y con ella **la regla de D-38**: una reserva que ya empezó **no** se cancela, y
+      el botón no está. Es el contraejemplo de la prueba anterior.
+- [ ] **Step 3:** entregar y recibir, con sesión de **operador**. Es el flujo que cierra el ciclo y el
+      único donde el E2E toca la máquina de estados.
+- [ ] **Step 4: los datos los pone la prueba y se los lleva la prueba.** El `seed.sql` es una fixture de
+      valores **convenientes, no representativos** —`products.featured` vale `true` en 2 de sus 4 productos
+      y `false` en los 34 de producción—, así que una prueba que dependa de lo que el seed traiga hoy se
+      rompe cuando el seed cambie. Cada spec monta su escenario.
+- [ ] **Step 5: no probar la autorización acá.** Que un operador no pueda escribir inventario **lo prueba
+      pgTAP dentro del motor y ya está probado**. Un E2E que afirma «el botón de admin no se ve» es un test
+      de maquetación disfrazado, y encima frágil: lo rompe el compañero que hace la fase visual.
+- [ ] **Step 6:** `typecheck`, `lint`, `test`, `build`, la corrida completa de E2E, y commit `Tanda 4.4:
+      los cuatro flujos criticos restantes`.
+
+---
+
+## Task 5 — La auditoría bloqueante *(cierra Q-10, D-57)*
+
+**Va después de instalar Playwright, y el orden no es casual:** al revés, el CI se rompería en esta tarea
+por culpa de la anterior *(PV-9)*.
+
+**Files:** Modificar `.github/workflows/ci.yml`
+
+- [ ] **Step 1: relanzar el paso de auditoría en el CI y mirar qué dice hoy.** Es la comprobación que
+      dirime la contradicción medida al planificar —código 1 en local, `found 0` en el CI, mismo lockfile—.
+      **Lo ejecuta Alejandro**, y del resultado depende si esta tarea empieza por arreglar un paquete o no.
+- [ ] **Step 2:** quitar `continue-on-error: true` del paso «Auditoría de dependencias».
+- [ ] **Step 3:** reemplazar el comentario largo que hoy explica **por qué no bloquea**. Ese comentario
+      lleva razón desde el 2026-08-06 y a partir de acá afirmaría lo contrario de lo que hace el archivo.
+      El nuevo dice **D-57 y su precio**: un aviso de un tercero puede poner el CI en rojo sin que nadie
+      toque el código, y eso es aceptado, no un defecto que alguien deba «arreglar» revirtiendo esto.
+- [ ] **Step 4:** el E2E entra en el CI. **Decidir si bloquea desde el primer día**, sabiendo que un E2E
+      recién escrito es la fuente de intermitencias más común que hay. La opción conservadora —bloquear el
+      `test` de Vitest y dejar el E2E informando la primera semana— **se escribe como decisión con su
+      motivo**, no se cuela por omisión.
+- [ ] **Step 5:** commit `Tanda 4.5: auditoria de dependencias bloqueante`.
+
+---
+
+## Task 6 — Q-13, ahora que hay código que consulta
+
+- [ ] **Step 1:** correr los advisors de rendimiento y **comparar con los 22 avisos originales**: 7 índices
+      sin usar, 6 claves foráneas sin índice y 9 políticas permisivas múltiples.
+- [ ] **Step 2:** resolver **PV-10** y decir la verdad sobre el resultado. **«Tráfico real» sigue sin
+      existir**: no hay despliegue ni usuarios, así que «índice sin usar» sigue significando «sin tráfico».
+      Si el cuadro no cambió, **cerrar Q-13 como decisión consciente** —se reevalúa tras el despliegue— es
+      un resultado legítimo y mejor que fabricar una optimización que nadie puede medir.
+- [ ] **Step 3:** si algo **sí** cambió de naturaleza, tratar solo eso. Las dos claves foráneas que el
+      propio enunciado señalaba como las únicas que valdrán la pena con datos son
+      `reservation_status_log.reservation_id` e `inventory_reservations.product_id`. **Un índice nuevo es
+      SQL**, así que sería un desvío de D-55 y se registra **antes** de escribirlo.
+- [ ] **Step 4:** commit `Tanda 4.6: reevaluacion de Q-13`.
+
+---
+
+## Task 7 — Los pendientes menores
+
+- [ ] **Step 1: `supabase/setup-cli@v1` apunta a Node.js 20, ya deprecado.** Comprobar qué versiones
+      existen y actualizar `db.yml`. **Precedente escrito en el propio archivo:** `checkout` y
+      `setup-node` se subieron a `v7` porque las `v4` declaraban `node20` y el runner las forzaba a Node 24
+      con un aviso. Es el mismo caso, en la acción que faltaba.
+- [ ] **Step 2: el advisor `auth_leaked_password_protection`, desactivado.** **Se activa en el panel de
+      Supabase y es tarea manual de Alejandro**, no del código. No es urgente —al sistema se entra por
+      magic link, no por contraseña—, y esa es la razón por la que lleva abierto desde el 2026-08-12. Se
+      entrega el paso y se verifica el efecto en los advisors, no se da por hecho.
+- [ ] **Step 3: M-12 no se implementa** *(D-55)*. Es SQL, y esta tanda tiene una sola migración. Lo que sí
+      se hace es **dejar su media apertura escrita** donde se consulta, que es la Task 0. **D-38 cerró la
+      mitad de que ya empezó; falta el margen mínimo antes de empezar.**
+- [ ] **Step 4:** commit `Tanda 4.7: pendientes menores del endurecimiento`.
+
+---
+
+## Task 8 — Verificación de punta a punta
+
+**No escribe código.** Si al terminar el árbol no está limpio, algo se coló.
+
+- [ ] **Step 1: el recorrido en navegador primero, el `db reset` al final.** El orden importa y el plan de
+      la T3B se equivocó justo acá: su Step 1 mandaba un `db reset` que borraba el escenario que su Step 2
+      necesitaba. El reset va al final, donde hace de limpieza **además** de comprobación.
+- [ ] **Step 2:** los cuatro comandos **dos veces**. **Predicción escrita: 23 rutas y 0 estáticas**; Vitest
+      **sube desde 138** por las pruebas de `csp.ts`, y el número exacto se lee, no se predice a ciegas.
+- [ ] **Step 3:** `npx supabase db reset` y `npx supabase test db`. **Predicción escrita: 24 migraciones,
+      150 aserciones en 25 archivos.**
+- [ ] **Step 4:** la corrida completa de E2E, en verde y **dos veces seguidas**. Una prueba de punta a
+      punta que pasa una vez de cada dos no está en verde: está rota y disimulando.
+- [ ] **Step 5: las cabeceras, medidas en la respuesta.** Las cuatro presentes, y la CSP con un nonce
+      **distinto en dos peticiones seguidas** — si se repite, no es un nonce, es una constante y no protege
+      de nada.
+- [ ] **Step 6:** `/api/cloudinary/firma` revalidado por sus tres respuestas: alumna **403**, operador
+      **403**, admin **200 con firma**. **Se mide con `fetch()` desde el navegador y no con un JWT**,
+      porque lee la sesión de cookies con `getClaims()`.
+
+---
+
+## Task 9 — Cierre y documentación
+
+- [ ] **Step 1:** `ESTADO_Y_PLAN.md` — casillas **2.10** y **2.11**, la fila de la **T4** en la tabla de
+      tandas, **D-55 a D-58**, el cierre de **Q-10** y **Q-19**, y la fila de bitácora.
+- [ ] **Step 2:** la corrección **fechada** de «ninguna tanda vuelve a tocar SQL», por cuarta vez, en los
+      documentos donde aparece. **Tachada, no borrada.**
+- [ ] **Step 3:** `FASE_2_DISENO.md` y `ESPECIFICACION_FUNCIONAL.md` con lo que la tanda cambió, y
+      `CLAUDE.md` con el estado nuevo.
+- [ ] **Step 4: comprobar qué pide el Step 1 que ya esté hecho.** Un plan escrito antes no sabe lo que las
+      tareas anteriores hicieron, y en la T3B eso habría metido **tres duplicados con fechas distintas en
+      las mismas filas**.
+- [ ] **Step 5:** si esta tarea no escribe código, **los cuatro comandos no se vuelven a correr**: se
+      registran las cifras de la Task 8 **diciendo de dónde salen**, en vez de dejar creer que se
+      remidieron.
+- [ ] **Step 6:** commit `Tanda 4.9: cierre y documentacion`.
+
+---
+
+## Lo que esta tanda NO hace, para que no se cuele
+
+- **No arregla Q-18.** Las notas de unidad las sigue leyendo cualquier alumno con sesión, mitigado por
+  texto en los dos diálogos que escriben notas. **Es la decisión D-55 y tiene motivo escrito:** arreglarlo
+  obliga a reverificar la T3A entera. Va a una tanda propia.
+- **No implementa M-12.** Es SQL y esta tanda tiene una sola migración.
+- **No despliega nada.** No hay `netlify.toml` ni `vercel.json` ni dominio, y la T4 no los crea. **HSTS se
+  escribe sin poder verificarse por su efecto**, y eso se dice en el cierre en vez de disimularlo.
+- **No borra las dos imágenes de prueba de Cloudinary** —`products/z6hce2eqoyd3cvwlfnip` y
+  `products/cubpwrrmuztxh6k9yeko`—. La aplicación **no puede**: la firma que emite es solo de subida
+  *(F7)*. Es tarea manual.
+- **No toca estética.** El compañero está trabajando en `feature/estilos-sistema-visual` en paralelo, y
+  esta tanda mete mano en `proxy.ts`, `next.config.ts` y el CI: **superficie de conflicto casi nula, y
+  conviene que siga así.**
+- **No prueba la autorización con Playwright.** Eso es pgTAP y ya está probado.
+- **No optimiza nada por Q-13 sin poder medirlo.**
+
+---
+
+## Pendientes que esta tanda hereda a la siguiente
+
+| # | Qué queda | Por qué |
+|---|---|---|
+| **Q-18** | Las notas de unidad legibles por cualquier alumno con sesión | *(D-55)* Recortarlo obliga a reverificar la T3A entera. Tanda propia |
+| **M-12** | Cancelación con antelación mínima | Es SQL, y D-55 deja una sola migración |
+| **Q-2, Q-4, Q-5, Q-6** | Corte dominical, notificaciones, protección de ramas, rotar Cloudinary | Abiertos desde antes de la Fase 2; ninguno es de endurecimiento |
+| **Q-13** | Los 22 avisos de rendimiento | Depende de lo que mida la Task 6. Si sigue sin tráfico, sigue sin poder decidirse |
+| — | **El despliegue** | No es de esta fase, y sin él HSTS no puede verificarse por su efecto |
+
+---
+
+## Nota sobre el método, que es lo que las seis tandas anteriores han dejado
+
+**Van treinta hechos falsos de subagente en esta fase, de ocho géneros**, y **veinte errores de quien
+dictaba**. La salvaguarda que funciona **no es prohibir la invención** —de cuatro subagentes con la
+prohibición explícita, uno la cumplió y tres no— sino **no depender del informe**: abrir el archivo, contar
+la aritmética del diff, y pedir que **pegue** lo que escribió en vez de decir dónde lo puso.
+
+**Y las dos preguntas del final de cada encargo se hacen igual acá:** qué **no** verificaste, y qué te
+pareció contradictorio del encargo. **Tres subagentes las contestaron en la T3B y solo uno encontró algo**
+— el costo es el mismo y el hallazgo es asimétrico, así que se pregunta siempre.

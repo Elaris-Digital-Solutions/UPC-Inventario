@@ -1,13 +1,60 @@
+# Despliegue del Next.js en Netlify.
+#
+# ═══════════════════════════════════════════════════════════════════════════
+# ESTE ARCHIVO REEMPLAZA AL DE `main`, QUE PUBLICA OTRA APLICACION.
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `main` tiene hoy un netlify.toml con `publish = "dist"` y un redirect SPA de
+# `/*` a `/index.html`: es la configuracion del Vite. **Y esa aplicacion esta
+# ROTA contra el esquema desde la Fase 1** -- usa `from('app_admins')` y
+# `rpc('get_all_carreras')`, que no existen, e `INSERT` directo en
+# `inventory_reservations`, para el que `authenticated` no tiene privilegio.
+# Ver D-93.
+#
+# Asi que al mergear a `main` ESTE ARCHIVO VA A DAR CONFLICTO, y eso es lo
+# correcto: el cambio de aplicacion tiene que verse en el diff y resolverse a
+# proposito, no colarse. Se resuelve quedandose con esta version entera.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# LO QUE NO ESTA AQUI, Y POR QUE.
+#
+# NO HAY BLOQUE `[[headers]]`, y es deliberado. Las cinco cabeceras de seguridad
+# ya viven en `next.config.ts` -X-Frame-Options, X-Content-Type-Options,
+# Strict-Transport-Security, Referrer-Policy y Permissions-Policy (H-5)-, y la
+# CSP con nonce vive en `proxy.ts` porque depende de cada peticion.
+#
+# Repetirlas aqui crearia una SEGUNDA FUENTE DE VERDAD sobre las cabeceras, y
+# las dos se separarian: cuando alguien anada una en `next.config.ts` no va a
+# acordarse de este archivo. Peor aun, las de Netlify GANAN sobre las del
+# framework, asi que la copia vieja pisaria a la nueva y el sintoma seria una
+# cabecera que "no se aplica" sin ningun error en ninguna parte.
+#
+# NO HAY VARIABLES DE ENTORNO. Van en el panel de Netlify -Site configuration ->
+# Environment variables-, nunca aqui: `CLOUDINARY_API_SECRET` es un secreto y
+# este archivo se versiona.
+#
+# NO HAY `[[plugins]]` con @netlify/plugin-nextjs. El Next.js Runtime v5 lo
+# detecta e instala solo, y declararlo a mano ademas lo CONGELA en la version
+# que se escriba. Comprobado el 2026-08-23 en el changelog de Netlify: Next.js
+# 16 se despliega sin configuracion y sin cambios respecto a la 15.
+
 [build]
   command = "npm run build"
-  publish = "dist"
 
-[[redirects]]
-  from = "/favicon.ico"
-  to = "/favicon.png"
-  status = 200
+  # `.next` y no `dist`: `dist` era del Vite. El runtime lee de aqui y arma las
+  # funciones del servidor -- este proyecto NO es un sitio estatico y no puede
+  # serlo: proxy.ts refresca la sesion en cada peticion y las Server Actions
+  # escriben en Postgres.
+  publish = ".next"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[build.environment]
+  # La MISMA que usa el CI, y por eso esta escrita: el CI corre en Node 22
+  # (.github/workflows/ci.yml). Sin fijarla, Netlify elige la suya por defecto y
+  # el build de despliegue correria en una version distinta a la que dio verde
+  # en el PR -- que es exactamente el reparto que hace que un fallo aparezca
+  # solo en produccion.
+  NODE_VERSION = "22"
+
+# SIN redirects. El de `main` -`/*` a `/index.html`- es de una SPA: manda todo
+# al mismo HTML y deja que el navegador enrute. Aqui lo enruta el servidor, y
+# ese redirect romperia todas las rutas dinamicas de golpe.
