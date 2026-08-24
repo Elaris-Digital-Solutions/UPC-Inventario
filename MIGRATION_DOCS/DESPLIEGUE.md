@@ -91,6 +91,14 @@ configuración y sin cambios respecto a la 15.**
 | `CLOUDINARY_FOLDER` | La carpeta | — |
 | `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
 
+⚠ **Son siete y sólo siete: `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` y `NEXT_PUBLIC_CLOUDINARY_FOLDER`
+NO van aquí.** Estaban en `.env.example` hasta el 2026-08-24 y **el código no las lee en ningún sitio**
+—`grep` de `process.env` sobre todo el repositorio—. Son residuo del Vite, que subía a Cloudinary
+**desde el navegador con un upload preset sin firmar**. El Next.js firma en el servidor, que es H-2 de
+la auditoría *(D-97)*. **Copiarlas de un `.env` viejo al panel reabre ese hueco**, y con
+`NEXT_PUBLIC_` viajarían al navegador. Ya no están en `.env.example`, y en su sitio hay un comentario
+diciendo por qué. **La lista buena es `.env.example`, y coincide con esta tabla: siete.**
+
 ⚠ **Ninguna variable de Supabase con `SERVICE_ROLE` va aquí.** Esa clave salta RLS por diseño y la
 aplicación no la usa en ningún sitio; si aparece en el panel, alguien la puso por error.
 
