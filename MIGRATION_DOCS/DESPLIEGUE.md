@@ -120,11 +120,26 @@ Cuando haya URL de Netlify:
 
 *Supabase → Authentication → URL Configuration*
 
-- **Site URL:** la URL del sitio desplegado.
+- **Site URL:** la URL del sitio desplegado, ⚠ **SIN barra final** — ver abajo.
 - **Redirect URLs:** añadir esa URL. `http://127.0.0.1:3000` se queda para el desarrollo local.
 
 **Sin esto, entrar desde el sitio desplegado manda el enlace a `127.0.0.1` y no funciona para nadie**
 — y el fallo no da error: el correo llega, el enlace existe, y al pulsarlo no lleva a ninguna parte.
+
+⚠ **Y la barra final del Site URL rompe el canje, medido contra producción el 2026-08-24.** La plantilla
+de correo construye el destino concatenando —`{{ .SiteURL }}/auth/confirm?token_hash=…`—, así que un
+Site URL acabado en `/` produce **dos barras**. Y las dos barras no son cosméticas:
+
+| Enlace | Respuesta de producción |
+|---|---|
+| `/auth/confirm?token_hash=…` | 307 → `/auth/error?motivo=enlace` — la ruta se alcanza y procesa el token |
+| `//auth/confirm?token_hash=…` | 307 → **`/login?token_hash=…`** — **la ruta no se alcanza nunca** |
+
+**Con dos barras el proxy no reconoce la ruta, la trata como privada y la manda a `/login`:** el canje no
+ocurre, quien entra cae en la pantalla de ingreso sin sesión, y el `token_hash` acaba en la query de una
+página que no lo canjea. **Es el mismo fallo mudo que esta sección advierte, con otra cara** — no hay
+error, sólo un enlace que devuelve al principio. *No se midió si GoTrue normaliza la barra antes de
+concatenar, y no hace falta: quitarla cuesta diez segundos y borra la pregunta.*
 
 ### 1.4 Cómo se verifica que el despliegue funcionó
 
