@@ -12,16 +12,37 @@ después**, porque Cloudflare necesita un origen al que apuntar.
 
 ## 0. Lo que hay que saber antes de tocar nada
 
-### El sitio de Netlify que ya existe publica otra aplicación, y está rota
+### El sitio viejo ya no existe, y `main` sigue teniendo su configuración
+
+⚠ **Alejandro eliminó el sitio de Netlify el 2026-08-24.** `upc-inventario.netlify.app` ya no
+responde y **no hay nada que reutilizar**: el sitio se crea nuevo. Lo que queda de aquello es lo que
+sigue versionado en `main`.
 
 `main` tiene hoy un `netlify.toml` con `publish = "dist"` y un redirect SPA de `/*` a `/index.html`.
 Es la configuración del **Vite**, no del Next.js. Y esa aplicación **está rota contra el esquema desde
 la Fase 1** — usa `from('app_admins')` y `rpc('get_all_carreras')`, que no existen, e `INSERT` directo
 en `inventory_reservations`, para el que `authenticated` no tiene privilegio *(D-93)*.
 
-**El bloqueo nunca fue que faltara configuración: es que la que hay publica lo equivocado.** El
-`netlify.toml` de `develop` lo reemplaza, y al mergear **va a dar conflicto**. Ese conflicto es
-deseable: el cambio de aplicación tiene que verse en el diff.
+**El bloqueo nunca fue que faltara configuración: es que la que hay publica lo equivocado.**
+
+⚠ **Medido el 2026-08-24, y corrige lo que este documento decía antes.** Se dio por hecho que el merge
+daría «el conflicto de `netlify.toml`». **`netlify.toml` no conflictúa**: `main` no lo tocó en sus tres
+commits propios, así que git se queda con el de `develop` solo. Lo que sí pasa es más grave y no
+estaba escrito — `git merge-tree origin/main origin/develop`:
+
+| | |
+|---|---|
+| Archivos en conflicto | **18**, no uno |
+| De ellos, `modify/delete` | **17** — `src/*` que `develop` borró y `main` modificó. **Git deja en el árbol la versión de `main`** |
+| Conflicto de contenido real | **1**, `.gitignore` |
+| Sobrante total frente a `develop` | **39 archivos, 7 225 líneas** — los 35 de `src/`, dos SQL sueltos en `supabase/` y `.claude/settings.local.json` |
+| Archivos de `develop` que se perderían | **0** |
+
+**O sea: quien resuelva sólo `netlify.toml` y commitee devuelve el Vite entero a `main`.** Y los dos
+SQL sueltos son justo lo que el `CLAUDE.md` del repo prohíbe. **Nada de `main` vale la pena conservar**,
+así que la resolución no es negociar archivo por archivo: **`main` se queda con el árbol de `develop`,
+exacto**. El control que lo demuestra es `git diff --stat main develop` **vacío**, y va después de
+commitear, no antes.
 
 ### Cloudflare no es lo que para un DDoS por sí solo, y hay que decirlo
 
@@ -58,7 +79,7 @@ configuración y sin cambios respecto a la 15.**
 
 ### 1.2 Variables de entorno — en el panel, nunca en el repositorio
 
-*Site configuration → Environment variables.* Son seis, y **una es un secreto de verdad**:
+*Site configuration → Environment variables.* Son siete, y **una es un secreto de verdad**:
 
 | Variable | Valor | Nota |
 |---|---|---|
@@ -203,11 +224,64 @@ verde, que es el modo de fallo favorito de este proyecto.
 
 ## 3. El orden completo, de aquí al dominio
 
+**Cambió el 2026-08-24 al eliminarse el sitio viejo.** Mientras el sitio existía y apuntaba a `main`,
+las variables tenían que estar puestas **antes** de mergear, porque el merge disparaba el build solo.
+**Sin sitio, eso ya no aplica:** el merge no dispara nada, y las variables se ponen en el asistente de
+creación, que las pide antes del primer despliegue. **El merge pasa a ir primero.**
+
 1. Mergear la rama de la auditoría a `develop`, con el CI en verde.
-2. **Aplicar las dos migraciones nuevas a producción a propósito** —`db push`—, nunca al mergear.
-3. Mergear `develop` a `main`, **resolviendo el conflicto de `netlify.toml` a favor del nuevo**.
-4. Conectar el sitio de Netlify a `main`, con las variables del §1.2.
-5. Actualizar Site URL y Redirect URLs en Supabase *(§1.3)*.
+2. **Aplicar las migraciones nuevas a producción a propósito** —`db push`—, nunca al mergear.
+3. **Mergear `develop` a `main` dejando el árbol de `develop` exacto** *(§3.1)*.
+4. **Crear el sitio en Netlify** conectado a `main`, con **las siete variables del §1.2 puestas en el
+   asistente**, antes de pulsar *Deploy*.
+5. Actualizar Site URL y Redirect URLs en Supabase *(§1.3)*. **Sin esto el fallo es mudo.**
 6. Verificar por el efecto *(§1.4)* — incluido HSTS, por primera vez.
 7. **Cuando llegue el dominio:** Cloudflare, en el orden del §2.1.
 8. Comprobar `cf-cache-status` *(§2.4)* antes de dar nada por cerrado.
+
+### 3.1 El merge a `main`, que no se resuelve archivo por archivo
+
+**Son 18 conflictos y 39 archivos sobrantes** *(§0, D-98)*. Resolverlos a mano es donde se cuela el
+Vite de vuelta. **No se negocian: se impone el árbol de `develop` entero**, que es lo que `read-tree`
+hace en una línea.
+
+```powershell
+git checkout main
+```
+
+```powershell
+git merge --no-ff --no-commit develop
+```
+
+*Va a informar de los 18 conflictos. **Es lo esperado y no se toca ninguno.***
+
+```powershell
+git read-tree -u --reset develop
+```
+
+*Fuerza el índice y el árbol de trabajo al de `develop`, borrando los 39 sobrantes de golpe.
+`MERGE_HEAD` sobrevive, así que el commit siguiente conserva sus **dos** padres.*
+
+```powershell
+git commit -m "merge: develop a main, el Next.js reemplaza al Vite" -m "Arbol identico a develop. Ver D-98."
+```
+
+**Y el control, que va DESPUÉS de commitear porque antes no mide nada:**
+
+```powershell
+git diff --stat main develop
+```
+
+⚠ **Tiene que salir VACÍO.** Si sale una sola línea, el merge conservó algo de `main` y no está listo
+para desplegar. Comprobaciones de apoyo, las dos a **0**:
+
+```powershell
+git ls-tree -r --name-only main | Select-String "^src/" | Measure-Object | Select-Object -ExpandProperty Count
+```
+
+**Lo que NO se hace, y por qué.** `git reset --hard develop` más `push --force` deja el mismo árbol
+con menos pasos, y `main` **no está protegida**, así que el remoto lo aceptaría. **Pero borraría los
+cuatro commits propios de `main`, y ninguno está cubierto por `legacy/vite-final` ni por
+`legacy/refactor-marzo`** —comprobado con `git tag --contains`—, así que se perderían de verdad. Es
+justo lo que D-29 existe para impedir. **Y no compra nada:** Netlify publica el árbol del último
+commit, nunca la historia. Conservar los ancestros no publica ni un byte del Vite.
