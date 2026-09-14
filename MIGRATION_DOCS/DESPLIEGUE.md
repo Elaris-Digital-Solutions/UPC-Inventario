@@ -3,6 +3,12 @@
 > **Fuente de verdad del estado del proyecto: [`ESTADO_Y_PLAN.md`](./ESTADO_Y_PLAN.md).**
 > Este documento no lleva estado ni recuentos: es **operativo** y se consulta **por tarea**, no por
 > fase. Lo que aquí se decide queda registrado como decisión allí.
+>
+> **Aquí vive el CÓMO se configura cada servicio. El CUÁNTO CUESTA vive en
+> [`COSTOS.md`](./COSTOS.md)**, y ninguno de los dos repite al otro: los precios caducan y por eso van
+> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida que este documento no
+> menciona y sin la cual nadie puede entrar: el SMTP propio.** El correo integrado de Supabase manda
+> **2 mensajes por hora** y aquí se entra sólo por magic link.
 
 **Escrito el 2026-08-23**, al cerrar los siete huecos de la auditoría de seguridad. Cubre el paso que
 falta para que el Next.js exista en internet, y el orden importa: **Netlify primero, Cloudflare
