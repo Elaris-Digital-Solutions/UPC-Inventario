@@ -20,6 +20,18 @@ const nextConfig: NextConfig = {
   // Solo tiene efecto en `next dev`.
   allowedDevOrigins: ["127.0.0.1"],
 
+  // SIN CACHE DE TURBOPACK EN `next build` (2026-09-14). Desde la 16.3.0 viene
+  // activada y escribe en .next/cache/turbopack el valor de las variables que
+  // lee el servidor, CLOUDINARY_API_SECRET incluido -medido: 6 archivos .sst
+  // con el valor, 0 en .next/server y .next/static-. Netlify guarda esa cache
+  // entre builds y su escaneo de secretos la encuentra: el Deploy Preview del
+  // PR #68 fallo por eso y no por el codigo. Apagarla cuesta un build en frio,
+  // ~13 s de compilacion; excluir la ruta del escaneo dejaria el secreto
+  // guardado en la cache de Netlify y el control con un agujero.
+  experimental: {
+    turbopackFileSystemCacheForBuild: false,
+  },
+
   // Las fotos del catalogo viven en Cloudinary: product_images.secure_url
   // guarda URLs de res.cloudinary.com, y es el UNICO host -medido el
   // 2026-08-08 contra el proyecto real, sobre las 34 imagenes-.

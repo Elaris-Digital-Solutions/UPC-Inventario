@@ -256,6 +256,16 @@ byte y entonces el bloqueo vuelve **en silencio**, y `'unsafe-inline'` desarma l
   negativo: el mismo `update` **sin `vitest`** sale con exit 0. **Salida medida:** instalar `vitest` con
   `npx -y npm@11 install -D vitest@<version>` y **después `npm ci` con el npm de siempre**, que es lo que
   corre el CI: confirma que acepta el lockfile y ejecuta los `postinstall` que npm 11 se salta sin aprobación.
+- **Netlify falla el deploy con «Secrets scanning found secrets in build» aunque el código no filtre nada**
+  *(medido el 2026-09-14, Next 16.3.5)*. El valor está en `.next/cache/turbopack/*.sst`: **desde la 16.3.0,
+  `next build` escribe una caché en disco con los valores de las variables que leyó**, y Netlify la guarda
+  y la escanea. **Se comprueba sin imprimir el secreto:** `grep -rlF` del valor sobre `.next/cache`,
+  `.next/server` y `.next/static` — medido **6, 0 y 0**. Cerrado con
+  `experimental.turbopackFileSystemCacheForBuild: false` *(D-100)*: **0 en todo `.next`**.
+- **`netlify build --offline` en Windows NO reproduce el build de Netlify** *(medido el 2026-09-14)*. Falla con
+  `Cannot find module './chunks/[turbopack]_runtime.js'` al empaquetar el proxy **también sobre `main`, que
+  en Netlify sí despliega**. Lo que diga ese build local sobre la edge function no vale como diagnóstico:
+  **el log de verdad está en el deploy de Netlify**, y se pide antes de sacar ninguna hipótesis.
 
 ---
 

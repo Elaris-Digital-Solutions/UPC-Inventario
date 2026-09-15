@@ -112,6 +112,14 @@ valores marcados como secretos y falla si los encuentra. *No medido en este proy
 hacerlo, no un fallo previsto.* **El único que no puede llevar `NEXT_PUBLIC_` ni salir del servidor es
 `CLOUDINARY_API_SECRET`** *(D-28, P0-4)*.
 
+⚠ **Medido el 2026-09-14: el escaneo saltó de verdad, y no por el código.** El primer Deploy Preview
+del sitio falló con *«Secret env var "CLOUDINARY_API_SECRET"'s value detected»* en
+`.netlify/.next/cache/turbopack/…/*.sst`: **la caché de compilación de Turbopack**, que desde Next 16.3.0
+guarda los valores de las variables que lee el build y que Netlify conserva entre builds. **El output
+publicado estaba limpio.** Se cerró **apagando esa caché** en `next.config.ts` *(D-100)*, **no**
+excluyendo la ruta con `SECRETS_SCAN_OMIT_PATHS`. ⚠ **Si alguien reactiva la caché, el deploy vuelve a
+fallar**, y es lo correcto: el secreto estaría otra vez en disco.
+
 ⚠ **Son siete y sólo siete: `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` y `NEXT_PUBLIC_CLOUDINARY_FOLDER`
 NO van aquí.** Estaban en `.env.example` hasta el 2026-08-24 y **el código no las lee en ningún sitio**
 —`grep` de `process.env` sobre todo el repositorio—. Son residuo del Vite, que subía a Cloudinary
