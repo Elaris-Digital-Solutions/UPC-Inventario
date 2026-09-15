@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/proxy'
 import { construirCSP } from '@/lib/seguridad/csp'
+import { redireccionPorDominio } from '@/lib/dominios'
 
 // ESTE PROXY HACE EXACTAMENTE DOS COSAS: refrescar la cookie de sesion y
 // redirigir de forma optimista al login cuando no hay sesion. NO ES UNA SOLUCION
@@ -24,6 +25,18 @@ import { construirCSP } from '@/lib/seguridad/csp'
 const RUTAS_PUBLICAS = ['/', '/login', '/auth', '/faq', '/manifest.webmanifest']
 
 export async function proxy(request: NextRequest) {
+  // ANTES que la sesion: en ccnode.net no hay cookie que refrescar -vive en
+  // dispositivos.ccnode.net-, y el salto no lleva documento. 307 y no 308: un
+  // permanente se queda en la cache del navegador y no se deshace desde aqui.
+  const haciaApp = redireccionPorDominio(
+    request.headers.get('host'),
+    request.nextUrl.pathname,
+    request.nextUrl.search,
+  )
+  if (haciaApp) {
+    return NextResponse.redirect(haciaApp, 307)
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const csp = construirCSP({
     nonce,
