@@ -24,6 +24,10 @@ después**, porque Cloudflare necesita un origen al que apuntar.
 responde y **no hay nada que reutilizar**: el sitio se crea nuevo. Lo que queda de aquello es lo que
 sigue versionado en `main`.
 
+⚠ **Caducado el 2026-09-14: el sitio se volvió a crear con el mismo nombre.** `upc-inventario.netlify.app`
+responde **200** en `/` y **307 a `/login`** en `/catalogo`, medido con `curl.exe -sI`. El párrafo de
+arriba describe el 2026-08-24 y se conserva por eso.
+
 `main` tiene hoy un `netlify.toml` con `publish = "dist"` y un redirect SPA de `/*` a `/index.html`.
 Es la configuración del **Vite**, no del Next.js. Y esa aplicación **está rota contra el esquema desde
 la Fase 1** — usa `from('app_admins')` y `rpc('get_all_carreras')`, que no existen, e `INSERT` directo
@@ -169,6 +173,72 @@ Y el recorrido entero en el navegador: pedir magic link, entrar, ver el catálog
 sustituye a esto**: corre contra el stack local, y lo que se está verificando aquí es la configuración
 de producción.
 
+### 1.5 El dominio: `ccnode.net` y `dispositivos.ccnode.net` *(D-99)*
+
+**Una sola aplicación, un solo sitio de Netlify, dos nombres.** `ccnode.net` sirve la portada, el FAQ y
+el manifest; **todo lo demás salta con un 307 a `dispositivos.ccnode.net`**, con la ruta y la query
+enteras. Quien reparte es `proxy.ts` a través de `lib/dominios.ts`, **no Netlify**. El porqué, en D-99.
+
+**El DNS lo lleva Mochahost** —nameservers `ns1` a `ns4.mysecurecloudhost.com`— y se edita en su
+cPanel, *Zone Editor* de `ccnode.net`. **Estado medido el 2026-09-14**, antes de cambiar nada:
+
+| Registro | Hoy | Cambiar a |
+|---|---|---|
+| `ccnode.net` **A** | `194.39.149.173` | **`75.2.60.5`** — el balanceador de Netlify para DNS externo |
+| `www` **CNAME** | `ccnode.net` | **`upc-inventario.netlify.app`** |
+| `dispositivos` **A** | `194.39.149.173` | **Borrarlo** y crear **CNAME** → **`upc-inventario.netlify.app`** |
+| `mail` **CNAME** | `ccnode.net` | Borrarlo y crear **A** → `194.39.149.173` |
+| `ftp` **CNAME** | `ccnode.net` | Borrarlo y crear **A** → `194.39.149.173` |
+| **MX** | `ccnode.net` | **`mail.ccnode.net`** |
+
+⚠ **Las tres últimas filas son las que se olvidan, y sin ellas se cae el correo del dominio.** El MX,
+`mail` y `ftp` apuntaban al propio `ccnode.net`: al pasar su registro A a Netlify, el correo se va
+detrás sin ningún aviso. **No se tocan** el TXT del SPF, `webmail` ni `cpanel`, que ya son registros A
+hacia Mochahost. `dispositivos` hay que **borrarlo**, no editarlo: un nombre no puede tener a la vez un A
+y un CNAME. **Sin registros AAAA ni CAA** que estorben; CAA se consultó por `dns.google`, porque
+`Resolve-DnsName` de PowerShell 5.1 no conoce ese tipo.
+
+**El orden:**
+
+1. **Netlify primero** —*Domain management*—: `dispositivos.ccnode.net` como **principal**, `ccnode.net`
+   y `www.ccnode.net` como alias. Si el DNS llega antes, Netlify responde *«Site not found»*.
+2. **Los seis registros de la tabla** en Mochahost. Propagan de minutos a 24 h.
+3. **Supabase, sólo cuando `https://dispositivos.ccnode.net` ya cargue:** Site URL
+   `https://dispositivos.ccnode.net`, **sin barra final** *(§1.3)*, y la misma URL en Redirect URLs.
+   Antes de eso, los magic links llevarían a una página que no carga.
+
+**Cómo se verifica, por el efecto y con control negativo:**
+
+```powershell
+Resolve-DnsName mail.ccnode.net -Server 8.8.8.8
+```
+
+*Tiene que seguir saliendo `194.39.149.173`: el correo sigue en Mochahost.*
+
+```powershell
+curl.exe -sI https://ccnode.net/ | Select-String "HTTP|location"
+```
+
+*`200` sin `Location`: la portada se sirve en `ccnode.net`.*
+
+```powershell
+curl.exe -sI https://ccnode.net/catalogo | Select-String "HTTP|location"
+```
+
+*El control negativo: `307` hacia `https://dispositivos.ccnode.net/catalogo`.*
+
+Y después, el recorrido entero del §1.4 sobre `dispositivos.ccnode.net`, **empezando por el botón
+«Entrar» de `ccnode.net`**.
+
+⚠ **Dos cosas NO medidas, porque sólo se miden con el dominio apuntando:**
+
+- **Si Netlify redirige por su cuenta los alias al dominio principal.** Su documentación no lo aclara. Si
+  el `curl` a `https://ccnode.net/` devuelve `301` hacia `dispositivos`, la portada no se vería nunca en
+  `ccnode.net`.
+- **Si el salto de dominio del botón «Entrar» deja avisos de CSP en la consola.** El `Link` de Next
+  intenta traer `/login` por `fetch`, el proxy lo manda a otro origen y `connect-src 'self'` lo bloquea.
+  Se espera que Next caiga a una navegación completa y funcione igual; **se mira en el navegador**.
+
 ---
 
 ## 2. Cloudflare
@@ -176,6 +246,10 @@ de producción.
 **No se puede configurar hasta que haya dominio.** Cloudflare funciona haciendo de intermediario para
 un nombre de dominio; sin uno, no hay nada que interceptar. Lo de abajo queda listo para el día que
 llegue el definitivo.
+
+⚠ **El dominio llegó el 2026-09-14, y Cloudflare se aplaza igual, por otro motivo** *(D-99)*: usarlo
+exige mover los nameservers de **todo** `ccnode.net` —correo incluido— desde Mochahost, y el dominio es
+del cliente. El DNS se queda en Mochahost *(§1.5)*.
 
 ### 2.1 El orden, que no es intuitivo
 
@@ -277,6 +351,8 @@ creación, que las pide antes del primer despliegue. **El merge pasa a ir primer
 5. Actualizar Site URL y Redirect URLs en Supabase *(§1.3)*. **Sin esto el fallo es mudo.**
 6. Verificar por el efecto *(§1.4)* — incluido HSTS, por primera vez.
 7. **Cuando llegue el dominio:** Cloudflare, en el orden del §2.1.
+   ⚠ *Caducado el 2026-09-14: el dominio llegó y el paso 7 pasa a ser el §1.5 —DNS en Mochahost—.
+   Cloudflare queda aplazado (D-99), y con él el paso 8.*
 8. Comprobar `cf-cache-status` *(§2.4)* antes de dar nada por cerrado.
 
 ### 3.1 El merge a `main`, que no se resuelve archivo por archivo
