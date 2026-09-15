@@ -250,6 +250,12 @@ byte y entonces el bloqueo vuelve **en silencio**, y `'unsafe-inline'` desarma l
   aborta**, no limpia: limpiar por su cuenta borraría datos que alguien podía estar mirando.
 - **El `seed.sql` no siembra ninguna reserva** *(comprobado: cero `insert into inventory_reservations`)*, así
   que cualquier reserva presente al arrancar es residuo de una corrida anterior.
+- **`npm audit fix`, `npm update` o `npm install vitest@…` se caen con `Cannot read properties of null
+  (reading 'edgesOut')`** *(medido el 2026-09-14 con npm 10.9.2, el que trae Node 22.14)*. **No es el
+  árbol: es npm** recorriendo las `peer` opcionales de `vitest` —la traza muere en `#loadPeerSet`—. Control
+  negativo: el mismo `update` **sin `vitest`** sale con exit 0. **Salida medida:** instalar `vitest` con
+  `npx -y npm@11 install -D vitest@<version>` y **después `npm ci` con el npm de siempre**, que es lo que
+  corre el CI: confirma que acepta el lockfile y ejecuta los `postinstall` que npm 11 se salta sin aprobación.
 
 ---
 
