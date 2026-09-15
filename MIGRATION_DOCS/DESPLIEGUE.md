@@ -3,6 +3,12 @@
 > **Fuente de verdad del estado del proyecto: [`ESTADO_Y_PLAN.md`](./ESTADO_Y_PLAN.md).**
 > Este documento no lleva estado ni recuentos: es **operativo** y se consulta **por tarea**, no por
 > fase. Lo que aquí se decide queda registrado como decisión allí.
+>
+> **Aquí vive el CÓMO se configura cada servicio. El CUÁNTO CUESTA vive en
+> [`COSTOS.md`](./COSTOS.md)**, y ninguno de los dos repite al otro: los precios caducan y por eso van
+> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida que este documento no
+> menciona y sin la cual nadie puede entrar: el SMTP propio.** El correo integrado de Supabase manda
+> **2 mensajes por hora** y aquí se entra sólo por magic link.
 
 **Escrito el 2026-08-23**, al cerrar los siete huecos de la auditoría de seguridad. Cubre el paso que
 falta para que el Next.js exista en internet, y el orden importa: **Netlify primero, Cloudflare
@@ -17,6 +23,10 @@ después**, porque Cloudflare necesita un origen al que apuntar.
 ⚠ **Alejandro eliminó el sitio de Netlify el 2026-08-24.** `upc-inventario.netlify.app` ya no
 responde y **no hay nada que reutilizar**: el sitio se crea nuevo. Lo que queda de aquello es lo que
 sigue versionado en `main`.
+
+⚠ **Caducado el 2026-09-14: el sitio se volvió a crear con el mismo nombre.** `upc-inventario.netlify.app`
+responde **200** en `/` y **307 a `/login`** en `/catalogo`, medido con `curl.exe -sI`. El párrafo de
+arriba describe el 2026-08-24 y se conserva por eso.
 
 `main` tiene hoy un `netlify.toml` con `publish = "dist"` y un redirect SPA de `/*` a `/index.html`.
 Es la configuración del **Vite**, no del Next.js. Y esa aplicación **está rota contra el esquema desde
@@ -86,10 +96,29 @@ configuración y sin cambios respecto a la 15.**
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://zqfkzgdyeqxzgzpxgadi.supabase.co` | Pública |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | La clave publicable | Pública, viaja al navegador |
 | `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | El cloud name | Pública |
-| `CLOUDINARY_API_KEY` | La API key | **Sin** `NEXT_PUBLIC_` |
+| `CLOUDINARY_API_KEY` | La API key | **Sin** `NEXT_PUBLIC_`. **NO se marca *secret*** — ver abajo |
 | `CLOUDINARY_API_SECRET` | El secreto | ⚠ **Secreto. Marcar como *secret* en Netlify** |
 | `CLOUDINARY_FOLDER` | La carpeta | — |
 | `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
+
+⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
+**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
+JSON junto con la firma, porque el navegador la necesita para el POST a Cloudinary. **Lo que autoriza
+la subida no es la key: es la firma**, calculada en el servidor con el secreto, atada a un `timestamp`
+y a unos parámetros exactos. La key **identifica**, el secreto **autoriza** —el mismo reparto que
+`client_id` y `client_secret` en OAuth—, y por eso filtrar la key sola no permite subir nada. Marcarla
+*secret* en Netlify no añade seguridad **y arriesga el build**: Netlify escanea el output buscando los
+valores marcados como secretos y falla si los encuentra. *No medido en este proyecto; es motivo para no
+hacerlo, no un fallo previsto.* **El único que no puede llevar `NEXT_PUBLIC_` ni salir del servidor es
+`CLOUDINARY_API_SECRET`** *(D-28, P0-4)*.
+
+⚠ **Medido el 2026-09-14: el escaneo saltó de verdad, y no por el código.** El primer Deploy Preview
+del sitio falló con *«Secret env var "CLOUDINARY_API_SECRET"'s value detected»* en
+`.netlify/.next/cache/turbopack/…/*.sst`: **la caché de compilación de Turbopack**, que desde Next 16.3.0
+guarda los valores de las variables que lee el build y que Netlify conserva entre builds. **El output
+publicado estaba limpio.** Se cerró **apagando esa caché** en `next.config.ts` *(D-100)*, **no**
+excluyendo la ruta con `SECRETS_SCAN_OMIT_PATHS`. ⚠ **Si alguien reactiva la caché, el deploy vuelve a
+fallar**, y es lo correcto: el secreto estaría otra vez en disco.
 
 ⚠ **Son siete y sólo siete: `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` y `NEXT_PUBLIC_CLOUDINARY_FOLDER`
 NO van aquí.** Estaban en `.env.example` hasta el 2026-08-24 y **el código no las lee en ningún sitio**
@@ -109,11 +138,26 @@ Cuando haya URL de Netlify:
 
 *Supabase → Authentication → URL Configuration*
 
-- **Site URL:** la URL del sitio desplegado.
+- **Site URL:** la URL del sitio desplegado, ⚠ **SIN barra final** — ver abajo.
 - **Redirect URLs:** añadir esa URL. `http://127.0.0.1:3000` se queda para el desarrollo local.
 
 **Sin esto, entrar desde el sitio desplegado manda el enlace a `127.0.0.1` y no funciona para nadie**
 — y el fallo no da error: el correo llega, el enlace existe, y al pulsarlo no lleva a ninguna parte.
+
+⚠ **Y la barra final del Site URL rompe el canje, medido contra producción el 2026-08-24.** La plantilla
+de correo construye el destino concatenando —`{{ .SiteURL }}/auth/confirm?token_hash=…`—, así que un
+Site URL acabado en `/` produce **dos barras**. Y las dos barras no son cosméticas:
+
+| Enlace | Respuesta de producción |
+|---|---|
+| `/auth/confirm?token_hash=…` | 307 → `/auth/error?motivo=enlace` — la ruta se alcanza y procesa el token |
+| `//auth/confirm?token_hash=…` | 307 → **`/login?token_hash=…`** — **la ruta no se alcanza nunca** |
+
+**Con dos barras el proxy no reconoce la ruta, la trata como privada y la manda a `/login`:** el canje no
+ocurre, quien entra cae en la pantalla de ingreso sin sesión, y el `token_hash` acaba en la query de una
+página que no lo canjea. **Es el mismo fallo mudo que esta sección advierte, con otra cara** — no hay
+error, sólo un enlace que devuelve al principio. *No se midió si GoTrue normaliza la barra antes de
+concatenar, y no hace falta: quitarla cuesta diez segundos y borra la pregunta.*
 
 ### 1.4 Cómo se verifica que el despliegue funcionó
 
@@ -137,6 +181,72 @@ Y el recorrido entero en el navegador: pedir magic link, entrar, ver el catálog
 sustituye a esto**: corre contra el stack local, y lo que se está verificando aquí es la configuración
 de producción.
 
+### 1.5 El dominio: `ccnode.net` y `dispositivos.ccnode.net` *(D-99)*
+
+**Una sola aplicación, un solo sitio de Netlify, dos nombres.** `ccnode.net` sirve la portada, el FAQ y
+el manifest; **todo lo demás salta con un 307 a `dispositivos.ccnode.net`**, con la ruta y la query
+enteras. Quien reparte es `proxy.ts` a través de `lib/dominios.ts`, **no Netlify**. El porqué, en D-99.
+
+**El DNS lo lleva Mochahost** —nameservers `ns1` a `ns4.mysecurecloudhost.com`— y se edita en su
+cPanel, *Zone Editor* de `ccnode.net`. **Estado medido el 2026-09-14**, antes de cambiar nada:
+
+| Registro | Hoy | Cambiar a |
+|---|---|---|
+| `ccnode.net` **A** | `194.39.149.173` | **`75.2.60.5`** — el balanceador de Netlify para DNS externo |
+| `www` **CNAME** | `ccnode.net` | **`upc-inventario.netlify.app`** |
+| `dispositivos` **A** | `194.39.149.173` | **Borrarlo** y crear **CNAME** → **`upc-inventario.netlify.app`** |
+| `mail` **CNAME** | `ccnode.net` | Borrarlo y crear **A** → `194.39.149.173` |
+| `ftp` **CNAME** | `ccnode.net` | Borrarlo y crear **A** → `194.39.149.173` |
+| **MX** | `ccnode.net` | **`mail.ccnode.net`** |
+
+⚠ **Las tres últimas filas son las que se olvidan, y sin ellas se cae el correo del dominio.** El MX,
+`mail` y `ftp` apuntaban al propio `ccnode.net`: al pasar su registro A a Netlify, el correo se va
+detrás sin ningún aviso. **No se tocan** el TXT del SPF, `webmail` ni `cpanel`, que ya son registros A
+hacia Mochahost. `dispositivos` hay que **borrarlo**, no editarlo: un nombre no puede tener a la vez un A
+y un CNAME. **Sin registros AAAA ni CAA** que estorben; CAA se consultó por `dns.google`, porque
+`Resolve-DnsName` de PowerShell 5.1 no conoce ese tipo.
+
+**El orden:**
+
+1. **Netlify primero** —*Domain management*—: `dispositivos.ccnode.net` como **principal**, `ccnode.net`
+   y `www.ccnode.net` como alias. Si el DNS llega antes, Netlify responde *«Site not found»*.
+2. **Los seis registros de la tabla** en Mochahost. Propagan de minutos a 24 h.
+3. **Supabase, sólo cuando `https://dispositivos.ccnode.net` ya cargue:** Site URL
+   `https://dispositivos.ccnode.net`, **sin barra final** *(§1.3)*, y la misma URL en Redirect URLs.
+   Antes de eso, los magic links llevarían a una página que no carga.
+
+**Cómo se verifica, por el efecto y con control negativo:**
+
+```powershell
+Resolve-DnsName mail.ccnode.net -Server 8.8.8.8
+```
+
+*Tiene que seguir saliendo `194.39.149.173`: el correo sigue en Mochahost.*
+
+```powershell
+curl.exe -sI https://ccnode.net/ | Select-String "HTTP|location"
+```
+
+*`200` sin `Location`: la portada se sirve en `ccnode.net`.*
+
+```powershell
+curl.exe -sI https://ccnode.net/catalogo | Select-String "HTTP|location"
+```
+
+*El control negativo: `307` hacia `https://dispositivos.ccnode.net/catalogo`.*
+
+Y después, el recorrido entero del §1.4 sobre `dispositivos.ccnode.net`, **empezando por el botón
+«Entrar» de `ccnode.net`**.
+
+⚠ **Dos cosas NO medidas, porque sólo se miden con el dominio apuntando:**
+
+- **Si Netlify redirige por su cuenta los alias al dominio principal.** Su documentación no lo aclara. Si
+  el `curl` a `https://ccnode.net/` devuelve `301` hacia `dispositivos`, la portada no se vería nunca en
+  `ccnode.net`.
+- **Si el salto de dominio del botón «Entrar» deja avisos de CSP en la consola.** El `Link` de Next
+  intenta traer `/login` por `fetch`, el proxy lo manda a otro origen y `connect-src 'self'` lo bloquea.
+  Se espera que Next caiga a una navegación completa y funcione igual; **se mira en el navegador**.
+
 ---
 
 ## 2. Cloudflare
@@ -144,6 +254,10 @@ de producción.
 **No se puede configurar hasta que haya dominio.** Cloudflare funciona haciendo de intermediario para
 un nombre de dominio; sin uno, no hay nada que interceptar. Lo de abajo queda listo para el día que
 llegue el definitivo.
+
+⚠ **El dominio llegó el 2026-09-14, y Cloudflare se aplaza igual, por otro motivo** *(D-99)*: usarlo
+exige mover los nameservers de **todo** `ccnode.net` —correo incluido— desde Mochahost, y el dominio es
+del cliente. El DNS se queda en Mochahost *(§1.5)*.
 
 ### 2.1 El orden, que no es intuitivo
 
@@ -245,6 +359,8 @@ creación, que las pide antes del primer despliegue. **El merge pasa a ir primer
 5. Actualizar Site URL y Redirect URLs en Supabase *(§1.3)*. **Sin esto el fallo es mudo.**
 6. Verificar por el efecto *(§1.4)* — incluido HSTS, por primera vez.
 7. **Cuando llegue el dominio:** Cloudflare, en el orden del §2.1.
+   ⚠ *Caducado el 2026-09-14: el dominio llegó y el paso 7 pasa a ser el §1.5 —DNS en Mochahost—.
+   Cloudflare queda aplazado (D-99), y con él el paso 8.*
 8. Comprobar `cf-cache-status` *(§2.4)* antes de dar nada por cerrado.
 
 ### 3.1 El merge a `main`, que no se resuelve archivo por archivo
