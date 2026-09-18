@@ -64,13 +64,21 @@ Pero conviene tener claro el reparto:
 
 | Amenaza | Quién la para |
 |---|---|
-| Inundación volumétrica (L3/L4) | **Cloudflare**, y sólo Cloudflare |
+| Inundación volumétrica (L3/L4) | ~~**Cloudflare**, y sólo Cloudflare~~ ⚠ *Corregido el 2026-09-17:* **Netlify**, que mitiga DDoS de capa 3, 4 y 7 en todos sus planes. Y Supabase, que tiene su propio borde |
 | Abuso de una ruta cara por alguien autenticado | El código — `pedir_firma_cloudinary()`, `daily_limit_per_product`, los topes de H-1 |
 | Texto de 500 MB en una columna | **La base** *(H-1)*. Cloudflare no mira el cuerpo de un `POST` autenticado |
 | Bots que raspan el catálogo | Cloudflare |
+| **Agotar el tope de correos para que nadie entre** *(H-9)* | **Un CAPTCHA dentro de Supabase Auth.** Ni Cloudflare ni Netlify lo ven: la petición va del navegador a `supabase.co` |
+| **Agotar los créditos de Netlify, que pausa el sitio** *(H-12)* | El código —`remotePatterns` acotado a nuestra cuenta de Cloudinary— y la recarga automática del plan |
 
 **Nada de lo que se configure en Cloudflare sustituye a los topes de la base.** Son capas distintas
 sobre problemas distintos.
+
+⚠ **Añadido el 2026-09-17, con la segunda auditoría.** Esta sección decía «Cloudflare no para un DDoS
+por sí solo» y era cierto, pero se quedaba corto: **el DoS que más duele aquí no es de volumen, es de
+cupo**. Un solo script sin sesión puede gastar el tope de correos de todo el proyecto, o los créditos
+del mes de Netlify, **sin llegar nunca a parecer un ataque**. Los hallazgos están en `ESTADO_Y_PLAN.md`
+§3, de H-8 a H-19.
 
 ---
 
@@ -262,12 +270,26 @@ llegue el definitivo.
 exige mover los nameservers de **todo** `ccnode.net` —correo incluido— desde Mochahost, y el dominio es
 del cliente. El DNS se queda en Mochahost *(§1.5)*.
 
+⚠ **Y la segunda auditoría, el 2026-09-17, encontró dos motivos más para no darlo por hecho** *(Q-31)*:
+
+1. **Netlify desaconseja poner el proxy de Cloudflare delante de su CDN.** Lo dice su guía de soporte
+   *«What problems could occur when using Cloudflare in front of Netlify?»*: lo que recomienda es la nube
+   **gris** —sólo DNS—, que no protege nada. El paso 4 del §2.1 pedía la **naranja**.
+2. **La regla del §2.3 no cubre la puerta que importa.** El magic link lo pide el navegador directo a
+   `supabase.co` y nunca pasa por este dominio. Esa puerta se cierra con **Turnstile dentro de Supabase
+   Auth** *(H-9)*, y **Turnstile no exige tener el DNS en Cloudflare**.
+
+**Lo de abajo se conserva** porque sigue siendo correcto si algún día se decide ponerlo, pero ya no es
+el siguiente paso del despliegue.
+
 ### 2.1 El orden, que no es intuitivo
 
 1. **Añadir el dominio a Cloudflare** (*Add a site*). Cloudflare escanea los DNS existentes.
 2. **Cambiar los nameservers** en el registrador al par que Cloudflare indique. Tarda de minutos a 24 h.
 3. **En Netlify**, añadir el dominio personalizado (*Domain management → Add a domain*).
 4. **En Cloudflare**, crear el registro DNS hacia Netlify **con la nube naranja activada** (proxied).
+   ⚠ *Precisado el 2026-09-17: **Netlify desaconseja este paso** —ver arriba, Q-31—. Si se hace, es
+   contra la recomendación del proveedor y hay que medir que los certificados se sigan renovando.*
 5. **Recién entonces**, SSL y las reglas.
 
 ### 2.2 SSL — el ajuste que rompe el sitio si se hace mal
@@ -296,8 +318,13 @@ donde más duele:
 
 **Por qué `/auth` y no `/api`:** `/api/cloudinary/firmas` **ya tiene su tope en la base**
 —`pedir_firma_cloudinary()`, 60/hora por persona— y ese cuenta por **usuario**, que es mejor que por
-IP. `/auth` no tiene nada delante salvo los límites de Supabase, y es la única puerta que un anónimo
-puede aporrear.
+IP. `/auth` no tiene nada delante salvo los límites de Supabase, ~~y es la única puerta que un anónimo
+puede aporrear~~.
+
+⚠ *Corregido el 2026-09-17: **no es la única, y no es la que más importa.** `signInWithOtp` sale del
+navegador directo a `https://zqfkzgdyeqxzgzpxgadi.supabase.co/auth/v1/otp`, así que **pedir magic links
+no pasa por `/auth` ni por `/login`** y esta regla no lo vería. `/login` es sólo la página. Lo que sí
+llega por aquí es `/auth/confirm`, el canje: eso sí lo frena la regla.*
 
 *Managed Challenge* y no *Block*: un bloqueo duro por IP en una universidad **castiga a un campus
 entero detrás de un NAT**. El desafío deja pasar a la persona real y frena al script.
@@ -536,6 +563,8 @@ Se pide un enlace en `https://dispositivos.ccnode.net/login` con un correo **`@u
 
 *Medido el 2026-09-17: los cuatro pasan. **El correo llegó a Correo no deseado**, que es lo único
 abierto y vive como pendiente en `ESTADO_Y_PLAN.md`.*
+
+⚠ *Precisado el 2026-09-18: **desde la noche del 17 la entrega es errática**, con Resend marcando `delivered` todos los que se contrastaron: unos se abren, otros caen en spam y al menos uno no aparece en ninguna carpeta. El diagnóstico y lo que falta, en Q-29.*
 
 ⚠ **`Delivered` en Resend significa que el servidor del destinatario aceptó el mensaje, no que el
 usuario lo vea.** Dónde lo coloca después —Bandeja de entrada o Correo no deseado— lo decide
