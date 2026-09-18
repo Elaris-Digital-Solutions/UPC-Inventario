@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { destino } from "@/lib/auth/destino";
+import { destinoInterno } from "@/lib/auth/volver";
 import { createClient } from "@/lib/supabase/server";
 
 export async function guardarPerfil(formData: FormData) {
@@ -46,13 +47,11 @@ export async function guardarPerfil(formData: FormData) {
   // D-79: si se llego desde la puerta de una reserva, se vuelve a esa reserva.
   // Sin esto, dar los datos EXPULSA de la reserva que se estaba haciendo.
   //
-  // EL VALOR SE COMPRUEBA ANTES DE USARSE: llega del cliente, y un redirect() a un
-  // valor sin atar es un REDIRECT ABIERTO. Solo rutas internas: tiene que empezar
-  // por "/" y NO por "//", porque "//evil.com" es absoluta con protocolo heredado
-  // y el navegador la sigue fuera del sitio.
-  const volver = formData.get("volver") as string | null;
+  // El valor llega del cliente: destinoInterno() lo ata al propio sitio, y el
+  // porque de que no baste con mirar si empieza por "/" vive alli (H-11).
+  const volver = destinoInterno(formData.get("volver"));
 
-  if (volver && volver.startsWith('/') && !volver.startsWith('//')) {
+  if (volver) {
     redirect(volver);
   }
 

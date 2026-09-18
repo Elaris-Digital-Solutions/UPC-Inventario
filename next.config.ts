@@ -44,17 +44,31 @@ const nextConfig: NextConfig = {
   // de Next -que corre en el servidor y va a buscarla el mismo- se niega a
   // pedirla.
   //
-  // pathname '/**' y no una ruta concreta: el `folder` de Cloudinary es
-  // configurable por entorno y acotarlo aca romperia el dia que alguien lo
-  // cambie, sin ganar nada -el host ya es la frontera que importa-.
+  // SOLO NUESTRA CUENTA, Y SOLO /image/upload/ (H-12, 2026-09-17). Con el
+  // host solo, el optimizador redimensionaba fotos de CUALQUIER cuenta de
+  // Cloudinary y sin sesion -el matcher de proxy.ts excluye _next/image-:
+  // medido, res.cloudinary.com/demo respondia 200. Eso gasta creditos de
+  // Netlify, que al agotarse PAUSA el sitio, y sirve contenido ajeno desde
+  // nuestro dominio. Este comentario decia que "el host ya es la frontera que
+  // importa", y no lo era: ese host lo comparten todas las cuentas.
+  //
+  // `/image/upload/` y no `/**`: `/image/fetch/` puede traer cualquier URL de
+  // internet a traves de la cuenta. El `folder` sigue libre debajo.
+  //
+  // `demo` solo FUERA de Netlify: es la cuenta de las dos fotos del seed.sql,
+  // que usan el stack local y el E2E del CI. En Netlify la base es la real y no
+  // la necesita, y es una cuenta publica de ejemplos que no controlamos.
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+      ...(process.env.NETLIFY ? [] : ["demo"]),
+    ]
+      .filter((cuenta): cuenta is string => Boolean(cuenta))
+      .map((cuenta) => ({
+        protocol: "https" as const,
         hostname: "res.cloudinary.com",
-        pathname: "/**",
-      },
-    ],
+        pathname: `/${cuenta}/image/upload/**`,
+      })),
   },
 
   // Tres cabeceras de seguridad que NO dependen de la peticion -a diferencia
