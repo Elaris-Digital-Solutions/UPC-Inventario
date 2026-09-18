@@ -6,9 +6,12 @@
 >
 > **Aquí vive el CÓMO se configura cada servicio. El CUÁNTO CUESTA vive en
 > [`COSTOS.md`](./COSTOS.md)**, y ninguno de los dos repite al otro: los precios caducan y por eso van
-> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida que este documento no
-> menciona y sin la cual nadie puede entrar: el SMTP propio.** El correo integrado de Supabase manda
-> **2 mensajes por hora** y aquí se entra sólo por magic link.
+> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida sin la cual nadie
+> puede entrar: el SMTP propio.** El correo integrado de Supabase manda **2 mensajes por hora** y aquí
+> se entra sólo por magic link.
+>
+> ⚠ *Caducado el 2026-09-17: el SMTP propio ya está montado y **su cómo vive en el §4** de este
+> documento. La frase de arriba decía que este documento «no lo menciona», y era cierta hasta hoy.*
 
 **Escrito el 2026-08-23**, al cerrar los siete huecos de la auditoría de seguridad. Cubre el paso que
 falta para que el Next.js exista en internet, y el orden importa: **Netlify primero, Cloudflare
@@ -419,3 +422,122 @@ cuatro commits propios de `main`, y ninguno está cubierto por `legacy/vite-fina
 `legacy/refactor-marzo`** —comprobado con `git tag --contains`—, así que se perderían de verdad. Es
 justo lo que D-29 existe para impedir. **Y no compra nada:** Netlify publica el árbol del último
 commit, nunca la historia. Conservar los ancestros no publica ni un byte del Vite.
+
+---
+
+## 4. Correo saliente · Resend y el SMTP propio
+
+**Montado el 2026-09-17.** Sin esto nadie entra: no hay contraseñas, y el SMTP integrado de Supabase
+manda **2 mensajes por hora**. El coste y por qué Resend y no otro están en
+[`COSTOS.md`](./COSTOS.md) §4; aquí sólo vive el cómo.
+
+### 4.1 El dominio remitente es `dispositivos.ccnode.net`, no `ccnode.net`
+
+**Subdominio, y por dos motivos.** Si los correos del sistema caen en spam, no arrastran la reputación
+del correo de la empresa, que sigue en Mochahost. Y el remitente coincide con la dirección donde está
+la aplicación.
+
+⚠ **El correo de `ccnode.net` no se toca.** El MX sigue en `mail.ccnode.net` y el SPF de la raíz
+—`v=spf1 +a +mx +ip4:198.38.90.23 include:spf.mysecurecloudhost.com ~all`— se queda como está: los
+registros de Resend cuelgan de **otros nombres** y no compiten con él. **Y no hace falta DMARC nuevo:**
+`_dmarc.ccnode.net` ya publica `v=DMARC1; p=none;` sin `sp=`, así que el subdominio hereda esa política.
+
+### 4.2 Los registros en cPanel, que NO son los que documenta Resend en su guía vieja
+
+⚠ **Resend pide hoy un TXT y DOS CNAME.** La guía que circula —y lo que este documento decía antes de
+medirlo— habla de un **MX a `feedback-smtp…amazonses.com` y un TXT de SPF**. **Lo que la consola
+entregó el 2026-09-17 fue otra cosa**, la infraestructura `forge.rmta.net`. **Se copia lo que muestra
+la consola, no lo que dice ninguna guía.**
+
+| Tipo | Nombre *(completo y con punto final)* | Valor |
+|---|---|---|
+| TXT | `resend._domainkey.dispositivos.ccnode.net.` | la clave DKIM, `p=MIGf…`, **en una sola línea y sin comillas** |
+| CNAME | `rsend.dispositivos.ccnode.net.` | `rsend-sae1.forge.rmta.net.` |
+| CNAME | `send.dispositivos.ccnode.net.` | `send.forge.rmta.net.` |
+
+**El punto final no es cosmético:** sin él, cPanel añade `.ccnode.net` otra vez y el registro queda en
+`send.dispositivos.ccnode.net.ccnode.net`. **Y el formulario simple del Zone Editor no ofrece TTL**:
+pone el suyo, y no pasa nada.
+
+**Que `dispositivos` sea un CNAME a Netlify no estorba:** un CNAME sólo prohíbe otros datos **en su
+mismo nombre**, y estos tres son nombres distintos.
+
+### 4.3 Comprobar el DNS antes de pulsar *Verify*, y contra los CUATRO nameservers
+
+Preguntar a un resolutor público mide la caché. Preguntar al servidor autoritativo mide lo que quedó
+guardado. **Los dos comandos siguientes se corren contra `ns1` … `ns4`**, y el motivo se midió ese
+mismo día:
+
+⚠ **Los cuatro nameservers de Mochahost no se sincronizan a la vez, y su número de serie miente.**
+Medido el 2026-09-17: con los tres registros ya guardados, `ns3` y `ns4` servían los tres y **`ns1` y
+`ns2` no tenían `send`** —y sus seriales discrepaban, `…14` contra `…17`—. **Pulsar *Verify* en ese
+momento habría fallado sin que hubiera nada mal**: basta con que Resend le pregunte al que va atrasado.
+
+```powershell
+foreach ($s in 'ns1','ns2','ns3','ns4') { "== $s"; Resolve-DnsName send.dispositivos.ccnode.net -Type CNAME -Server "$s.mysecurecloudhost.com" -DnsOnly | Where-Object Section -eq 'Answer' | Select-Object -ExpandProperty NameHost }
+```
+
+**Y el DKIM se compara entero, no se mira.** Una clave truncada tiene el mismo aspecto que una buena:
+
+```powershell
+$esperado = 'PEGAR_AQUI_EL_VALOR_DE_RESEND'
+```
+
+```powershell
+foreach ($s in 'ns1','ns2','ns3','ns4') { $v = (Resolve-DnsName resend._domainkey.dispositivos.ccnode.net -Type TXT -Server "$s.mysecurecloudhost.com" -DnsOnly | Where-Object Section -eq 'Answer').Strings -join ''; "$s igual=$($v -ceq $esperado) largo=$($v.Length)/$($esperado.Length)" }
+```
+
+*El 2026-09-17 salió `igual=True largo=218/218` en los cuatro.*
+
+### 4.4 Resend: seguimiento apagado y una clave que sólo puede enviar
+
+- **Domains → Configuration: *Click tracking* y *Open tracking* APAGADOS.** ⚠ Con el de clics
+  encendido, Resend **reescribe el enlace del correo** para pasarlo por su dominio de seguimiento: el
+  magic link deja de apuntar a `dispositivos.ccnode.net` y el canje se rompe.
+- **API Keys → *Sending access*, limitada a `dispositivos.ccnode.net`.** Resend la muestra **una sola
+  vez**. Va al gestor de contraseñas: **ni al repositorio ni a `.env`** — es la misma regla del token
+  de la CLI de Supabase.
+- **La clave de la pantalla de bienvenida se borra al terminar.** Sirve para el correo de prueba y
+  nada más.
+
+⚠ **La prueba de bienvenida no mide nada de este montaje** y conviene saberlo antes de perder una
+hora: sale de `onboarding@resend.dev`, un remitente **compartido por todas las cuentas de Resend**, y
+sólo acepta como destinatario el correo de la propia cuenta. El 2026-09-17 Resend la registró
+`Delivered` y **Gmail no la mostró en ninguna carpeta**. **Eso no dice nada sobre el dominio propio.**
+
+### 4.5 Supabase: el SMTP y el límite que deja a todos fuera
+
+**Authentication → Emails → SMTP Settings → *Enable custom SMTP*:**
+
+| Campo | Valor |
+|---|---|
+| Sender email | `no-responder@dispositivos.ccnode.net` |
+| Host · Port | `smtp.resend.com` · `465` |
+| Username | `resend` |
+| Password | la clave de envío de Resend |
+
+⚠ **Y a continuación, Authentication → Rate Limits.** Al activar SMTP propio el tope pasa de 2 a
+**30 correos por hora**, y **es uno solo para todo el proyecto, no por alumno**. Al superarlo **nadie
+puede entrar** hasta la hora siguiente, y el fallo aparece como un error genérico de inicio de sesión.
+
+**Las plantillas no las toca este paso.** Siguen siendo las del dashboard, que apuntan a
+`/auth/confirm?token_hash=…`; ver el §1.3 sobre la barra final del Site URL.
+
+### 4.6 Verificar por el efecto, con control negativo
+
+Se pide un enlace en `https://dispositivos.ccnode.net/login` con un correo **`@upc.edu.pe` real**:
+
+1. **Resend → Emails** lo muestra `Delivered`. **Es el control positivo de que salió por Resend:** el
+   SMTP integrado de Supabase no aparecería ahí.
+2. En el origen del mensaje: `dkim=pass`, `spf=pass`, `dmarc=pass`.
+3. **Se abre el enlace UNA sola vez** y la sesión queda iniciada.
+4. **Control negativo:** un correo que no sea `@upc.edu.pe` **no** produce ningún envío en Resend,
+   porque lo corta el enganche *(D-32)*.
+
+*Medido el 2026-09-17: los cuatro pasan. **El correo llegó a Correo no deseado**, que es lo único
+abierto y vive como pendiente en `ESTADO_Y_PLAN.md`.*
+
+⚠ **`Delivered` en Resend significa que el servidor del destinatario aceptó el mensaje, no que el
+usuario lo vea.** Dónde lo coloca después —Bandeja de entrada o Correo no deseado— lo decide
+Microsoft, y Resend no lo sabe. **Es un instrumento que mide el tramo hasta la puerta, no hasta la
+persona.**
