@@ -830,20 +830,17 @@ export async function darDeAltaPersonal(correo: string, rol: RolStaff): Promise<
   return null;
 }
 
+// Regla 5 -nadie se cambia a si mismo el rol ni el acceso- la aplica la BASE
+// desde la migracion 42 (H-14): con un solo admin en produccion, desactivarse o
+// degradarse deja a todo el personal sin panel y sin forma de revertirlo. Aqui
+// solo se traduce el rechazo, que se reconoce por el texto del trigger. La
+// comprobacion que habia aqui comparaba `sub` con el uuid como TEXTO, y
+// Postgres acepta el mismo uuid en mayusculas o entre llaves.
+const RECHAZO_A_SI_MISMO = 'a si mismo';
+
 // Cambia el rol de alguien que YA es personal (D-52).
 export async function cambiarRolPersonal(userId: string, rol: RolStaff): Promise<ResultadoAdmin> {
   const supabase = await createClient();
-
-  // Regla 5. RLS SI deja al admin tocar su propia fila, y despues no hay forma
-  // de revertirlo desde la aplicacion: al desactivarse deja de cumplir
-  // `private.is_admin()`. Con un solo admin en produccion, ese clic deja a todo
-  // el personal sin panel.
-  const { data: claims } = await supabase.auth.getClaims();
-  const sub = claims?.claims.sub;
-
-  if (sub === userId) {
-    return { error: 'No puedes cambiar tu propio rol desde aquí.' };
-  }
 
   // SIN mensajeDeRechazoPersonal(): esa traduccion es para el INSERT del alta, y
   // ninguno de sus dos codigos es alcanzable desde un UPDATE de `role`.
@@ -852,6 +849,10 @@ export async function cambiarRolPersonal(userId: string, rol: RolStaff): Promise
     .update({ role: rol })
     .eq('user_id', userId)
     .select();
+
+  if (error?.message.includes(RECHAZO_A_SI_MISMO)) {
+    return { error: 'No puedes cambiar tu propio rol desde aquí.' };
+  }
 
   if (error) {
     return { error: reportar('cambiarRolPersonal', error) };
@@ -872,20 +873,16 @@ export async function cambiarRolPersonal(userId: string, rol: RolStaff): Promise
 export async function cambiarActivoPersonal(userId: string, activo: boolean): Promise<ResultadoAdmin> {
   const supabase = await createClient();
 
-  // Regla 5, mismo caso que cambiarRolPersonal().
-  const { data: claims } = await supabase.auth.getClaims();
-  const sub = claims?.claims.sub;
-
-  if (sub === userId) {
-    return { error: 'No puedes cambiar tu propio acceso desde aquí.' };
-  }
-
   // SIN mensajeDeRechazoPersonal(), mismo motivo que cambiarRolPersonal().
   const { data, error } = await supabase
     .from('staff_members')
     .update({ activo })
     .eq('user_id', userId)
     .select();
+
+  if (error?.message.includes(RECHAZO_A_SI_MISMO)) {
+    return { error: 'No puedes cambiar tu propio acceso desde aquí.' };
+  }
 
   if (error) {
     return { error: reportar('cambiarActivoPersonal', error) };
@@ -900,12 +897,11 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
   return null;
 }
 
-// POR QUE ESTA PANTALLA NO OFRECE UN DELETE, Y NO ES UN OLVIDO: el privilegio
-// esta concedido y `staff_admin_all` es `for all`, asi que el admin SI podria
-// borrar la fila por la API. No se ofrece porque `activo=false` ya corta el
-// acceso, y borrar pierde la UNICA constancia de que ese uuid fue personal y con
-// que rol -el historial no se rompe: `changed_by` y `created_by` son FK a
-// `auth.users`, no a `staff_members`-.
+// POR QUE ESTA PANTALLA NO OFRECE UN DELETE, Y NO ES UN OLVIDO: `activo=false`
+// ya corta el acceso, y borrar pierde la UNICA constancia de que ese uuid fue
+// personal y con que rol -el historial no se rompe: `changed_by` y `created_by`
+// son FK a `auth.users`, no a `staff_members`-. Desde la migracion 42 (H-14)
+// tampoco se puede por la API: el DELETE esta revocado a `authenticated`.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /admin/ajustes (D-54, Q-19)

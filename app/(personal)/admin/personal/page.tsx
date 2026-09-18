@@ -15,10 +15,9 @@ import { Antetitulo, TituloSeccion } from "@/components/antetitulo";
 // controles de cambiar rol y desactivar (ver el comentario de TablaPersonal
 // mas abajo, en components/admin/tabla-personal.tsx). El layout de este
 // grupo -- app/(personal)/admin/layout.tsx -- ya exige rol admin antes de
-// llegar aca, asi que esto NO es una comprobacion de autorizacion: es la
-// misma lectura que ya hacen cambiarRolPersonal() y cambiarActivoPersonal()
-// (lib/admin/acciones.ts), del lado de lo que se PINTA y no de lo que se
-// autoriza.
+// llegar aca, asi que esto NO es una comprobacion de autorizacion: decide lo
+// que se PINTA. Que nadie se cambie a si mismo lo impide la base desde la
+// migracion 42 (H-14).
 //
 // SIN cabecera ni pie propios: app/(personal)/layout.tsx y
 // app/(personal)/admin/layout.tsx ya los montan.
