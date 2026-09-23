@@ -100,7 +100,8 @@ configuración y sin cambios respecto a la 15.**
 
 ### 1.2 Variables de entorno — en el panel, nunca en el repositorio
 
-*Site configuration → Environment variables.* Son siete, y **una es un secreto de verdad**:
+*Site configuration → Environment variables.* ~~Son siete~~ Son ocho desde el 2026-09-18 —se suma la de
+Turnstile, H-9—, y **una es un secreto de verdad**:
 
 | Variable | Valor | Nota |
 |---|---|---|
@@ -111,6 +112,7 @@ configuración y sin cambios respecto a la 15.**
 | `CLOUDINARY_API_SECRET` | El secreto | ⚠ **Secreto. Marcar como *secret* en Netlify** |
 | `CLOUDINARY_FOLDER` | La carpeta | — |
 | `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | La *site key* de Turnstile | Pública. **Se pone ANTES de encender el CAPTCHA en Supabase** *(§5.1)*; la *secret key* va a Supabase, no aquí |
 
 ⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
 **viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
@@ -570,3 +572,43 @@ abierto y vive como pendiente en `ESTADO_Y_PLAN.md`.*
 usuario lo vea.** Dónde lo coloca después —Bandeja de entrada o Correo no deseado— lo decide
 Microsoft, y Resend no lo sabe. **Es un instrumento que mide el tramo hasta la puerta, no hasta la
 persona.**
+
+## 5. El CAPTCHA del login · Turnstile *(H-9)*
+
+**Por qué hace falta:** pedir un magic link sale **del navegador directo a `supabase.co`**, y el tope de
+correos por hora *(§4.5)* es **uno para todo el proyecto**. Sin CAPTCHA, cualquiera lo agota pidiendo
+enlaces para correos inventados, y **nadie entra durante esa hora**. **Turnstile es de Cloudflare pero
+NO exige tener el DNS en Cloudflare** *(§2)*.
+
+**El código ya está preparado** *(2026-09-18)*: sin la variable de abajo, el login funciona exactamente
+como antes. Con ella, pinta el widget y el botón espera al token.
+
+### 5.1 El orden, y el que está mal deja a todos fuera
+
+1. **Cloudflare → Turnstile → *Add widget*.** Nombre `upc-inventario`; *Hostnames*
+   `dispositivos.ccnode.net`; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
+   la *secret key*.
+2. **Netlify → Environment variables:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = la *site key*. ⚠ Es
+   `NEXT_PUBLIC_`, así que **se inlinea al compilar**: hace falta un **deploy nuevo** después de ponerla.
+   La *secret key* **no** va a Netlify.
+3. **Desplegar, y comprobar que el widget aparece** en `https://dispositivos.ccnode.net/login` y que el
+   enlace se sigue pidiendo bien. **Todavía con el CAPTCHA apagado en Supabase**: el token viaja y
+   Supabase lo ignora.
+4. **Recién entonces, Supabase → Authentication → Attack Protection → *Enable Captcha protection*:**
+   proveedor **Turnstile** y la *secret key*.
+
+⚠ **Si el paso 4 se da antes que el 3, NADIE puede pedir su enlace**: Supabase exige un token que el
+sitio publicado todavía no manda. Medido en local: sin token responde **`400 captcha_failed`**, *«no
+captcha_token found»*.
+
+### 5.2 Verificar por el efecto, con control negativo
+
+- **Positivo:** pedir un enlace desde el sitio → «Revisa tu correo», y el correo llega.
+- **Negativo:** pedir un enlace **sin** token —`POST /auth/v1/otp` a mano, sin `captcha_token`— → tiene
+  que dar **400 `captcha_failed`**. Es lo que demuestra que el CAPTCHA está encendido y no sólo pintado.
+
+*Medido el 2026-09-18 **en local**, con las claves de prueba que publica Cloudflare —la que siempre
+pasa—: el negativo dio `400 captcha_failed`; en un navegador real contra el build de producción, el botón
+empezó deshabilitado, se habilitó al llegar el token, el enlace se pidió y salió «Revisa tu correo», con
+**0 violaciones de CSP**. El widget es un iframe de `https://challenges.cloudflare.com`, y por eso la CSP
+lleva `frame-src` hacia ese origen y sólo hacia ése. **En producción no está medido todavía.***
