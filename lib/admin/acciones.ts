@@ -65,7 +65,7 @@ function mensajeDeRechazoAdmin(mensajeDelMotor: string): string {
     return 'Hay códigos de unidad repetidos. Dentro de un mismo producto cada código tiene que ser distinto.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoAdmin', { message: mensajeDelMotor });
 }
 
 // Alta de producto con sus unidades, F7: "en un solo formulario".
@@ -401,15 +401,25 @@ export async function reordenarImagenes(
   const supabase = await createClient();
 
   for (const [indice, id] of idsEnOrden.entries()) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('product_images')
       .update({ sort_order: indice })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('product_id', productoId)
+      .select('id');
 
     // Se corta al primer fallo: seguir dejaria un orden a medias y el admin no
     // sabria cual de las dos mitades esta viendo.
     if (error) {
       return { error: reportar('reordenarImagenes', error) };
+    }
+
+    // H-15: una fila que NO se actualiza tambien corta. Quien no es admin recibe
+    // cero filas SIN error -RLS filtra en silencio-, y antes seguia: una lista de
+    // mil ids eran mil PATCH. Ahora es uno. Lo mismo si la imagen ya no es de
+    // este producto: la pantalla estaba desfasada.
+    if (data.length === 0) {
+      return { error: 'No se pudo reordenar: alguna imagen ya no está en este producto, o no tienes permiso. Actualiza la página.' };
     }
   }
 
@@ -514,7 +524,7 @@ function mensajeDeRechazoReserva(mensajeDelMotor: string): string {
     return 'Esta reserva ya cambió de estado, probablemente porque alguien la actualizó primero. Actualiza la página para ver su estado actual.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoReserva', { message: mensajeDelMotor });
 }
 
 // UPDATE DIRECTO y no una RPC: `reservations_update_staff` le aplica al admin
@@ -563,7 +573,7 @@ function mensajeDeRechazoCancelacionAdmin(mensajeDelMotor: string): string {
     return 'El equipo ya se entregó, y una reserva entregada no se puede cancelar: la base no admite ese cambio. Ciérrala desde esta misma fila como «Devuelta» o como «No se devolvió», según lo que haya pasado.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoCancelacionAdmin', { message: mensajeDelMotor });
 }
 
 // La cancelacion con motivo (F6).
@@ -615,7 +625,7 @@ function mensajeDeRechazoDia(mensajeDelMotor: string): string {
     return 'Ese día ya está inhabilitado.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoDia', { message: mensajeDelMotor });
 }
 
 // D-47: el motivo del dia viaja al `cancellation_reason` que lee el alumno.
@@ -763,7 +773,7 @@ function mensajeDeRechazoPersonal(mensajeDelMotor: string): string {
     return 'Esa cuenta ya no existe en el sistema de acceso. Puede haberse eliminado justo después de que la buscaste; vuelve a intentarlo.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoPersonal', { message: mensajeDelMotor });
 }
 
 // Alta de personal (D-53: se busca por el CORREO COMPLETO, nunca con un buscador
@@ -917,8 +927,8 @@ export async function cambiarActivoPersonal(userId: string, activo: boolean): Pr
 //
 // `app_settings_slot_divisor` NO LLEVA TEXTO PROPIO y no es un olvido: no es
 // alcanzable desde esta pantalla, porque `slot_minutes` es un DESPLEGABLE de los
-// ocho valores legales y no un campo libre. Si algun dia fuera libre, caeria al
-// mensaje CRUDO hasta que alguien le escriba el suyo. Mismo criterio para los
+// ocho valores legales y no un campo libre. Si algun dia fuera libre, caeria a
+// reportar() -generico con id- hasta que alguien le escriba el suyo. Mismo criterio para los
 // otros `check` de la tabla que ninguna barrera deja llegar.
 function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
   if (mensajeDelMotor.includes('app_settings_booking_window_days_check')) {
@@ -941,7 +951,7 @@ function mensajeDeRechazoAjustes(mensajeDelMotor: string): string {
     return 'La antelación mínima para cancelar tiene que ser de entre 0 y 1440 minutos.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoAjustes', { message: mensajeDelMotor });
 }
 
 // Los CINCO ajustes globales de reserva (D-39/Q-14 y M-12/D-70).
@@ -1018,7 +1028,7 @@ function mensajeDeRechazoHorario(mensajeDelMotor: string): string {
     return 'La hora de apertura tiene que caer justo en un bloque. Ajusta sus minutos o cambia el tamaño del bloque en /admin/ajustes.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoHorario', { message: mensajeDelMotor });
 }
 
 // La segunda ruta es la que importa: el techo de la sede es de donde nace la
@@ -1114,7 +1124,7 @@ function mensajeDeRechazoTurno(mensajeDelMotor: string): string {
     return 'Esa persona ya no está en el personal.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoTurno', { message: mensajeDelMotor });
 }
 
 // El aviso de D-92, que cierra Q-21: cuantas reservas quedan DESCUBIERTAS si se

@@ -74,8 +74,9 @@ function comoTextoOpcional(valor: FormDataEntryValue | null): string | null {
 // CUATRO llevan texto propio -perfil incompleto, sancion vigente, limite diario
 // y franja ocupada-: son los unicos que la interfaz no evita por su cuenta. Los
 // otros ocho exigirian que el calendario mintiera o que alguien llamara a la RPC
-// sin pasar por el formulario, asi que el crudo dice que algo se rompio mejor
-// que un mensaje bonito que lo disimularia (regla 1).
+// sin pasar por el formulario, asi que pasan por `reportar()`: el crudo va al
+// log bajo un id, que dice que algo se rompio mejor que un mensaje bonito que
+// lo disimularia (regla 1; H-16).
 function mensajeDeRechazo(mensajeDelMotor: string): string {
   if (mensajeDelMotor === 'Completa tu perfil antes de reservar') {
     return 'Completa tu perfil antes de reservar: nos falta tu nombre, tu apellido o tu carrera.';
@@ -102,9 +103,9 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
     const normalizado = resto.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
     const fecha = new Date(normalizado);
 
-    // Si no parsea, NUNCA se inventa una fecha: se cae al crudo.
+    // Si no parsea, NUNCA se inventa una fecha: se cae a reportar().
     if (Number.isNaN(fecha.getTime())) {
-      return mensajeDelMotor;
+      return reportar('mensajeDeRechazo', { message: mensajeDelMotor });
     }
 
     // Con HORA y no solo el dia: la RPC compara `banned_until > now()`, o sea un
@@ -133,7 +134,7 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
     return 'Esa franja se acaba de ocupar mientras elegías. Por favor, elige otra hora.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazo', { message: mensajeDelMotor });
 }
 
 // Los rechazos de `cancel_reservation`. La RPC rechaza en cinco pasos y solo DOS
@@ -145,7 +146,7 @@ function mensajeDeRechazo(mensajeDelMotor: string): string {
 //      se pinto cuando aun era cancelable, y React no reevalua al pasar el
 //      tiempo.
 //
-// #1 (motivo vacio), #2 (inexistente) y #3 (ajena) van CRUDOS: el dialogo
+// #1 (motivo vacio), #2 (inexistente) y #3 (ajena) van a reportar(): el dialogo
 // deshabilita el boton sin motivo, el id sale de misReservas() y esa consulta ya
 // esta filtrada por RLS.
 //
@@ -167,7 +168,7 @@ function mensajeDeRechazoCancelacion(mensajeDelMotor: string): string {
     return 'Ya empezó la franja de esta reserva y no se puede cancelar desde aquí. Habla con el personal del mostrador.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoCancelacion', { message: mensajeDelMotor });
 }
 
 // Server Action del formulario de reserva, enganchada con `useActionState`: por
@@ -378,7 +379,7 @@ export async function guardarEncuesta(
   // radios, el `upsert` resolviendo el UNIQUE y el `alumno_id` puesto por este
   // codigo, no queda NINGUN rechazo que un alumno pueda provocar navegando. Los
   // tres que existen -23505, violacion de RLS y los CHECK de rango- exigirian un
-  // defecto en otro sitio, y el crudo lo dice mejor (regla 1).
+  // defecto en otro sitio, y el crudo en el log lo dice mejor (regla 1).
   if (error) {
     return { error: reportar('guardarEncuesta', error) };
   }

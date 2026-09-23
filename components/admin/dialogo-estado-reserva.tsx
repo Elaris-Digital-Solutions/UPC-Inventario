@@ -42,9 +42,12 @@ export type ModoDialogo = "cancelar" | "no_devuelta";
 // trigger `apply_penalties` en el momento de la escritura.
 const TEXTOS: Record<
   ModoDialogo,
-  { titulo: string; descripcion: string; etiqueta: string; ayuda: string; confirmar: string }
+  // `maxLength` es el CHECK de H-1 de la columna que escribe cada modo:
+  // `cancellation_reason` 300 y `inventory_unit_notes.note` 500.
+  { titulo: string; descripcion: string; etiqueta: string; ayuda: string; confirmar: string; maxLength: number }
 > = {
   cancelar: {
+    maxLength: 300,
     titulo: "Cancelar la reserva",
     descripcion:
       "El alumno va a leer este motivo en su panel, así que escríbelo pensando en él. La reserva queda cancelada y la unidad vuelve a estar libre en esa franja.",
@@ -53,6 +56,7 @@ const TEXTOS: Record<
     confirmar: "Cancelar la reserva",
   },
   no_devuelta: {
+    maxLength: 500,
     titulo: "Marcar «No se devolvió»",
     descripcion:
       "Esto bloquea al alumno de forma permanente, sin fecha de fin, y solo un administrador puede levantarlo después. La nota queda en el historial del equipo.",
@@ -146,6 +150,7 @@ export function DialogoEstadoReserva({
             id={idTexto}
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
+            maxLength={t.maxLength}
             className="mt-1"
           />
           <p className="text-muted-foreground mt-1 text-xs">{t.ayuda}</p>

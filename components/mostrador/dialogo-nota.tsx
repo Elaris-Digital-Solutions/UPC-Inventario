@@ -104,6 +104,8 @@ export function DialogoNota({ unidadId, unidad, notas, ruta }: DialogoNotaProps)
             id={idNota}
             value={nota}
             onChange={(evento) => setNota(evento.target.value)}
+            // El CHECK `unit_notes_note_largo` de H-1.
+            maxLength={500}
             className="mt-1"
           />
         </div>

@@ -147,14 +147,15 @@ export function DialogoFalta({ tipo, reservationId, unidadId, alumno }: DialogoF
         {tipo === "not_returned" && (
           <div>
             <Label htmlFor={idNota}>Nota sobre lo ocurrido</Label>
-            {/* `Textarea` y no `Input`: puede necesitar mas de una linea. SIN
-                `maxLength`, porque `note` es `text` sin ningun CHECK de longitud
-                y un limite aqui seria la interfaz inventando una regla que el
-                motor no tiene. */}
+            {/* `Textarea` y no `Input`: puede necesitar mas de una linea.
+                `maxLength` 500 porque es el CHECK de `note` desde H-1
+                (`unit_notes_note_largo`): sin el, una nota larga llegaria al
+                motor y se reportaria como incidente algo que es un tope. */}
             <Textarea
               id={idNota}
               value={nota}
               onChange={(evento) => setNota(evento.target.value)}
+              maxLength={500}
               className="mt-1"
             />
           </div>

@@ -131,6 +131,7 @@ export function FilasUnidad({ sedes, sedePorDefecto }: FilasUnidadProps) {
               id={`nota-${fila.id}`}
               name="nota"
               placeholder="Opcional"
+              maxLength={500}
               value={fila.nota}
               onChange={(e) => cambiar(fila.id, "nota", e.target.value)}
             />
