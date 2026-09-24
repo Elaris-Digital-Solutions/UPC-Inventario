@@ -24,11 +24,15 @@ export default async function AlumnoLayout({
     redirect("/login");
   }
 
-  const { data: alumno } = await supabase
+  const { data: alumno, error: errorAlumno } = await supabase
     .from("alumnos")
     .select("nombre, apellido, carrera_id")
     .eq("auth_user_id", sub)
     .maybeSingle();
+
+  if (errorAlumno) {
+    throw new Error(`AlumnoLayout: fallo la consulta a alumnos: ${errorAlumno.message}`);
+  }
 
   if (!alumno) {
     redirect("/auth/error");

@@ -114,6 +114,35 @@ describe('limpiarEvento', () => {
     expect(datos?.status_code).toBe(400);
   });
 
+  // Medido el 2026-09-23 con `next start` y un DSN local: el evento de una
+  // Server Action trae su cuerpo -los argumentos serializados- en
+  // `request.data`. En el perfil o el alta de personal eso son nombres y
+  // correos.
+  function eventoDeAccion(): ErrorEvent {
+    return {
+      type: undefined,
+      request: {
+        method: 'POST',
+        url: 'https://dispositivos.ccnode.net/completar-perfil',
+        data: '["Nombre Apellido","alumno@upc.edu.pe","Ingenieria"]',
+      },
+    };
+  }
+
+  it('el cuerpo de una Server Action no llega: son los datos del formulario', () => {
+    const limpio = JSON.stringify(limpiarEvento(eventoDeAccion()));
+
+    expect(limpio).not.toContain('alumno@upc.edu.pe');
+    expect(limpio).not.toContain('Nombre Apellido');
+  });
+
+  it('CONTROL: el metodo y la ruta de la peticion se quedan', () => {
+    const limpio = limpiarEvento(eventoDeAccion());
+
+    expect(limpio.request?.method).toBe('POST');
+    expect(limpio.request?.url).toBe('https://dispositivos.ccnode.net/completar-perfil');
+  });
+
   it('CONTROL: una ruta sin query no se toca', () => {
     const evento: ErrorEvent = { type: undefined, contexts: { nextjs: { request_path: '/catalogo' } } };
 

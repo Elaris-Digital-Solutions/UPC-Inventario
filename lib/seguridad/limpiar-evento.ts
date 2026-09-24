@@ -21,6 +21,9 @@ export function limpiarEvento(evento: ErrorEvent): ErrorEvent {
     delete evento.request.cookies;
     delete evento.request.headers;
     delete evento.request.query_string;
+    // 2026-09-23, medido con `next start`: en una Server Action esto es el
+    // cuerpo, o sea los argumentos del formulario -nombres, correos, notas-.
+    delete evento.request.data;
     if (typeof evento.request.url === 'string') {
       evento.request.url = sinQuery(evento.request.url);
     }
