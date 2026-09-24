@@ -1,5 +1,6 @@
 import { imagenPrincipal } from '@/lib/imagenes/principal';
 import { createClient } from '@/lib/supabase/server';
+import { reportar } from '@/lib/seguridad/reportar';
 
 // DOS REGLAS QUE VALEN PARA TODO EL ARCHIVO.
 //
@@ -10,7 +11,9 @@ import { createClient } from '@/lib/supabase/server';
 //    miente en silencio"-.
 // 2. UN FALLO NUNCA SE TRAGA EN SILENCIO. Estas consultas degradan a lista vacia
 //    -una vitrina vacia es preferible a una pantalla rota-, pero siempre con
-//    `console.error`: sin el, un 401 de RLS y "no hay productos" se ven igual.
+//    `reportar()`: sin el, un 401 de RLS y "no hay productos" se ven igual.
+//    Hasta el 2026-09-23 era un `console.error`, que en Netlify se pierde con
+//    el stdout y a Sentry solo llega como miga, nunca como evento.
 
 // La vitrina NO toca `product_availability` (D-21), y no es solo diseño: como
 // anonimo esa vista devuelve HTTP 401, porque D-18 le revoco el SELECT. No es
@@ -38,7 +41,7 @@ export async function productosVitrina(limite: number): Promise<ProductoVitrina[
     .limit(limite);
 
   if (error) {
-    console.error('productosVitrina: fallo la consulta a products', error.message);
+    reportar('productosVitrina/products', error);
     return [];
   }
 
@@ -72,7 +75,7 @@ export async function sedesActivas(): Promise<Sede[]> {
     .order('name');
 
   if (error) {
-    console.error('sedesActivas: fallo la consulta a campuses', error.message);
+    reportar('sedesActivas/campuses', error);
     return [];
   }
 
@@ -97,10 +100,7 @@ export async function productosConStock(campusId: string): Promise<ProductoVitri
     .eq('in_stock', true);
 
   if (errorStock) {
-    console.error(
-      'productosConStock: fallo la consulta a product_availability',
-      errorStock.message,
-    );
+    reportar('productosConStock/product_availability', errorStock);
     return [];
   }
 
@@ -129,7 +129,7 @@ export async function productosConStock(campusId: string): Promise<ProductoVitri
     .order('sort_order');
 
   if (errorProductos) {
-    console.error('productosConStock: fallo la consulta a products', errorProductos.message);
+    reportar('productosConStock/products', errorProductos);
     return [];
   }
 
@@ -183,7 +183,7 @@ export async function detalleProducto(id: string): Promise<DetalleProducto | nul
       return null;
     }
 
-    console.error('detalleProducto: fallo la consulta a products', error.message);
+    reportar('detalleProducto/products', error);
     return null;
   }
 
@@ -226,10 +226,7 @@ export async function disponibilidadPorSede(productId: string): Promise<StockSed
     .eq('in_stock', true);
 
   if (error) {
-    console.error(
-      'disponibilidadPorSede: fallo la consulta a product_availability',
-      error.message,
-    );
+    reportar('disponibilidadPorSede/product_availability', error);
     return [];
   }
 

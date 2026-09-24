@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { firmar } from "@/lib/cloudinary/firma";
+import { rechazoDeFirma } from "@/lib/cloudinary/rechazo";
+import { reportar } from "@/lib/seguridad/reportar";
 import { createClient } from "@/lib/supabase/server";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -81,37 +83,13 @@ export async function POST() {
   const { error: errorPermiso } = await supabase.rpc("pedir_firma_cloudinary");
 
   if (errorPermiso) {
-    // 429 y no 403 cuando lo que sobro fue el ritmo: el cliente tiene que poder
-    // distinguir "no puedes" de "no tan rapido". Se empareja por el SQLSTATE
-    // `54000`, elegido en la migracion justo por no compartirlo nadie mas.
-    //
-    // Se compara SOLO el `code`, nunca el texto del mensaje: es la regla 2 de
-    // lib/reservas/acciones.ts al reves, y a proposito. Alli el emparejamiento
-    // va por texto porque `23514` lo comparten varios rechazos distintos; aqui
-    // el `54000` se eligio para que no lo comparta nadie, asi que el codigo
-    // basta y ademas sobrevive a que alguien reescriba el mensaje.
-    //
-    // Un error de RED llega sin `code`, no entra en esta rama y cae al 403 de
-    // abajo. No es lo ideal -es un fallo de infraestructura, no de permiso-,
-    // pero el mensaje generico no miente sobre nada y la alternativa seria
-    // clasificar fallos de red aqui, que no es el trabajo de este archivo.
-    if (errorPermiso.code === "54000") {
-      return NextResponse.json(
-        { error: "Demasiadas subidas seguidas. Espera unos minutos y vuelve a intentarlo." },
-        { status: 429 },
-      );
-    }
-
-    // 403 y no 404: la sesion es valida y la ruta existe; lo que falta es el
-    // permiso. Y ESTE es el rechazo que cierra P0-4 -- un alumno con sesion
-    // legitima pidiendo una firma.
-    //
-    // El mensaje NO reenvia `errorPermiso.message`: seria devolver el crudo del
-    // motor al navegador, que es justo lo que cerro H-3.
-    return NextResponse.json(
-      { error: "Solo un administrador puede subir imágenes." },
-      { status: 403 },
-    );
+    // 429 para el tope, 403 para quien no es admin -el rechazo que cierra P0-4-
+    // y 500 con codigo de referencia para todo lo demas. Se empareja SOLO por el
+    // `code`, nunca por el texto: es la regla 2 de lib/reservas/acciones.ts al
+    // reves, porque aqui los dos SQLSTATE se eligieron para no compartirlos. Y
+    // ninguna rama reenvia `errorPermiso.message`: eso lo cerro H-3.
+    const { status, error } = rechazoDeFirma(errorPermiso);
+    return NextResponse.json({ error }, { status });
   }
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -120,11 +98,17 @@ export async function POST() {
   const folder = process.env.CLOUDINARY_FOLDER ?? "";
 
   // 500 con un mensaje que NO nombra cual falta: enumerar las variables ausentes
-  // le contaria a quien pregunte como se llama cada una. El detalle va al log.
+  // le contaria a quien pregunte como se llama cada una. El detalle -los
+  // NOMBRES, nunca los valores- va al log y a Sentry.
   if (!cloudName || !apiKey || !apiSecret) {
-    console.error(
-      "[cloudinary/firmas] Falta configuracion de Cloudinary en el entorno del servidor.",
-    );
+    const faltan = [
+      ["NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", cloudName],
+      ["CLOUDINARY_API_KEY", apiKey],
+      ["CLOUDINARY_API_SECRET", apiSecret],
+    ]
+      .filter(([, valor]) => !valor)
+      .map(([nombre]) => nombre);
+    reportar("cloudinary/firmas", { message: `Falta configuracion de Cloudinary: ${faltan.join(", ")}` });
     return NextResponse.json(
       { error: "La subida de imágenes no está configurada en este entorno." },
       { status: 500 },

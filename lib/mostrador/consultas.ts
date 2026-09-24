@@ -1,5 +1,6 @@
 import { imagenPrincipal } from '@/lib/imagenes/principal';
 import { createClient } from '@/lib/supabase/server';
+import { reportar } from '@/lib/seguridad/reportar';
 
 import type { EstadoReserva } from '@/lib/reservas/consultas';
 
@@ -82,10 +83,9 @@ function filaAMostrador(fila: FilaMostrador): ReservaMostrador | null {
     fila.inventory_units === null ||
     fila.inventory_units.campuses === null
   ) {
-    console.error(
-      'reservasMostrador: fila descartada, el producto, la unidad o la sede llegaron null',
-      fila.id,
-    );
+    reportar('reservasMostrador', {
+      message: `fila ${fila.id} descartada: el producto, la unidad o la sede llegaron null`,
+    });
     return null;
   }
 
