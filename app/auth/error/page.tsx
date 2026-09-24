@@ -28,7 +28,7 @@ const MENSAJES: Record<string, string> = {
     "El enlace está incompleto. Puede que el correo lo haya cortado al mostrarlo.",
   tipo: "El enlace no es de un tipo que este sistema reconozca.",
   enlace:
-    "El enlace ya no sirve: es de un solo uso y caduca en una hora. Puede que ya lo hayas usado o que haya pasado el plazo.",
+    "El enlace ya no sirve: es de un solo uso y caduca a los 15 minutos. Puede que ya lo hayas usado o que haya pasado el plazo.",
   // Este no viene de un enlace: lo emite la Server Action de /completar-perfil
   // cuando el UPDATE no llega a tocar ninguna fila. La pantalla es la misma
   // porque el usuario no necesita saber la diferencia, pero el motivo separado
