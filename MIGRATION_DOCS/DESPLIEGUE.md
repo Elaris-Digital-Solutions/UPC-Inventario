@@ -586,7 +586,8 @@ como antes. Con ella, pinta el widget y el botón espera al token.
 ### 5.1 El orden, y el que está mal deja a todos fuera
 
 1. **Cloudflare → Turnstile → *Add widget*.** Nombre `upc-inventario`; *Hostnames*
-   `dispositivos.ccnode.net`; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
+   `dispositivos.ccnode.net` **y `upc-inventario.netlify.app`** *(el segundo, añadido el 2026-09-23: ver
+   el aviso de abajo)*; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
    la *secret key*.
 2. **Netlify → Environment variables:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = la *site key*. ⚠ Es
    `NEXT_PUBLIC_`, así que **se inlinea al compilar**: hace falta un **deploy nuevo** después de ponerla.
@@ -606,8 +607,8 @@ apagado en Supabase** *(medido el 2026-09-23)*. El botón espera el token, y el 
 lista. `upc-inventario.netlify.app/login` sirve el login directamente —no redirige, a diferencia de
 `ccnode.net` y `www.ccnode.net`— y muestra *«No se pudo cargar la verificación anti-bots»*, con el botón
 deshabilitado. **Le pasa también a cada Deploy Preview**, `deploy-preview-N--upc-inventario.netlify.app`:
-ese hostname cambia en cada PR, así que **el login no se puede probar en un preview**. Si alguien entra por
-`netlify.app`, se añade como segundo hostname del widget.
+ese hostname cambia en cada PR, así que **el login no se puede probar en un preview**. ✅ **`netlify.app` se
+añadió al widget el mismo día**: token de 773 caracteres y botón habilitado. Los previews siguen sin login.
 
 ### 5.2 Verificar por el efecto, con control negativo
 
