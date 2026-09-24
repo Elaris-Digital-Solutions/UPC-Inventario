@@ -133,6 +133,8 @@ export function PanelDias({ dias, reservasVivas, ahora }: PanelDiasProps) {
             id={idMotivo}
             value={motivo}
             onChange={(evento) => setMotivo(evento.target.value)}
+            // El CHECK `disabled_days_reason_largo` de H-1.
+            maxLength={200}
             className="mt-1"
           />
           <p className="text-muted-foreground mt-1 text-xs">

@@ -7,6 +7,11 @@ on:
     branches: [develop]
 
 # Un PR con varios push seguidos cancela las corridas viejas en vez de encolarlas.
+# H-19 (2026-09-17): el token del workflow solo lee. Sin esto hereda los
+# permisos por defecto del repositorio, que pueden incluir escritura.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -22,10 +27,13 @@ jobs:
       # deprecación. Ojo, esto es el Node que ejecuta LAS ACTIONS; el `node-version`
       # de abajo es el Node que ejecuta nuestro código. Son dos capas distintas.
       - name: Clonar el repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # H-19: el token no se queda guardado en .git para los pasos siguientes.
+        with:
+          persist-credentials: false
 
       - name: Preparar Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm

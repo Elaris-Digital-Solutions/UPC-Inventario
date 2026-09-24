@@ -165,6 +165,7 @@ en [`FASE_2_DISENO.md`](./FASE_2_DISENO.md) §7 *(D-24 a D-28)*. Aquí solo lo q
 - **El valor de Postgres para «sin fin»** llega por la API como *string* literal (`to_jsonb`), no como
   fecha *(2026-08-11)*.
 - **Las pruebas que cruzan medianoche se miden con `node` antes de escribirlas**, no se razonan.
+- **`auth.one_time_tokens.created_at` es `timestamp without time zone` y guarda UTC**, a diferencia de `auth.users`. `created_at at time zone 'America/Lima'` le **suma** 5 horas en vez de restarlas: medido el 2026-09-18, un token de las 10:26 salió «20:26», una hora que aún no había llegado. Se convierte con `(created_at at time zone 'UTC') at time zone 'America/Lima'`.
 
 ---
 
@@ -266,6 +267,8 @@ byte y entonces el bloqueo vuelve **en silencio**, y `'unsafe-inline'` desarma l
   `Cannot find module './chunks/[turbopack]_runtime.js'` al empaquetar el proxy **también sobre `main`, que
   en Netlify sí despliega**. Lo que diga ese build local sobre la edge function no vale como diagnóstico:
   **el log de verdad está en el deploy de Netlify**, y se pide antes de sacar ninguna hipótesis.
+- **El ingreso dice «Revisa tu correo» y nadie entra: se localiza en los logs de Auth, no en el navegador** *(medido el 2026-09-18 contra producción)*. `/otp` con 200 dice que Supabase le pasó el correo al SMTP —si el SMTP falla, ahí sale un 500—. **Cada clic en `/auth/confirm` deja un `/verify` en los logs, aunque el enlace sea inventado o esté gastado**: la sonda con un `token_hash` falso dejó un **403** desde la IP de Netlify. Así que **`/otp` sin `/verify` detrás quiere decir que nadie abrió el enlace**, y el corte está en la entrega del correo *(Q-29)*. **Un `/verify` 403 con *One-time token not found* es un enlace inválido**: inventado, ya usado o **reemplazado por un pedido posterior**, porque un índice único de `auth.one_time_tokens` deja **1** solo token vivo por cuenta y tipo. Se consulta con `query_logs` sobre `auth_logs`, leyendo `JSONExtractString(event_message, 'path')` y `'status'`, y la misma consulta corre en el Logs Explorer del panel. **Las horas salen en UTC:** `toTimeZone(timestamp, 'America/Lima')` las da en hora de Lima, y filtrar `JSONExtractString(event_message, 'msg') = 'request completed'` deja una línea por petición —sin él, el enganche de dominio duplica cada `/otp`—.
+- **El error de CSP por `/.netlify/scripts/hud?variant=public` en la consola es ruido** *(2026-09-18)*. Ese script lo inyecta Netlify, no la aplicación, y la CSP lo bloquea porque no lleva el nonce. No interviene en el ingreso. **Medido:** de los 15 `<script>` de `/login`, 14 llevan el nonce y el que falta es éste, que se describe a sí mismo como *«the badge and owner toolbar Netlify injects on published sites»*. Bloqueado, el sitio simplemente no muestra la insignia. **No se agrega a la CSP:** abrirle paso sería debilitarla para mostrar publicidad de Netlify.
 
 ---
 

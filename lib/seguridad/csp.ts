@@ -32,6 +32,10 @@
 // - `connect-src` recibe la URL de Supabase POR PARAMETRO y nunca escrita a mano:
 //   difiere entre local y produccion, y fijarla rompe el desarrollo en silencio.
 //   Sin `wss:` porque no se usa Realtime; el dia que se use, hay que tocar esto.
+// - `frame-src` abre SOLO `challenges.cloudflare.com`, el iframe del CAPTCHA de
+//   /login (H-9). Su script NO necesita apertura en `script-src`: lo inserta
+//   components/auth/turnstile.tsx desde codigo que ya lleva el nonce, y
+//   `strict-dynamic` extiende la confianza a lo que ese codigo inserta.
 // - Las cuatro directivas de cierre -`object-src`, `base-uri`, `form-action`,
 //   `frame-ancestors`- son las que recomienda esa misma documentacion.
 // - `upgrade-insecure-requests` queda FUERA en desarrollo, que se prueba por
@@ -54,6 +58,7 @@ export function construirCSP(opciones: {
     `img-src 'self' blob: data:`,
     `font-src 'self'`,
     `connect-src 'self' ${urlSupabase} https://api.cloudinary.com`,
+    `frame-src https://challenges.cloudflare.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,

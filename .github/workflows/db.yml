@@ -6,6 +6,11 @@ on:
   push:
     branches: [develop]
 
+# H-19 (2026-09-17): el token del workflow solo lee. Sin esto hereda los
+# permisos por defecto del repositorio, que pueden incluir escritura.
+permissions:
+  contents: read
+
 concurrency:
   group: db-${{ github.ref }}
   cancel-in-progress: true
@@ -17,7 +22,10 @@ jobs:
 
     steps:
       - name: Clonar el repositorio
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # H-19: el token no se queda guardado en .git para los pasos siguientes.
+        with:
+          persist-credentials: false
 
       # v3 y no v1 (D-64, 2026-08-15). La v1 declara `using: node20` en su
       # manifiesto -leido de su action.yml, no supuesto- y el runner ya no
@@ -36,7 +44,7 @@ jobs:
       # siempre, y el dia que se midio eran 2.111.0 aca y 2.114.0 alla. Una
       # promesa que depende de que nadie actualice nada envejece sola.
       - name: Instalar la CLI de Supabase
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
           version: 2.111.0
 

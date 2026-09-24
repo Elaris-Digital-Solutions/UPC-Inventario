@@ -156,6 +156,8 @@ export function DialogoEstadoUnidad({
             id={idNota}
             value={nota}
             onChange={(evento) => setNota(evento.target.value)}
+            // El CHECK `unit_notes_note_largo` de H-1.
+            maxLength={500}
             className="mt-1"
           />
           <p className="text-muted-foreground mt-1 text-xs">

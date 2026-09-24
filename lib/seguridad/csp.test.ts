@@ -88,6 +88,18 @@ describe('construirCSP', () => {
     expect(csp).toContain(`frame-ancestors 'none'`);
   });
 
+  // H-9: el widget de Turnstile es un iframe de challenges.cloudflare.com. Sin
+  // `frame-src`, cae a `default-src 'self'` y el navegador lo bloquea: el login
+  // se quedaria sin token y nadie podria pedir su enlace.
+  it('frame-src abre SOLO el iframe de Turnstile, en los dos modos', () => {
+    const dev = construirCSP({ nonce: NONCE, esDesarrollo: true, urlSupabase: URL_SUPABASE_LOCAL });
+    const prod = construirCSP({ nonce: NONCE, esDesarrollo: false, urlSupabase: URL_SUPABASE_PROD });
+    for (const csp of [dev, prod]) {
+      const frameSrc = csp.split('; ').find((d) => d.startsWith('frame-src '));
+      expect(frameSrc).toBe('frame-src https://challenges.cloudflare.com');
+    }
+  });
+
   it('dos nonces distintos producen cadenas distintas', () => {
     const csp1 = construirCSP({ nonce: 'nonce-uno', esDesarrollo: false, urlSupabase: URL_SUPABASE_PROD });
     const csp2 = construirCSP({ nonce: 'nonce-dos', esDesarrollo: false, urlSupabase: URL_SUPABASE_PROD });
