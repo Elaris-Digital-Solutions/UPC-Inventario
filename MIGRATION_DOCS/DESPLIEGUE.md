@@ -552,6 +552,11 @@ puede entrar** hasta la hora siguiente, y el fallo aparece como un error genéri
 **Las plantillas no las toca este paso.** Siguen siendo las del dashboard, que apuntan a
 `/auth/confirm?token_hash=…`; ver el §1.3 sobre la barra final del Site URL.
 
+⚠ **Y si dicen cuánto dura el enlace, tienen que decir 15 minutos** *(H-20, 2026-09-23: la vigencia pasó
+de 3 600 a 900 s y el código, de 6 a 8 cifras)*. Las del repositorio —`supabase/templates/`— ya lo
+dicen; **las del dashboard se revisan a mano** en *Authentication → Emails → Templates*, *Magic Link* y
+*Confirm signup*. Un «caduca en una hora» manda al alumno a buscar un enlace que ya no sirve.
+
 ### 4.6 Verificar por el efecto, con control negativo
 
 Se pide un enlace en `https://dispositivos.ccnode.net/login` con un correo **`@upc.edu.pe` real**:

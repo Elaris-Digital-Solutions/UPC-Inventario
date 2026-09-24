@@ -245,6 +245,7 @@ byte y entonces el bloqueo vuelve **en silencio**, y `'unsafe-inline'` desarma l
 - **`npx supabase start` con Docker parado imprime su error y sale con código 0** *(medido el 2026-08-19:
   `LegacyDockerLifecycleInspectError` en la salida, `exit 0` en el código)*. Que el stack esté arriba **se
   comprueba por el efecto**: `docker ps`, o `netstat -ano` buscando el 54322.
+- **`supabase start` puede fallar por salud de Realtime y Studio con el equipo cargado** *(medido el 2026-09-23, con otros 12 contenedores en marcha)*: `LegacyHealthCheckTimeoutError`, y el CLI **detiene todos los contenedores**. **El control con el `config.toml` anterior falló igual**, así que no era la configuración. **Salida:** `npx supabase start -x realtime,studio`, que deja Auth, PostgREST y la base. Pero `db reset` exige el stack completo.
 - **`supabase status` tarda entre 7 y 12 s** *(medido dos veces)*. Los tiempos de espera del E2E lo tienen
   en cuenta.
 - **El E2E necesita base limpia.** Con la base sucia de tres corridas da **3/6**. El arnés **detecta y
