@@ -26,7 +26,7 @@ export async function destino(): Promise<Destino> {
 
   // Personal antes que alumno: alguien puede tener fila en las dos tablas, y en
   // ese caso el panel manda. El orden de estas dos consultas ES la decision.
-  const { data: staff } = await supabase
+  const { data: staff, error: errorStaff } = await supabase
     .from('staff_members')
     .select('role')
     // Un miembro DESACTIVADO cae por la rama de alumnos en vez de ir a un panel
@@ -36,6 +36,10 @@ export async function destino(): Promise<Destino> {
     .eq('activo', true)
     .maybeSingle();
 
+  if (errorStaff) {
+    throw new Error(`destino: fallo la consulta a staff_members: ${errorStaff.message}`);
+  }
+
   if (staff?.role === 'admin') {
     return '/admin/inventario';
   }
@@ -44,11 +48,15 @@ export async function destino(): Promise<Destino> {
   }
 
   // maybeSingle() y no single(): no tener fila es un caso ESPERADO, no un error.
-  const { data: alumno } = await supabase
+  const { data: alumno, error: errorAlumno } = await supabase
     .from('alumnos')
     .select('nombre, apellido, carrera_id')
     .eq('auth_user_id', sub)
     .maybeSingle();
+
+  if (errorAlumno) {
+    throw new Error(`destino: fallo la consulta a alumnos: ${errorAlumno.message}`);
+  }
 
   if (!alumno) {
     return '/auth/error';

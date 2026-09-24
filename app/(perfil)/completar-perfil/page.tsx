@@ -45,19 +45,27 @@ export default async function CompletarPerfilPage({
   const { data } = await supabase.auth.getClaims();
   const sub = data?.claims.sub;
 
-  const { data: carreras } = await supabase
+  const { data: carreras, error: errorCarreras } = await supabase
     .from("carreras")
     .select("id, nombre")
     .eq("activa", true)
     .order("nombre");
 
-  const { data: alumno } = sub
+  if (errorCarreras) {
+    throw new Error(`CompletarPerfilPage: fallo la consulta a carreras: ${errorCarreras.message}`);
+  }
+
+  const { data: alumno, error: errorAlumno } = sub
     ? await supabase
         .from("alumnos")
         .select("nombre, apellido, carrera_id, es_profesor, confirmo_facultad")
         .eq("auth_user_id", sub)
         .maybeSingle()
-    : { data: null };
+    : { data: null, error: null };
+
+  if (errorAlumno) {
+    throw new Error(`CompletarPerfilPage: fallo la consulta a alumnos: ${errorAlumno.message}`);
+  }
 
   return (
     <main className="container flex flex-1 flex-col items-center justify-center py-16">

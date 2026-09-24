@@ -111,11 +111,11 @@ Turnstile, H-9—, y **una es un secreto de verdad**:
 | `CLOUDINARY_API_KEY` | La API key | **Sin** `NEXT_PUBLIC_`. **NO se marca *secret*** — ver abajo |
 | `CLOUDINARY_API_SECRET` | El secreto | ⚠ **Secreto. Marcar como *secret* en Netlify** |
 | `CLOUDINARY_FOLDER` | La carpeta | — |
-| `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
+| `SENTRY_DSN` | El DSN, cuando exista *(§6)* | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | La *site key* de Turnstile | Pública. **Se pone ANTES de encender el CAPTCHA en Supabase** *(§5.1)*; la *secret key* va a Supabase, no aquí |
 
 ⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
-**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
+**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts` la devuelve en la respuesta
 JSON junto con la firma, porque el navegador la necesita para el POST a Cloudinary. **Lo que autoriza
 la subida no es la key: es la firma**, calculada en el servidor con el secreto, atada a un `timestamp`
 y a unos parámetros exactos. La key **identifica**, el secreto **autoriza** —el mismo reparto que
@@ -552,6 +552,11 @@ puede entrar** hasta la hora siguiente, y el fallo aparece como un error genéri
 **Las plantillas no las toca este paso.** Siguen siendo las del dashboard, que apuntan a
 `/auth/confirm?token_hash=…`; ver el §1.3 sobre la barra final del Site URL.
 
+⚠ **Y si dicen cuánto dura el enlace, tienen que decir 15 minutos** *(H-20, 2026-09-23: la vigencia pasó
+de 3 600 a 900 s y el código, de 6 a 8 cifras)*. Las del repositorio —`supabase/templates/`— ya lo
+dicen; **las del dashboard se revisan a mano** en *Authentication → Emails → Templates*, *Magic Link* y
+*Confirm signup*. Un «caduca en una hora» manda al alumno a buscar un enlace que ya no sirve.
+
 ### 4.6 Verificar por el efecto, con control negativo
 
 Se pide un enlace en `https://dispositivos.ccnode.net/login` con un correo **`@upc.edu.pe` real**:
@@ -626,3 +631,41 @@ lleva `frame-src` hacia ese origen y sólo hacia ése. ~~**En producción no est
 widget dio un token de 752 caracteres y habilitó el botón, sin violaciones de CSP propias. El negativo dio
 **`400 captcha_failed`** —*«no captcha_token found»*—, y los logs de Auth lo registran. El positivo: un
 enlace pedido desde el sitio y canjeado, con `/otp` 200 y `/verify` 200.
+
+---
+
+## 6. Errores del servidor · Sentry *(H-4, D-96)*
+
+**El código está preparado desde el 2026-08-23:** Sentry **sólo en el servidor**, en `instrumentation.ts`.
+**Sin `SENTRY_DSN` queda inerte**: no envía nada ni rompe nada, y por eso local y el CI siguen igual. Lo
+que falta es crear el proyecto en Sentry y poner el DSN en Netlify.
+
+⚠ **Antes de poner el DSN, H-21 tiene que estar en `main`** *(`ESTADO_Y_PLAN.md` §3)*. Sin esa
+corrección, cada violación de una restricción que pase por `reportar()` manda a Sentry **la fila entera**,
+con correo y nombre si es de `alumnos`. **El DSN es lo que enciende ese defecto.**
+
+### 6.1 Los pasos
+
+1. **Sentry → crear la organización.** Pide **dónde guardar los datos, EE. UU. o UE**, y **no se puede
+   cambiar después**.
+2. **Crear un proyecto de plataforma Next.js.** ⚠ **NO ejecutar el asistente que Sentry propone**
+   (`npx @sentry/wizard … -i nextjs`): añade el SDK del navegador, `withSentryConfig` y archivos de
+   configuración, que es justo lo que D-96 descartó —100 kB por alumno y una CSP más abierta—. Del proyecto
+   sólo hace falta el DSN: *Settings → Projects → el proyecto → Client Keys (DSN)*.
+3. **Netlify → Environment variables → `SENTRY_DSN`**, **sin `NEXT_PUBLIC_`** *(§1.2)*, con el contexto
+   **Production** y no los previews: un preview no tiene por qué mandar eventos al mismo proyecto.
+4. **Trigger deploy.** La variable se lee al arrancar el servidor, así que hace falta un despliegue nuevo.
+
+### 6.2 Verificar por el efecto, con control negativo
+
+- **Positivo, sin escribir nada en la base:** como admin, en la ficha de un producto, pulsar *Anotar unidad*. En la consola de DevTools, `document.querySelectorAll('textarea').forEach(t => t.removeAttribute('maxlength'))`
+  y `copy('x'.repeat(501))`, pegar y pulsar *Guardar nota*. El CHECK `unit_notes_note_largo` rechaza el INSERT, el
+  diálogo muestra *«Código de referencia: XXXXXXXX»*, y **en Sentry la búsqueda `correlacion:XXXXXXXX`
+  encuentra el evento**.
+- **Y dentro de ese evento, lo que NO tiene que estar:** ningún *Additional Data* con `Failing row`
+  *(H-21)*, ni usuario, ni cookies, ni cabeceras, **ni query en los breadcrumbs HTTP, ni el cuerpo del formulario en `request.data`**: la miga de la
+  llamada a PostgREST dice la tabla, el método y el código, y nada después del `?`. El mensaje sí: *«violates check constraint
+  "unit_notes_note_largo"»*.
+- **Negativo, lo esperado no es un incidente:** abrir `/catalogo` sin sesión. El 307 a `/login` es un
+  `redirect()`, que Next lanza como excepción, y **no puede aparecer en Sentry**: lo filtra
+  `onRequestError`.

@@ -1138,9 +1138,10 @@ function mensajeDeRechazoTurno(mensajeDelMotor: string): string {
 // `null` en las dos horas significa "el turno desaparece"; con valores, "el
 // turno pasa a ser este".
 //
-// NO VA A SENTRY aunque falle: consultar el impacto de un cambio es una accion
-// esperada, no un incidente. Se devuelve `null` y la pantalla lo dice; inventar
-// un 0 seria peor, porque el 0 es justamente la respuesta tranquilizadora.
+// Si la RPC falla se devuelve `null` y la pantalla lo dice; inventar un 0 seria
+// peor, porque el 0 es justamente la respuesta tranquilizadora. Y SE REPORTA
+// desde el 2026-09-23: pedir la cuenta es una accion esperada, pero que la RPC
+// FALLE no lo es. Antes no llegaba a ninguna parte y nadie veia la causa.
 export async function contarDescubiertas(
   turnoId: string,
   inicio: string | null,
@@ -1161,6 +1162,7 @@ export async function contarDescubiertas(
         });
 
   if (error) {
+    reportar('contarDescubiertas/reservas_descubiertas', error);
     return null;
   }
 

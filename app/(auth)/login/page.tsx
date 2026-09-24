@@ -126,7 +126,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">
                 Revisa tu correo: te enviamos un enlace de acceso. Es de un
-                solo uso y caduca en una hora.
+                solo uso y caduca a los 15 minutos.
               </p>
               <Button
                 type="button"

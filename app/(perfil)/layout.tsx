@@ -33,11 +33,15 @@ export default async function PerfilLayout({
     redirect("/login");
   }
 
-  const { data: alumno } = await supabase
+  const { data: alumno, error: errorAlumno } = await supabase
     .from("alumnos")
     .select("id")
     .eq("auth_user_id", sub)
     .maybeSingle();
+
+  if (errorAlumno) {
+    throw new Error(`PerfilLayout: fallo la consulta a alumnos: ${errorAlumno.message}`);
+  }
 
   if (!alumno) {
     redirect("/auth/error");

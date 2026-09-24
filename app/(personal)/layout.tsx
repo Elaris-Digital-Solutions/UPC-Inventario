@@ -32,12 +32,16 @@ export default async function PersonalLayout({
   // pantalla donde la base le negaria todo de todas formas. Mismo criterio
   // que ya aplica lib/auth/destino.ts, copiado aqui y no repetido como logica
   // aparte.
-  const { data: staff } = await supabase
+  const { data: staff, error: errorStaff } = await supabase
     .from("staff_members")
     .select("role")
     .eq("user_id", sub)
     .eq("activo", true)
     .maybeSingle();
+
+  if (errorStaff) {
+    throw new Error(`PersonalLayout: fallo la consulta a staff_members: ${errorStaff.message}`);
+  }
 
   if (!staff) {
     redirect("/auth/error");
