@@ -101,13 +101,12 @@ export async function POST() {
   // le contaria a quien pregunte como se llama cada una. El detalle -los
   // NOMBRES, nunca los valores- va al log y a Sentry.
   if (!cloudName || !apiKey || !apiSecret) {
+    // Los valores no entran en la lista: cada elemento es un NOMBRE o `false`.
     const faltan = [
-      ["NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", cloudName],
-      ["CLOUDINARY_API_KEY", apiKey],
-      ["CLOUDINARY_API_SECRET", apiSecret],
-    ]
-      .filter(([, valor]) => !valor)
-      .map(([nombre]) => nombre);
+      !cloudName && "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+      !apiKey && "CLOUDINARY_API_KEY",
+      !apiSecret && "CLOUDINARY_API_SECRET",
+    ].filter(Boolean);
     reportar("cloudinary/firmas", { message: `Falta configuracion de Cloudinary: ${faltan.join(", ")}` });
     return NextResponse.json(
       { error: "La subida de imágenes no está configurada en este entorno." },
