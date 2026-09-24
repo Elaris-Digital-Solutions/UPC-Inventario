@@ -658,7 +658,8 @@ con correo y nombre si es de `alumnos`. **El DSN es lo que enciende ese defecto.
   diálogo muestra *«Código de referencia: XXXXXXXX»*, y **en Sentry la búsqueda `correlacion:XXXXXXXX`
   encuentra el evento**.
 - **Y dentro de ese evento, lo que NO tiene que estar:** ningún *Additional Data* con `Failing row`
-  *(H-21)*, ni usuario, ni cookies, ni cabeceras. El mensaje sí: *«violates check constraint
+  *(H-21)*, ni usuario, ni cookies, ni cabeceras, **ni query en los breadcrumbs HTTP**: la miga de la
+  llamada a PostgREST dice la tabla, el método y el código, y nada después del `?`. El mensaje sí: *«violates check constraint
   "unit_notes_note_largo"»*.
 - **Negativo, lo esperado no es un incidente:** abrir `/catalogo` sin sesión. El 307 a `/login` es un
   `redirect()`, que Next lanza como excepción, y **no puede aparecer en Sentry**: lo filtra
