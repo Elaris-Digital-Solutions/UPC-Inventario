@@ -115,7 +115,7 @@ Turnstile, H-9—, y **una es un secreto de verdad**:
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | La *site key* de Turnstile | Pública. **Se pone ANTES de encender el CAPTCHA en Supabase** *(§5.1)*; la *secret key* va a Supabase, no aquí |
 
 ⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
-**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
+**viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts` la devuelve en la respuesta
 JSON junto con la firma, porque el navegador la necesita para el POST a Cloudinary. **Lo que autoriza
 la subida no es la key: es la firma**, calculada en el servidor con el secreto, atada a un `timestamp`
 y a unos parámetros exactos. La key **identifica**, el secreto **autoriza** —el mismo reparto que
@@ -658,7 +658,7 @@ con correo y nombre si es de `alumnos`. **El DSN es lo que enciende ese defecto.
   diálogo muestra *«Código de referencia: XXXXXXXX»*, y **en Sentry la búsqueda `correlacion:XXXXXXXX`
   encuentra el evento**.
 - **Y dentro de ese evento, lo que NO tiene que estar:** ningún *Additional Data* con `Failing row`
-  *(H-21)*, ni usuario, ni cookies, ni cabeceras, **ni query en los breadcrumbs HTTP**: la miga de la
+  *(H-21)*, ni usuario, ni cookies, ni cabeceras, **ni query en los breadcrumbs HTTP, ni el cuerpo del formulario en `request.data`**: la miga de la
   llamada a PostgREST dice la tabla, el método y el código, y nada después del `?`. El mensaje sí: *«violates check constraint
   "unit_notes_note_largo"»*.
 - **Negativo, lo esperado no es un incidente:** abrir `/catalogo` sin sesión. El 307 a `/login` es un
