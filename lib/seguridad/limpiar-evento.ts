@@ -34,5 +34,11 @@ export function limpiarEvento(evento: ErrorEvent): ErrorEvent {
   // Ni siquiera el correo del usuario identificado.
   delete evento.user;
 
+  // 2026-09-23: reportar() pasa el error de PostgREST, que es un objeto plano, y
+  // el SDK lo copia ENTERO a `extra.__serialized__`. Su `details` trae la fila
+  // que violo la restriccion -"Failing row contains (...)"-, con correo y
+  // nombre. Lo util ya viaja aparte: el mensaje en `exception` y el id en `tags`.
+  delete evento.extra;
+
   return evento;
 }

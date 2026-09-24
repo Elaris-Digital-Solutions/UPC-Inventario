@@ -43,6 +43,40 @@ describe('limpiarEvento', () => {
     expect(limpio.user).toBeUndefined();
   });
 
+  // Un evento como el que arma captureException() de @sentry/node 10.70 con el
+  // error de PostgREST que recibe reportar(): postgrest-js lo devuelve como
+  // objeto plano -JSON.parse del cuerpo-, y el SDK lo serializa ENTERO en
+  // `extra.__serialized__`, `details` incluido. Medido el 2026-09-23.
+  function eventoDeReportar(): ErrorEvent {
+    return {
+      type: undefined,
+      exception: { values: [{ type: 'Error', value: 'new row for relation "alumnos" violates check constraint "alumnos_nombre_largo"' }] },
+      extra: {
+        __serialized__: {
+          code: '23514',
+          details: 'Failing row contains (a0000000-0000-0000-0000-00000000000a, Nombre Apellido, alumno@upc.edu.pe).',
+          hint: null,
+          message: 'new row for relation "alumnos" violates check constraint "alumnos_nombre_largo"',
+        },
+      },
+      tags: { correlacion: 'abcd1234', contexto: 'guardarPerfil' },
+    };
+  }
+
+  it('la fila que trae `details` de PostgREST no llega a Sentry', () => {
+    const limpio = JSON.stringify(limpiarEvento(eventoDeReportar()));
+
+    expect(limpio).not.toContain('Failing row');
+    expect(limpio).not.toContain('alumno@upc.edu.pe');
+  });
+
+  it('CONTROL: el mensaje del motor y el id de correlacion se quedan', () => {
+    const limpio = limpiarEvento(eventoDeReportar());
+
+    expect(limpio.exception?.values?.[0]?.value).toContain('alumnos_nombre_largo');
+    expect(limpio.tags?.correlacion).toBe('abcd1234');
+  });
+
   it('CONTROL: una ruta sin query no se toca', () => {
     const evento: ErrorEvent = { type: undefined, contexts: { nextjs: { request_path: '/catalogo' } } };
 
