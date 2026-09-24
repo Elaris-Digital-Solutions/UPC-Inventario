@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { destino } from "@/lib/auth/destino";
 import { destinoInterno } from "@/lib/auth/volver";
+import { reportar } from "@/lib/seguridad/reportar";
 import { createClient } from "@/lib/supabase/server";
 
 export async function guardarPerfil(formData: FormData) {
@@ -41,6 +42,10 @@ export async function guardarPerfil(formData: FormData) {
     .select("id");
 
   if (error || !filas || filas.length === 0) {
+    // Los dos son inesperados: el layout ya exigio que la fila exista, asi que
+    // cero filas es una politica que fallo en silencio. Se reportan con el
+    // mismo mensaje para el usuario.
+    reportar("guardarPerfil/alumnos", error ?? { message: "el UPDATE no toco ninguna fila" });
     redirect("/auth/error?motivo=perfil");
   }
 

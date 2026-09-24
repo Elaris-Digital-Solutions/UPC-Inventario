@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { reportar } from '@/lib/seguridad/reportar';
 import type { Database } from '@/lib/database.types';
 
 // LA AFIRMACION QUE SOSTIENE EL DISEÑO DE LA PANTALLA:
@@ -21,8 +22,8 @@ import type { Database } from '@/lib/database.types';
 //     Un fallo de red no puede dejar pasar a quien tiene una sancion.
 //   - SE REGISTRA Y SE DEVUELVE VACIO cuando el vacio es una pantalla sin datos,
 //     que ya tiene su propio diseño: franjasDelDia(), diasInhabilitados(),
-//     misReservas(). El console.error es lo que distingue los dos casos para
-//     quien lea los logs.
+//     misReservas(). El reportar() es lo que distingue los dos casos para
+//     quien lea los logs o Sentry. Era un console.error hasta el 2026-09-23.
 //
 // OJO (D-91): esta capa YA NO LEE EL HORARIO. Dejo de ser global y vive en
 // `campus_hours` por sede y por dia, recortado por `staff_shifts` (D-74); quien
@@ -87,7 +88,7 @@ export async function franjasDelDia(
   });
 
   if (error) {
-    console.error('franjasDelDia: fallo la RPC available_slots', error.message);
+    reportar('franjasDelDia/available_slots', error);
     return [];
   }
 
@@ -118,7 +119,7 @@ export async function diasInhabilitados(desde: string, hasta: string): Promise<D
     .order('date');
 
   if (error) {
-    console.error('diasInhabilitados: fallo la consulta a disabled_days', error.message);
+    reportar('diasInhabilitados/disabled_days', error);
     return [];
   }
 
@@ -214,10 +215,9 @@ function filaAReserva(fila: FilaReserva): ReservaDelAlumno | null {
     fila.inventory_units === null ||
     fila.inventory_units.campuses === null
   ) {
-    console.error(
-      'misReservas: fila descartada, el producto, la unidad o la sede llegaron null',
-      fila.id,
-    );
+    reportar('misReservas', {
+      message: `fila ${fila.id} descartada: el producto, la unidad o la sede llegaron null`,
+    });
     return null;
   }
 
@@ -253,7 +253,7 @@ export async function misReservas(): Promise<ReservaDelAlumno[]> {
     .order('start_at');
 
   if (error) {
-    console.error('misReservas: fallo la consulta a inventory_reservations', error.message);
+    reportar('misReservas/inventory_reservations', error);
     return [];
   }
 

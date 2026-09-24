@@ -92,7 +92,7 @@ export async function listarInventario(): Promise<FilaInventario[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`listarInventario: fallo la consulta a products: ${error.message}`);
   }
 
   return (data ?? []).map(filaAInventario);
@@ -151,7 +151,7 @@ export async function leerProducto(id: string): Promise<ProductoDetalle | null> 
     if (error.code === '22P02') {
       return null;
     }
-    throw new Error(error.message);
+    throw new Error(`leerProducto: fallo la consulta a products: ${error.message}`);
   }
 
   if (data === null) {
@@ -206,7 +206,7 @@ export async function listarCategorias(): Promise<string[]> {
   const { data, error } = await supabase.from('products').select('category');
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`listarCategorias: fallo la consulta a products: ${error.message}`);
   }
 
   const vistas = new Set<string>();
@@ -232,7 +232,7 @@ export async function listarSedes(): Promise<{ id: string; nombre: string }[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`listarSedes: fallo la consulta a campuses: ${error.message}`);
   }
 
   return (data ?? []).map((c) => ({ id: c.id, nombre: c.name }));
@@ -248,7 +248,7 @@ export async function leerSlotMinutes(): Promise<number> {
   const { data, error } = await supabase.from('app_settings').select('slot_minutes').single();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`leerSlotMinutes: fallo la consulta a app_settings: ${error.message}`);
   }
 
   return data.slot_minutes;

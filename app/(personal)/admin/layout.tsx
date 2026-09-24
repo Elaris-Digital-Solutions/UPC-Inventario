@@ -32,12 +32,16 @@ export default async function AdminLayout({
 
   // `activo = true` no es decorativo: `private.is_admin()` tambien lo exige, asi
   // que un admin desactivado no debe entrar donde la base le negaria todo.
-  const { data: staff } = await supabase
+  const { data: staff, error: errorStaff } = await supabase
     .from("staff_members")
     .select("role")
     .eq("user_id", sub)
     .eq("activo", true)
     .maybeSingle();
+
+  if (errorStaff) {
+    throw new Error(`AdminLayout: fallo la consulta a staff_members: ${errorStaff.message}`);
+  }
 
   if (staff?.role !== "admin") {
     redirect("/mostrador");
