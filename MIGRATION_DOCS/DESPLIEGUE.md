@@ -586,7 +586,8 @@ como antes. Con ella, pinta el widget y el botón espera al token.
 ### 5.1 El orden, y el que está mal deja a todos fuera
 
 1. **Cloudflare → Turnstile → *Add widget*.** Nombre `upc-inventario`; *Hostnames*
-   `dispositivos.ccnode.net`; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
+   `dispositivos.ccnode.net` **y `upc-inventario.netlify.app`** *(el segundo, añadido el 2026-09-23: ver
+   el aviso de abajo)*; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
    la *secret key*.
 2. **Netlify → Environment variables:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = la *site key*. ⚠ Es
    `NEXT_PUBLIC_`, así que **se inlinea al compilar**: hace falta un **deploy nuevo** después de ponerla.
@@ -601,6 +602,14 @@ como antes. Con ella, pinta el widget y el botón espera al token.
 sitio publicado todavía no manda. Medido en local: sin token responde **`400 captcha_failed`**, *«no
 captcha_token found»*.
 
+⚠ **Y desde el paso 3, un hostname que no esté en el widget se queda sin login, AUNQUE el CAPTCHA siga
+apagado en Supabase** *(medido el 2026-09-23)*. El botón espera el token, y el widget no lo da fuera de su
+lista. `upc-inventario.netlify.app/login` sirve el login directamente —no redirige, a diferencia de
+`ccnode.net` y `www.ccnode.net`— y muestra *«No se pudo cargar la verificación anti-bots»*, con el botón
+deshabilitado. **Le pasa también a cada Deploy Preview**, `deploy-preview-N--upc-inventario.netlify.app`:
+ese hostname cambia en cada PR, así que **el login no se puede probar en un preview**. ✅ **`netlify.app` se
+añadió al widget el mismo día**: token de 773 caracteres y botón habilitado. Los previews siguen sin login.
+
 ### 5.2 Verificar por el efecto, con control negativo
 
 - **Positivo:** pedir un enlace desde el sitio → «Revisa tu correo», y el correo llega.
@@ -611,4 +620,9 @@ captcha_token found»*.
 pasa—: el negativo dio `400 captcha_failed`; en un navegador real contra el build de producción, el botón
 empezó deshabilitado, se habilitó al llegar el token, el enlace se pidió y salió «Revisa tu correo», con
 **0 violaciones de CSP**. El widget es un iframe de `https://challenges.cloudflare.com`, y por eso la CSP
-lleva `frame-src` hacia ese origen y sólo hacia ése. **En producción no está medido todavía.***
+lleva `frame-src` hacia ese origen y sólo hacia ése. ~~**En producción no está medido todavía.**~~*
+
+✅ **Medido en producción el 2026-09-23, con el orden del §5.1.** En `dispositivos.ccnode.net/login` el
+widget dio un token de 752 caracteres y habilitó el botón, sin violaciones de CSP propias. El negativo dio
+**`400 captcha_failed`** —*«no captcha_token found»*—, y los logs de Auth lo registran. El positivo: un
+enlace pedido desde el sitio y canjeado, con `/otp` 200 y `/verify` 200.
