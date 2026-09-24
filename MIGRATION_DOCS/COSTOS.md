@@ -140,7 +140,12 @@ la primera factura.*
 ### 2.2 Cloudflare Pro
 
 **Cloudflare ya está en el plan del despliegue** —vive en `DESPLIEGUE.md` §2— y el gratuito **sí** para lo
-volumétrico, que es lo único que Cloudflare para en exclusiva. Lo que compran los 20 USD:
+volumétrico, ~~que es lo único que Cloudflare para en exclusiva~~. Lo que compran los 20 USD:
+
+⚠ *Corregido el 2026-09-17, con la segunda auditoría: **no lo para en exclusiva.** Netlify mitiga DDoS de
+capa 3, 4 y 7 en todos sus planes, y **desaconseja** poner el proxy de Cloudflare delante. **Esta línea de
+20 USD queda pendiente de Q-31** —si Cloudflare entra o no—, y lo que sí hace falta de Cloudflare,
+Turnstile, **es gratis y no pasa por este plan**.*
 
 | | Free | Pro (20 USD anual / 25 mensual) |
 |---|---|---|

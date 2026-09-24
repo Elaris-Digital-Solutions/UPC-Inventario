@@ -10,9 +10,10 @@
 // el dashboard, con el filtro puesto aqui nadie se enteraria. El mensaje que
 // ve el usuario sale del servidor, que es la unica fuente de verdad.
 
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import Image from "next/image";
 
+import { Turnstile } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,10 +27,25 @@ import { createClient } from "@/lib/supabase/client";
 
 type Estado = "idle" | "enviando" | "enviado";
 
+// H-9. Sin esta variable -local, CI, y produccion hasta configurarla- no hay
+// widget ni token y el login funciona como antes. ⚠ EL ORDEN DEL DESPLIEGUE
+// IMPORTA: el CAPTCHA se enciende en Supabase DESPUES de publicar este codigo
+// con la variable puesta; al reves, nadie puede pedir su enlace.
+const SITE_KEY_TURNSTILE = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined;
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Cada token sirve UNA vez: tras un intento fallido se remonta el widget con
+  // otra `key` para que pida uno nuevo.
+  const [intento, setIntento] = useState(0);
+
+  // Estable, o el efecto del widget lo volveria a pintar en cada render.
+  const avisarFallo = useCallback(() => {
+    setError("No se pudo cargar la verificación anti-bots. Recarga la página.");
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,12 +63,17 @@ export default function LoginPage() {
         // True o nadie podria entrar la primera vez. A quien no sea de la UPC lo
         // para el enganche antes de crear la cuenta, no este formulario.
         shouldCreateUser: true,
+        ...(captchaToken === null ? {} : { captchaToken }),
       },
     });
+
+    // Gastado, haya salido bien o mal.
+    setCaptchaToken(null);
 
     if (error) {
       setError(error.message);
       setEstado("idle");
+      setIntento((n) => n + 1);
       return;
     }
 
@@ -138,6 +159,14 @@ export default function LoginPage() {
                   placeholder="nombre@upc.edu.pe"
                 />
               </div>
+              {SITE_KEY_TURNSTILE && (
+                <Turnstile
+                  key={intento}
+                  siteKey={SITE_KEY_TURNSTILE}
+                  onToken={setCaptchaToken}
+                  onFallo={avisarFallo}
+                />
+              )}
               {error && (
                 <p role="alert" className="text-destructive text-sm">
                   {error}
@@ -145,7 +174,10 @@ export default function LoginPage() {
               )}
               <Button
                 type="submit"
-                disabled={estado === "enviando"}
+                disabled={
+                  estado === "enviando" ||
+                  (SITE_KEY_TURNSTILE !== undefined && captchaToken === null)
+                }
                 className="w-full"
               >
                 {estado === "enviando" ? "Enviando..." : "Enviar enlace"}

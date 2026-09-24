@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
 
+import { limpiarEvento } from '@/lib/seguridad/limpiar-evento';
+
 // H-4 de la auditoria del 2026-08-23: Sentry, SOLO EN EL SERVIDOR.
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,25 +64,10 @@ export function register() {
     // El plan gratuito da 5 000 errores/mes; gastarlos en trazas seria quedarse
     // sin el aviso que importa.
 
-    beforeSend(evento) {
-      // Regla 4, segunda pasada y a mano. El SDK ya omite cookies y cabeceras
-      // con `sendDefaultPii: false`, pero esto NO confia en ese default: son dos
-      // interruptores del mismo proveedor, y el dia que uno cambie de
-      // comportamiento el otro sigue.
-      if (evento.request) {
-        delete evento.request.cookies;
-        delete evento.request.headers;
-        // La `query_string` puede llevar el `token_hash` de un magic link, que
-        // es un secreto de un solo uso. La URL sin ella basta para saber donde
-        // fallo.
-        delete evento.request.query_string;
-      }
-
-      // Regla 4: ni siquiera el correo del usuario identificado.
-      delete evento.user;
-
-      return evento;
-    },
+    // Regla 4, segunda pasada y a mano: son dos interruptores del mismo
+    // proveedor, y el dia que uno cambie de comportamiento el otro sigue. Vive
+    // en lib/seguridad/limpiar-evento.ts para poder probarlo (H-17).
+    beforeSend: limpiarEvento,
   });
 }
 

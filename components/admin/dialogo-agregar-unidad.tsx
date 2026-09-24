@@ -128,6 +128,7 @@ export function DialogoAgregarUnidad({ productoId, sedes }: DialogoAgregarUnidad
             id={`${idCodigo}-nota`}
             value={nota}
             onChange={(e) => setNota(e.target.value)}
+            maxLength={500}
             placeholder="Opcional"
           />
           {/* El aviso va aunque la nota sea opcional: si se escribe, se guarda

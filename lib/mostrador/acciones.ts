@@ -11,11 +11,12 @@
 // que RLS le abre". Ver COMPORTAMIENTO_MEDIDO.md §1.1 y §2.
 //
 // TRADUCCION DE RECHAZOS, mismo criterio que en lib/reservas/acciones.ts: texto
-// propio SOLO para lo alcanzable, crudo para lo demas, y lo no reconocido al
-// crudo y nunca a un generico.
+// propio SOLO para lo alcanzable, y lo demas por `reportar()`, que da un
+// generico con id y manda el crudo al log (H-3, y H-16 para este archivo).
 
 import { revalidatePath } from 'next/cache';
 
+import { reportar } from '@/lib/seguridad/reportar';
 import { createClient } from '@/lib/supabase/server';
 
 export type ResultadoMostrador = { error: string } | null;
@@ -38,7 +39,7 @@ function mensajeDeRechazoMostrador(mensajeDelMotor: string): string {
     return 'Esta reserva ya cambió de estado, probablemente porque otro operador la actualizó primero. Actualiza la página para ver su estado actual.';
   }
 
-  return mensajeDelMotor;
+  return reportar('mensajeDeRechazoMostrador', { message: mensajeDelMotor });
 }
 
 // El UPDATE compartido por entregar(), recibir() y marcarNoRecogida(): las tres
@@ -107,7 +108,14 @@ async function insertarNota(
     .from('inventory_unit_notes')
     .insert({ unit_id: unidadId, note: notaRecortada });
 
-  return { error: error?.message ?? null };
+  // H-16: antes devolvia `error.message` tal cual, o sea el crudo de Postgres al
+  // navegador. El tope de 500 lo evita el `maxLength` de los dos dialogos, asi
+  // que lo que llega aqui es inesperado de verdad.
+  if (error) {
+    return { error: reportar('insertarNota', error) };
+  }
+
+  return { error: null };
 }
 
 // `active -> not_returned`, la segunda falta y la unica con sancion PERMANENTE:

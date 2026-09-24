@@ -6,9 +6,12 @@
 >
 > **Aquí vive el CÓMO se configura cada servicio. El CUÁNTO CUESTA vive en
 > [`COSTOS.md`](./COSTOS.md)**, y ninguno de los dos repite al otro: los precios caducan y por eso van
-> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida que este documento no
-> menciona y sin la cual nadie puede entrar: el SMTP propio.** El correo integrado de Supabase manda
-> **2 mensajes por hora** y aquí se entra sólo por magic link.
+> fechados y con su fuente en un solo sitio. ⚠ **Y `COSTOS.md` señala la partida sin la cual nadie
+> puede entrar: el SMTP propio.** El correo integrado de Supabase manda **2 mensajes por hora** y aquí
+> se entra sólo por magic link.
+>
+> ⚠ *Caducado el 2026-09-17: el SMTP propio ya está montado y **su cómo vive en el §4** de este
+> documento. La frase de arriba decía que este documento «no lo menciona», y era cierta hasta hoy.*
 
 **Escrito el 2026-08-23**, al cerrar los siete huecos de la auditoría de seguridad. Cubre el paso que
 falta para que el Next.js exista en internet, y el orden importa: **Netlify primero, Cloudflare
@@ -61,13 +64,21 @@ Pero conviene tener claro el reparto:
 
 | Amenaza | Quién la para |
 |---|---|
-| Inundación volumétrica (L3/L4) | **Cloudflare**, y sólo Cloudflare |
+| Inundación volumétrica (L3/L4) | ~~**Cloudflare**, y sólo Cloudflare~~ ⚠ *Corregido el 2026-09-17:* **Netlify**, que mitiga DDoS de capa 3, 4 y 7 en todos sus planes. Y Supabase, que tiene su propio borde |
 | Abuso de una ruta cara por alguien autenticado | El código — `pedir_firma_cloudinary()`, `daily_limit_per_product`, los topes de H-1 |
 | Texto de 500 MB en una columna | **La base** *(H-1)*. Cloudflare no mira el cuerpo de un `POST` autenticado |
 | Bots que raspan el catálogo | Cloudflare |
+| **Agotar el tope de correos para que nadie entre** *(H-9)* | **Un CAPTCHA dentro de Supabase Auth.** Ni Cloudflare ni Netlify lo ven: la petición va del navegador a `supabase.co` |
+| **Agotar los créditos de Netlify, que pausa el sitio** *(H-12)* | El código —`remotePatterns` acotado a nuestra cuenta de Cloudinary— y la recarga automática del plan |
 
 **Nada de lo que se configure en Cloudflare sustituye a los topes de la base.** Son capas distintas
 sobre problemas distintos.
+
+⚠ **Añadido el 2026-09-17, con la segunda auditoría.** Esta sección decía «Cloudflare no para un DDoS
+por sí solo» y era cierto, pero se quedaba corto: **el DoS que más duele aquí no es de volumen, es de
+cupo**. Un solo script sin sesión puede gastar el tope de correos de todo el proyecto, o los créditos
+del mes de Netlify, **sin llegar nunca a parecer un ataque**. Los hallazgos están en `ESTADO_Y_PLAN.md`
+§3, de H-8 a H-19.
 
 ---
 
@@ -89,7 +100,8 @@ configuración y sin cambios respecto a la 15.**
 
 ### 1.2 Variables de entorno — en el panel, nunca en el repositorio
 
-*Site configuration → Environment variables.* Son siete, y **una es un secreto de verdad**:
+*Site configuration → Environment variables.* ~~Son siete~~ Son ocho desde el 2026-09-18 —se suma la de
+Turnstile, H-9—, y **una es un secreto de verdad**:
 
 | Variable | Valor | Nota |
 |---|---|---|
@@ -100,6 +112,7 @@ configuración y sin cambios respecto a la 15.**
 | `CLOUDINARY_API_SECRET` | El secreto | ⚠ **Secreto. Marcar como *secret* en Netlify** |
 | `CLOUDINARY_FOLDER` | La carpeta | — |
 | `SENTRY_DSN` | El DSN, cuando exista | **Sin** `NEXT_PUBLIC_`; vacía no rompe nada |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | La *site key* de Turnstile | Pública. **Se pone ANTES de encender el CAPTCHA en Supabase** *(§5.1)*; la *secret key* va a Supabase, no aquí |
 
 ⚠ **De las dos de Cloudinary sólo una es secreta, y la pregunta se repite.** `CLOUDINARY_API_KEY`
 **viaja al navegador por diseño**: `app/api/cloudinary/firmas/route.ts:150` la devuelve en la respuesta
@@ -259,12 +272,26 @@ llegue el definitivo.
 exige mover los nameservers de **todo** `ccnode.net` —correo incluido— desde Mochahost, y el dominio es
 del cliente. El DNS se queda en Mochahost *(§1.5)*.
 
+⚠ **Y la segunda auditoría, el 2026-09-17, encontró dos motivos más para no darlo por hecho** *(Q-31)*:
+
+1. **Netlify desaconseja poner el proxy de Cloudflare delante de su CDN.** Lo dice su guía de soporte
+   *«What problems could occur when using Cloudflare in front of Netlify?»*: lo que recomienda es la nube
+   **gris** —sólo DNS—, que no protege nada. El paso 4 del §2.1 pedía la **naranja**.
+2. **La regla del §2.3 no cubre la puerta que importa.** El magic link lo pide el navegador directo a
+   `supabase.co` y nunca pasa por este dominio. Esa puerta se cierra con **Turnstile dentro de Supabase
+   Auth** *(H-9)*, y **Turnstile no exige tener el DNS en Cloudflare**.
+
+**Lo de abajo se conserva** porque sigue siendo correcto si algún día se decide ponerlo, pero ya no es
+el siguiente paso del despliegue.
+
 ### 2.1 El orden, que no es intuitivo
 
 1. **Añadir el dominio a Cloudflare** (*Add a site*). Cloudflare escanea los DNS existentes.
 2. **Cambiar los nameservers** en el registrador al par que Cloudflare indique. Tarda de minutos a 24 h.
 3. **En Netlify**, añadir el dominio personalizado (*Domain management → Add a domain*).
 4. **En Cloudflare**, crear el registro DNS hacia Netlify **con la nube naranja activada** (proxied).
+   ⚠ *Precisado el 2026-09-17: **Netlify desaconseja este paso** —ver arriba, Q-31—. Si se hace, es
+   contra la recomendación del proveedor y hay que medir que los certificados se sigan renovando.*
 5. **Recién entonces**, SSL y las reglas.
 
 ### 2.2 SSL — el ajuste que rompe el sitio si se hace mal
@@ -293,8 +320,13 @@ donde más duele:
 
 **Por qué `/auth` y no `/api`:** `/api/cloudinary/firmas` **ya tiene su tope en la base**
 —`pedir_firma_cloudinary()`, 60/hora por persona— y ese cuenta por **usuario**, que es mejor que por
-IP. `/auth` no tiene nada delante salvo los límites de Supabase, y es la única puerta que un anónimo
-puede aporrear.
+IP. `/auth` no tiene nada delante salvo los límites de Supabase, ~~y es la única puerta que un anónimo
+puede aporrear~~.
+
+⚠ *Corregido el 2026-09-17: **no es la única, y no es la que más importa.** `signInWithOtp` sale del
+navegador directo a `https://zqfkzgdyeqxzgzpxgadi.supabase.co/auth/v1/otp`, así que **pedir magic links
+no pasa por `/auth` ni por `/login`** y esta regla no lo vería. `/login` es sólo la página. Lo que sí
+llega por aquí es `/auth/confirm`, el canje: eso sí lo frena la regla.*
 
 *Managed Challenge* y no *Block*: un bloqueo duro por IP en una universidad **castiga a un campus
 entero detrás de un NAT**. El desafío deja pasar a la persona real y frena al script.
@@ -419,3 +451,164 @@ cuatro commits propios de `main`, y ninguno está cubierto por `legacy/vite-fina
 `legacy/refactor-marzo`** —comprobado con `git tag --contains`—, así que se perderían de verdad. Es
 justo lo que D-29 existe para impedir. **Y no compra nada:** Netlify publica el árbol del último
 commit, nunca la historia. Conservar los ancestros no publica ni un byte del Vite.
+
+---
+
+## 4. Correo saliente · Resend y el SMTP propio
+
+**Montado el 2026-09-17.** Sin esto nadie entra: no hay contraseñas, y el SMTP integrado de Supabase
+manda **2 mensajes por hora**. El coste y por qué Resend y no otro están en
+[`COSTOS.md`](./COSTOS.md) §4; aquí sólo vive el cómo.
+
+### 4.1 El dominio remitente es `dispositivos.ccnode.net`, no `ccnode.net`
+
+**Subdominio, y por dos motivos.** Si los correos del sistema caen en spam, no arrastran la reputación
+del correo de la empresa, que sigue en Mochahost. Y el remitente coincide con la dirección donde está
+la aplicación.
+
+⚠ **El correo de `ccnode.net` no se toca.** El MX sigue en `mail.ccnode.net` y el SPF de la raíz
+—`v=spf1 +a +mx +ip4:198.38.90.23 include:spf.mysecurecloudhost.com ~all`— se queda como está: los
+registros de Resend cuelgan de **otros nombres** y no compiten con él. **Y no hace falta DMARC nuevo:**
+`_dmarc.ccnode.net` ya publica `v=DMARC1; p=none;` sin `sp=`, así que el subdominio hereda esa política.
+
+### 4.2 Los registros en cPanel, que NO son los que documenta Resend en su guía vieja
+
+⚠ **Resend pide hoy un TXT y DOS CNAME.** La guía que circula —y lo que este documento decía antes de
+medirlo— habla de un **MX a `feedback-smtp…amazonses.com` y un TXT de SPF**. **Lo que la consola
+entregó el 2026-09-17 fue otra cosa**, la infraestructura `forge.rmta.net`. **Se copia lo que muestra
+la consola, no lo que dice ninguna guía.**
+
+| Tipo | Nombre *(completo y con punto final)* | Valor |
+|---|---|---|
+| TXT | `resend._domainkey.dispositivos.ccnode.net.` | la clave DKIM, `p=MIGf…`, **en una sola línea y sin comillas** |
+| CNAME | `rsend.dispositivos.ccnode.net.` | `rsend-sae1.forge.rmta.net.` |
+| CNAME | `send.dispositivos.ccnode.net.` | `send.forge.rmta.net.` |
+
+**El punto final no es cosmético:** sin él, cPanel añade `.ccnode.net` otra vez y el registro queda en
+`send.dispositivos.ccnode.net.ccnode.net`. **Y el formulario simple del Zone Editor no ofrece TTL**:
+pone el suyo, y no pasa nada.
+
+**Que `dispositivos` sea un CNAME a Netlify no estorba:** un CNAME sólo prohíbe otros datos **en su
+mismo nombre**, y estos tres son nombres distintos.
+
+### 4.3 Comprobar el DNS antes de pulsar *Verify*, y contra los CUATRO nameservers
+
+Preguntar a un resolutor público mide la caché. Preguntar al servidor autoritativo mide lo que quedó
+guardado. **Los dos comandos siguientes se corren contra `ns1` … `ns4`**, y el motivo se midió ese
+mismo día:
+
+⚠ **Los cuatro nameservers de Mochahost no se sincronizan a la vez, y su número de serie miente.**
+Medido el 2026-09-17: con los tres registros ya guardados, `ns3` y `ns4` servían los tres y **`ns1` y
+`ns2` no tenían `send`** —y sus seriales discrepaban, `…14` contra `…17`—. **Pulsar *Verify* en ese
+momento habría fallado sin que hubiera nada mal**: basta con que Resend le pregunte al que va atrasado.
+
+```powershell
+foreach ($s in 'ns1','ns2','ns3','ns4') { "== $s"; Resolve-DnsName send.dispositivos.ccnode.net -Type CNAME -Server "$s.mysecurecloudhost.com" -DnsOnly | Where-Object Section -eq 'Answer' | Select-Object -ExpandProperty NameHost }
+```
+
+**Y el DKIM se compara entero, no se mira.** Una clave truncada tiene el mismo aspecto que una buena:
+
+```powershell
+$esperado = 'PEGAR_AQUI_EL_VALOR_DE_RESEND'
+```
+
+```powershell
+foreach ($s in 'ns1','ns2','ns3','ns4') { $v = (Resolve-DnsName resend._domainkey.dispositivos.ccnode.net -Type TXT -Server "$s.mysecurecloudhost.com" -DnsOnly | Where-Object Section -eq 'Answer').Strings -join ''; "$s igual=$($v -ceq $esperado) largo=$($v.Length)/$($esperado.Length)" }
+```
+
+*El 2026-09-17 salió `igual=True largo=218/218` en los cuatro.*
+
+### 4.4 Resend: seguimiento apagado y una clave que sólo puede enviar
+
+- **Domains → Configuration: *Click tracking* y *Open tracking* APAGADOS.** ⚠ Con el de clics
+  encendido, Resend **reescribe el enlace del correo** para pasarlo por su dominio de seguimiento: el
+  magic link deja de apuntar a `dispositivos.ccnode.net` y el canje se rompe.
+- **API Keys → *Sending access*, limitada a `dispositivos.ccnode.net`.** Resend la muestra **una sola
+  vez**. Va al gestor de contraseñas: **ni al repositorio ni a `.env`** — es la misma regla del token
+  de la CLI de Supabase.
+- **La clave de la pantalla de bienvenida se borra al terminar.** Sirve para el correo de prueba y
+  nada más.
+
+⚠ **La prueba de bienvenida no mide nada de este montaje** y conviene saberlo antes de perder una
+hora: sale de `onboarding@resend.dev`, un remitente **compartido por todas las cuentas de Resend**, y
+sólo acepta como destinatario el correo de la propia cuenta. El 2026-09-17 Resend la registró
+`Delivered` y **Gmail no la mostró en ninguna carpeta**. **Eso no dice nada sobre el dominio propio.**
+
+### 4.5 Supabase: el SMTP y el límite que deja a todos fuera
+
+**Authentication → Emails → SMTP Settings → *Enable custom SMTP*:**
+
+| Campo | Valor |
+|---|---|
+| Sender email | `no-responder@dispositivos.ccnode.net` |
+| Host · Port | `smtp.resend.com` · `465` |
+| Username | `resend` |
+| Password | la clave de envío de Resend |
+
+⚠ **Y a continuación, Authentication → Rate Limits.** Al activar SMTP propio el tope pasa de 2 a
+**30 correos por hora**, y **es uno solo para todo el proyecto, no por alumno**. Al superarlo **nadie
+puede entrar** hasta la hora siguiente, y el fallo aparece como un error genérico de inicio de sesión.
+
+**Las plantillas no las toca este paso.** Siguen siendo las del dashboard, que apuntan a
+`/auth/confirm?token_hash=…`; ver el §1.3 sobre la barra final del Site URL.
+
+### 4.6 Verificar por el efecto, con control negativo
+
+Se pide un enlace en `https://dispositivos.ccnode.net/login` con un correo **`@upc.edu.pe` real**:
+
+1. **Resend → Emails** lo muestra `Delivered`. **Es el control positivo de que salió por Resend:** el
+   SMTP integrado de Supabase no aparecería ahí.
+2. En el origen del mensaje: `dkim=pass`, `spf=pass`, `dmarc=pass`.
+3. **Se abre el enlace UNA sola vez** y la sesión queda iniciada.
+4. **Control negativo:** un correo que no sea `@upc.edu.pe` **no** produce ningún envío en Resend,
+   porque lo corta el enganche *(D-32)*.
+
+*Medido el 2026-09-17: los cuatro pasan. **El correo llegó a Correo no deseado**, que es lo único
+abierto y vive como pendiente en `ESTADO_Y_PLAN.md`.*
+
+⚠ *Precisado el 2026-09-18: **desde la noche del 17 la entrega es errática**, con Resend marcando `delivered` todos los que se contrastaron: unos se abren, otros caen en spam y al menos uno no aparece en ninguna carpeta. El diagnóstico y lo que falta, en Q-29.*
+
+⚠ **`Delivered` en Resend significa que el servidor del destinatario aceptó el mensaje, no que el
+usuario lo vea.** Dónde lo coloca después —Bandeja de entrada o Correo no deseado— lo decide
+Microsoft, y Resend no lo sabe. **Es un instrumento que mide el tramo hasta la puerta, no hasta la
+persona.**
+
+## 5. El CAPTCHA del login · Turnstile *(H-9)*
+
+**Por qué hace falta:** pedir un magic link sale **del navegador directo a `supabase.co`**, y el tope de
+correos por hora *(§4.5)* es **uno para todo el proyecto**. Sin CAPTCHA, cualquiera lo agota pidiendo
+enlaces para correos inventados, y **nadie entra durante esa hora**. **Turnstile es de Cloudflare pero
+NO exige tener el DNS en Cloudflare** *(§2)*.
+
+**El código ya está preparado** *(2026-09-18)*: sin la variable de abajo, el login funciona exactamente
+como antes. Con ella, pinta el widget y el botón espera al token.
+
+### 5.1 El orden, y el que está mal deja a todos fuera
+
+1. **Cloudflare → Turnstile → *Add widget*.** Nombre `upc-inventario`; *Hostnames*
+   `dispositivos.ccnode.net`; modo **Managed**. Cloudflare da **dos claves**: la *site key*, pública, y
+   la *secret key*.
+2. **Netlify → Environment variables:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = la *site key*. ⚠ Es
+   `NEXT_PUBLIC_`, así que **se inlinea al compilar**: hace falta un **deploy nuevo** después de ponerla.
+   La *secret key* **no** va a Netlify.
+3. **Desplegar, y comprobar que el widget aparece** en `https://dispositivos.ccnode.net/login` y que el
+   enlace se sigue pidiendo bien. **Todavía con el CAPTCHA apagado en Supabase**: el token viaja y
+   Supabase lo ignora.
+4. **Recién entonces, Supabase → Authentication → Attack Protection → *Enable Captcha protection*:**
+   proveedor **Turnstile** y la *secret key*.
+
+⚠ **Si el paso 4 se da antes que el 3, NADIE puede pedir su enlace**: Supabase exige un token que el
+sitio publicado todavía no manda. Medido en local: sin token responde **`400 captcha_failed`**, *«no
+captcha_token found»*.
+
+### 5.2 Verificar por el efecto, con control negativo
+
+- **Positivo:** pedir un enlace desde el sitio → «Revisa tu correo», y el correo llega.
+- **Negativo:** pedir un enlace **sin** token —`POST /auth/v1/otp` a mano, sin `captcha_token`— → tiene
+  que dar **400 `captcha_failed`**. Es lo que demuestra que el CAPTCHA está encendido y no sólo pintado.
+
+*Medido el 2026-09-18 **en local**, con las claves de prueba que publica Cloudflare —la que siempre
+pasa—: el negativo dio `400 captcha_failed`; en un navegador real contra el build de producción, el botón
+empezó deshabilitado, se habilitó al llegar el token, el enlace se pidió y salió «Revisa tu correo», con
+**0 violaciones de CSP**. El widget es un iframe de `https://challenges.cloudflare.com`, y por eso la CSP
+lleva `frame-src` hacia ese origen y sólo hacia ése. **En producción no está medido todavía.***
