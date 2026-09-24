@@ -77,6 +77,43 @@ describe('limpiarEvento', () => {
     expect(limpio.tags?.correlacion).toBe('abcd1234');
   });
 
+  // El breadcrumb que @sentry/node 10.70 deja por cada fetch saliente. A
+  // PostgREST los filtros viajan en la query, y darDeAltaPersonal() filtra por
+  // correo: `email=eq.<correo>`. Medido en el envelope enviado el 2026-09-23.
+  function eventoConMiga(): ErrorEvent {
+    return {
+      type: undefined,
+      breadcrumbs: [
+        {
+          category: 'http',
+          type: 'http',
+          data: {
+            url: 'https://zqfkzgdyeqxzgzpxgadi.supabase.co/rest/v1/alumnos?select=auth_user_id&email=eq.alumno%40upc.edu.pe',
+            'http.method': 'GET',
+            'http.query': 'select=auth_user_id&email=eq.alumno%40upc.edu.pe',
+            'http.fragment': 'alumno@upc.edu.pe',
+            status_code: 400,
+          },
+        },
+      ],
+    };
+  }
+
+  it('la query de una llamada saliente no llega: lleva los filtros de PostgREST', () => {
+    const limpio = JSON.stringify(limpiarEvento(eventoConMiga()));
+
+    expect(limpio).not.toContain('alumno%40upc.edu.pe');
+    expect(limpio).not.toContain('alumno@upc.edu.pe');
+  });
+
+  it('la miga conserva a que tabla se llamo, con que metodo y que respondio', () => {
+    const datos = limpiarEvento(eventoConMiga()).breadcrumbs?.[0]?.data;
+
+    expect(datos?.url).toBe('https://zqfkzgdyeqxzgzpxgadi.supabase.co/rest/v1/alumnos');
+    expect(datos?.['http.method']).toBe('GET');
+    expect(datos?.status_code).toBe(400);
+  });
+
   it('CONTROL: una ruta sin query no se toca', () => {
     const evento: ErrorEvent = { type: undefined, contexts: { nextjs: { request_path: '/catalogo' } } };
 

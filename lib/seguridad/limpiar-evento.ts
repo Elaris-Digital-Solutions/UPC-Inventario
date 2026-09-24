@@ -40,5 +40,18 @@ export function limpiarEvento(evento: ErrorEvent): ErrorEvent {
   // nombre. Lo util ya viaja aparte: el mensaje en `exception` y el id en `tags`.
   delete evento.extra;
 
+  // 2026-09-23: cada fetch saliente deja una miga con su query, y a PostgREST
+  // los filtros viajan ahi: darDeAltaPersonal() manda `email=eq.<correo>`. La
+  // ruta, el metodo y el codigo se quedan: dicen que llamada fallo.
+  for (const miga of evento.breadcrumbs ?? []) {
+    if (miga.data) {
+      delete miga.data['http.query'];
+      delete miga.data['http.fragment'];
+      if (typeof miga.data.url === 'string') {
+        miga.data.url = sinQuery(miga.data.url);
+      }
+    }
+  }
+
   return evento;
 }
