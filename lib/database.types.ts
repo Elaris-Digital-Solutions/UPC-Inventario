@@ -363,6 +363,7 @@ export type Database = {
           created_by: string | null
           id: string
           note: string
+          reservation_id: string | null
           unit_id: string
         }
         Insert: {
@@ -370,6 +371,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           note: string
+          reservation_id?: string | null
           unit_id: string
         }
         Update: {
@@ -377,9 +379,17 @@ export type Database = {
           created_by?: string | null
           id?: string
           note?: string
+          reservation_id?: string | null
           unit_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_unit_notes_reservation_fkey"
+            columns: ["reservation_id", "unit_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_reservations"
+            referencedColumns: ["id", "unit_id"]
+          },
           {
             foreignKeyName: "inventory_unit_notes_unit_id_fkey"
             columns: ["unit_id"]

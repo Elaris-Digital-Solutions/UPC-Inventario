@@ -2,19 +2,21 @@
 
 // Una reserva del mostrador con sus acciones.
 //
-// CLIENT COMPONENT y no un Server Component con los botones delegados: los dos
-// botones directos no abren ningun dialogo, son un clic con un unico dato que
+// CLIENT COMPONENT y no un Server Component con los botones delegados: el boton
+// directo -entregar- no abre ningun dialogo, es un clic con un unico dato que
 // esta tarjeta ya tiene. Los que SI necesitan estado propio y un campo de texto
-// -las dos faltas y la nota- viven en su propio archivo y traen su disparador.
+// -la devolucion, las dos faltas y la nota- viven en su propio archivo y traen
+// su disparador.
 import { useState, useTransition } from "react";
 import { CalendarDays, User } from "lucide-react";
 
 import { MiniaturaAmpliable } from "@/components/imagenes/miniatura-ampliable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogoDevolucion } from "@/components/mostrador/dialogo-devolucion";
 import { DialogoFalta } from "@/components/mostrador/dialogo-falta";
 import { DialogoNota } from "@/components/mostrador/dialogo-nota";
-import { entregar, recibir, type ResultadoMostrador } from "@/lib/mostrador/acciones";
+import { entregar, type ResultadoMostrador } from "@/lib/mostrador/acciones";
 import type { Columna } from "@/lib/mostrador/columnas";
 import type { AlumnoMostrador, ReservaMostrador } from "@/lib/mostrador/consultas";
 import type { NotaUnidad } from "@/lib/mostrador/notas";
@@ -73,7 +75,7 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
   const [pendiente, iniciarTransicion] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // useTransition Y NO useActionState: estos dos botones no tienen NINGUN campo
+  // useTransition Y NO useActionState: el boton de entregar no tiene NINGUN campo
   // de formulario, solo un id que la tarjeta ya conoce. `useActionState` existe
   // para coordinar un `<form>` -estado previo, FormData, campos que resetear-, y
   // aqui no hay ninguno.
@@ -163,9 +165,12 @@ export function TarjetaMostrador({ reserva, columna, notas }: TarjetaMostradorPr
           {/* En LAS DOS columnas de `active`: devolver tiene sentido tanto antes
               como despues de la hora de fin, que es lo unico que las separa. */}
           {(columna === "activas" || columna === "por_devolver") && (
-            <Button size="sm" disabled={pendiente} onClick={() => ejecutar(recibir)}>
-              {pendiente ? "Recibiendo…" : "Producto devuelto"}
-            </Button>
+            <DialogoDevolucion
+              reservationId={reserva.id}
+              unidadId={reserva.unidadId}
+              unidad={reserva.unidad}
+              alumno={textoAlumno(reserva.alumno)}
+            />
           )}
 
           {columna === "por_entregar" && (

@@ -623,6 +623,8 @@ con 3 estáticas, sin cambios**: no agrega ninguna ruta.
     entrada general. Se eligió **quedarse en el botón aparte**, sin tocar `entregar()` ni `recibir()`
     —cerradas y verificadas en la Task 5—. **La diferencia con F5 queda registrada, no resuelta:**
     adjuntar una nota al entregar y al recibir sigue sin existir.
+    ✅ **Recibir, cerrado el 2026-09-25** *(D-102)*: «Producto devuelto» abre un diálogo con nota
+    opcional atada a la reserva. **Entregar sigue sin nota.**
 11. **Verificado en pantalla, con `npm run dev` y sesión de operador.** El botón aparece en las tres
     columnas; el historial sale ordenado de más reciente a más antiguo y con **año** en la fecha —una nota
     no tiene ventana de vigencia, a diferencia de una reserva—; una unidad sin notas dice «Esta unidad
