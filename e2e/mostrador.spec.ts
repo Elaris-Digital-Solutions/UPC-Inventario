@@ -5,6 +5,8 @@ import { iniciarSesionComo, paginaConSesion } from './apoyo/sesion';
 
 const ALUMNA_CON_PERFIL_COMPLETO = 'alumno.a@upc.edu.pe';
 const OPERADOR = 'operador@upc.edu.pe';
+const ADMIN = 'admin@upc.edu.pe';
+const NOTA = 'E2E: vuelve sin la funda';
 
 test.describe('el mostrador atiende una reserva de punta a punta', () => {
   // Esta prueba es TAMBIEN la comprobacion de que la reserva EXISTE DE
@@ -67,7 +69,12 @@ test.describe('el mostrador atiende una reserva de punta a punta', () => {
         .filter({ hasText: nombreProducto });
       await expect(tarjetaActiva).toBeVisible();
 
+      // El boton abre un dialogo con nota OPCIONAL. El dialogo vive en un
+      // portal, fuera de la tarjeta, asi que se busca desde la pagina.
       await tarjetaActiva.getByRole('button', { name: 'Producto devuelto' }).click();
+      const dialogo = operador.page.getByRole('dialog');
+      await dialogo.getByLabel('Nota (opcional)').fill(NOTA);
+      await dialogo.getByRole('button', { name: 'Confirmar devolución' }).click();
 
       // recibir() deja la reserva en `completed`, estado TERMINAL:
       // reservasMostrador() (lib/mostrador/consultas.ts) solo trae filas con
@@ -91,6 +98,32 @@ test.describe('el mostrador atiende una reserva de punta a punta', () => {
       // corrida siguiente de esta prueba no choca con esta reserva.
     } finally {
       await operador.cerrar();
+    }
+
+    // La nota de la devolucion aparece en el historial de /admin/reservas, en
+    // la fila de ESTA reserva. Se despliegan una a una las filas "Devuelta" del
+    // producto porque cancelar.spec.ts deja otra igual, sin nota.
+    const admin = await paginaConSesion(browser, baseURL, ADMIN);
+
+    try {
+      await admin.page.goto('/admin/reservas');
+      const filas = admin.page
+        .getByRole('row')
+        .filter({ hasText: nombreProducto })
+        .filter({ hasText: 'Devuelta' });
+      const detalle = admin.page
+        .getByRole('row')
+        .filter({ hasText: 'Notas del equipo en esta reserva' });
+
+      const detalles: string[] = [];
+      for (const fila of await filas.all()) {
+        await fila.getByRole('button', { name: 'Ver más' }).click();
+        detalles.push(await detalle.innerText());
+      }
+
+      expect(detalles.filter((texto) => texto.includes(NOTA))).toHaveLength(1);
+    } finally {
+      await admin.cerrar();
     }
   });
 });

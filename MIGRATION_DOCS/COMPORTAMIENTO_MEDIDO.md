@@ -81,6 +81,9 @@ Casos concretos medidos:
   dos direcciones.
 - `inventory_unit_notes` → `staff_members(full_name)` devuelve **`PGRST200`**: la FK no existe en esa
   dirección. Por eso el historial de notas hace dos consultas.
+- `inventory_reservations` → `inventory_unit_notes` **sí embebe**, por la FK compuesta
+  `(reservation_id, unit_id)`, y sin `PGRST201` aunque las notas tengan también FK a `inventory_units`
+  *(2026-09-25, medido por el E2E del mostrador: el admin ve la nota en `/admin/reservas`)*.
 - `staff_members` → `alumnos` tampoco embebe: **400 / `PGRST200` / "Searched for a foreign key…"**. Dos
   consultas, y no es estilo.
 

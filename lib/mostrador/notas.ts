@@ -2,8 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 
 // La lectura de notas de unidad. SEPARADA de lib/mostrador/consultas.ts a
 // proposito: aquella depende de una RESERVA -un join contra cinco tablas- y esta
-// de una UNIDAD. `inventory_unit_notes` no tiene ninguna columna que la conecte
-// con una reserva, solo con `unit_id`.
+// de una UNIDAD. Trae TODAS las notas de la unidad, tengan o no `reservation_id`
+// (D-102): las atadas a una reserva las lee lib/admin/reservas.ts por su embed.
 
 // `fecha` llega en ISO TAL CUAL, sin reformatear aqui: quien la pinta decide el
 // formato, esta funcion solo la trae.

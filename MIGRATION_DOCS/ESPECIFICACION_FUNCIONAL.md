@@ -142,6 +142,9 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
 
 - Filtro de fecha sobre «Por entregar»: hoy / próximos 3 días / esta semana / todas.
 - Toda acción admite adjuntar una **anotación a la unidad**, que se guarda en el historial.
+  - ⚠ **Precisado el 2026-09-25** → **D-102**: «Producto devuelto» abre un diálogo con nota **opcional**,
+    y esa nota queda **atada a la reserva** además de a la unidad. «Producto entregado» sigue sin nota; para
+    eso está el botón aparte «Anotar unidad».
 - «No se devolvió» fuerza una anotación de alerta roja.
 - Todas las horas se muestran en `America/Lima`.
 
@@ -171,6 +174,8 @@ El núcleo del ciclo de préstamo. Tres columnas que se recalculan con un reloj 
     al alumno de forma **permanente** (`banned_until = 'infinity'`), y aplicarla desde un desplegable sin
     nota lo dejaría sancionado sin ningún rastro escrito del motivo.
 - Fila expandible con fecha de registro, estado de la unidad, duración en minutos, propósito y razón de cancelación.
+  - ⚠ **Ampliado el 2026-09-25** → **D-102**: también las **notas atadas a esa reserva** —las de la
+    devolución y la de «No se devolvió»—, o «Sin notas.». Las notas generales de la unidad no salen aquí.
 
 ### F7 · Inventario (`pages/Admin.tsx`, `pages/AdminUnits.tsx`)
 

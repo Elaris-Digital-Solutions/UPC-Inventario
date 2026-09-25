@@ -136,6 +136,10 @@ test.describe('cancelar una reserva desde /mi-panel', () => {
         .locator('[data-slot="card"]')
         .filter({ hasText: nombreProducto });
       await tarjetaActiva.getByRole('button', { name: 'Producto devuelto' }).click();
+      await operador.page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Confirmar devolución' })
+        .click();
       await expect(tarjetaActiva).toHaveCount(0);
 
       await operador.cerrar();
