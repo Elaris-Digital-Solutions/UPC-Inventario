@@ -22,7 +22,6 @@ import {
   Heroe,
   HeroeAcciones,
   HeroeBajada,
-  HeroePildora,
   HeroeTitular,
 } from "@/components/heroe";
 import { TarjetaProducto } from "@/components/catalogo/tarjeta-producto";
@@ -38,16 +37,18 @@ export default async function Home() {
           RECUPERADO el 2026-08-13: era una seccion normal dentro del
           container, con el titular negro sobre el gris de fondo y alineado a
           la izquierda -que en un monitor de 1440 dejaba media pantalla
-          vacia-. El Vite abria a sangre sobre `bg-gradient-hero`, centrado y
-          con la pildora de la universidad encima
-          (MIGRATION_GUIDE/src/pages/Index.tsx:75-108). Los textos son los que
-          ya habia; lo que cambia es como se presentan. */}
+          vacia-. El Vite abria a sangre sobre `bg-gradient-hero` y centrado
+          (MIGRATION_GUIDE/src/pages/Index.tsx:75-108).
+          LA PILDORA DE LA UNIVERSIDAD SE QUITO el 2026-09-25: decia
+          "Universidad Peruana de Ciencias Aplicadas" justo debajo de un rotulo
+          de cabecera que ya nombra a la UPC, asi que repetia. HeroePildora
+          sigue existiendo en components/heroe.tsx y la FAQ no la usa: queda
+          disponible sin ningun consumidor. */}
       <Heroe>
-        <HeroePildora>Universidad Peruana de Ciencias Aplicadas</HeroePildora>
         <HeroeTitular>Equipamiento tecnológico para tus proyectos</HeroeTitular>
         <HeroeBajada>
-          Los alumnos UPC reservan cámaras, laptops, tablets y más equipamiento
-          por franja horaria, y lo recogen en su sede.
+          Reserva y utiliza dispositivos tales como tablets, celulares, visores
+          VR y más, por franja horaria en Campus Monterrico y San Miguel.
         </HeroeBajada>
         <HeroeAcciones>
           {/* `secondary` y no `default`: el boton rojo de siempre desaparece

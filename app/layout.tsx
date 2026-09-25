@@ -23,10 +23,17 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
-// El nombre del producto es "Reserva UPC · Sistema de Prestamos".
-// "UPC-Inventario" es el nombre del REPOSITORIO y no va en la interfaz.
+// El nombre del producto es "Ciencias de la Computacion - UPC · Gestion de
+// Dispositivos", el mismo que el rotulo de la cabecera (components/logotipo.tsx)
+// y el pie. Cambiado el 2026-09-25; antes decia "Reserva UPC · Sistema de
+// Prestamos", y antes de eso "UPC-Inventario", que es el nombre del REPOSITORIO
+// y nunca debio estar en la interfaz.
+//
+// LOS CUATRO SITIOS SE CAMBIAN A LA VEZ -este <title>, el de la FAQ, y el `name`
+// y `short_name` de app/manifest.ts-: un nombre a medias es peor que el viejo,
+// porque la pestaña, el buscador y el icono instalado dicen cosas distintas.
 export const metadata: Metadata = {
-  title: "Reserva UPC · Sistema de Préstamos",
+  title: "Ciencias de la Computación - UPC · Gestión de Dispositivos",
   description:
     "Reserva y prestamo de equipamiento tecnologico para alumnos UPC.",
 };
