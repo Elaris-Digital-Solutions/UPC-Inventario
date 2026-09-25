@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 
 import type { EstadoUnidad } from '@/lib/admin/consultas';
+import type { NotaUnidad } from '@/lib/mostrador/notas';
 import type { EstadoReserva } from '@/lib/reservas/consultas';
 
 // La lectura de /admin/reservas (F6): la tabla COMPLETA con su join a producto,
@@ -38,6 +39,10 @@ export type ReservaAdmin = {
   duracionMinutos: number;
   motivo: string | null; // `purpose`: para que se pidio el equipo
   motivoCancelacion: string | null;
+  // Las notas escritas al devolver o al marcar "No se devolvio", mas recientes
+  // primero. Solo las que llevan `reservation_id`: la nota general del mostrador
+  // es de la unidad, no de un prestamo.
+  notas: NotaUnidad[];
 };
 
 // `products` e `inventory_units` -y `campuses` dentro del segundo- llegan como
@@ -60,6 +65,7 @@ type FilaCruda = {
     campuses: { name: string } | null;
   } | null;
   alumnos: { nombre: string | null; apellido: string | null; email: string } | null;
+  inventory_unit_notes: { id: string; note: string; created_at: string }[];
 };
 
 // NO DESCARTA NINGUNA FILA, y esa es la diferencia deliberada con
@@ -99,6 +105,7 @@ function filaAReservaAdmin(fila: FilaCruda): ReservaAdmin {
     duracionMinutos: Math.round((Date.parse(fila.end_at) - Date.parse(fila.start_at)) / 60_000),
     motivo: fila.purpose,
     motivoCancelacion: fila.cancellation_reason,
+    notas: fila.inventory_unit_notes.map((n) => ({ id: n.id, texto: n.note, fecha: n.created_at })),
   };
 }
 
@@ -128,9 +135,10 @@ export async function listarReservas(): Promise<ReservaAdmin[]> {
   const { data, error } = await supabase
     .from('inventory_reservations')
     .select(
-      'id,start_at,end_at,created_at,status,unit_id,purpose,cancellation_reason,products(name,category),inventory_units(unit_code,asset_code,status,campuses(name)),alumnos(nombre,apellido,email)',
+      'id,start_at,end_at,created_at,status,unit_id,purpose,cancellation_reason,products(name,category),inventory_units(unit_code,asset_code,status,campuses(name)),alumnos(nombre,apellido,email),inventory_unit_notes(id,note,created_at)',
     )
-    .order('start_at', { ascending: false });
+    .order('start_at', { ascending: false })
+    .order('created_at', { referencedTable: 'inventory_unit_notes', ascending: false });
 
   if (error) {
     throw new Error(`listarReservas: fallo la consulta a inventory_reservations: ${error.message}`);

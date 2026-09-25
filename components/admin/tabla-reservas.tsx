@@ -9,6 +9,7 @@
 import { Fragment, useState, useTransition } from "react";
 
 import { DialogoEstadoReserva, type ModoDialogo } from "@/components/admin/dialogo-estado-reserva";
+import { HistorialNotas } from "@/components/mostrador/historial-notas";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -283,7 +284,8 @@ export function TablaReservas({ reservas, totalSinFiltrar }: TablaReservasProps)
                   {estaExpandida && (
                     <TableRow>
                       {/* Los cinco datos que F6 pide, mas el activo fijo, que la
-                          busqueda ya mira y no se veia en ninguna columna. */}
+                          busqueda ya mira y no se veia en ninguna columna, y las
+                          notas atadas a esta reserva. */}
                       <TableCell colSpan={6} className="bg-muted/40">
                         <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
                           <div>
@@ -328,6 +330,13 @@ export function TablaReservas({ reservas, totalSinFiltrar }: TablaReservasProps)
                               <dd>{reserva.motivoCancelacion}</dd>
                             </div>
                           )}
+
+                          <div className="sm:col-span-2 lg:col-span-3">
+                            <dt className="text-muted-foreground text-xs">Notas del equipo en esta reserva</dt>
+                            <dd>
+                              {reserva.notas.length > 0 ? <HistorialNotas notas={reserva.notas} /> : "Sin notas."}
+                            </dd>
+                          </div>
                         </dl>
                       </TableCell>
                     </TableRow>

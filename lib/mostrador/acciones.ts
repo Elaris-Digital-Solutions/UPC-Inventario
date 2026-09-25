@@ -77,8 +77,24 @@ export async function entregar(reservationId: string): Promise<ResultadoMostrado
   return moverEstado(reservationId, 'active');
 }
 
-// `active -> completed`.
-export async function recibir(reservationId: string): Promise<ResultadoMostrador> {
+// `active -> completed`. La nota es OPCIONAL (F5: "toda accion admite adjuntar
+// una anotacion") y, si viene, entra PRIMERO y atada a la reserva, por lo mismo
+// que en marcarNoDevuelta(): un fallo deja la devolucion sin marcar, que se
+// reintenta, en vez de marcada y con la nota perdida.
+export async function recibir(
+  reservationId: string,
+  unidadId: string,
+  nota: string = '',
+): Promise<ResultadoMostrador> {
+  if (nota.trim() !== '') {
+    const supabase = await createClient();
+    const { error } = await insertarNota(supabase, unidadId, nota, reservationId);
+
+    if (error) {
+      return { error };
+    }
+  }
+
   return moverEstado(reservationId, 'completed');
 }
 
@@ -91,22 +107,27 @@ export async function marcarNoRecogida(reservationId: string): Promise<Resultado
   return moverEstado(reservationId, 'not_picked_up');
 }
 
-// El INSERT compartido por marcarNoDevuelta() y anotar().
+// El INSERT compartido por recibir(), marcarNoDevuelta() y anotar().
+//
+// `reservationId` solo lo pasan las dos primeras: es lo que hace que la nota
+// aparezca en la fila de esa reserva en /admin/reservas. La FK compuesta
+// (reservation_id, unit_id) rechaza una reserva de otra unidad.
 async function insertarNota(
   supabase: Awaited<ReturnType<typeof createClient>>,
   unidadId: string,
   nota: string,
+  reservationId: string | null = null,
 ): Promise<{ error: string | null }> {
   // Recortada del lado del SERVIDOR aunque cada llamador ya valide: `note` es
   // `text not null` SIN ningun CHECK que rechace la cadena vacia, asi que sin
   // esto una nota de solo espacios pasaria el INSERT tal cual.
   const notaRecortada = nota.trim();
 
-  // Columnas EXACTAS `(unit_id, note)`: `created_by` lo rellena el DEFAULT
-  // auth.uid() y el GRANT ni la enumera. Mandarla da 403/42501.
+  // Columnas EXACTAS `(unit_id, note, reservation_id)`: `created_by` lo rellena
+  // el DEFAULT auth.uid() y el GRANT ni la enumera. Mandarla da 403/42501.
   const { error } = await supabase
     .from('inventory_unit_notes')
-    .insert({ unit_id: unidadId, note: notaRecortada });
+    .insert({ unit_id: unidadId, note: notaRecortada, reservation_id: reservationId });
 
   // H-16: antes devolvia `error.message` tal cual, o sea el crudo de Postgres al
   // navegador. El tope de 500 lo evita el `maxLength` de los dos dialogos, asi
@@ -145,7 +166,7 @@ export async function marcarNoDevuelta(
 ): Promise<ResultadoMostrador> {
   const supabase = await createClient();
 
-  const { error: errorNota } = await insertarNota(supabase, unidadId, nota);
+  const { error: errorNota } = await insertarNota(supabase, unidadId, nota, reservationId);
 
   // SIN mensajeDeRechazoMostrador(): esa traduce el trigger de la maquina de
   // estados, y esto es un error de OTRA tabla. En el uso normal es inalcanzable,
