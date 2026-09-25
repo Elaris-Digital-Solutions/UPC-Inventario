@@ -13,9 +13,14 @@ import Link from "next/link";
 // producto; los 20px en serif que habia eran la letra mas grande de la cabecera
 // donde el original tiene la mas pequeña.
 //
-// EL PRODUCTO SE LLAMA "Reserva UPC · Sistema de Prestamos". "UPC-Inventario" era
-// el nombre del REPOSITORIO colado a la interfaz, y ya no aparece en ninguna
-// pantalla: el <title>, el pie y la FAQ siguen este mismo nombre.
+// EL ROTULO NOMBRA DOS COSAS, no una: arriba QUIEN es dueño del sistema
+// -Ciencias de la Computacion - UPC- y abajo QUE es -Gestion de Dispositivos-.
+// Antes decia "Reserva UPC / Sistema de Prestamos"; cambiado el 2026-09-25.
+//
+// ESTE ROTULO ES LA FUENTE DEL NOMBRE, y lo siguen ya los otros cuatro sitios
+// donde el producto se nombra: el pie (components/pie.tsx), el <title> raiz
+// (app/layout.tsx), el de la FAQ y el manifest de la aplicacion instalable
+// (app/manifest.ts). Si vuelve a cambiar, se cambian los cinco de una vez.
 //
 // `alt=""` a proposito: el rotulo de al lado ya dice el nombre, asi que
 // describir la imagen le haria leer lo mismo dos veces a un lector de pantalla.
@@ -57,14 +62,19 @@ export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
         priority
         className="h-10 w-auto sm:h-12"
       />
-      {/* Oculto por debajo de `sm`: en un telefono competia por sitio con el
-          boton de menu, y el logo solo ya identifica de sobra. */}
-      <div className="border-border hidden border-l pl-4 sm:block">
+      {/* OCULTO POR DEBAJO DE `xl` y no de `sm`, subido el 2026-09-25 con el
+          rotulo nuevo. Medido con Playwright a cinco anchos: el rotulo paso de
+          ~120px a 376px -"Ciencias de la Computacion - UPC" son 32 caracteres
+          con `tracking-[0.22em]`-, y con el visible desde `sm` la cabecera del
+          alumno DESBORDABA 230px a 768 y 98px a 900, y la del personal 56px a
+          768. El logo solo ya identifica de sobra; el Vite lo escondia por el
+          mismo motivo, solo que su rotulo era corto y le bastaba `sm`. */}
+      <div className="border-border hidden border-l pl-4 xl:block">
         <p className="text-foreground text-[11px] leading-tight font-semibold tracking-[0.22em] uppercase">
-          Reserva UPC
+          Ciencias de la Computación - UPC
         </p>
         <p className="text-muted-foreground mt-0.5 text-[10px] leading-tight tracking-[0.18em] uppercase">
-          Sistema de Préstamos
+          Gestión de Dispositivos
         </p>
       </div>
     </Link>

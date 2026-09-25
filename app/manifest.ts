@@ -13,10 +13,13 @@ import type { MetadataRoute } from "next";
 // desincronizado EN SILENCIO: no hay nada que lo enganche.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    // `short_name` va bajo el icono, donde Android corta a unos 12 caracteres:
-    // "Reserva UPC" son 11 y cabe entero.
-    name: "Reserva UPC · Sistema de Préstamos",
-    short_name: "Reserva UPC",
+    // `short_name` va bajo el icono, donde Android corta a unos 12 caracteres.
+    // "Gestión de Dispositivos" son 23 y no cabe, asi que ahi va solo la segunda
+    // palabra: "Dispositivos" son 12 justos, que es lo que un alumno busca en su
+    // pantalla de inicio. El nombre entero vive en `name`, que es el que sale en
+    // el dialogo de instalar y no tiene ese tope.
+    name: "Ciencias de la Computación - UPC · Gestión de Dispositivos",
+    short_name: "Dispositivos",
     description:
       "Reserva y prestamo de equipamiento tecnologico para alumnos UPC.",
     start_url: "/",

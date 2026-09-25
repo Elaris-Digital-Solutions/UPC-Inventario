@@ -34,7 +34,7 @@ import {
 } from "@/components/heroe";
 
 export const metadata: Metadata = {
-  title: "Preguntas frecuentes · Reserva UPC",
+  title: "Preguntas frecuentes · Gestión de Dispositivos",
   description:
     "Cómo entrar, cuándo y por cuánto tiempo reservar equipos, en qué sedes, y qué pasa si cancelas o no te presentas.",
 };
