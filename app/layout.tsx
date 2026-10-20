@@ -33,7 +33,7 @@ const playfair = Playfair_Display({
 // y `short_name` de app/manifest.ts-: un nombre a medias es peor que el viejo,
 // porque la pestaña, el buscador y el icono instalado dicen cosas distintas.
 export const metadata: Metadata = {
-  title: "Ciencias de la Computación · Gestión de Reservas",
+  title: "Ciencias de la Computación · Gestión de Dispositivos",
   description:
     "Reserva y prestamo de equipamiento tecnologico para alumnos.",
 };

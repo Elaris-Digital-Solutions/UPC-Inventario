@@ -41,7 +41,7 @@ export function Pie() {
               si se distingue porque va en rojo y separado-. La linea es tenue
               -`decoration-1` al 40%- y se asienta al pasar por encima. */}
           <p className="text-muted-foreground">
-            Ciencias de la Computación · Gestión de Reservas.
+            Ciencias de la Computación · Gestión de Dispositivos.
             Desarrollado por{" "}
             <a
               href="https://elarisdigitalsolutions.com"

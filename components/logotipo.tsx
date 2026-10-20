@@ -74,7 +74,7 @@ export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
           Ciencias de la Computación
         </p>
         <p className="text-muted-foreground mt-0.5 text-[10px] leading-tight tracking-[0.18em] uppercase">
-          Gestión de Reservas
+          Gestión de Dispositivos
         </p>
       </div>
     </Link>

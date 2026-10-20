@@ -14,12 +14,12 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     // `short_name` va bajo el icono, donde Android corta a unos 12 caracteres.
-    // "Gestión de Reservas" son 19 y no cabe, asi que ahi va solo la segunda
-    // palabra: "Reservas" son 8 y caben, que es lo que un alumno busca en su
+    // "Gestión de Dispositivos" son 23 y no cabe, asi que ahi va solo la segunda
+    // palabra: "Dispositivos" son 12 justos, que es lo que un alumno busca en su
     // pantalla de inicio. El nombre entero vive en `name`, que es el que sale en
     // el dialogo de instalar y no tiene ese tope.
-    name: "Ciencias de la Computación · Gestión de Reservas",
-    short_name: "Reservas",
+    name: "Ciencias de la Computación · Gestión de Dispositivos",
+    short_name: "Dispositivos",
     description:
       "Reserva y prestamo de equipamiento tecnologico para alumnos.",
     start_url: "/",
