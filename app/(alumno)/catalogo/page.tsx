@@ -35,7 +35,7 @@ export default async function CatalogoPage({
     return (
       <main className="container flex-1 py-12">
         <EncabezadoSeccion
-          antetitulo="Inventario UPC"
+          antetitulo="Inventario"
           titulo="Catálogo"
           como="h1"
         />
@@ -65,7 +65,7 @@ export default async function CatalogoPage({
           contexto encima es lo que hacia que cada pantalla con sesion
           arrancara igual y sin jerarquia. */}
       <EncabezadoSeccion
-        antetitulo="Inventario UPC"
+        antetitulo="Inventario"
         titulo="Catálogo"
         como="h1"
       />

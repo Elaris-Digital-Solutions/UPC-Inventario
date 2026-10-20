@@ -39,10 +39,10 @@ export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
         className="flex shrink-0 items-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Image
-          src="/upc-logo.png"
+          src="/logo-cc.png"
           alt=""
           width={600}
-          height={600}
+          height={373}
           className="h-8 w-auto opacity-70"
         />
       </Link>
@@ -55,10 +55,10 @@ export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
       className="flex shrink-0 items-center gap-4 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Image
-        src="/upc-logo.png"
+        src="/logo-cc.png"
         alt=""
         width={600}
-        height={600}
+        height={373}
         priority
         className="h-10 w-auto sm:h-12"
       />
@@ -71,10 +71,10 @@ export function Logotipo({ tamano = "cabecera" }: LogotipoProps) {
           mismo motivo, solo que su rotulo era corto y le bastaba `sm`. */}
       <div className="border-border hidden border-l pl-4 xl:block">
         <p className="text-foreground text-[11px] leading-tight font-semibold tracking-[0.22em] uppercase">
-          Ciencias de la Computación - UPC
+          Ciencias de la Computación
         </p>
         <p className="text-muted-foreground mt-0.5 text-[10px] leading-tight tracking-[0.18em] uppercase">
-          Gestión de Dispositivos
+          Gestión de Reservas
         </p>
       </div>
     </Link>
