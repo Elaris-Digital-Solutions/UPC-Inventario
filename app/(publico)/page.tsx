@@ -56,7 +56,7 @@ export default async function Home() {
               -`variant="secondary"` para la accion principal y un contorno
               claro para la otra-. */}
           <Button asChild size="lg" variant="secondary" className="shadow-lg">
-            <Link href="/login">Entrar con mi correo UPC</Link>
+            <Link href="/login">Entrar con mi correo de alumno</Link>
           </Button>
           <Button
             asChild
@@ -79,7 +79,7 @@ export default async function Home() {
       <section className="bg-card border-border/60 border-t py-20 sm:py-28">
         <div className="container">
         <EncabezadoSeccion
-          antetitulo="Inventario UPC"
+          antetitulo="Inventario"
           titulo="Algunos de los equipos con los que contamos"
           className="mb-12 max-w-2xl"
         />
@@ -102,7 +102,7 @@ export default async function Home() {
 
         <p className="text-muted-foreground mt-8 text-sm">
           El catálogo completo, con la disponibilidad por sede, se ve al
-          entrar con tu cuenta UPC.
+          entrar con tu cuenta de alumno.
         </p>
         </div>
       </section>
@@ -186,7 +186,7 @@ export default async function Home() {
             variant="secondary"
             className="mt-8 shadow-lg"
           >
-            <Link href="/login">Entrar con mi correo UPC</Link>
+            <Link href="/login">Entrar con mi correo de alumno</Link>
           </Button>
         </div>
       </section>

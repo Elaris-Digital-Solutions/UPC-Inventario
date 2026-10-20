@@ -34,7 +34,7 @@ import {
 } from "@/components/heroe";
 
 export const metadata: Metadata = {
-  title: "Preguntas frecuentes · Gestión de Dispositivos",
+  title: "Preguntas frecuentes · Gestión de Reservas",
   description:
     "Cómo entrar, cuándo y por cuánto tiempo reservar equipos, en qué sedes, y qué pasa si cancelas o no te presentas.",
 };
@@ -68,7 +68,7 @@ const SECCIONES: SeccionFaq[] = [
           "No. Solo se acepta el correo @upc.edu.pe. Cualquier otro dominio se rechaza al pedir el enlace.",
       },
       {
-        pregunta: "¿Cualquier alumno de la UPC puede pedir equipos prestados?",
+        pregunta: "¿Cualquier alumno puede pedir equipos prestados?",
         respuesta:
           "No. El préstamo es solo para la Facultad de Ingeniería, y dentro de ella para las carreras de Ciencias de la Computación e Ingeniería de Software.",
       },
@@ -88,7 +88,7 @@ const SECCIONES: SeccionFaq[] = [
       {
         pregunta: "¿Por qué un enlace por correo y no una contraseña?",
         respuesta:
-          "Porque abrir el correo en tu buzón UPC ya demuestra que la cuenta es tuya, así no hay ninguna contraseña que se te pueda olvidar ni filtrar.",
+          "Porque abrir el correo en tu buzón institucional ya demuestra que la cuenta es tuya, así no hay ninguna contraseña que se te pueda olvidar ni filtrar.",
       },
     ],
   },
@@ -286,7 +286,7 @@ export default async function FaqPage() {
             ¿Ya sabes qué equipo necesitas?
           </p>
           <Button asChild size="lg" className="mt-4">
-            <Link href="/login">Entrar con mi correo UPC</Link>
+            <Link href="/login">Entrar con mi correo de alumno</Link>
           </Button>
           <p className="mt-4 text-sm">
             <Link

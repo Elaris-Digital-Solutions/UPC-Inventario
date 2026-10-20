@@ -102,10 +102,10 @@ export default function LoginPage() {
             el logo pegado a la izquierda. El eje en linea es `justify-items`. */}
         <CardHeader className="justify-items-center text-center">
           <Image
-            src="/upc-logo.png"
+            src="/logo-cc.png"
             alt=""
             width={600}
-            height={600}
+            height={373}
             priority
             className="mb-2 h-14 w-auto"
           />
