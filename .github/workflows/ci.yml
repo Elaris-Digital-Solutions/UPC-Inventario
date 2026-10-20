@@ -79,5 +79,14 @@ jobs:
       # de 3.3.17 a 3.3.18 —un parche dentro del rango que postcss ya pedía,
       # tres líneas de package-lock.json— y la auditoría local pasó a código
       # 0. Cierra Q-10.
+      #
+      # SOLO LO QUE SE PUBLICA, desde el 2026-10-20: `--omit=dev`. `braces`
+      # (GHSA-vfj7-8cjw-p6xm, alto) no tiene versión corregida —la 3.0.3 es la
+      # última y está dentro del rango afectado— y entra sólo por herramientas
+      # de desarrollo: `eslint-config-next` y `shadcn`, vía `fast-glob`, con
+      # patrones que escribe el propio proyecto. Medido sobre el mismo árbol:
+      # la auditoría completa sale con código 1 y ésta con 0 sobre lo publicado.
+      # Un aviso alto o crítico en lo publicado sigue bloqueando. Si `braces`
+      # publica parche, se quita el `--omit=dev` y vuelve la auditoría entera.
       - name: Auditoría de dependencias
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
