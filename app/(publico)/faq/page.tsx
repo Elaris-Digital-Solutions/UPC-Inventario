@@ -60,12 +60,12 @@ const SECCIONES: SeccionFaq[] = [
         // D-79: los datos se piden en la PRIMERA RESERVA y no al entrar. Mirar
         // el catalogo ya no pide nada.
         respuesta:
-          "No. No hay registro. Entras con tu correo institucional @upc.edu.pe y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. Mirar el catálogo no pide nada más: los datos se te piden la primera vez que reservas.",
+          "No. No hay registro. Entras con tu correo institucional y recibes un enlace de acceso en ese buzón; al abrirlo ya estás dentro. Mirar el catálogo no pide nada más: los datos se te piden la primera vez que reservas.",
       },
       {
         pregunta: "¿Puedo entrar con otro correo?",
         respuesta:
-          "No. Solo se acepta el correo @upc.edu.pe. Cualquier otro dominio se rechaza al pedir el enlace.",
+          "No. Solo se acepta el correo institucional. Cualquier otro dominio se rechaza al pedir el enlace.",
       },
       {
         pregunta: "¿Cualquier alumno puede pedir equipos prestados?",
